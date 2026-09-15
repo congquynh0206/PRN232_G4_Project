@@ -1,0 +1,60 @@
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: g4-sql
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=Dung@123456Strong!
+    ports:
+      - "1433:1433"
+    volumes:
+      - sql_data:/var/opt/mssql
+    networks:
+      - g4-net
+
+  redis:
+    image: redis:alpine
+    container_name: g4-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - g4-net
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: g4-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=CloneEbayDB;User Id=sa;Password=123!;TrustServerCertificate=True;
+      - Redis__Configuration=redis:6379
+    ports:
+      - "8080:8080"
+    depends_on:
+      - sqlserver
+      - redis
+    networks:
+      - g4-net
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: g4-mvc
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ApiSettings__BaseUrl=http://backend:8080 
+    ports:
+      - "5000:8080"
+    depends_on:
+      - backend
+    networks:
+      - g4-net
+
+networks:
+  g4-net:
+
+volumes:
+  sql_data:
