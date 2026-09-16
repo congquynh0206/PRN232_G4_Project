@@ -5,9 +5,9 @@ services:
     container_name: g4-sql
     environment:
       - ACCEPT_EULA=Y
-      - SA_PASSWORD=Dung@123456Strong!
+      - SA_PASSWORD=G4@123456Strong!
     ports:
-      - "1433:1433"
+      - "14333:1433"
     volumes:
       - sql_data:/var/opt/mssql
     networks:
@@ -28,7 +28,7 @@ services:
     container_name: g4-api
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=CloneEbayDB;User Id=sa;Password=123!;TrustServerCertificate=True;
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=CloneEbayDB;User Id=sa;Password=G4@123456Strong!;TrustServerCertificate=True;
       - Redis__Configuration=redis:6379
     ports:
       - "8080:8080"
@@ -58,3 +58,6 @@ networks:
 
 volumes:
   sql_data:
+  
+      
+#dotnet ef dbcontext scaffold "Server=localhost,14333;Database=CloneEbayDB;User Id=sa;Password=G4@123456Strong!;TrustServerCertificate=True;" Microsoft.EntityFrameworkCore.SqlServer -o Models -c ApplicationDbContext
