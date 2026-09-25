@@ -1,0 +1,58 @@
+@{
+    Layout = null;
+    ViewData["Title"] = "G4 eBay Checkout Demo";
+}
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>G4 eBay Checkout Demo</title>
+    <link rel="stylesheet" href="~/css/demo.css" />
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="/Demo"><span class="ebay"><b>e</b><b>b</b><b>a</b><b>y</b></span><span>Checkout demo</span></a>
+        <div class="role-switch"><label for="role">Đang xem với vai</label><select id="role"><option value="buyer">Người mua</option><option value="seller">Người bán</option></select></div>
+    </header>
+    <div class="notice">Giao dịch PayPal dùng Sandbox. Credit Card và vận chuyển là dữ liệu thử nghiệm của nhóm 4.</div>
+    <nav class="tabs" aria-label="Điều hướng demo">
+        <button data-tab="summary" class="active">Order Summary</button>
+        <button data-tab="checkout">Checkout</button>
+        <button data-tab="orders">My Orders</button>
+        <button data-tab="seller">Seller &amp; Tracking</button>
+        <button data-tab="inbox">Email demo</button>
+    </nav>
+    <main>
+        <div id="message" class="message" role="status" aria-live="polite"></div>
+
+        <section id="summary" class="panel tab-panel active">
+            <div class="section-head"><div><span class="eyebrow">Bước 1</span><h1>Order Summary</h1><p>Tạo giỏ thử nghiệm từ một người bán.</p></div></div>
+            <div class="toolbar"><label for="count">Số sản phẩm</label><select id="count"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select><button class="primary" id="random">Tạo giỏ ngẫu nhiên</button></div>
+            <div id="cart" class="item-list empty">Chọn số sản phẩm rồi bấm “Tạo giỏ ngẫu nhiên”.</div>
+            <div class="summary-footer"><strong id="cart-subtotal">Tạm tính: $0.00</strong><button id="continue" class="primary" disabled>Tiếp tục checkout</button></div>
+        </section>
+
+        <section id="checkout" class="panel tab-panel">
+            <div class="section-head"><div><span class="eyebrow">Bước 2</span><h1>Checkout</h1><p>Xem lại địa chỉ, phí giao hàng và chọn phương thức thanh toán.</p></div></div>
+            <div class="checkout-grid">
+                <div class="checkout-main">
+                    <div class="block"><h2>Ship to</h2><label for="address">Địa chỉ nhận hàng</label><select id="address"></select><button id="edit-address" type="button" class="text-button">Sửa địa chỉ đã chọn</button><div id="address-fields" class="address-fields hidden"><label for="address-name">Họ tên</label><input id="address-name" maxlength="100" /><label for="address-street">Đường, số nhà</label><input id="address-street" maxlength="100" /><label for="address-city">Thành phố</label><input id="address-city" maxlength="50" /><label for="address-state">Tỉnh/khu vực</label><input id="address-state" maxlength="50" /><label for="address-country">Quốc gia</label><input id="address-country" maxlength="50" /><button id="save-address" type="button">Lưu địa chỉ</button></div></div>
+                    <div class="block"><h2>Pay with</h2>
+                        <label class="payment-option"><input type="radio" name="method" value="paypal" checked /><span><strong>PayPal Sandbox</strong><small>Đăng nhập bằng tài khoản PayPal thử nghiệm</small></span></label>
+                        <label class="payment-option"><input type="radio" name="method" value="card" /><span><strong>Credit Card giả lập</strong><small>Không nhập thẻ thật; dùng số thẻ thử bên dưới</small></span></label>
+                        <div id="card-fields" class="card-fields hidden"><label for="card-number">Số thẻ thử</label><select id="card-number"><option value="4111111111111111">4111 1111 1111 1111 — thành công</option><option value="4000000000000002">4000 0000 0000 0002 — bị từ chối</option></select><label for="card-expiry">Hết hạn (MM/YY)</label><input id="card-expiry" value="12/30" maxlength="5" /></div>
+                    </div>
+                    <div class="block"><h2>Review order</h2><div id="checkout-items" class="item-list"></div></div>
+                </div>
+                <aside class="total-card"><h2>Order Summary</h2><label for="coupon">Mã giảm giá</label><div class="coupon-row"><input id="coupon" placeholder="Thử G4SAVE10" /><button id="apply-coupon">Áp dụng</button></div><dl><div><dt>Tiền hàng</dt><dd id="subtotal">$0.00</dd></div><div><dt>Giảm giá</dt><dd id="discount">-$0.00</dd></div><div><dt>Giao hàng</dt><dd id="shipping">$0.00</dd></div><div class="grand"><dt>Tổng thanh toán</dt><dd id="total">$0.00</dd></div></dl><button class="primary wide" id="pay" disabled>Xác nhận và thanh toán</button><p class="small">Bạn sẽ nhận mã đơn và theo dõi trạng thái trong My Orders.</p></aside>
+            </div>
+        </section>
+
+        <section id="orders" class="panel tab-panel"><div class="section-head"><div><span class="eyebrow">Buyer</span><h1>My Orders</h1><p>Đơn hàng, thanh toán, tracking và yêu cầu trả hàng.</p></div><button id="refresh-orders">Làm mới</button></div><label for="order-filter">Lọc đơn</label><select id="order-filter"><option value="all">Tất cả</option><option value="pending">Chờ xử lý</option><option value="shipping">Đang giao</option><option value="complete">Hoàn tất</option><option value="cancelled">Đã hủy/hết hạn</option></select><div id="order-list" class="order-list"></div><div id="order-detail"></div></section>
+        <section id="seller" class="panel tab-panel"><div class="section-head"><div><span class="eyebrow">Seller</span><h1>Seller &amp; Tracking</h1><p>Xử lý đơn và phát sự kiện vận chuyển thử nghiệm.</p></div><button id="refresh-seller">Làm mới</button></div><div id="seller-list" class="order-list"></div><div id="seller-detail"></div></section>
+        <section id="inbox" class="panel tab-panel"><div class="section-head"><div><span class="eyebrow">Demo</span><h1>Email đã tạo</h1><p>Thông báo được lưu trong hộp thư demo; cấu hình SMTP nếu muốn gửi đến mail catcher.</p></div><button id="refresh-inbox">Làm mới</button></div><div id="email-list" class="order-list"></div></section>
+    </main>
+    <script src="~/js/demo.js"></script>
+</body>
+</html>
