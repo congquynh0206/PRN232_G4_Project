@@ -482,3 +482,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+.demo-keys/
+.temp-appdata/
+.nuget-offline.config
