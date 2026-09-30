@@ -1,0 +1,14 @@
+global using G4.Application.Integrations;
+global using G4.Application.Services;
+global using G4.Domain.Entities;
+global using G4.Domain.Rules;
+global using G4.Infrastructure.Checkout;
+global using G4.Infrastructure.Integrations.PayPal;
+global using G4.Infrastructure.Integrations.Refunds;
+global using G4.Infrastructure.Integrations.Shipping;
+global using G4.Infrastructure.Notifications;
+global using G4.Infrastructure.Payments;
+global using G4.Infrastructure.Persistence;
+global using G4.Infrastructure.Returns;
+global using G4.Infrastructure.Seeding;
+global using G4.Infrastructure.Shipping;

@@ -5,7 +5,7 @@ builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 if (builder.Environment.IsDevelopment())
 {
-    var keyDirectory = Path.Combine(builder.Environment.ContentRootPath, ".demo-keys");
+    var keyDirectory = Path.Combine(builder.Environment.ContentRootPath, ".data-protection-keys");
     Directory.CreateDirectory(keyDirectory);
     builder.Services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(keyDirectory));
 }
@@ -33,6 +33,6 @@ app.UseAuthorization();
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Demo}/{action=Index}/{id?}");
+    pattern: "{controller=Checkout}/{action=Index}/{id?}");
 
 app.Run();

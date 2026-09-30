@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.31" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.20" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\G4.Application\G4.Application.csproj" />
+    <ProjectReference Include="..\G4.Contracts\G4.Contracts.csproj" />
+    <ProjectReference Include="..\G4.Domain\G4.Domain.csproj" />
+  </ItemGroup>
+</Project>
