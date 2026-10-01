@@ -10,5 +10,4 @@ global using G4.Infrastructure.Notifications;
 global using G4.Infrastructure.Payments;
 global using G4.Infrastructure.Persistence;
 global using G4.Infrastructure.Returns;
-global using G4.Infrastructure.Seeding;
 global using G4.Infrastructure.Shipping;

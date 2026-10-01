@@ -6,6 +6,8 @@ Backend được chia thành năm project .NET 8 trong cùng solution. Khi chạ
 backend/
 ├── G4.Api/
 │   ├── Controllers/
+│   │   ├── AuthenticationController.cs
+│   │   └── FinanceController.cs
 │   ├── Middleware/
 │   ├── Properties/
 │   ├── Program.cs
@@ -20,11 +22,12 @@ backend/
 │   └── Rules/
 └── G4.Infrastructure/
     ├── Checkout/
+    ├── Authentication/
     ├── Payments/
+    ├── Finance/
     ├── Shipping/
     ├── Returns/
     ├── Notifications/
-    ├── Seeding/
     ├── Integrations/
     │   ├── PayPal/
     │   ├── Refunds/
@@ -41,7 +44,7 @@ backend/
 | `G4.Contracts` | Request/response dùng giữa API và client | Entity EF, DbContext, xử lý nghiệp vụ |
 | `G4.Application` | Interface mô tả use case và cổng tích hợp | Chi tiết SQL Server, SMTP, PayPal HTTP |
 | `G4.Domain` | Entity và quy tắc thuần như giá đơn, trạng thái đơn/vận chuyển | Controller, IConfiguration, HttpClient, DbContext |
-| `G4.Infrastructure` | EF Core, migration, triển khai service, PayPal, carrier, refund, worker và seed data | Razor/UI và xử lý HTTP controller |
+| `G4.Infrastructure` | EF Core, migration, triển khai service, PayPal, carrier, refund và worker | Razor/UI và xử lý HTTP controller |
 
 Chiều phụ thuộc được giữ như sau:
 
@@ -55,7 +58,7 @@ G4.Application     G4.Infrastructure
    └── G4.Domain    ◄──┘
 ```
 
-`G4.Domain`, `G4.Contracts` không tham chiếu Infrastructure hay Api. Controller nhận các interface như `ICheckoutService`, `IShipmentService`, `IReturnService` và `IPayPalPaymentService`; `Program.cs` nối interface với implementation tương ứng.
+`G4.Domain`, `G4.Contracts` không tham chiếu Infrastructure hay Api. Controller nhận các interface như `ICheckoutService`, `IShipmentService`, `IReturnService`, `IPayPalPaymentService` và `ISellerFinanceService`; `Program.cs` nối interface với implementation tương ứng.
 
 ## Cách chia controller
 
@@ -63,7 +66,6 @@ Controller cũ chứa toàn bộ endpoint đã được tách theo chức năng:
 
 | Controller | Trách nhiệm |
 |---|---|
-| `SetupController` | Khởi tạo dữ liệu thử trong Development |
 | `CatalogController` | Sản phẩm ngẫu nhiên và địa chỉ buyer |
 | `CheckoutController` | Báo giá và tạo đơn |
 | `OrdersController` | Danh sách, chi tiết, hủy và chuẩn bị đơn |
@@ -71,13 +73,15 @@ Controller cũ chứa toàn bộ endpoint đã được tách theo chức năng:
 | `ShippingController` | Tạo vận đơn, sự kiện tracking và mô phỏng lỗi carrier |
 | `ReturnsController` | Yêu cầu, duyệt, từ chối và nhận hàng trả |
 | `NotificationsController` | Hộp thư thông báo |
+| `FinanceController` | Số dư seller, level, payout và giữ/giải phóng tiền |
+| `AuthenticationController` | Kiểm tra credential và cấp JWT chứa user ID/role |
 | `CarrierSimulatorController` | API carrier cục bộ có kiểm tra key |
 
-Các endpoint backend hiện bắt đầu bằng `/api`, không còn đoạn `/api/demo`. Frontend chuyển tiếp request qua `/api/proxy/{path}` và dùng header `X-Actor-Role` cho hai vai thử nghiệm.
+Các endpoint backend bắt đầu bằng `/api`. Frontend chuyển tiếp request qua `/api/proxy/{path}` và gắn JWT của phiên đăng nhập. API dùng role claim cùng user ID để kiểm tra quyền và quyền sở hữu order; client không thể tự đổi role bằng header.
 
 ## Quy tắc đặt tên
 
-- Tên file/lớp mô tả trách nhiệm: `CheckoutService`, `ApplicationDataSeeder`, `CommerceMaintenanceWorker`, `CardPaymentSimulator`.
+- Tên file/lớp mô tả trách nhiệm: `CheckoutService`, `CommerceMaintenanceWorker`, `CardPaymentSimulator`.
 - Không dùng tên giai đoạn phát triển trong tên file/lớp, ví dụ `Mvp`, `Demo`, `Temp`, `New`.
 - Dữ liệu hoặc dịch vụ giả lập phải được gọi đúng bản chất bằng `Simulator`, `Sandbox`, `Seed` hoặc `Test`.
 - Mỗi controller/service chỉ xử lý một nhóm nghiệp vụ. Nếu file tăng quá lớn, tách theo use case thay vì thêm hậu tố phiên bản.
@@ -95,4 +99,4 @@ User Secrets tiếp tục nằm ở `G4.Api` và giữ nguyên `UserSecretsId`, 
 
 ## Lưu ý chuyển tiếp
 
-Đợt refactor này giữ nguyên bảng SQL và quy tắc nghiệp vụ. Không có migration mới chỉ vì chuyển project. Một số implementation trong Infrastructure vẫn dùng `ApplicationDbContext` trực tiếp; khi bổ sung email và nhật ký tích hợp, truy vấn dùng chung sẽ được đưa dần vào service/repository thay vì quay lại controller lớn.
+Việc refactor cấu trúc không tự thay schema. Gói tài chính có migration riêng `AddSellerFinance` vì bổ sung `SellerAccount`, `SellerSettlement`, `FinancialTransaction` và `SellerPayout`. `Finance/SellerFinanceService.cs` là nơi duy nhất điều phối số dư và ledger; controller không tự cộng/trừ tiền.

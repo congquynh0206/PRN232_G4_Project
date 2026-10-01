@@ -3,7 +3,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace G4.Infrastructure.Returns;
 
-public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refunds, ICarrierGateway carrier) : IReturnService
+public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refunds, ICarrierGateway carrier,
+    ISellerFinanceService? finance = null) : IReturnService
 {
     public async Task<ReturnRequest> RequestReturnAsync(int orderId, string reason, CancellationToken ct = default)
     {
@@ -100,7 +101,11 @@ public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refund
             throw new ArgumentException("Invalid refund reason");
         var key = $"refund-{orderId}-{reason}";
         var existing = await db.Refunds.SingleOrDefaultAsync(r => r.IdempotencyKey == key, ct);
-        if (existing?.Status == "Succeeded") return existing;
+        if (existing?.Status == "Succeeded")
+        {
+            if (finance is not null) await finance.ApplyRefundAsync(orderId, existing.Id, ct);
+            return existing;
+        }
         var order = await db.OrderTables.SingleAsync(o => o.Id == orderId, ct);
         if (reason == "return")
         {
@@ -152,6 +157,8 @@ public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refund
             }
         }
         await db.SaveChangesAsync(ct);
+        if (refund.Status == "Succeeded" && finance is not null)
+            await finance.ApplyRefundAsync(orderId, refund.Id, ct);
         return refund;
     }
 }

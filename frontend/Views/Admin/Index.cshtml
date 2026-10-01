@@ -1,0 +1,5 @@
+@{ Layout = "_RoleLayout"; ViewData["Title"] = "Admin"; }
+<nav class="tabs role-tabs"><button data-tab="holds" class="active">Tranh chấp</button><button data-tab="inbox">Nhật ký email</button></nav><div id="message" class="message"></div>
+<section id="holds" class="panel tab-panel active"><div class="section-head"><div><span class="eyebrow">Admin</span><h1>Khoản tiền đang giữ</h1><p>Ra quyết định seller thắng hoặc buyer thắng cho các khoản On Hold.</p></div><button id="refresh-holds">Làm mới</button></div><div id="hold-list" class="order-list"></div></section>
+<section id="inbox" class="panel tab-panel"><div class="section-head"><div><span class="eyebrow">Admin</span><h1>Nhật ký email</h1><p>Thông báo được ghi nhận bởi hệ thống.</p></div><button id="refresh-inbox">Làm mới</button></div><div id="email-list" class="order-list"></div></section>
+@section Scripts { <script src="~/js/common.js"></script><script src="~/js/admin.js"></script> }

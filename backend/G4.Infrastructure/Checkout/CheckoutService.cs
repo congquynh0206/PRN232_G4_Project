@@ -6,9 +6,8 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 namespace G4.Infrastructure.Checkout;
 
-public sealed class CheckoutService(ApplicationDbContext db) : ICheckoutService
+public sealed class CheckoutService(ApplicationDbContext db, ISellerFinanceService? finance = null) : ICheckoutService
 {
-    private const string SeedBuyerEmail = "buyer@example.test";
     private const string SellerState = "Hanoi";
 
     public async Task<IReadOnlyList<Product>> RandomProductsAsync(int count, CancellationToken ct = default)
@@ -24,13 +23,13 @@ public sealed class CheckoutService(ApplicationDbContext db) : ICheckoutService
         return bySeller.OrderBy(_ => Random.Shared.Next()).Take(count).ToArray();
     }
 
-    public async Task<PriceQuote> QuoteAsync(CheckoutRequest request, CancellationToken ct = default)
+    public async Task<PriceQuote> QuoteAsync(int buyerId, CheckoutRequest request, CancellationToken ct = default)
     {
-        var (quote, _, _, _) = await ValidateAndQuoteAsync(request, ct);
+        var (quote, _, _, _) = await ValidateAndQuoteAsync(buyerId, request, ct);
         return quote;
     }
 
-    public async Task<OrderTable> CreateOrderAsync(CheckoutRequest request, CancellationToken ct = default)
+    public async Task<OrderTable> CreateOrderAsync(int buyerId, CheckoutRequest request, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(request.CheckoutKey) || request.CheckoutKey.Length > 100)
             throw new ArgumentException("Checkout key is required", nameof(request));
@@ -41,7 +40,7 @@ public sealed class CheckoutService(ApplicationDbContext db) : ICheckoutService
             var sameItems = existing.OrderItems.Count == request.Items.Count &&
                 existing.OrderItems.All(item => request.Items.Any(line =>
                     line.ProductId == item.ProductId && line.Quantity == item.Quantity));
-            if (existing.AddressId != request.AddressId ||
+            if (existing.BuyerId != buyerId || existing.AddressId != request.AddressId ||
                 !string.Equals(existing.CouponCode, request.CouponCode, StringComparison.OrdinalIgnoreCase) || !sameItems)
                 throw new InvalidOperationException("Checkout key belongs to a different cart");
             return existing;
@@ -51,7 +50,7 @@ public sealed class CheckoutService(ApplicationDbContext db) : ICheckoutService
             ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct) : null;
         try
         {
-            var (quote, address, products, coupon) = await ValidateAndQuoteAsync(request, ct);
+            var (quote, address, products, coupon) = await ValidateAndQuoteAsync(buyerId, request, ct);
             var order = new OrderTable
             {
                 BuyerId = address.UserId,
@@ -105,11 +104,14 @@ public sealed class CheckoutService(ApplicationDbContext db) : ICheckoutService
         {
             if (existing.OrderId != orderId || existing.Method != "Card")
                 throw new InvalidOperationException("Payment key belongs to another attempt");
+            if (existing.Status == "Succeeded" && finance is not null)
+                await finance.RecordSuccessfulPaymentAsync(orderId, existing.Id, ct);
             return existing;
         }
         var order = await db.OrderTables.FindAsync(new object[] { orderId }, ct)
             ?? throw new KeyNotFoundException("Order not found");
         ValidateAwaitingPayment(order);
+        if (finance is not null) await finance.ValidateMonthlyLimitAsync(orderId, ct);
         var outcome = CardPaymentSimulator.Outcome(number, expiry);
         var payment = new Payment
         {
@@ -127,6 +129,8 @@ public sealed class CheckoutService(ApplicationDbContext db) : ICheckoutService
             await QueueEmailAsync(order, "PaymentSucceeded", "Payment confirmed", $"Order {order.Id} was paid successfully.", ct);
         }
         await db.SaveChangesAsync(ct);
+        if (outcome == "Succeeded" && finance is not null)
+            await finance.RecordSuccessfulPaymentAsync(orderId, payment.Id, ct);
         return payment;
     }
 
@@ -178,12 +182,11 @@ public sealed class CheckoutService(ApplicationDbContext db) : ICheckoutService
     }
 
     private async Task<(PriceQuote Quote, Address Address, Product[] Products, Coupon? Coupon)> ValidateAndQuoteAsync(
-        CheckoutRequest request, CancellationToken ct)
+        int buyerId, CheckoutRequest request, CancellationToken ct)
     {
         if (request.Items.Count is < 1 or > 5 || request.Items.Any(i => i.Quantity <= 0) ||
             request.Items.Select(i => i.ProductId).Distinct().Count() != request.Items.Count)
             throw new ArgumentException("Cart must contain 1-5 distinct products with positive quantities");
-        var buyerId = await db.Users.Where(u => u.Email == SeedBuyerEmail).Select(u => u.Id).SingleOrDefaultAsync(ct);
         var address = await db.Addresses.SingleOrDefaultAsync(a => a.Id == request.AddressId && a.UserId == buyerId, ct)
             ?? throw new ArgumentException("Buyer address not found");
         var ids = request.Items.Select(i => i.ProductId).ToArray();

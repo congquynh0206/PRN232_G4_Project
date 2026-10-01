@@ -11,8 +11,6 @@ namespace G4.Api.Controllers;
 public sealed class CatalogController(ApplicationDbContext db, ICheckoutService checkout, IHostEnvironment environment)
     : ApiControllerBase(environment)
 {
-    private const string BuyerEmail = "buyer@example.test";
-
     [HttpGet("catalog/random")]
     public async Task<IActionResult> RandomCart([FromQuery] int count = 3, CancellationToken ct = default)
     {
@@ -33,8 +31,7 @@ public sealed class CatalogController(ApplicationDbContext db, ICheckoutService 
     public async Task<IActionResult> Addresses(CancellationToken ct)
     {
         if (!IsAvailable || !HasRole("buyer")) return StatusCode(403);
-        var buyerId = await db.Users.Where(u => u.Email == BuyerEmail).Select(u => u.Id).SingleAsync(ct);
-        return Ok(await db.Addresses.Where(a => a.UserId == buyerId)
+        return Ok(await db.Addresses.Where(a => a.UserId == CurrentUserId)
             .Select(a => new { a.Id, a.FullName, a.Street, a.City, a.State, a.Country, a.IsDefault })
             .ToListAsync(ct));
     }
@@ -47,8 +44,7 @@ public sealed class CatalogController(ApplicationDbContext db, ICheckoutService 
             .Any(string.IsNullOrWhiteSpace) || request.FullName.Length > 100 || request.Street.Length > 100 ||
             request.City.Length > 50 || request.State.Length > 50 || request.Country.Length > 50)
             return BadRequest(new { error = "Address fields are required and must fit the allowed lengths" });
-        var buyerId = await db.Users.Where(u => u.Email == BuyerEmail).Select(u => u.Id).SingleAsync(ct);
-        var address = await db.Addresses.SingleOrDefaultAsync(a => a.Id == id && a.UserId == buyerId, ct);
+        var address = await db.Addresses.SingleOrDefaultAsync(a => a.Id == id && a.UserId == CurrentUserId, ct);
         if (address is null) return NotFound();
         address.FullName = request.FullName.Trim();
         address.Street = request.Street.Trim();

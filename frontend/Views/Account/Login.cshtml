@@ -1,0 +1,23 @@
+@{
+    Layout = null;
+    ViewData["Title"] = "Đăng nhập";
+}
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Đăng nhập - G4 Marketplace</title><link rel="stylesheet" href="~/css/checkout.css"/><link rel="stylesheet" href="~/css/roles.css"/></head>
+<body class="login-page">
+<main class="login-shell">
+    <section class="login-card">
+        <div class="login-brand"><span class="ebay"><b>e</b><b>b</b><b>a</b><b>y</b></span><strong>G4 Marketplace</strong></div>
+        <h1>Đăng nhập</h1><p>Hệ thống sẽ chuyển bạn đến khu vực phù hợp với role.</p>
+        <form asp-action="Login" method="post" class="login-form">
+            <input type="hidden" name="returnUrl" value="@ViewBag.ReturnUrl" />
+            <div asp-validation-summary="All" class="validation"></div>
+            <label for="email">Email</label><input id="email" name="email" type="email" required autofocus />
+            <label for="password">Mật khẩu</label><input id="password" name="password" type="password" required />
+            <button class="primary wide" type="submit">Đăng nhập</button>
+        </form>
+        <div class="demo-accounts"><strong>Tài khoản phát triển</strong><code>buyer@example.test</code><code>seller@example.test</code><code>shipper@example.test</code><code>admin@example.test</code><small>Mật khẩu chung: G4@@123456</small></div>
+    </section>
+</main>
+</body></html>

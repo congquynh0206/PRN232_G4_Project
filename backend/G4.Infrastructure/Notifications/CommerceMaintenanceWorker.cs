@@ -21,7 +21,7 @@ public sealed class CommerceMaintenanceWorker(IServiceScopeFactory scopes, IConf
                 await using var scope = scopes.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 var verifyingOrderIds = await db.Payments.Where(p => p.Method == "PayPal" && p.Status == "Verifying")
-                    .Select(p => p.OrderId).Distinct().Take(20).ToListAsync(stoppingToken);
+                    .Select(p => p.OrderId).Distinct().OrderBy(x => x).Take(20).ToListAsync(stoppingToken);
                 var paypal = scope.ServiceProvider.GetRequiredService<IPayPalPaymentService>();
                 foreach (var orderId in verifyingOrderIds)
                 {
@@ -35,6 +35,10 @@ public sealed class CommerceMaintenanceWorker(IServiceScopeFactory scopes, IConf
                 var checkout = scope.ServiceProvider.GetRequiredService<ICheckoutService>();
                 await checkout.ExpirePendingAsync(stoppingToken);
                 await checkout.CloseDeliveredOutsideReturnWindowAsync(stoppingToken);
+                var finance = scope.ServiceProvider.GetRequiredService<ISellerFinanceService>();
+                await finance.BackfillAsync(stoppingToken);
+                await finance.ReleaseDueFundsAsync(stoppingToken);
+                await finance.AdvancePayoutsAsync(stoppingToken);
                 var pending = await db.NotificationOutbox.Where(x => x.Status == "Pending")
                     .OrderBy(x => x.Id).Take(20).ToListAsync(stoppingToken);
                 foreach (var mail in pending)

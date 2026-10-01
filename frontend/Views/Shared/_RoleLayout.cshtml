@@ -1,0 +1,25 @@
+@using System.Security.Claims
+@{
+    var role = User.FindFirstValue(ClaimTypes.Role) ?? "";
+    var roleLabel = role switch { "buyer" => "Người mua", "seller" => "Người bán", "shipper" => "Đơn vị giao hàng", "admin" => "Quản trị viên", _ => role };
+    var roleController = role switch { "buyer" => "Buyer", "seller" => "Seller", "shipper" => "Shipper", "admin" => "Admin", _ => "Account" };
+}
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] - G4 Marketplace</title>
+    <link rel="stylesheet" href="~/css/checkout.css" />
+    <link rel="stylesheet" href="~/css/roles.css" />
+</head>
+<body>
+    <header class="topbar role-topbar">
+        <a class="brand" asp-controller="@roleController" asp-action="Index"><span class="ebay"><b>e</b><b>b</b><b>a</b><b>y</b></span><span>G4 Marketplace</span></a>
+        <div class="account-area"><div><strong>@User.Identity?.Name</strong><small>@roleLabel</small></div><form asp-controller="Account" asp-action="Logout" method="post"><button type="submit">Đăng xuất</button></form></div>
+    </header>
+    <div class="role-banner">Khu vực dành cho <strong>@roleLabel</strong>. Hệ thống chỉ hiển thị chức năng đúng với quyền của tài khoản.</div>
+    <main>@RenderBody()</main>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

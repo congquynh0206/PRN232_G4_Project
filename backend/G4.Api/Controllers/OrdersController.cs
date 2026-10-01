@@ -15,8 +15,11 @@ public sealed class OrdersController(ApplicationDbContext db, ICheckoutService c
     public async Task<IActionResult> Orders(CancellationToken ct)
     {
         if (!IsAvailable) return NotFound();
-        if (!HasAnyRole()) return StatusCode(403);
-        return Ok(await db.OrderTables.AsNoTracking().OrderByDescending(o => o.Id)
+        var query = db.OrderTables.AsNoTracking();
+        if (HasRole("buyer")) query = query.Where(o => o.BuyerId == CurrentUserId);
+        else if (HasRole("seller")) query = query.Where(o => o.SellerId == CurrentUserId);
+        else return StatusCode(403);
+        return Ok(await query.OrderByDescending(o => o.Id)
             .Select(o => new { o.Id, o.OrderDate, o.Status, o.TotalPrice, o.Currency }).ToListAsync(ct));
     }
 
@@ -24,9 +27,12 @@ public sealed class OrdersController(ApplicationDbContext db, ICheckoutService c
     public async Task<IActionResult> Order(int id, CancellationToken ct)
     {
         if (!IsAvailable) return NotFound();
-        if (!HasAnyRole()) return StatusCode(403);
         var order = await db.OrderTables.AsNoTracking().SingleOrDefaultAsync(o => o.Id == id, ct);
         if (order is null) return NotFound();
+        var canRead = HasRole("buyer") && order.BuyerId == CurrentUserId ||
+            HasRole("seller") && order.SellerId == CurrentUserId ||
+            HasRole("shipper") && await db.ShippingInfos.AnyAsync(s => s.OrderId == id, ct);
+        if (!canRead) return StatusCode(403);
         var items = await db.OrderItems.AsNoTracking().Where(i => i.OrderId == id)
             .Select(i => new { i.ProductId, i.ProductTitleSnapshot, i.UnitPrice, i.Quantity }).ToListAsync(ct);
         var payments = await db.Payments.AsNoTracking().Where(p => p.OrderId == id)
@@ -41,11 +47,14 @@ public sealed class OrdersController(ApplicationDbContext db, ICheckoutService c
             .Select(r => new { r.Id, r.Reason, r.Status, r.DecisionReason, r.CreatedAt, r.ReceivedAt }).SingleOrDefaultAsync(ct);
         var refunds = await db.Refunds.AsNoTracking().Where(r => r.OrderId == id)
             .Select(r => new { r.Id, r.Amount, r.Status, r.Reason, r.CreatedAt, r.CompletedAt }).ToListAsync(ct);
+        var settlement = await db.SellerSettlements.AsNoTracking().Where(s => s.OrderId == id)
+            .Select(s => new { s.GrossAmount, s.PlatformFeeAmount, s.NetAmount, s.ProcessingAmount, s.RefundedAmount,
+                s.FeeCreditAmount, s.Status, s.ReleaseAt, s.ReleasedAt }).SingleOrDefaultAsync(ct);
         return Ok(new
         {
             order.Id, order.Status, order.OrderDate, order.PaymentExpiresAt, order.AddressSnapshot, order.CancelDecisionReason,
             order.Subtotal, order.DiscountAmount, order.ShippingFee, order.TotalPrice, order.Currency, order.CouponCode,
-            items, payments, shipments, events, returnRequest, refunds
+            items, payments, shipments, events, returnRequest, refunds, settlement
         });
     }
 
@@ -54,6 +63,7 @@ public sealed class OrdersController(ApplicationDbContext db, ICheckoutService c
     {
         if (!IsAvailable || !HasRole("buyer")) return StatusCode(403);
         var order = await db.OrderTables.SingleAsync(o => o.Id == id, ct);
+        if (order.BuyerId != CurrentUserId) return StatusCode(403);
         var result = order.Status == "AwaitingPayment"
             ? await checkout.CancelUnpaidAsync(id, ct) : await returns.RequestCancelAsync(id, ct);
         return Ok(new { result.Id, result.Status });
@@ -64,6 +74,7 @@ public sealed class OrdersController(ApplicationDbContext db, ICheckoutService c
     {
         if (!IsAvailable || !HasRole("seller")) return StatusCode(403);
         var order = await db.OrderTables.SingleAsync(o => o.Id == id, ct);
+        if (order.SellerId != CurrentUserId) return StatusCode(403);
         order.Status = OrderState.Next(order.Status!, "Prepare");
         await db.SaveChangesAsync(ct);
         return Ok(new { order.Id, order.Status });
@@ -73,6 +84,7 @@ public sealed class OrdersController(ApplicationDbContext db, ICheckoutService c
     public async Task<IActionResult> DecideCancel(int id, CancellationDecisionRequest request, CancellationToken ct)
     {
         if (!IsAvailable || !HasRole("seller")) return StatusCode(403);
+        if (!await db.OrderTables.AnyAsync(o => o.Id == id && o.SellerId == CurrentUserId, ct)) return StatusCode(403);
         var order = await returns.DecideCancelAsync(id, request.Approve, request.Reason, ct);
         return Ok(new { order.Id, order.Status });
     }

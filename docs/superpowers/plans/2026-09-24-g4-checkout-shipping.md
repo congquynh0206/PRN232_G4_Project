@@ -40,15 +40,15 @@
 - [ ] Implement the smallest pure services satisfying tests.
 - [ ] Run all tests and the solution build.
 
-### Task 2: Database foundation and demo seed
+### Task 2: Database foundation and reference data
 
-**Files:** Modify existing model partial classes and `ApplicationDbContext`; create an EF migration for MVP fields/tables; create demo seed service and local database setup instructions.
+**Files:** Modify existing model partial classes and `ApplicationDbContext`; create an EF migration for checkout fields/tables; create an idempotent SQL reference-data script and local database setup instructions.
 
-**Interfaces:** Database stores order snapshots, payment attempts, shipment events, returns, refunds, notification outbox, and seeded demo actors/products.
+**Interfaces:** Database stores order snapshots, payment attempts, shipment events, returns, refunds, notification outbox, and the reference actors/products inserted by SQL.
 
-- [ ] Write database-level tests for unique idempotency IDs, required data, and seed idempotency.
-- [ ] Run tests to observe the missing schema/seed behavior.
-- [ ] Add schema and seed data; use SQL baseline once for a fresh database.
+- [ ] Write database-level tests for unique idempotency IDs, required data, and reference-data idempotency.
+- [ ] Run tests to observe the missing schema/reference-data behavior.
+- [ ] Add schema and reference data; use SQL baseline once for a fresh database.
 - [ ] Run tests and verify the resulting schema if SQL Server access is available.
 
 ### Task 3: Checkout and payments

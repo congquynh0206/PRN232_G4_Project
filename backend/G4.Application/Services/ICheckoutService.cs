@@ -6,8 +6,8 @@ namespace G4.Application.Services;
 public interface ICheckoutService
 {
     Task<IReadOnlyList<Product>> RandomProductsAsync(int count, CancellationToken ct = default);
-    Task<PriceQuote> QuoteAsync(CheckoutRequest request, CancellationToken ct = default);
-    Task<OrderTable> CreateOrderAsync(CheckoutRequest request, CancellationToken ct = default);
+    Task<PriceQuote> QuoteAsync(int buyerId, CheckoutRequest request, CancellationToken ct = default);
+    Task<OrderTable> CreateOrderAsync(int buyerId, CheckoutRequest request, CancellationToken ct = default);
     Task<Payment> PayCardAsync(int orderId, string number, string expiry, string idempotencyKey, CancellationToken ct = default);
     Task<int> ExpirePendingAsync(CancellationToken ct = default);
     Task<int> CloseDeliveredOutsideReturnWindowAsync(CancellationToken ct = default);

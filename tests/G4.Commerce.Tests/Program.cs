@@ -52,12 +52,12 @@ await db.SaveChangesAsync();
 
 var service = new CheckoutService(db);
 var request = new CheckoutRequest(11, new[] { new CartLine(10, 2) }, null, "checkout-one");
-var first = await service.CreateOrderAsync(request);
-var again = await service.CreateOrderAsync(request);
+var first = await service.CreateOrderAsync(buyer.Id, request);
+var again = await service.CreateOrderAsync(buyer.Id, request);
 Equal(first.Id, again.Id, "duplicate checkout ID");
 try
 {
-    await service.CreateOrderAsync(request with { Items = new[] { new CartLine(10, 1) } });
+    await service.CreateOrderAsync(buyer.Id, request with { Items = new[] { new CartLine(10, 1) } });
     throw new Exception("checkout key accepted different cart");
 }
 catch (InvalidOperationException) { }
@@ -161,32 +161,21 @@ Console.WriteLine("Return shipment retry checks passed");
 var seedOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
     .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
 await using var seedDb = new ApplicationDbContext(seedOptions);
-await ApplicationDataSeeder.EnsureAsync(seedDb);
-await ApplicationDataSeeder.EnsureAsync(seedDb);
-Equal(2, await seedDb.Users.CountAsync(), "seed users idempotent");
-Equal(5, await seedDb.Products.CountAsync(), "seed products idempotent");
-Equal(2, await seedDb.Addresses.CountAsync(), "seed addresses idempotent");
-Console.WriteLine("3 seed checks passed");
+var fixtureBuyer = new User { Id = 201, Username = "buyer", Email = "buyer@example.test", Role = "buyer" };
+var fixtureSeller = new User { Id = 202, Username = "seller", Email = "seller@example.test", Role = "seller" };
+var seededProduct = new Product { Id = 201, SellerId = fixtureSeller.Id, Title = "Fixture product", Price = 25m, IsAuction = false };
+var seededAddress = new Address
+{
+    Id = 201, UserId = fixtureBuyer.Id, FullName = "Buyer", Street = "1 Example Street",
+    City = "Hanoi", State = "Hanoi", Country = "Vietnam", IsDefault = true
+};
+var seededStock = new Inventory { Id = 201, ProductId = seededProduct.Id, Quantity = 20, LastUpdated = DateTime.UtcNow };
+seedDb.AddRange(fixtureBuyer, fixtureSeller, seededProduct, seededAddress, seededStock);
+await seedDb.SaveChangesAsync();
 
-var legacySeedOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
-    .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
-await using var legacySeedDb = new ApplicationDbContext(legacySeedOptions);
-legacySeedDb.Users.AddRange(
-    new User { Username = "demo_buyer", Email = "demo.buyer@example.test", Role = "buyer" },
-    new User { Username = "demo_seller", Email = "demo.seller@example.test", Role = "seller" });
-await legacySeedDb.SaveChangesAsync();
-await ApplicationDataSeeder.EnsureAsync(legacySeedDb);
-Equal(2, await legacySeedDb.Users.CountAsync(), "legacy seed users reused");
-Equal(1, await legacySeedDb.Users.CountAsync(u => u.Email == "buyer@example.test"), "legacy buyer renamed");
-Equal(1, await legacySeedDb.Users.CountAsync(u => u.Email == "seller@example.test"), "legacy seller renamed");
-Console.WriteLine("Legacy seed compatibility checks passed");
-
-var seededProduct = await seedDb.Products.FirstAsync();
-var seededAddress = await seedDb.Addresses.FirstAsync(a => a.User!.Email == "buyer@example.test");
-var seededStock = await seedDb.Inventories.SingleAsync(i => i.ProductId == seededProduct.Id);
 var initialStock = seededStock.Quantity;
 var seededCheckout = new CheckoutService(seedDb);
-var expiring = await seededCheckout.CreateOrderAsync(new CheckoutRequest(seededAddress.Id,
+var expiring = await seededCheckout.CreateOrderAsync(fixtureBuyer.Id, new CheckoutRequest(seededAddress.Id,
     new[] { new CartLine(seededProduct.Id, 1) }, null, "expire-test"));
 expiring.PaymentExpiresAt = DateTime.UtcNow.AddSeconds(-1);
 await seedDb.SaveChangesAsync();
@@ -200,7 +189,7 @@ try
 }
 catch (InvalidOperationException) { }
 
-var cardOrder = await seededCheckout.CreateOrderAsync(new CheckoutRequest(seededAddress.Id,
+var cardOrder = await seededCheckout.CreateOrderAsync(fixtureBuyer.Id, new CheckoutRequest(seededAddress.Id,
     new[] { new CartLine(seededProduct.Id, 1) }, null, "card-retry"));
 Equal("Declined", (await seededCheckout.PayCardAsync(cardOrder.Id, "4000000000000002", "12/30", "declined-card")).Status,
     "declined card attempt");
@@ -219,7 +208,7 @@ await cancelService.DecideCancelAsync(cardOrder.Id, false, "Already packed");
 Equal("Paid", cardOrder.Status, "rejected cancel restores prior status");
 Equal("Already packed", cardOrder.CancelDecisionReason, "cancel rejection reason saved");
 
-var paypalOrder = await seededCheckout.CreateOrderAsync(new CheckoutRequest(seededAddress.Id,
+var paypalOrder = await seededCheckout.CreateOrderAsync(fixtureBuyer.Id, new CheckoutRequest(seededAddress.Id,
     new[] { new CartLine(seededProduct.Id, 1) }, null, "paypal-test"));
 var paypalGateway = new TestPayPalGateway();
 var paypalService = new PayPalPaymentService(seedDb, paypalGateway, new ConfigurationBuilder().Build());
@@ -253,6 +242,107 @@ Equal("REST-REFUND", await restGateway.RefundAsync("REST-CAPTURE", 12.34m, "USD"
     "PayPal REST refund response");
 Equal(4, paypalHttp.AuthRequests, "PayPal authenticates REST operations");
 Console.WriteLine("Expiry, card, and PayPal checks passed");
+
+var financeOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+    .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+await using var financeDb = new ApplicationDbContext(financeOptions);
+var financeSeller = new User { Id = 301, Username = "finance-seller", Email = "seller@example.test", Role = "seller" };
+var financeBuyer = new User { Id = 302, Username = "finance-buyer", Email = "buyer@example.test", Role = "buyer" };
+var financeOrder = new OrderTable
+{
+    Id = 301, BuyerId = financeBuyer.Id, SellerId = financeSeller.Id, Status = "Delivered",
+    OrderDate = DateTime.UtcNow, TotalPrice = 100m, Currency = "USD"
+};
+var financePayment = new Payment
+{
+    Id = 301, OrderId = financeOrder.Id, UserId = financeBuyer.Id, Amount = 100m, Method = "Card",
+    Status = "Succeeded", PaidAt = DateTime.UtcNow
+};
+financeDb.AddRange(financeSeller, financeBuyer, financeOrder, financePayment);
+await financeDb.SaveChangesAsync();
+var financeConfig = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+{
+    ["Finance:PlatformFeePercent"] = "12", ["Finance:FixedOrderFee"] = "0.30",
+    ["Finance:AcceleratedHoldSeconds"] = "1"
+}).Build();
+var financeService = new SellerFinanceService(financeDb, financeConfig);
+var settlement = await financeService.RecordSuccessfulPaymentAsync(financeOrder.Id, financePayment.Id);
+Equal(12.30m, settlement.PlatformFeeAmount, "platform fee");
+Equal(87.70m, settlement.NetAmount, "seller net amount");
+Equal(settlement.Id, (await financeService.RecordSuccessfulPaymentAsync(financeOrder.Id, financePayment.Id)).Id,
+    "settlement idempotency");
+settlement.ReleaseAt = DateTime.UtcNow.AddSeconds(-1);
+await financeDb.SaveChangesAsync();
+Equal(1, await financeService.ReleaseDueFundsAsync(), "release due seller funds");
+var financeAccount = await financeDb.SellerAccounts.SingleAsync();
+Equal(87.70m, financeAccount.AvailableBalance, "available after release");
+await financeService.PlaceHoldAsync(financeOrder.Id, "Item not as described");
+Equal(87.70m, financeAccount.OnHoldBalance, "dispute hold");
+await financeService.ResolveHoldAsync(financeOrder.Id, true);
+Equal(87.70m, financeAccount.AvailableBalance, "seller wins dispute");
+
+var payout = await financeService.RequestPayoutAsync(financeSeller.Id, 40m, "payout-one", false);
+Equal(payout.Id, (await financeService.RequestPayoutAsync(financeSeller.Id, 40m, "payout-one", false)).Id,
+    "payout idempotency");
+try
+{
+    await financeService.RequestPayoutAsync(financeSeller.Id, 39m, "payout-one", false);
+    throw new Exception("payout key accepted a different amount");
+}
+catch (InvalidOperationException) { }
+await financeService.AdvancePayoutsAsync();
+await financeService.AdvancePayoutsAsync();
+await financeService.AdvancePayoutsAsync();
+Equal("Completed", payout.Status, "payout completed");
+var returnedPayout = await financeService.RequestPayoutAsync(financeSeller.Id, 7.70m, "payout-returned", true);
+await financeService.AdvancePayoutsAsync();
+await financeService.AdvancePayoutsAsync();
+await financeService.AdvancePayoutsAsync();
+Equal("Returned", returnedPayout.Status, "failed bank payout returned");
+Equal(47.70m, financeAccount.AvailableBalance, "returned payout restores available balance");
+
+var financeRefund = new Refund
+{
+    Id = 301, OrderId = financeOrder.Id, PaymentId = financePayment.Id, Amount = 100m, Currency = "USD",
+    Reason = "return", IdempotencyKey = "finance-refund", Status = "Succeeded", CreatedAt = DateTime.UtcNow
+};
+financeDb.Refunds.Add(financeRefund);
+await financeDb.SaveChangesAsync();
+await financeService.ApplyRefundAsync(financeOrder.Id, financeRefund.Id);
+Equal(40m, financeAccount.NegativeBalance, "refund creates negative balance after payout");
+
+var recoveryOrder = new OrderTable
+{
+    Id = 302, BuyerId = financeBuyer.Id, SellerId = financeSeller.Id, Status = "Paid",
+    OrderDate = DateTime.UtcNow, TotalPrice = 50m, Currency = "USD"
+};
+var recoveryPayment = new Payment
+{
+    Id = 302, OrderId = recoveryOrder.Id, UserId = financeBuyer.Id, Amount = 50m, Method = "Card",
+    Status = "Succeeded", PaidAt = DateTime.UtcNow
+};
+financeDb.AddRange(recoveryOrder, recoveryPayment);
+await financeDb.SaveChangesAsync();
+var recoverySettlement = await financeService.RecordSuccessfulPaymentAsync(recoveryOrder.Id, recoveryPayment.Id);
+Equal(0m, financeAccount.NegativeBalance, "later sale recovers negative balance");
+Equal(3.70m, recoverySettlement.ProcessingAmount, "remaining proceeds after debt recovery");
+Equal(1, await financeDb.FinancialTransactions.CountAsync(x => x.Type == "PlatformFee" && x.OrderId == financeOrder.Id),
+    "single platform fee entry");
+Console.WriteLine("Seller finance checks passed");
+
+var authOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+    .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+await using var authDb = new ApplicationDbContext(authOptions);
+authDb.Users.Add(new User
+{
+    Id = 401, Username = "buyer", Email = "buyer@example.test", Role = "buyer",
+    Password = "PBKDF2$100000$ZzQtYnV5ZXItYXV0aC1zYWx0LTIwMjY=$Wgm3b6IizRGo8CDLurHUJAAlcbSLY1ASzgQLLysRq6Q="
+});
+await authDb.SaveChangesAsync();
+var authService = new AuthenticationService(authDb);
+Equal(401, (await authService.ValidateCredentialsAsync("BUYER@example.test", "G4@123456"))?.Id, "valid login");
+Equal<User?>(null, await authService.ValidateCredentialsAsync("buyer@example.test", "wrong"), "invalid password");
+Console.WriteLine("Authentication checks passed");
 
 sealed class TestCarrier : ICarrierGateway
 {

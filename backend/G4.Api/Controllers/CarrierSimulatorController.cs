@@ -1,10 +1,12 @@
 
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace G4.Api.Controllers;
 
 [ApiController]
 [Route("api/carrier")]
+[AllowAnonymous]
 public sealed class CarrierSimulatorController(IConfiguration configuration, IHostEnvironment environment, CarrierAvailabilityState state) : ControllerBase
 {
     public sealed record LabelRequest(int OrderId, string Direction, string Key);

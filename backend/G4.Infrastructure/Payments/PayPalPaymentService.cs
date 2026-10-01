@@ -4,7 +4,8 @@ using Microsoft.Extensions.Configuration;
 
 namespace G4.Infrastructure.Payments;
 
-public sealed class PayPalPaymentService(ApplicationDbContext db, IPayPalGateway paypal, IConfiguration config) : IPayPalPaymentService
+public sealed class PayPalPaymentService(ApplicationDbContext db, IPayPalGateway paypal, IConfiguration config,
+    ISellerFinanceService? finance = null) : IPayPalPaymentService
 {
     public async Task<PayPalCreated> StartAsync(int orderId, string key, CancellationToken ct = default)
     {
@@ -12,12 +13,13 @@ public sealed class PayPalPaymentService(ApplicationDbContext db, IPayPalGateway
         var order = await db.OrderTables.SingleAsync(o => o.Id == orderId, ct);
         if (order.Status != "AwaitingPayment" || order.PaymentExpiresAt <= DateTime.UtcNow)
             throw new InvalidOperationException("Order is not payable");
+        if (finance is not null) await finance.ValidateMonthlyLimitAsync(orderId, ct);
         var payment = await db.Payments.SingleOrDefaultAsync(p => p.IdempotencyKey == key, ct);
         if (payment is not null && payment.OrderId != orderId) throw new InvalidOperationException("Payment key already used");
         var frontendBase = (config["Frontend:PublicBaseUrl"] ?? "http://localhost:5000").TrimEnd('/');
         var created = await paypal.CreateAsync(order.TotalPrice!.Value, order.Currency, key,
-            $"{frontendBase}/Checkout/PayPalReturn?orderId={orderId}",
-            $"{frontendBase}/Checkout/PayPalCancel?orderId={orderId}", ct);
+            $"{frontendBase}/Buyer/PayPalReturn?orderId={orderId}",
+            $"{frontendBase}/Buyer/PayPalCancel?orderId={orderId}", ct);
         if (payment is null)
         {
             payment = new Payment
@@ -36,9 +38,14 @@ public sealed class PayPalPaymentService(ApplicationDbContext db, IPayPalGateway
     public async Task<Payment> CaptureAsync(int orderId, string providerOrderId, CancellationToken ct = default)
     {
         var payment = await db.Payments.SingleAsync(p => p.OrderId == orderId && p.ProviderOrderId == providerOrderId && p.Method == "PayPal", ct);
-        if (payment.Status == "Succeeded") return payment;
+        if (payment.Status == "Succeeded")
+        {
+            if (finance is not null) await finance.RecordSuccessfulPaymentAsync(orderId, payment.Id, ct);
+            return payment;
+        }
         var order = await db.OrderTables.SingleAsync(o => o.Id == orderId, ct);
         if (order.Status != "AwaitingPayment") throw new InvalidOperationException("Order is not awaiting payment");
+        if (finance is not null) await finance.ValidateMonthlyLimitAsync(orderId, ct);
         PayPalCaptured capture;
         try { capture = await paypal.CaptureAsync(providerOrderId, $"capture-{payment.Id}", ct); }
         catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException && !ct.IsCancellationRequested)
@@ -54,7 +61,11 @@ public sealed class PayPalPaymentService(ApplicationDbContext db, IPayPalGateway
     {
         var payment = await db.Payments.Where(p => p.OrderId == orderId && p.Method == "PayPal")
             .OrderByDescending(p => p.Id).FirstAsync(ct);
-        if (payment.Status == "Succeeded") return payment;
+        if (payment.Status == "Succeeded")
+        {
+            if (finance is not null) await finance.RecordSuccessfulPaymentAsync(orderId, payment.Id, ct);
+            return payment;
+        }
         var order = await db.OrderTables.SingleAsync(o => o.Id == orderId, ct);
         var capture = await paypal.GetAsync(payment.ProviderOrderId!, ct);
         return await ApplyCaptureAsync(order, payment, capture, ct);
@@ -79,6 +90,8 @@ public sealed class PayPalPaymentService(ApplicationDbContext db, IPayPalGateway
         else payment.Status = "Verifying";
         payment.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
+        if (payment.Status == "Succeeded" && finance is not null)
+            await finance.RecordSuccessfulPaymentAsync(order.Id, payment.Id, ct);
         return payment;
     }
 }

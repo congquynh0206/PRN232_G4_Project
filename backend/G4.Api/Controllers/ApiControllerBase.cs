@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace G4.Api.Controllers;
 
@@ -6,8 +7,10 @@ public abstract class ApiControllerBase(IHostEnvironment environment) : Controll
 {
     protected bool IsAvailable => environment.IsDevelopment();
 
-    protected bool HasRole(string role) =>
-        Request.Headers.TryGetValue("X-Actor-Role", out var value) && value == role;
+    protected int CurrentUserId => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id)
+        ? id : throw new UnauthorizedAccessException("Missing user identity");
 
-    protected bool HasAnyRole() => HasRole("buyer") || HasRole("seller");
+    protected bool HasRole(string role) => User.IsInRole(role);
+
+    protected bool HasAnyRole() => HasRole("buyer") || HasRole("seller") || HasRole("admin") || HasRole("shipper");
 }

@@ -1,12 +1,12 @@
-# Thiết kế MVP: Thanh toán và giao hàng eBay Clone - Nhóm 4
+# Thiết kế thanh toán và giao hàng eBay Clone - Nhóm 4
 
-**Trạng thái:** Bản để nhóm đọc và góp ý, chưa triển khai code  
+**Trạng thái:** Đang được triển khai và cập nhật theo nghiệp vụ đã chốt
 **Ngày:** 24/09/2026  
-**Phạm vi:** Demo độc lập của nhóm 4, một seller cho mỗi đơn hàng
+**Phạm vi:** Ứng dụng độc lập của nhóm 4, một seller cho mỗi đơn hàng
 
 ## 1. Mục tiêu và căn cứ
 
-Người xem có thể tự thao tác một chu trình: tạo giỏ ngẫu nhiên, xem Order Summary, thanh toán, theo dõi vận đơn, yêu cầu trả hàng hoặc hủy đơn, và xem kết quả hoàn tiền. Nhóm có thể chuyển sang vai seller để xử lý đơn và dùng công cụ demo để đẩy sự kiện giao hàng. Dữ liệu và luồng này hoạt động độc lập với sản phẩm của các nhóm khác.
+Người xem có thể tự thao tác một chu trình: buyer tạo giỏ ngẫu nhiên, thanh toán và yêu cầu trả; seller xử lý đơn và tiền; shipper cập nhật vận đơn; admin giải quyết tranh chấp. Mỗi vai đăng nhập bằng tài khoản riêng và chỉ truy cập chức năng được phân quyền.
 
 Yêu cầu gốc trong `Ebay Clone Requiments.docx` đặt ra thanh toán mô phỏng PayPal/COD, tính tổng tiền và phí giao hàng, API vận chuyển giả lập, email thông báo, tự hủy đơn chờ thanh toán, retry và log giao dịch. Quyết định của nhóm là **PayPal Sandbox + Credit Card giả lập** thay cho COD. Ảnh checkout được dùng làm tham khảo bố cục, không phải đặc tả đầy đủ của eBay. `clone_ebay_sqlserver_schema.sql` là schema tham khảo, được phép điều chỉnh.
 
@@ -21,7 +21,7 @@ Yêu cầu gốc trong `Ebay Clone Requiments.docx` đặt ra thanh toán mô ph
 
 | Có trong MVP | Để giai đoạn sau |
 | --- | --- |
-| Buyer và seller demo được tạo sẵn, chuyển vai trong giao diện demo | Đăng ký, đăng nhập thật, phân quyền production |
+| Đăng nhập bằng bốn role buyer, seller, shipper, admin; API dùng JWT và kiểm tra quyền sở hữu dữ liệu | Đăng ký tài khoản, quên mật khẩu, quản trị người dùng production |
 | Một seller cố định; buyer chọn trước số dòng sản phẩm muốn random (1-5) từ seller đó | Checkout nhiều seller, tách đơn và chia tiền seller |
 | Mỗi dòng chọn số lượng; kiểm tra tồn kho | Đấu giá, catalog đầy đủ, seller tự đăng sản phẩm |
 | Một địa chỉ nhận hàng của buyer, cho chọn hoặc sửa trước khi đặt | Sổ địa chỉ nhiều người dùng |
@@ -30,7 +30,7 @@ Yêu cầu gốc trong `Ebay Clone Requiments.docx` đặt ra thanh toán mô ph
 | Coupon phần trăm đơn giản; toàn đơn | Coupon chồng nhiều loại, giới hạn theo sản phẩm |
 | Hủy trước khi gửi, tracking, giao thất bại, trả toàn bộ đơn, hoàn tiền | Trả một phần sản phẩm, đổi hàng, tranh chấp phức tạp |
 | Email qua hộp thư bắt mail cục bộ khi demo | Gửi email Internet thực, SMS, push notification |
-| Màn demo điều khiển vai và sự kiện vận chuyển | Dashboard quản trị hoàn chỉnh |
+| Trang riêng theo role; shipper cập nhật sự kiện vận chuyển | Dashboard quản trị người dùng hoàn chỉnh |
 
 Một checkout tạo **một `OrderTable` và một `ShippingInfo` chiều đi**. Một yêu cầu trả hàng trong MVP áp dụng cho **toàn bộ đơn**. Số lượng hàng trong giỏ được chọn trước khi xác nhận đơn.
 
@@ -47,18 +47,19 @@ Một checkout tạo **một `OrderTable` và một `ShippingInfo` chiều đi**
 | Order Detail & Tracking | Bốn trạng thái riêng: đơn, thanh toán, vận chuyển, trả hàng; bảng tiền; hai khối tracking giao tới buyer và trả về seller, mỗi khối có mã vận đơn và timeline riêng; hành động hủy hoặc trả hàng khi hợp lệ. |
 | Return Detail | Lý do trả hàng, diễn tiến duyệt, mã vận đơn chiều trả, tình trạng hoàn tiền. |
 
-### 3.2 Seller và công cụ demo
+### 3.2 Seller, shipper và admin
 
 | Màn | Nội dung và hành động |
 | --- | --- |
 | Seller Orders | Xem đơn đã thanh toán; xác nhận chuẩn bị, tạo vận đơn, bàn giao hàng; duyệt hoặc từ chối yêu cầu trả với lý do. |
-| Demo Control | Chuyển buyer/seller, phát sự kiện vận chuyển chiều đi và chiều trả, mô phỏng API shipping lỗi, xem hộp thư demo và log giao dịch. Mỗi nút chỉ hiện khi chuyển trạng thái hợp lệ. |
+| Shipper | Xem vận đơn và phát sự kiện vận chuyển chiều đi/chiều trả. Mỗi nút chỉ hiện khi chuyển trạng thái hợp lệ. |
+| Admin | Xem khoản tiền bị giữ, quyết định kết quả tranh chấp và xem hộp thư hệ thống. |
 
 Nút random tạo **giỏ tạm**, chưa ghi nhận là đơn đã đặt. Nó chọn đúng số dòng buyer yêu cầu từ hàng có tồn kho, cùng seller, và đặt số lượng không vượt tồn. Sau khi buyer xác nhận, đơn lưu bản chụp sản phẩm, giá và địa chỉ; random lần nữa không đổi đơn cũ.
 
 ## 4. Quy tắc giá và thanh toán
 
-MVP dùng **USD thống nhất** ở giao diện, database và PayPal Sandbox. Không hiển thị tỷ giá VND/EUR giả nếu chưa có nguồn tỷ giá và quy tắc chuyển đổi. Giá seed phù hợp USD.
+MVP dùng **USD thống nhất** ở giao diện, database và PayPal Sandbox. Không hiển thị tỷ giá VND/EUR giả nếu chưa có nguồn tỷ giá và quy tắc chuyển đổi. Dữ liệu tham chiếu trong SQL Server dùng mức giá phù hợp USD.
 
 `tạm tính = tổng(unitPrice × quantity)`  
 `giảm giá = tạm tính × couponPercent`, làm tròn 2 chữ số  
@@ -82,7 +83,7 @@ Mỗi lần thử thanh toán là một bản ghi `Payment`. Đơn chỉ đượ
 
 Khi seller bàn giao đơn đã thanh toán, hệ thống gọi **shipping API giả lập chạy cục bộ** với token riêng, tạo mã vận đơn duy nhất. Nếu API lỗi tạm thời, yêu cầu được retry tối đa 3 lần có giãn cách; tạo vận đơn dùng cùng idempotency key để retry không sinh nhiều mã. Sau 3 lần thất bại, đơn giữ trạng thái `ShipmentCreationFailed` để seller bấm thử lại; buyer không thấy một mã vận đơn chưa tồn tại.
 
-Timeline chiều đi: `LabelCreated → PickedUp → InTransit → OutForDelivery → Delivered`. Từ `OutForDelivery` có thể đi `DeliveryFailed`; seller/demo chọn thử giao lại tối đa một lần, hoặc `ReturningToSender → ReturnedToSeller`. Mỗi sự kiện lưu thời gian, vị trí demo, ghi chú, nguồn và event ID. Sự kiện lặp được bỏ qua; không cho sự kiện cũ làm lùi trạng thái. Màn tracking hiển thị lịch sử chứ không chỉ trạng thái mới nhất.
+Timeline chiều đi: `LabelCreated → PickedUp → InTransit → OutForDelivery → Delivered`. Từ `OutForDelivery` có thể đi `DeliveryFailed`; shipper chọn thử giao lại tối đa một lần, hoặc `ReturningToSender → ReturnedToSeller`. Mỗi sự kiện lưu thời gian, vị trí, ghi chú, nguồn và event ID. Sự kiện lặp được bỏ qua; không cho sự kiện cũ làm lùi trạng thái. Màn tracking hiển thị lịch sử chứ không chỉ trạng thái mới nhất.
 
 Cập nhật giao diện tracking hai chiều (28/09/2026): **Giao tới buyer (Seller → Buyer)** và **Trả về seller (Buyer → Seller)** hiển thị thành hai khối riêng, lọc sự kiện theo `ShippingInfoId`. Khối trả chỉ xuất hiện khi có vận đơn trả. Nhãn `Delivered` lần lượt là **Buyer đã nhận hàng** và **Seller đã nhận hàng trả**. Các nút tạo nhãn, cập nhật mốc và xác nhận nhận hàng trả nằm trong khối vận đơn tương ứng; hoàn tiền hiển thị riêng. Chiều đi chuyển hoàn do giao thất bại vẫn nằm trong timeline chiều đi và được giải thích để không nhầm với yêu cầu trả hàng. Giữ nguyên schema và quy tắc trạng thái.
 
@@ -98,7 +99,7 @@ Nếu giao thất bại và hàng đã về seller, hệ thống hoàn **toàn b
 | Đã thanh toán, chưa bàn giao vận chuyển | Buyer yêu cầu hủy; seller chấp nhận qua giao diện demo; hoàn toàn bộ tiền đã trả. Seller từ chối phải ghi lý do và tiếp tục xử lý đơn. |
 | Đã bàn giao vận chuyển | Không hủy trực tiếp. Chờ giao hoặc xử lý giao thất bại. |
 | Đã giao thành công | Buyer có thể gửi một yêu cầu trả **toàn bộ đơn** trong 7 ngày; lý do và ghi chú bắt buộc. |
-| Seller duyệt trả hàng | Sinh mã vận đơn chiều trả, buyer/demo cập nhật tracking; seller xác nhận đã nhận hàng trả. |
+| Seller duyệt trả hàng | Sinh mã vận đơn chiều trả, shipper cập nhật tracking; seller xác nhận đã nhận hàng trả. |
 | Seller từ chối | Phải ghi lý do; hiển thị cho buyer; chưa hoàn tiền. |
 | Seller xác nhận nhận hàng trả | Tạo refund đúng một lần cho toàn bộ số tiền gốc, bao gồm phí giao chiều đi. Trạng thái `RefundPending → Refunded` hoặc `RefundFailed`. |
 
@@ -172,9 +173,15 @@ Các kịch bản chấp nhận tối thiểu:
 10. Refund lỗi rồi retry; số tiền hoàn không vượt số tiền đã capture.
 11. Email tương ứng xuất hiện một lần trong hộp thư demo; log có ID giao dịch nhưng không có secret/thẻ.
 
+## 10.1 Tài chính seller và payout
+
+Sau thanh toán, hệ thống tạo settlement theo order: Gross − phí nền tảng (12% + 0,30 USD) = Net. Net đi vào `Processing`, chỉ chuyển sang `Available` sau khi đơn đã giao và hết hạn giữ. Level 1 có giới hạn 5.000 USD/tháng và giữ 21 ngày; level 2 là 10.000 USD/tháng và 7 ngày; level 3 `Instant` có hạn mức cao và không giữ ngày. Điều kiện level dựa trên số đơn hoàn tất, feedback dương và tỷ lệ giao đúng hạn.
+
+Seller payout từ `Available`; payout có trạng thái `Created → InProgress → FundsSent → Completed`, hoặc `Returned` và hoàn tiền về Available khi ngân hàng giả lập từ chối. Tranh chấp chuyển tiền liên quan sang `OnHold`. Refund trừ các số dư seller và phần thiếu trở thành `Negative`; seller đang âm không được payout và doanh thu mới tự bù nợ trước. Mỗi biến động ghi một dòng `FinancialTransaction` có khóa idempotency. Chi tiết đầy đủ nằm tại [SELLER_FINANCE.md](../../SELLER_FINANCE.md).
+
 ## 11. Thứ tự triển khai sau khi tài liệu được duyệt
 
-1. Chốt quyết định và migration database, dữ liệu seed buyer/seller/sản phẩm/coupon.
+1. Chốt quyết định và migration database, script SQL cho buyer/seller/sản phẩm/coupon.
 2. Order Summary, checkout, tính giá và tạo đơn chờ thanh toán.
 3. Credit Card giả lập và luồng trạng thái thanh toán; sau đó PayPal Sandbox.
 4. Shipping API giả lập, retry, seller workflow và tracking.
