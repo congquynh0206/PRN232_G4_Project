@@ -1,8 +1,8 @@
 namespace G4.Contracts.Checkout;
 
 public sealed record PayoutRequest(decimal Amount, string Key, bool SimulateFailure = false);
-public sealed record FundHoldRequest(string Reason);
-public sealed record FundHoldResolutionRequest(bool ReleaseToSeller);
+public sealed record FundHoldRequest(string Reason, string[] EvidenceLinks);
+public sealed record FundHoldResolutionRequest(bool ReleaseToSeller, string Reason);
 
 public sealed record SellerLevelProgress(
     int CompletedOrders,

@@ -6,7 +6,7 @@ namespace G4.Api.Controllers;
 
 [ApiController]
 [Route("api")]
-public sealed class FinanceController(ApplicationDbContext db, ISellerFinanceService finance, IReturnService returns,
+public sealed class FinanceController(ApplicationDbContext db, ISellerFinanceService finance, IDisputeService disputes,
     IHostEnvironment environment) : ApiControllerBase(environment)
 {
     [HttpGet("seller/finance")]
@@ -72,26 +72,18 @@ public sealed class FinanceController(ApplicationDbContext db, ISellerFinanceSer
     public async Task<IActionResult> PlaceHold(int orderId, FundHoldRequest request, CancellationToken ct)
     {
         if (!IsAvailable || !HasRole("buyer")) return StatusCode(403);
-        if (!await db.OrderTables.AnyAsync(o => o.Id == orderId && o.BuyerId == CurrentUserId, ct)) return StatusCode(403);
-        if (string.IsNullOrWhiteSpace(request.Reason)) return BadRequest("Reason is required");
-        await finance.PlaceHoldAsync(orderId, request.Reason, ct);
-        var status = await db.SellerSettlements.Where(x => x.OrderId == orderId).Select(x => x.Status).SingleAsync(ct);
-        return Ok(new { orderId, status });
+        var result = await disputes.OpenAsync(orderId, CurrentUserId, new(request.Reason, request.EvidenceLinks), ct);
+        return Ok(new { orderId, result.Id, result.Status });
     }
 
     [HttpPost("orders/{orderId:int}/fund-hold/resolve")]
     public async Task<IActionResult> ResolveHold(int orderId, FundHoldResolutionRequest request, CancellationToken ct)
     {
         if (!IsAvailable || !HasRole("admin")) return StatusCode(403);
-        await finance.ResolveHoldAsync(orderId, request.ReleaseToSeller, ct);
-        if (request.ReleaseToSeller) return Ok(new { orderId, resolution = "SellerWins" });
-        var refund = await returns.RefundAsync(orderId, "dispute", null, ct);
-        return Ok(new
-        {
-            orderId,
-            resolution = refund.Status == "Succeeded" ? "BuyerWins" : "RefundPending",
-            refundStatus = refund.Status
-        });
+        var id = await db.Disputes.Where(x => x.OrderId == orderId && x.WorkflowEnabled && x.IsOpen)
+            .Select(x => x.Id).SingleAsync(ct);
+        await disputes.ResolveAsync(id, CurrentUserId, new(!request.ReleaseToSeller, request.Reason), ct);
+        return Ok(new { orderId, saved = true });
     }
 
     [HttpGet("admin/fund-holds")]
@@ -99,13 +91,14 @@ public sealed class FinanceController(ApplicationDbContext db, ISellerFinanceSer
     {
         if (!IsAvailable || !HasRole("admin")) return StatusCode(403);
         return Ok(await db.SellerSettlements.AsNoTracking()
-            .Where(x => x.Status == "OnHold" || x.Status == "RefundPending")
+            .Where(x => (x.Status == "OnHold" || x.Status == "RefundPending") &&
+                db.Disputes.Any(d => d.OrderId == x.OrderId && d.WorkflowEnabled && d.EscalatedAt != null && d.IsOpen))
             .OrderByDescending(x => x.Id)
             .Select(x => new
             {
                 x.OrderId, x.SellerId, x.Status,
                 amount = db.FinancialTransactions.Where(t => t.SettlementId == x.Id && t.Type == "FundHold")
-                    .Select(t => t.Amount).FirstOrDefault(),
+                    .OrderByDescending(t => t.Id).Select(t => t.Amount).FirstOrDefault(),
                 reason = db.FinancialTransactions.Where(t => t.OrderId == x.OrderId && t.Type == "FundHold")
                     .OrderByDescending(t => t.Id).Select(t => t.Description).FirstOrDefault(),
                 x.CreatedAt
@@ -120,7 +113,8 @@ public sealed class FinanceController(ApplicationDbContext db, ISellerFinanceSer
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 50);
         var query = db.SellerSettlements.AsNoTracking()
-            .Where(x => x.Status == "OnHold" || x.Status == "RefundPending");
+            .Where(x => (x.Status == "OnHold" || x.Status == "RefundPending") &&
+                db.Disputes.Any(d => d.OrderId == x.OrderId && d.WorkflowEnabled && d.EscalatedAt != null && d.IsOpen));
         var totalCount = await query.CountAsync(ct);
         page = Math.Min(page, Math.Max(1, (totalCount + pageSize - 1) / pageSize));
         var items = await query.OrderByDescending(x => x.Id).Skip((page - 1) * pageSize).Take(pageSize)
@@ -128,7 +122,7 @@ public sealed class FinanceController(ApplicationDbContext db, ISellerFinanceSer
             {
                 x.OrderId, x.SellerId, x.Status,
                 amount = db.FinancialTransactions.Where(t => t.SettlementId == x.Id && t.Type == "FundHold")
-                    .Select(t => t.Amount).FirstOrDefault(),
+                    .OrderByDescending(t => t.Id).Select(t => t.Amount).FirstOrDefault(),
                 reason = db.FinancialTransactions.Where(t => t.OrderId == x.OrderId && t.Type == "FundHold")
                     .OrderByDescending(t => t.Id).Select(t => t.Description).FirstOrDefault(),
                 x.CreatedAt

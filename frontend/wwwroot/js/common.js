@@ -13,6 +13,7 @@
   };
   const label = value => labels[value] || value || 'Chưa có';
   function friendlyError(status, raw) {
+    if (status !== 500 && /[À-ỹ]/.test(String(raw || ''))) return raw;
     const value=String(raw||'').toLowerCase();
     if(/coupon|promotion|discount/.test(value))return 'Mã giảm giá chưa áp dụng được. Vui lòng kiểm tra điều kiện sử dụng hoặc thử mã khác.';
     if(/card|expiry|payment|paypal/.test(value))return 'Thanh toán chưa hoàn tất. Vui lòng kiểm tra phương thức thanh toán rồi thử lại.';
@@ -67,7 +68,28 @@
     const returned = o.shipments.find(s => s.direction === 'Return');
     return `<div class="tracking-list">${shipmentHtml(o,outbound,'Outbound',actionFactory?.(o,outbound,'Outbound')||'')}${returned?shipmentHtml(o,returned,'Return',actionFactory?.(o,returned,'Return')||''):''}</div>`;
   }
-  function orderCard(o, source = 'orders') { return `<article class="order-card" data-order-row="${o.id}"><div class="order-card-main"><span class="overline">${source==='seller'?'Đơn bán hàng':'Đơn mua hàng'} · #${o.id}</span><strong>${esc(label(o.status))}</strong><small>Tạo: ${date(o.orderDate)} · Cập nhật: ${date(o.updatedAt || o.orderDate)}</small></div><div class="order-card-side"><b>${money(o.totalPrice)}</b><button data-open-order="${o.id}" data-source="${source}">Xem chi tiết</button></div></article>`; }
+  function disputeBadge(dispute) {
+    return dispute ? `<button type="button" class="dispute-badge ${dispute.isOpen?'is-open':''}" data-open-case="${dispute.id}">${esc(window.G4.Disputes?.statusText(dispute.status,dispute.outcome)||'Có yêu cầu giải quyết')}</button>` : '';
+  }
+  function sellerOrderCard(o) {
+    const localDate = value => date(typeof value === 'string' && !/(Z|[+-]\d{2}:\d{2})$/i.test(value) ? value + 'Z' : value);
+    const refunded = o.hasRefund && o.status === 'Closed';
+    const status = refunded ? 'Đã hoàn tiền' : label(o.status);
+    const tone = refunded ? 'refund' : ({Paid:'waiting',Preparing:'waiting',CancelRequested:'warning',Shipping:'shipping',Delivered:'success',Closed:'success',Cancelled:'muted',Expired:'muted'})[o.status] || 'waiting';
+    const title = o.productTitle || 'Chưa có thông tin sản phẩm';
+    const extras = Number(o.productCount) > 1 ? `+${Number(o.productCount)-1} sản phẩm khác · ` : '';
+    const items = Number(o.itemCount) > 0 ? `${Number(o.itemCount)} món` : 'Chưa có thông tin số lượng';
+    return `<article class="order-card seller-order-card" data-order-row="${o.id}">
+      <header class="seller-order-head"><strong>Đơn #${o.id}</strong><div class="seller-order-times"><span>Tạo: ${esc(localDate(o.orderDate))}</span><span>Cập nhật: ${esc(localDate(o.updatedAt || o.orderDate))}</span></div></header>
+      <div class="seller-order-body"><div class="seller-product-thumb" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m16 3 12 7v14l-12 7-12-7V10Z M4 10l12 7 12-7 M16 17v14 M10 6l12 7v6" /></svg></div>
+        <div class="seller-product-info"><strong class="seller-product-title" title="${esc(title)}">${esc(title)}</strong><span class="seller-product-count">${extras}${items}</span><span class="seller-buyer">Người mua: ${esc(o.buyerName || 'Chưa có thông tin')}</span></div>
+        <div class="seller-order-total"><span>Tổng đơn</span><strong>${money(o.totalPrice)}</strong></div></div>
+      <footer class="seller-order-foot"><div class="seller-order-badges"><span class="seller-status seller-status-${tone}">${esc(status)}</span>${o.hasRefund&&!refunded?'<span class="seller-status seller-status-refund">Đã hoàn tiền</span>':''}${o.attention?`<span class="seller-attention">${esc(o.attention)}</span>`:''}${disputeBadge(o.dispute)}</div><button type="button" data-open-order="${o.id}" data-source="seller" aria-label="Xem chi tiết đơn #${o.id}">Xem chi tiết</button></footer></article>`;
+  }
+  function orderCard(o, source = 'orders') {
+    if (source === 'seller') return sellerOrderCard(o);
+    return `<article class="order-card" data-order-row="${o.id}"><div class="order-card-main"><span class="overline">Đơn mua hàng · #${o.id}</span><strong>${esc(label(o.status))}</strong><small>Tạo: ${date(o.orderDate)} · Cập nhật: ${date(o.updatedAt || o.orderDate)}</small>${disputeBadge(o.dispute)}</div><div class="order-card-side"><b>${money(o.totalPrice)}</b><button data-open-order="${o.id}" data-source="${source}">Xem chi tiết</button></div></article>`;
+  }
   function pager(id, result, onPage) {
     const host = $(id), count = Math.max(1, Math.ceil(result.totalCount/result.pageSize));
     const current = Math.min(Math.max(1, result.page), count);
@@ -115,13 +137,14 @@
     }
     if (!items.length) host.innerHTML = emptyHtml;
   }
-  function openDetail(html) {
+  function openDetail(html, preserveScroll = false) {
     const dialog = $('detail-dialog');
+    const scroll = preserveScroll ? dialog.scrollTop : 0;
     $('detail-content').innerHTML = html;
     if (!dialog.open) dialog.showModal();
-    dialog.scrollTop = 0;
     layoutTimelines();
-    $('detail-close')?.focus?.();
+    dialog.scrollTop = scroll;
+    if (!preserveScroll) $('detail-close')?.focus?.();
   }
   function closeDetail() {
     const dialog = $('detail-dialog');
@@ -150,20 +173,38 @@
     const dialog = $('action-dialog');
     $('action-title').textContent = title;
     $('action-description').textContent = description || '';
-    $('action-fields').innerHTML = fields.map(f => `<label for="action-${esc(f.name)}">${esc(f.label)}</label><input id="action-${esc(f.name)}" name="${esc(f.name)}" ${f.required?'required':''} placeholder="${esc(f.placeholder || '')}"/>`).join('');
+    $('action-fields').innerHTML = fields.map(f => {
+      const attributes=`id="action-${esc(f.name)}" name="${esc(f.name)}" ${f.required?'required':''}`;
+      const control=f.type==='textarea'
+        ? `<textarea ${attributes} rows="${f.rows||3}" maxlength="${f.maxLength||4000}" placeholder="${esc(f.placeholder||'')}"></textarea>`
+        : f.type==='select'
+          ? `<select ${attributes}>${f.options.map(o=>`<option value="${esc(o.value)}">${esc(o.label)}</option>`).join('')}</select>`
+          : `<input ${attributes} type="${esc(f.type||'text')}" placeholder="${esc(f.placeholder||'')}"/>`;
+      return `<label for="action-${esc(f.name)}">${esc(f.label)}</label>${control}${f.help?`<small>${esc(f.help)}</small>`:''}`;
+    }).join('');
+    for(const field of fields){
+      const control=$(`action-${field.name}`);
+      const validate=()=>control.setCustomValidity(field.validate?.(control.value)||'');
+      control.oninput=()=>control.setCustomValidity('');
+      control.onblur=validate;
+    }
     $('action-confirm').textContent = confirm;
     return new Promise(resolve => {
       const form = $('action-form');
       const done = ok => { dialog.close(); form.onsubmit = null; dialog.oncancel = null; $('action-cancel').onclick = null; resolve(ok ? Object.fromEntries(new FormData(form)) : null); };
-      form.onsubmit = e => { e.preventDefault(); done(true); };
+      form.onsubmit = e => {
+        e.preventDefault();
+        for(const field of fields){const control=$(`action-${field.name}`);control.setCustomValidity(field.validate?.(control.value)||'');}
+        if(form.reportValidity())done(true);
+      };
       $('action-cancel').onclick = () => done(false);
       dialog.oncancel = e => { e.preventDefault(); done(false); };
       dialog.showModal();
-      (form.querySelector('input') || $('action-confirm')).focus();
+      (form.querySelector('input,textarea,select') || $('action-confirm')).focus();
     });
   }
   $('detail-close').onclick = closeDetail;
   if(typeof ResizeObserver!=='undefined')new ResizeObserver(layoutTimelines).observe($('detail-content'));
   window.addEventListener?.('resize',layoutTimelines);
-  window.G4 = {$,money,date,esc,label,api,message,safe,shippingStatus,returnStatus,trackingHtml,orderCard,pager,pageChanges,patchPagedList,modal,openDetail,closeDetail,layoutTimeline};
+  window.G4 = {$,money,date,esc,label,api,message,safe,shippingStatus,returnStatus,trackingHtml,orderCard,disputeBadge,pager,pageChanges,patchPagedList,modal,openDetail,closeDetail,layoutTimeline};
 })();

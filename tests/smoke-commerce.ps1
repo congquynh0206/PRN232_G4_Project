@@ -33,13 +33,13 @@ function Assert-Forbidden([string]$Method, [string]$Path, [string]$Role) {
 }
 
 $frontPage = Invoke-WebRequest -Uri "$Frontend/Account/Login" -UseBasicParsing
-if ($frontPage.StatusCode -ne 200 -or $frontPage.Content -notmatch 'G4 Marketplace') { throw 'Frontend login page is not ready' }
+if ($frontPage.StatusCode -ne 200 -or $frontPage.Content -notmatch 'Sàn G4') { throw 'Frontend login page is not ready' }
 
 $rolePages = [ordered]@{
-    buyer = 'Order Summary'
-    seller = '<span class="eyebrow">Seller</span>'
-    shipper = '<span class="eyebrow">Shipper</span>'
-    admin = '<span class="eyebrow">Admin</span>'
+    buyer = '<h1>Giỏ hàng</h1>'
+    seller = '<span class="eyebrow">Người bán</span>'
+    shipper = '<span class="eyebrow">Đơn vị giao hàng</span>'
+    admin = 'Nhật ký thư điện tử'
 }
 foreach ($role in $rolePages.Keys) {
     $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
@@ -86,16 +86,20 @@ foreach ($status in @('PickedUp','InTransit','OutForDelivery','Delivered')) {
 $detail = Invoke-Api 'GET' "orders/$($order.id)"
 if ($detail.status -ne 'Delivered') { throw 'Order did not reach Delivered' }
 if ($null -eq $detail.settlement -or $detail.settlement.platformFeeAmount -le 0 -or $detail.settlement.netAmount -ge $detail.settlement.grossAmount) { throw 'Seller settlement or platform fee is missing' }
-Invoke-Api 'POST' "orders/$($order.id)/fund-hold" 'buyer' @{ reason = 'Smoke dispute hold' } | Out-Null
+$case = Invoke-Api 'POST' "orders/$($order.id)/disputes" 'buyer' @{ description = 'Smoke dispute hold'; evidenceLinks = @('https://example.test/buyer-evidence') }
 $heldDetail = Invoke-Api 'GET' "orders/$($order.id)" 'buyer'
 if ($heldDetail.settlement.status -ne 'OnHold') { throw 'Fund hold did not mark the settlement On Hold' }
-Invoke-Api 'POST' "orders/$($order.id)/fund-hold/resolve" 'admin' @{ releaseToSeller = $false } | Out-Null
-$return = Invoke-Api 'POST' "orders/$($order.id)/returns" 'buyer' @{ reason = 'Not as described' }
+if ($heldDetail.dispute.id -ne $case.id -or !$heldDetail.dispute.isOpen) { throw 'Order has no visible open dispute' }
+Assert-Forbidden 'GET' "disputes/$($case.id)" 'admin'
+Invoke-Api 'POST' "disputes/$($case.id)/evidence" 'seller' @{ description = 'Seller evidence'; evidenceLinks = @('https://example.test/seller-evidence') } | Out-Null
+Invoke-Api 'POST' "disputes/$($case.id)/proposal" 'seller' @{ proposal = 'ReturnRefund'; description = 'Return for a full refund'; evidenceLinks = @('https://example.test/return-proposal') } | Out-Null
 Invoke-Api 'POST' 'carrier/fail-next' 'seller' @{ orderId = $order.id; direction = 'Return'; count = 3 } | Out-Null
-Invoke-Api 'POST' "seller/returns/$($return.id)/approve" 'seller' | Out-Null
+Invoke-Api 'POST' "disputes/$($case.id)/response" 'buyer' @{ accept = $true; description = 'Agreed' } | Out-Null
 $returnDetail = Invoke-Api 'GET' "orders/$($order.id)"
+$return = $returnDetail.returnRequest
 $returnShipment = @($returnDetail.shipments | Where-Object { $_.direction -eq 'Return' })[0]
-if ($returnShipment.status -ne 'ShipmentCreationFailed' -or $returnDetail.returnRequest.status -ne 'Approved') { throw 'Return carrier failure was not handled' }
+if ($returnDetail.dispute.status -ne 'ExecutingAgreement') { throw 'Return agreement closed before refund' }
+if ($returnShipment.status -notin @('ShipmentCreationFailed', 'LabelCreated') -or $return.status -notin @('Approved', 'ReturnShipping')) { throw 'Return carrier failure was not handled' }
 $failedReturnId = $returnShipment.id
 Invoke-Api 'POST' "seller/returns/$($return.id)/ship" 'seller' | Out-Null
 $returnDetail = Invoke-Api 'GET' "orders/$($order.id)"
@@ -156,4 +160,4 @@ $deliveryRefund = Invoke-Api 'POST' "seller/orders/$($deliveryOrder.id)/refund" 
 if ($deliveryRefund.status -ne 'Succeeded' -or (Invoke-Api 'GET' "orders/$($deliveryOrder.id)").status -ne 'Closed') { throw 'Delivery failure refund failed' }
 
 if (@(Invoke-Api 'GET' 'shipper/shipments' 'shipper').Count -lt 1) { throw 'Shipper cannot list shipments' }
-Write-Output "PASS: login, role tokens, buyer checkout, seller workflow, shipper tracking, admin hold decision, finance, returns and refunds"
+Write-Output "PASS: login, role tokens, checkout, seller evidence, dispute negotiation, admin visibility gate, finance, tracking, returns and refunds"

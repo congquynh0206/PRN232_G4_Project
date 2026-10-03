@@ -451,6 +451,9 @@ Equal(401, (await authService.ValidateCredentialsAsync("BUYER@example.test", "G4
 Equal<User?>(null, await authService.ValidateCredentialsAsync("buyer@example.test", "wrong"), "invalid password");
 Console.WriteLine("Authentication checks passed");
 
+await DisputeWorkflowChecks.RunAsync();
+await SellerOrderListChecks.RunAsync();
+
 sealed class TestCarrier : ICarrierGateway
 {
     public int Attempts { get; private set; }

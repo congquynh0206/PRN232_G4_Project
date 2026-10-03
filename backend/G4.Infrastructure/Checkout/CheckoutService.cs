@@ -158,7 +158,8 @@ public sealed class CheckoutService(ApplicationDbContext db, ISellerFinanceServi
         var cutoff = DateTime.UtcNow.AddDays(-7);
         var orders = await db.OrderTables.Where(o => o.Status == "Delivered" &&
             db.ShippingInfos.Any(s => s.OrderId == o.Id && s.Direction == "Outbound" && s.DeliveredAt < cutoff) &&
-            !db.ReturnRequests.Any(r => r.OrderId == o.Id && r.Status != "Rejected"))
+            !db.ReturnRequests.Any(r => r.OrderId == o.Id && r.Status != "Rejected") &&
+            !db.Disputes.Any(d => d.OrderId == o.Id && d.WorkflowEnabled && d.IsOpen))
             .ToListAsync(ct);
         foreach (var order in orders)
         {

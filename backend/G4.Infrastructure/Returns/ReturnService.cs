@@ -14,7 +14,9 @@ public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refund
         var order = await db.OrderTables.SingleAsync(o => o.Id == orderId, ct);
         var deliveredAt = await db.ShippingInfos.Where(s => s.OrderId == orderId && s.Direction == "Outbound")
             .Select(s => s.DeliveredAt).SingleOrDefaultAsync(ct);
-        if (order.Status != "Delivered" || deliveredAt is null || deliveredAt < DateTime.UtcNow.AddDays(-7))
+        var agreedReturn = await db.Disputes.AnyAsync(d => d.OrderId == orderId && d.WorkflowEnabled && d.IsOpen &&
+            d.Status == "ExecutingAgreement" && d.Proposal == "ReturnRefund", ct);
+        if (!agreedReturn && (order.Status != "Delivered" || deliveredAt is null || deliveredAt < DateTime.UtcNow.AddDays(-7)))
             throw new InvalidOperationException("Order is outside return window");
         var request = new ReturnRequest
         {
@@ -102,6 +104,23 @@ public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refund
 
     public async Task<Refund> RefundAsync(int orderId, string reason, int? returnRequestId,
         CancellationToken ct = default)
+    {
+        await using var transaction = db.Database.IsRelational() && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
+        if (db.Database.IsSqlServer())
+        {
+            // All refund entry points lock the same order before contacting the payment provider.
+            // This also serializes refunds with different reasons/idempotency keys.
+            await db.OrderTables.FromSqlInterpolated(
+                $"SELECT * FROM [OrderTable] WITH (UPDLOCK, HOLDLOCK) WHERE [id] = {orderId}").SingleAsync(ct);
+        }
+        var refund = await RefundCoreAsync(orderId, reason, returnRequestId, ct);
+        if (transaction is not null) await transaction.CommitAsync(ct);
+        return refund;
+    }
+
+    private async Task<Refund> RefundCoreAsync(int orderId, string reason, int? returnRequestId,
+        CancellationToken ct)
     {
         if (reason is not ("return" or "cancel" or "delivery-failed" or "dispute"))
             throw new ArgumentException("Invalid refund reason");

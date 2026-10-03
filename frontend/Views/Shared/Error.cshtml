@@ -1,9 +1,15 @@
 @model ErrorViewModel
-@{ ViewData["Title"] = "Có lỗi xảy ra"; }
+@{
+    ViewData["Title"] = "Có lỗi xảy ra";
+}
 <h1>Trang chưa tải được</h1>
 <p>Vui lòng thử lại sau hoặc quay về trang chủ.</p>
-<p><a asp-controller="Home" asp-action="Index">Về trang chủ</a></p>
+<p>
+    <a asp-controller="Home" asp-action="Index">Về trang chủ</a>
+</p>
 @if (Model.ShowRequestId)
 {
-    <p><small>Mã tham chiếu: @Model.RequestId</small></p>
+    <p>
+        <small>Mã tham chiếu: @Model.RequestId</small>
+    </p>
 }

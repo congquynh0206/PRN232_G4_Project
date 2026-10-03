@@ -14,6 +14,25 @@ public partial class ApplicationDbContext
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<Dispute>(entity =>
+        {
+            entity.Property(x => x.Proposal).HasMaxLength(30);
+            entity.Property(x => x.Outcome).HasMaxLength(30);
+            entity.Property(x => x.RowVersion).IsRowVersion();
+            entity.HasIndex(x => x.OrderId).IsUnique()
+                .HasFilter("[IsOpen] = 1 AND [WorkflowEnabled] = 1 AND [orderId] IS NOT NULL");
+            entity.HasIndex(x => new { x.WorkflowEnabled, x.Status, x.SellerResponseDueAt });
+        });
+        modelBuilder.Entity<DisputeEntry>(entity =>
+        {
+            entity.ToTable("DisputeEntry");
+            entity.Property(x => x.ActorRole).HasMaxLength(20);
+            entity.Property(x => x.Kind).HasMaxLength(30);
+            entity.Property(x => x.Description).HasMaxLength(4000);
+            entity.HasIndex(x => new { x.DisputeId, x.Id });
+            entity.HasOne<Dispute>().WithMany().HasForeignKey(x => x.DisputeId).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne<User>().WithMany().HasForeignKey(x => x.ActorId).OnDelete(DeleteBehavior.NoAction);
+        });
         modelBuilder.Entity<OrderTable>(entity =>
         {
             entity.HasIndex(x => x.CheckoutKey).IsUnique().HasFilter("[CheckoutKey] IS NOT NULL");

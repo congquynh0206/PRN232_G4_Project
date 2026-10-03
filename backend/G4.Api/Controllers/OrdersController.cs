@@ -25,9 +25,12 @@ public sealed class OrdersController(ApplicationDbContext db, ICheckoutService c
 
     [HttpGet("orders/page")]
     public async Task<IActionResult> OrdersPage([FromQuery] int page = 1, [FromQuery] int pageSize = 10,
-        [FromQuery] string filter = "all", CancellationToken ct = default)
+        [FromQuery] string filter = "all", [FromQuery] bool needsAction = false, CancellationToken ct = default)
     {
         if (!IsAvailable) return NotFound();
+        if (HasRole("seller"))
+            return Ok(await G4.Infrastructure.Orders.SellerOrderList.ReadAsync(db, CurrentUserId,
+                page, pageSize, filter, needsAction, ct));
         var query = db.OrderTables.AsNoTracking();
         if (HasRole("buyer")) query = query.Where(o => o.BuyerId == CurrentUserId);
         else if (HasRole("seller")) query = query.Where(o => o.SellerId == CurrentUserId);
@@ -45,7 +48,9 @@ public sealed class OrdersController(ApplicationDbContext db, ICheckoutService c
         var totalCount = await query.CountAsync(ct);
         page = Math.Min(page, Math.Max(1, (totalCount + pageSize - 1) / pageSize));
         var items = await query.OrderByDescending(o => o.Id).Skip((page - 1) * pageSize).Take(pageSize)
-            .Select(o => new { o.Id, o.OrderDate, o.UpdatedAt, o.Status, o.TotalPrice, o.Currency })
+            .Select(o => new { o.Id, o.OrderDate, o.UpdatedAt, o.Status, o.TotalPrice, o.Currency,
+                dispute = db.Disputes.Where(d => d.OrderId == o.Id && d.WorkflowEnabled).OrderByDescending(d => d.Id)
+                    .Select(d => new { d.Id, d.Status, d.IsOpen, d.Outcome }).FirstOrDefault() })
             .ToListAsync(ct);
         return Ok(new { page, pageSize, totalCount, items });
     }
@@ -58,7 +63,8 @@ public sealed class OrdersController(ApplicationDbContext db, ICheckoutService c
         if (order is null) return NotFound();
         var canRead = HasRole("buyer") && order.BuyerId == CurrentUserId ||
             HasRole("seller") && order.SellerId == CurrentUserId ||
-            HasRole("shipper") && await db.ShippingInfos.AnyAsync(s => s.OrderId == id, ct);
+            HasRole("shipper") && await db.ShippingInfos.AnyAsync(s => s.OrderId == id, ct) ||
+            HasRole("admin") && await db.Disputes.AnyAsync(d => d.OrderId == id && d.WorkflowEnabled && d.EscalatedAt != null, ct);
         if (!canRead) return StatusCode(403);
         var items = await db.OrderItems.AsNoTracking().Where(i => i.OrderId == id)
             .Select(i => new { i.ProductId, i.ProductTitleSnapshot, i.UnitPrice, i.Quantity }).ToListAsync(ct);
@@ -77,11 +83,13 @@ public sealed class OrdersController(ApplicationDbContext db, ICheckoutService c
         var settlement = await db.SellerSettlements.AsNoTracking().Where(s => s.OrderId == id)
             .Select(s => new { s.GrossAmount, s.PlatformFeeAmount, s.NetAmount, s.ProcessingAmount, s.RefundedAmount,
                 s.FeeCreditAmount, s.Status, s.ReleaseAt, s.ReleasedAt }).SingleOrDefaultAsync(ct);
+        var dispute = await db.Disputes.AsNoTracking().Where(d => d.OrderId == id && d.WorkflowEnabled)
+            .OrderByDescending(d => d.Id).Select(d => new { d.Id, d.Status, d.IsOpen, d.Outcome }).FirstOrDefaultAsync(ct);
         return Ok(new
         {
             order.Id, order.Status, order.OrderDate, order.UpdatedAt, order.PaymentExpiresAt, order.AddressSnapshot, order.CancelDecisionReason,
             order.Subtotal, order.DiscountAmount, order.ShippingFee, order.TotalPrice, order.Currency, order.CouponCode,
-            items, payments, shipments, events, returnRequest, refunds, settlement
+            items, payments, shipments, events, returnRequest, refunds, settlement, dispute
         });
     }
 

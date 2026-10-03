@@ -1,5 +1,87 @@
-@{ Layout = "_RoleLayout"; ViewData["Title"] = "Người bán"; }
-<nav class="tabs role-tabs"><button data-tab="orders" class="active">Đơn hàng</button><button data-tab="finance">Tài chính</button></nav><div id="message" class="message" role="status" aria-live="polite"></div>
-<section id="orders" class="panel tab-panel active"><div class="section-head"><div><span class="eyebrow">Người bán</span><h1>Quản lý đơn hàng</h1><p>Chuẩn bị hàng, duyệt hủy/trả và hoàn tiền.</p></div><button id="refresh-orders">Làm mới</button></div><div id="order-list" class="order-list"></div><div id="order-pagination" class="pagination"></div></section>
-<section id="finance" class="panel tab-panel"><div class="section-head"><div><span class="eyebrow">Người bán</span><h1>Tài chính người bán</h1><p>Phí nền tảng, số dư, cấp và rút tiền.</p></div><button id="refresh-finance">Làm mới</button></div><div id="finance-balances" class="finance-grid"></div><div class="finance-columns"><div class="finance-block"><h2>Cấp người bán</h2><div id="finance-level"></div><button id="evaluate-level">Đánh giá lại cấp</button></div><div class="finance-block"><h2>Yêu cầu rút tiền</h2><label for="payout-amount">Số tiền</label><input id="payout-amount" type="number" min="0.01" step="0.01"/><label class="check-row"><input id="payout-failure" type="checkbox"/> Giả lập ngân hàng trả lại</label><button class="primary" id="request-payout">Rút tiền</button></div></div><div class="finance-block"><h2>Nhật ký tài chính</h2><div id="finance-transactions" class="finance-list"></div><div id="finance-transactions-pagination" class="pagination"></div></div><div class="finance-block"><h2>Lịch sử rút tiền</h2><div id="finance-payouts" class="finance-list"></div><div id="finance-payouts-pagination" class="pagination"></div></div></section>
-@section Scripts { <script src="~/js/common.js" asp-append-version="true"></script><script src="~/js/seller.js" asp-append-version="true"></script> }
+@{
+    Layout = "_RoleLayout";
+    ViewData["Title"] = "Người bán";
+}
+<nav class="tabs role-tabs">
+    <button data-tab="orders" class="active">Đơn hàng</button>
+    <button data-tab="finance">Tài chính</button>
+    <button data-tab="disputes">
+        Tranh chấp
+        <span id="dispute-tab-count"></span>
+    </button>
+</nav>
+<div id="message" class="message" role="status" aria-live="polite"></div>
+<section id="orders" class="panel tab-panel active">
+    <div class="section-head">
+        <div>
+            <span class="eyebrow">Người bán</span>
+            <h1>Quản lý đơn hàng</h1>
+            <p>Chuẩn bị hàng, duyệt hủy/trả và hoàn tiền.</p>
+        </div>
+        <button id="refresh-orders">Làm mới</button>
+    </div>
+    <div class="seller-order-filters">
+        <div id="seller-order-tabs" class="seller-filter-tabs" role="group" aria-label="Phân loại đơn hàng">
+            <button type="button" data-order-filter="all" class="active" aria-pressed="true">Tất cả <span data-filter-count="all">0</span></button>
+            <button type="button" data-order-filter="unpaid" aria-pressed="false">Chờ thanh toán <span data-filter-count="unpaid">0</span></button>
+            <button type="button" data-order-filter="ready" aria-pressed="false">Chờ giao <span data-filter-count="ready">0</span></button>
+            <button type="button" data-order-filter="shipping" aria-pressed="false">Đang giao <span data-filter-count="shipping">0</span></button>
+            <button type="button" data-order-filter="complete" aria-pressed="false">Đã kết thúc <span data-filter-count="complete">0</span></button>
+            <button type="button" data-order-filter="cancelled" aria-pressed="false">Đã hủy <span data-filter-count="cancelled">0</span></button>
+        </div>
+        <div class="seller-filter-tools">
+            <label class="seller-attention-filter" for="seller-needs-action">
+                <input type="checkbox" id="seller-needs-action" />
+                Cần xử lý <span id="seller-action-count">0</span>
+            </label>
+            <p id="seller-order-summary" class="small" role="status" aria-live="polite"></p>
+        </div>
+    </div>
+    <div id="order-list" class="order-list" aria-busy="false"></div>
+    <div id="order-pagination" class="pagination"></div>
+</section>
+<section id="finance" class="panel tab-panel">
+    <div class="section-head">
+        <div>
+            <span class="eyebrow">Người bán</span>
+            <h1>Tài chính người bán</h1>
+            <p>Phí nền tảng, số dư, cấp và rút tiền.</p>
+        </div>
+        <button id="refresh-finance">Làm mới</button>
+    </div>
+    <div id="finance-balances" class="finance-grid"></div>
+    <div class="finance-columns">
+        <div class="finance-block">
+            <h2>Cấp người bán</h2>
+            <div id="finance-level"></div>
+            <button id="evaluate-level">Đánh giá lại cấp</button>
+        </div>
+        <div class="finance-block">
+            <h2>Yêu cầu rút tiền</h2>
+            <label for="payout-amount">Số tiền</label>
+            <input id="payout-amount" type="number" min="0.01" step="0.01"/>
+            <label class="check-row">
+                <input id="payout-failure" type="checkbox"/>
+                Giả lập ngân hàng trả lại
+            </label>
+            <button class="primary" id="request-payout">Rút tiền</button>
+        </div>
+    </div>
+    <div class="finance-block">
+        <h2>Nhật ký tài chính</h2>
+        <div id="finance-transactions" class="finance-list"></div>
+        <div id="finance-transactions-pagination" class="pagination"></div>
+    </div>
+    <div class="finance-block">
+        <h2>Lịch sử rút tiền</h2>
+        <div id="finance-payouts" class="finance-list"></div>
+        <div id="finance-payouts-pagination" class="pagination"></div>
+    </div>
+</section>
+<partial name="_DisputesPanel" model="false" />
+@section Scripts
+{
+    <script src="~/js/common.js" asp-append-version="true"></script>
+    <script src="~/js/disputes.js" asp-append-version="true"></script>
+    <script src="~/js/seller.js" asp-append-version="true"></script>
+}

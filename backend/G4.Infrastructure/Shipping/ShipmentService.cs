@@ -31,7 +31,7 @@ public sealed class ShipmentService(ApplicationDbContext db, ICarrierGateway car
                 OccurredAt = DateTime.UtcNow, ReceivedAt = DateTime.UtcNow, Note = "Đã tạo vận đơn giao hàng"
             });
         }
-        catch (HttpRequestException)
+        catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException && !ct.IsCancellationRequested)
         {
             shipment.Status = "ShipmentCreationFailed";
             order.UpdatedAt = DateTime.UtcNow;
@@ -64,7 +64,7 @@ public sealed class ShipmentService(ApplicationDbContext db, ICarrierGateway car
                 OccurredAt = DateTime.UtcNow, ReceivedAt = DateTime.UtcNow, Note = "Đã tạo vận đơn trả hàng"
             });
         }
-        catch (HttpRequestException)
+        catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException && !ct.IsCancellationRequested)
         {
             shipment.Status = "ShipmentCreationFailed";
             order.UpdatedAt = DateTime.UtcNow;

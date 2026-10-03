@@ -74,3 +74,19 @@ test('danh sách đã lọc loại đơn đổi trạng thái và bổ sung mụ
   const retained = G4.pageChanges([1, 2], [1, 2], 1);
   assert.deepEqual([...retained.upsert], [1]);
 });
+
+test('thẻ seller nhận diện sản phẩm, người mua và refund mà không render HTML dữ liệu', () => {
+  const { G4 } = loadCommon();
+  const html = G4.orderCard({ id: 46, status: 'Closed', totalPrice: 191.89,
+    productTitle: '<img src=x onerror=alert(1)>', buyerName: 'A & B',
+    productCount: 3, itemCount: 5, hasRefund: true, attention: null }, 'seller');
+  assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/);
+  assert.match(html, /A &amp; B/);
+  assert.match(html, /\+2 sản phẩm khác/);
+  assert.match(html, /5 món/);
+  assert.match(html, /Đã hoàn tiền/);
+  assert.doesNotMatch(html, />Hoàn tất</);
+  assert.match(html, /Tổng đơn/);
+  assert.match(html, /\$191\.89/);
+  assert.match(html, /data-open-order="46"/);
+});

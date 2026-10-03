@@ -41,13 +41,16 @@ Seller có `Negative > 0` không được tạo payout. Khi có giao dịch bán
 
 ## Giữ tiền khi tranh chấp
 
-`POST /api/orders/{orderId}/fund-hold` với vai `buyer` chuyển tiền của order từ `Processing` hoặc `Available` sang `OnHold`. Endpoint nhận `reason` và dùng idempotency theo order.
-Buyer có thể gọi luồng này bằng nút **Mở tranh chấp & giữ tiền** trong chi tiết đơn đã giao.
+Buyer mở yêu cầu qua **Mở yêu cầu giải quyết** trong chi tiết đơn đã giao; mô tả và link bằng chứng bắt buộc. Hệ thống giữ tiền của đúng đơn và chờ hai bên thương lượng trước. Xem [DISPUTES.md](DISPUTES.md) cho toàn bộ quy trình và các thời hạn demo 45 giây.
 
-`POST /api/orders/{orderId}/fund-hold/resolve` chỉ nhận JWT của tài khoản `admin`:
+Khóa giữ tiền theo order và hồ sơ tranh chấp giúp mở lại sau khi đóng mà không dùng lại khoản giữ đã giải quyết. Endpoint cũ `POST /api/orders/{orderId}/fund-hold` chuyển qua quy trình mới, nhận `reason` và `evidenceLinks`; không bỏ qua bằng chứng hoặc thương lượng.
+
+Admin chỉ quyết định hồ sơ đã chuyển lên do seller hết hạn hoặc buyer không đồng ý phương án. Endpoint tương thích `POST /api/orders/{orderId}/fund-hold/resolve` chỉ nhận JWT `admin` và bắt buộc `reason`:
 
 - `releaseToSeller: true`: seller thắng, tiền từ `OnHold` trở lại `Available` nếu đã giao và hết hạn giữ; nếu chưa đủ điều kiện thì trở lại `Processing`.
-- `releaseToSeller: false`: buyer thắng, tiền tiếp tục nằm trong `OnHold` và API tự khởi tạo refund. Nếu cổng refund lỗi, settlement ở `RefundPending`; Admin có thể thử lại và worker cũng tự retry. Chỉ khi refund thành công, khoản hold của **đúng order đó** mới được trừ và ghi fee credit đúng một lần. Nếu seller thắng trước khi đơn đủ điều kiện mở khóa tiền, khoản hold trở lại `Processing` thay vì vào `Available` sớm.
+- `releaseToSeller: false`: buyer thắng, tiền tiếp tục nằm trong `OnHold` và API tự khởi tạo refund. Nếu cổng refund lỗi, settlement ở `RefundPending`, hồ sơ ở `ExecutingAgreement`; worker tự retry. Chỉ khi refund thành công, khoản hold của **đúng order đó** mới được trừ và ghi fee credit đúng một lần. Nếu seller thắng trước khi đơn đủ điều kiện mở khóa tiền, khoản hold trở lại `Processing` thay vì vào `Available` sớm.
+
+Nếu buyer không phản hồi phương án đúng hạn, yêu cầu tự đóng và khoản giữ được giải phóng theo điều kiện trên; không tự chấp nhận phương án seller. Thỏa thuận hoàn tiền hoặc trả hàng vẫn giữ hồ sơ mở đến khi hoàn tiền thành công.
 
 ## API và giao diện
 

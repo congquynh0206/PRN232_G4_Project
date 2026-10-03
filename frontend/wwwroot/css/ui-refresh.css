@@ -80,3 +80,171 @@ input,select{border-color:#bfcbd9;min-height:42px;color:#17243a}
 @media(max-width:760px){.panel{padding:20px}.order-card-side{width:100%;justify-content:space-between}.settlement-grid{grid-template-columns:1fr}.settlement-operator{justify-self:center}.email-card dl{grid-template-columns:1fr}.section-head{align-items:flex-start}.status-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){.pagination{align-items:flex-start;flex-direction:column}.pagination div{width:100%}.pagination button{flex:1}.status-grid{grid-template-columns:1fr}.dialog-actions button{flex:1}.section-head{flex-direction:column}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation-duration:.01ms!important}}
+
+.seller-order-filters { margin-bottom: 20px; }
+.seller-filter-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.seller-filter-tabs button { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: 13px; }
+.seller-filter-tabs button.active { background: #eaf1ff; border-color: #315fc6; color: #214fba; }
+.seller-filter-tabs [data-filter-count], #seller-action-count { min-width: 24px; padding: 2px 6px; border-radius: 12px; background: #edf1f6; color: #435771; font-size: 12px; font-variant-numeric: tabular-nums; text-align: center; }
+.seller-filter-tabs button.active [data-filter-count] { background: #315fc6; color: #fff; }
+.seller-filter-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 20px; margin-top: 12px; }
+.seller-attention-filter { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: 13px; cursor: pointer; }
+.seller-attention-filter input { width: 18px; height: 18px; min-height: 0; accent-color: #315fc6; }
+#seller-order-summary { margin: 0; }
+#order-list[aria-busy="true"] { opacity: .65; }
+.seller-order-card { display: block; padding: 0; overflow: hidden; }
+.seller-order-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 14px 20px; border-bottom: 1px solid #edf1f6; }
+.seller-order-head > strong { color: #244169; font-size: 14px; }
+.seller-order-times { display: flex; flex-wrap: wrap; gap: 4px 16px; color: #617087; font-size: 12px; line-height: 1.5; }
+.seller-order-body { display: grid; grid-template-columns: 64px minmax(0,1fr) auto; align-items: center; gap: 16px; padding: 18px 20px; }
+.seller-product-thumb { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 10px; background: #eef2f7; color: #8192a8; }
+.seller-product-thumb svg { width: 34px; height: 34px; }
+.seller-product-info { display: grid; gap: 5px; min-width: 0; }
+.seller-order-card .seller-product-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; color: #183455; font-size: 16px; line-height: 1.45; }
+.seller-product-count { color: #617087; font-size: 12px; }
+.seller-buyer { color: #435771; font-size: 13px; overflow-wrap: anywhere; }
+.seller-order-total { display: grid; gap: 5px; text-align: right; padding-left: 12px; }
+.seller-order-total span { color: #617087; font-size: 12px; }
+.seller-order-total strong { color: #183455; font-size: 21px; font-variant-numeric: tabular-nums; }
+.seller-order-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 20px 14px; }
+.seller-order-badges { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.seller-order-foot > button { flex-shrink: 0; min-height: 44px; font-size: 13px; }
+.seller-status, .seller-attention { display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; line-height: 1.5; }
+.seller-status-waiting { color: #795016; background: #fff4df; }
+.seller-status-shipping { color: #214f8b; background: #edf4ff; }
+.seller-status-success { color: #205738; background: #eaf7ee; }
+.seller-status-refund { color: #674291; background: #f3edfa; }
+.seller-status-muted { color: #53647a; background: #edf1f6; }
+.seller-status-warning, .seller-attention { color: #8b3d13; background: #fff0e6; }
+.seller-order-card .dispute-badge { white-space: normal; text-align: left; }
+@media(max-width:600px) {
+    .seller-order-head { padding: 12px 16px; }
+    .seller-order-times { width: 100%; font-size: 12px; }
+    .seller-order-body { grid-template-columns: 56px minmax(0,1fr); gap: 12px; padding: 16px; }
+    .seller-product-thumb { width: 56px; height: 56px; align-self: start; }
+    .seller-order-total { grid-column: 2; justify-self: start; text-align: left; padding-left: 0; }
+    .seller-order-total strong { font-size: 19px; }
+    .seller-order-foot { padding: 0 16px 14px; flex-wrap: wrap; }
+    .seller-order-badges { flex: 1 1 100%; }
+    .seller-order-foot > button { margin-left: auto; }
+    .seller-filter-tabs { gap: 8px; }
+    .seller-filter-tabs button { flex: 1 1 auto; justify-content: center; }
+}
+
+.dispute-badge {
+    justify-self: start;
+    min-height: 32px;
+    padding: 5px 10px;
+    font-size: 12px;
+    background: #edf4ff;
+    color: #244d8a;
+    border-color: #c1d4f4;
+}
+
+.dispute-badge.is-open {
+    background: #fff4df;
+    color: #754d0d;
+    border-color: #e8ca8e;
+}
+
+.case-deadline {
+    margin: 6px 0;
+    color: #8b4b00;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.case-status {
+    color: #214f8b;
+    font-weight: 700;
+}
+
+.case-description,
+.case-entry p,
+.case-result p {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    line-height: 1.6;
+}
+
+.case-proposal,
+.case-result,
+.evidence-warning {
+    padding: 14px 18px;
+    border-radius: 10px;
+    background: #edf4ff;
+    margin: 16px 0;
+    line-height: 1.5;
+}
+
+.case-result {
+    background: #eaf7ee;
+    color: #205738;
+}
+
+.evidence-warning {
+    background: #fff6e6;
+    color: #704b12;
+    font-size: 14px;
+}
+
+.case-history {
+    display: grid;
+    gap: 12px;
+}
+
+.case-entry {
+    padding: 16px;
+    border: 1px solid #dae4f0;
+    border-radius: 10px;
+    background: #fbfcff;
+}
+
+.case-entry header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.case-entry small {
+    color: #617087;
+}
+
+.case-entry a {
+    color: #2152ae;
+    overflow-wrap: anywhere;
+    line-height: 1.6;
+}
+
+.case-entry li {
+    margin: 8px 0;
+}
+
+.dispute-card .order-card-main small {
+    overflow-wrap: anywhere;
+}
+
+.dialog-fields textarea {
+    width: 100%;
+    resize: vertical;
+    min-height: 90px;
+    border: 1px solid #bfcbd9;
+    border-radius: 6px;
+    padding: 10px;
+    font: inherit;
+    line-height: 1.5;
+}
+
+.dialog-fields textarea:focus-visible {
+    outline: 3px solid #ffb545;
+    outline-offset: 3px;
+}
+
+.dialog-fields small {
+    color: #617087;
+    line-height: 1.5;
+}
+.ebay {
+  display: inline-flex;
+}

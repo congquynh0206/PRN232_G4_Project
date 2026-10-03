@@ -1,3 +1,22 @@
-@{ Layout = "_RoleLayout"; ViewData["Title"] = "Đơn vị giao hàng"; }
-<div id="message" class="message" role="status" aria-live="polite"></div><section class="panel active"><div class="section-head"><div><span class="eyebrow">Đơn vị giao hàng</span><h1>Điều phối vận chuyển</h1><p>Cập nhật vận chuyển cho vận đơn chiều đi và chiều trả.</p></div><button id="refresh-shipments">Làm mới</button></div><div id="shipment-list" class="order-list"></div><div id="shipment-pagination" class="pagination"></div></section>
-@section Scripts { <script src="~/js/common.js" asp-append-version="true"></script><script src="~/js/shipper.js" asp-append-version="true"></script> }
+@{
+    Layout = "_RoleLayout";
+    ViewData["Title"] = "Đơn vị giao hàng";
+}
+<div id="message" class="message" role="status" aria-live="polite"></div>
+<section class="panel active">
+    <div class="section-head">
+        <div>
+            <span class="eyebrow">Đơn vị giao hàng</span>
+            <h1>Điều phối vận chuyển</h1>
+            <p>Cập nhật vận chuyển cho vận đơn chiều đi và chiều trả.</p>
+        </div>
+        <button id="refresh-shipments">Làm mới</button>
+    </div>
+    <div id="shipment-list" class="order-list"></div>
+    <div id="shipment-pagination" class="pagination"></div>
+</section>
+@section Scripts
+{
+    <script src="~/js/common.js" asp-append-version="true"></script>
+    <script src="~/js/shipper.js" asp-append-version="true"></script>
+}

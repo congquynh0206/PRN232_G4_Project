@@ -129,10 +129,10 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task PlaceHoldAsync(int orderId, string reason, CancellationToken ct = default)
+    public async Task PlaceHoldAsync(int orderId, string reason, CancellationToken ct = default, int? disputeId = null)
     {
         var settlement = await db.SellerSettlements.SingleAsync(x => x.OrderId == orderId, ct);
-        var key = $"order:{orderId}:hold";
+        var key = disputeId is null ? $"order:{orderId}:hold" : $"order:{orderId}:case:{disputeId}:hold";
         if (await db.FinancialTransactions.AnyAsync(x => x.EntryKey == key, ct)) return;
         if (settlement.Status is not ("Processing" or "Available"))
             throw new InvalidOperationException("Order funds cannot be placed on hold");
@@ -157,10 +157,11 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task ResolveHoldAsync(int orderId, bool releaseToSeller, CancellationToken ct = default)
+    public async Task ResolveHoldAsync(int orderId, bool releaseToSeller, CancellationToken ct = default, int? disputeId = null)
     {
         var settlement = await db.SellerSettlements.SingleAsync(x => x.OrderId == orderId, ct);
-        var key = $"order:{orderId}:hold:{(releaseToSeller ? "seller" : "buyer")}";
+        var prefix = disputeId is null ? $"order:{orderId}:hold" : $"order:{orderId}:case:{disputeId}:hold";
+        var key = $"{prefix}:{(releaseToSeller ? "seller" : "buyer")}";
         if (await db.FinancialTransactions.AnyAsync(x => x.EntryKey == key, ct)) return;
         if (settlement.Status != "OnHold") throw new InvalidOperationException("Order funds are not on hold");
         var account = await db.SellerAccounts.SingleAsync(x => x.Id == settlement.SellerAccountId, ct);
@@ -423,7 +424,7 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         Math.Max(0m, settlement.NetAmount - (settlement.RefundedAmount - settlement.FeeCreditAmount));
     private async Task<decimal> HeldAmountAsync(int settlementId, CancellationToken ct) =>
         await db.FinancialTransactions.Where(x => x.SettlementId == settlementId && x.Type == "FundHold")
-            .Select(x => x.Amount).SingleOrDefaultAsync(ct);
+            .OrderByDescending(x => x.Id).Select(x => x.Amount).FirstOrDefaultAsync(ct);
     private decimal Level1Limit => configuration.GetValue("Finance:Levels:1:MonthlySalesLimit", 5_000m);
     private decimal Level2Limit => configuration.GetValue("Finance:Levels:2:MonthlySalesLimit", 10_000m);
     private decimal Level3Limit => configuration.GetValue("Finance:Levels:3:MonthlySalesLimit", 1_000_000m);

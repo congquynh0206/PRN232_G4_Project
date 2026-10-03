@@ -15,10 +15,10 @@ Hệ thống có bốn role độc lập. Người dùng đăng nhập tại `/A
 
 ## Phân chia chức năng
 
-- **Buyer:** random giỏ, checkout, Credit Card/PayPal, xem đơn của chính mình, tracking, hủy, trả hàng và mở tranh chấp.
-- **Seller:** chỉ xem đơn bán của mình; chuẩn bị hàng, tạo vận đơn, xử lý hủy/trả/refund, xem balance, level, ledger và payout. Seller không còn quyền phát tracking event.
+- **Buyer:** random giỏ, checkout, Credit Card/PayPal, xem đơn của chính mình, tracking, hủy, trả hàng; tab Tranh chấp để mở yêu cầu có bằng chứng, bổ sung và chấp nhận/từ chối phương án.
+- **Seller:** chỉ xem đơn bán của mình; chuẩn bị hàng, tạo vận đơn, xử lý hủy/trả/refund, xem balance, level, ledger và payout; tab Tranh chấp để gửi bằng chứng và phương án. Seller không có quyền phát tracking event hoặc quyết định thay admin.
 - **Shipper:** xem các vận đơn đã được seller tạo và cập nhật mốc vận chuyển chiều đi/chiều trả. Shipper không thanh toán hoặc xử lý refund.
-- **Admin:** xem các settlement `OnHold`, quyết định seller thắng/buyer thắng và xem nhật ký email hệ thống.
+- **Admin:** chỉ xem hồ sơ tranh chấp đã chuyển lên (seller hết hạn hoặc buyer từ chối phương án), quyết định seller thắng/buyer thắng kèm lý do và xem nhật ký email hệ thống. Chi tiết đơn chỉ đọc được khi có hồ sơ đã chuyển admin.
 
 API còn kiểm tra quyền sở hữu dữ liệu: buyer chỉ truy cập order có `BuyerId` của mình, seller chỉ truy cập order có `SellerId` của mình. Có token đúng role nhưng dùng ID của người khác vẫn nhận `403`.
 
@@ -34,7 +34,9 @@ API còn kiểm tra quyền sở hữu dữ liệu: buyer chỉ truy cập order
 - `POST /api/auth/login`: nhận email/mật khẩu và cấp JWT.
 - `GET /api/orders`: tự lọc theo buyer hoặc seller đang đăng nhập.
 - `GET /api/shipper/shipments`: danh sách công việc của shipper.
-- `GET /api/admin/fund-holds`: các khoản cần admin xử lý.
-- `POST /api/orders/{id}/fund-hold/resolve`: chỉ admin.
+- `GET /api/disputes/page`: danh sách phân trang theo quyền; admin chỉ thấy hồ sơ đã chuyển lên.
+- `GET /api/disputes/{id}` và các thao tác: xem [DISPUTES.md](DISPUTES.md).
+- `GET /api/admin/fund-holds`: endpoint tương thích, chỉ liệt kê khoản giữ thuộc hồ sơ đã chuyển admin.
+- `POST /api/orders/{id}/fund-hold/resolve`: endpoint tương thích, vẫn kiểm tra hồ sơ đã chuyển admin và lý do quyết định.
 
 Các controller API dùng fallback policy yêu cầu đăng nhập. Carrier simulator vẫn dùng `X-Carrier-Key` riêng và được phép gọi ẩn danh vì đây là tích hợp machine-to-machine cục bộ.

@@ -46,6 +46,7 @@ app.UseExceptionHandler(error => error.Run(async context =>
     context.Response.StatusCode = exception switch
     {
         ArgumentException => 400,
+        UnauthorizedAccessException => 403,
         KeyNotFoundException => 404,
         InvalidOperationException or DbUpdateException => 409,
         _ => 500

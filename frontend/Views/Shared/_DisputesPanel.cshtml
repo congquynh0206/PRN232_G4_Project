@@ -1,0 +1,20 @@
+@model bool
+<section id="disputes" class="panel tab-panel @(Model ? "active" : "")">
+    <div class="section-head">
+        <div>
+            <span class="eyebrow">Yêu cầu giải quyết</span>
+            <h1>Tranh chấp</h1>
+            <p>Theo dõi trao đổi, bằng chứng, thời hạn phản hồi và kết quả giải quyết.</p>
+        </div>
+        <button type="button" id="refresh-disputes">Làm mới</button>
+    </div>
+    <label for="dispute-filter">Lọc yêu cầu</label>
+    <select id="dispute-filter">
+        <option value="open">Đang xử lý</option>
+        <option value="closed">Đã kết thúc</option>
+        <option value="all">Tất cả</option>
+    </select>
+    <p class="small">Trạng thái tự cập nhật. Thời hạn phản hồi trong bản demo là 45 giây.</p>
+    <div id="dispute-list" class="order-list"></div>
+    <div id="dispute-pagination" class="pagination"></div>
+</section>

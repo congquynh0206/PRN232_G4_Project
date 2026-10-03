@@ -1,38 +1,77 @@
 @using System.Security.Claims
 @{
     var role = User.FindFirstValue(ClaimTypes.Role) ?? "";
-    var roleLabel = role switch { "buyer" => "Người mua", "seller" => "Người bán", "shipper" => "Đơn vị giao hàng", "admin" => "Quản trị viên", _ => role };
-    var roleController = role switch { "buyer" => "Buyer", "seller" => "Seller", "shipper" => "Shipper", "admin" => "Admin", _ => "Account" };
+    var roleLabel = role switch
+    {
+        "buyer" => "Người mua",
+        "seller" => "Người bán",
+        "shipper" => "Đơn vị giao hàng",
+        "admin" => "Quản trị viên",
+        _ => role
+    };
+    var roleController = role switch
+    {
+        "buyer" => "Buyer",
+        "seller" => "Seller",
+        "shipper" => "Shipper",
+        "admin" => "Admin",
+        _ => "Account"
+    };
 }
 <!doctype html>
 <html lang="vi">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>@ViewData["Title"] - Sàn G4</title>
-    <link rel="stylesheet" href="~/css/checkout.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/roles.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/ui-refresh.css" asp-append-version="true" />
-</head>
-<body>
-    <header class="topbar role-topbar">
-        <a class="brand" asp-controller="@roleController" asp-action="Index"><span class="ebay"><b>e</b><b>b</b><b>a</b><b>y</b></span><span>Sàn G4</span></a>
-        <div class="account-area"><div><strong>@User.Identity?.Name</strong><small>@roleLabel</small></div><form asp-controller="Account" asp-action="Logout" method="post"><button type="submit">Đăng xuất</button></form></div>
-    </header>
-    <div class="role-banner">Không gian làm việc của <strong>@roleLabel</strong></div>
-    <main>@RenderBody()</main>
-    <dialog id="detail-dialog" class="detail-dialog" aria-label="Chi tiết">
-        <div class="detail-dialog-head"><strong>Chi tiết</strong><button type="button" id="detail-close" aria-label="Đóng chi tiết">Đóng</button></div>
-        <div id="detail-content"></div>
-    </dialog>
-    <dialog id="action-dialog" class="action-dialog" aria-labelledby="action-title">
-        <form id="action-form">
-            <h2 id="action-title"></h2>
-            <p id="action-description"></p>
-            <div id="action-fields" class="dialog-fields"></div>
-            <div class="dialog-actions"><button type="button" id="action-cancel">Đóng</button><button type="submit" class="primary" id="action-confirm">Xác nhận</button></div>
-        </form>
-    </dialog>
-    @await RenderSectionAsync("Scripts", required: false)
-</body>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>@ViewData["Title"] - Sàn G4</title>
+        <link rel="stylesheet" href="~/css/checkout.css" asp-append-version="true" />
+        <link rel="stylesheet" href="~/css/roles.css" asp-append-version="true" />
+        <link rel="stylesheet" href="~/css/ui-refresh.css" asp-append-version="true" />
+    </head>
+    <body>
+        <header class="topbar role-topbar">
+            <a class="brand" asp-controller="@roleController" asp-action="Index">
+                <span class="ebay">
+                    <b>e</b>
+                    <b>b</b>
+                    <b>a</b>
+                    <b>y</b>
+                </span>
+                <span>Sàn G4</span>
+            </a>
+            <div class="account-area">
+                <div>
+                    <strong>@User.Identity?.Name</strong>
+                    <small>@roleLabel</small>
+                </div>
+                <form asp-controller="Account" asp-action="Logout" method="post">
+                    <button type="submit">Đăng xuất</button>
+                </form>
+            </div>
+        </header>
+        <div class="role-banner">
+            Không gian làm việc của
+            <strong>@roleLabel</strong>
+        </div>
+        <main>@RenderBody()</main>
+        <dialog id="detail-dialog" class="detail-dialog" aria-label="Chi tiết">
+            <div class="detail-dialog-head">
+                <strong>Chi tiết</strong>
+                <button type="button" id="detail-close" aria-label="Đóng chi tiết">Đóng</button>
+            </div>
+            <div id="detail-content"></div>
+        </dialog>
+        <dialog id="action-dialog" class="action-dialog" aria-labelledby="action-title">
+            <form id="action-form">
+                <h2 id="action-title"></h2>
+                <p id="action-description"></p>
+                <div id="action-fields" class="dialog-fields"></div>
+                <div class="dialog-actions">
+                    <button type="button" id="action-cancel">Đóng</button>
+                    <button type="submit" class="primary" id="action-confirm">Xác nhận</button>
+                </div>
+            </form>
+        </dialog>
+        @await RenderSectionAsync("Scripts", required: false)
+    </body>
 </html>

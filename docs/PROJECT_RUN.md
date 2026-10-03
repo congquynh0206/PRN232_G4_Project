@@ -2,7 +2,7 @@
 
 Dự án chạy hai ứng dụng .NET 8: API ở `http://localhost:5251` và giao diện ở `http://localhost:5131`. Ứng dụng đọc user, sản phẩm, tồn kho, địa chỉ và coupon từ SQL Server; frontend không tự tạo dữ liệu khi mở trang. Người dùng đăng nhập bằng tài khoản Development và được chuyển tới trang buyer, seller, shipper hoặc admin tương ứng.
 
-Xem cách chia các project tại [BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md), đăng nhập/phân quyền tại [AUTHORIZATION_AND_ROLE_PAGES.md](AUTHORIZATION_AND_ROLE_PAGES.md), và tài chính tại [SELLER_FINANCE.md](SELLER_FINANCE.md).
+Xem cách chia các project tại [BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md), đăng nhập/phân quyền tại [AUTHORIZATION_AND_ROLE_PAGES.md](AUTHORIZATION_AND_ROLE_PAGES.md), tài chính tại [SELLER_FINANCE.md](SELLER_FINANCE.md), và thương lượng tranh chấp tại [DISPUTES.md](DISPUTES.md).
 
 SQL Server là nguồn dữ liệu khi chạy ứng dụng. EF Core InMemory chỉ còn được dùng bên trong kiểm thử tự động, không dùng để khởi tạo dữ liệu cho giao diện.
 
@@ -12,7 +12,7 @@ SQL Server là nguồn dữ liệu khi chạy ứng dụng. EF Core InMemory ch�
 2. Cấu hình `ConnectionStrings__DefaultConnection` trong môi trường theo SQL Server của bạn. Mẫu cấu hình trong `backend/G4.Api/appsettings.json` dùng SQL Server Docker qua cổng `14333`; SQL Server cài trực tiếp thường có server/cổng khác.
 3. Từ thư mục gốc chạy `dotnet ef database update --project backend/G4.Infrastructure --startup-project backend/G4.Api`. Migration cũ `InitialCreate` không tạo bảng; bảng nền phải đến từ bước 1. Các migration tiếp theo thêm checkout, giao hàng và tài chính seller. Có thể xem [database/checkout-shipping-migration.sql](../database/checkout-shipping-migration.sql) và [database/seller-finance-migration.sql](../database/seller-finance-migration.sql) nếu muốn duyệt SQL trước.
 
-   Giao diện quản lý mới dùng cột `OrderTable.UpdatedAt` để hiển thị thời điểm cập nhật đơn. Với cơ sở dữ liệu đã có, chạy lại lệnh migration trên trước khi khởi động API mới; migration `AddOrderUpdatedAt` chỉ thêm cột và điền thời điểm ban đầu từ `OrderDate`.
+   Giao diện quản lý dùng `OrderTable.UpdatedAt` và quy trình tranh chấp mới cần migration `AddDisputeWorkflow`. Với cơ sở dữ liệu đã có, dừng API và chạy lại lệnh migration trên trước khi khởi động API mới. `AddOrderUpdatedAt` điền thời điểm ban đầu từ `OrderDate`; `AddDisputeWorkflow` thêm lịch sử bằng chứng và trạng thái thương lượng. SQL để duyệt: [dispute-workflow-migration.sql](../database/dispute-workflow-migration.sql).
 4. Chạy [database/seed-data.sql](../database/seed-data.sql) để thêm/cập nhật buyer, seller, shipper, admin, store, 5 sản phẩm, tồn kho, địa chỉ và coupon `G4SAVE10`. Script có thể chạy lại an toàn: không tạo bản ghi trùng và không đặt lại số lượng tồn kho đã bị đơn hàng trừ.
 5. Chạy API: `dotnet run --project backend/G4.Api --urls http://localhost:5251`.
 6. Chạy frontend ở cửa sổ khác: `dotnet run --project frontend --urls http://localhost:5131`.
@@ -44,7 +44,9 @@ Sau khi đổi cấu trúc, project startup backend là `backend/G4.Api/G4.Api.c
 
 Credit Card ở đây chỉ là mô phỏng: `4111111111111111` + `12/30` thành công; `4000000000000002` + `12/30` bị từ chối; tháng/năm đã qua trả về hết hạn. Không nhập thẻ thật. Seller tạo vận đơn, xử lý hủy/trả hàng và hoàn tiền trên trang **Seller**; shipper phát các mốc tracking trên trang **Shipper**. Trang **Admin** hiển thị email đã lưu; nếu đặt `Mail__Host` và tùy chọn `Mail__Port` thì API gửi tới SMTP/mail catcher cục bộ.
 
-Tab **Seller Finance** hiển thị phí nền tảng, số dư Processing/Available/On Hold/Negative, level và lịch sử payout. Development mở khóa tiền sau 30 giây nhưng chỉ khi đơn đã giao; cấu hình thật dùng 21/7/0 ngày theo level. Worker cũng tự tạo đối soát cho payment/refund cũ sau khi nâng database.
+Tab **Tài chính người bán** hiển thị phí nền tảng, số dư đang xử lý/có thể rút/đang giữ/số dư âm, cấp người bán và lịch sử rút tiền. Development mở khóa tiền sau 30 giây nhưng chỉ khi đơn đã giao; cấu hình thật dùng 21/7/0 ngày theo cấp. Worker cũng tự tạo đối soát cho payment/refund cũ sau khi nâng database.
+
+Buyer và seller có tab **Tranh chấp** để thương lượng với mô tả và link bằng chứng bắt buộc, không sửa/xóa sau khi gửi. Admin chỉ xử lý hồ sơ đã chuyển lên. Development dùng **45 giây** cho phản hồi seller, phản hồi buyer và xác nhận hàng trả; worker chạy mỗi 5 giây. Xem quy tắc đầy đủ tại [DISPUTES.md](DISPUTES.md).
 
 ## Tracking hai chiều
 
@@ -72,6 +74,7 @@ Kiểm tra giao diện bằng các kịch bản:
 ```powershell
 dotnet build G4_Project.sln
 dotnet run --project tests/G4.Commerce.Tests
+node --test tests/ui-navigation.test.cjs tests/dispute-ui.test.cjs
 ./tests/smoke-commerce.ps1
 ```
 

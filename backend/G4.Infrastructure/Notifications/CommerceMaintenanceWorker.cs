@@ -13,7 +13,7 @@ public sealed class CommerceMaintenanceWorker(IServiceScopeFactory scopes, IConf
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
         do
         {
             try
@@ -37,7 +37,9 @@ public sealed class CommerceMaintenanceWorker(IServiceScopeFactory scopes, IConf
                 await checkout.CloseDeliveredOutsideReturnWindowAsync(stoppingToken);
                 var finance = scope.ServiceProvider.GetRequiredService<ISellerFinanceService>();
                 await finance.BackfillAsync(stoppingToken);
-                var pendingDisputeRefunds = await db.SellerSettlements.Where(x => x.Status == "RefundPending")
+                await scope.ServiceProvider.GetRequiredService<IDisputeService>().MaintainAsync(stoppingToken);
+                var pendingDisputeRefunds = await db.SellerSettlements.Where(x => x.Status == "RefundPending" &&
+                    !db.Disputes.Any(d => d.OrderId == x.OrderId && d.WorkflowEnabled))
                     .Select(x => x.OrderId).OrderBy(x => x).Take(20).ToListAsync(stoppingToken);
                 var returns = scope.ServiceProvider.GetRequiredService<IReturnService>();
                 foreach (var orderId in pendingDisputeRefunds)

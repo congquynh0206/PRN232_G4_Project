@@ -27,6 +27,7 @@ backend/
     ├── Finance/
     ├── Shipping/
     ├── Returns/
+    ├── Disputes/
     ├── Notifications/
     ├── Integrations/
     │   ├── PayPal/
@@ -72,6 +73,7 @@ Controller cũ chứa toàn bộ endpoint đã được tách theo chức năng:
 | `PaymentsController` | Credit, PayPal và refund |
 | `ShippingController` | Tạo vận đơn, sự kiện tracking và mô phỏng lỗi carrier |
 | `ReturnsController` | Yêu cầu, duyệt, từ chối và nhận hàng trả |
+| `DisputesController` | Thương lượng, bằng chứng bất biến, phản hồi, quyết định và danh sách theo quyền |
 | `NotificationsController` | Hộp thư thông báo |
 | `FinanceController` | Số dư seller, level, payout và giữ/giải phóng tiền |
 | `AuthenticationController` | Kiểm tra credential và cấp JWT chứa user ID/role |
@@ -100,3 +102,5 @@ User Secrets tiếp tục nằm ở `G4.Api` và giữ nguyên `UserSecretsId`, 
 ## Lưu ý chuyển tiếp
 
 Việc refactor cấu trúc không tự thay schema. Gói tài chính có migration riêng `AddSellerFinance` vì bổ sung `SellerAccount`, `SellerSettlement`, `FinancialTransaction` và `SellerPayout`. `Finance/SellerFinanceService.cs` là nơi duy nhất điều phối số dư và ledger; controller không tự cộng/trừ tiền.
+
+Quy trình tranh chấp dùng `Disputes/DisputeService.cs` và interface `IDisputeService`. Service điều phối trạng thái, quyền sở hữu và deadline; giao dịch giữ/giải phóng tiền đi qua `ISellerFinanceService`, trả hàng/hoàn tiền qua `IReturnService`. `TimeProvider` cho phép kiểm thử deadline không chờ thật. Migration `AddDisputeWorkflow` tạo lịch sử `DisputeEntry`, thêm `rowversion` và chỉ mục một hồ sơ đang mở/đơn. Xem [DISPUTES.md](DISPUTES.md).
