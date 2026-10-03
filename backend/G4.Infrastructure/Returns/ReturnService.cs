@@ -23,6 +23,7 @@ public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refund
             ReturnDeadline = DateTime.UtcNow.AddDays(7)
         };
         db.ReturnRequests.Add(request);
+        order.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
         return request;
     }
@@ -33,6 +34,7 @@ public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refund
         if (request.Status != "Requested") throw new InvalidOperationException("Return cannot be approved");
         request.Status = "Approved";
         request.DecidedAt = DateTime.UtcNow;
+        (await db.OrderTables.SingleAsync(o => o.Id == request.OrderId, ct)).UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
         return await RetryShipmentAsync(returnId, ct);
     }
@@ -54,6 +56,7 @@ public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refund
         var request = await db.ReturnRequests.SingleAsync(r => r.Id == returnId, ct);
         if (request.Status != "Requested") throw new InvalidOperationException("Return cannot be rejected");
         request.Status = "Rejected"; request.DecisionReason = reason; request.DecidedAt = DateTime.UtcNow;
+        (await db.OrderTables.SingleAsync(o => o.Id == request.OrderId, ct)).UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
         return request;
     }
@@ -66,6 +69,7 @@ public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refund
         var shipment = await db.ShippingInfos.SingleOrDefaultAsync(s => s.OrderId == request.OrderId && s.Direction == "Return", ct);
         if (shipment?.Status != "Delivered") throw new InvalidOperationException("Return parcel has not reached seller");
         request.Status = "ReceivedBySeller"; request.ReceivedAt = DateTime.UtcNow;
+        (await db.OrderTables.SingleAsync(o => o.Id == request.OrderId, ct)).UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
         return request;
     }
@@ -75,6 +79,7 @@ public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refund
         var order = await db.OrderTables.SingleAsync(o => o.Id == orderId, ct);
         var previousStatus = order.Status;
         order.Status = OrderState.Next(order.Status!, "RequestCancel");
+        order.UpdatedAt = DateTime.UtcNow;
         order.CancelPreviousStatus = previousStatus;
         order.CancelDecisionReason = null;
         await db.SaveChangesAsync(ct);
@@ -87,6 +92,7 @@ public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refund
         if (!approve && string.IsNullOrWhiteSpace(reason)) throw new ArgumentException("Cancellation rejection reason required");
         var nextStatus = OrderState.Next(order.Status!, approve ? "AcceptCancel" : "RejectCancel");
         order.Status = approve ? nextStatus : order.CancelPreviousStatus ?? nextStatus;
+        order.UpdatedAt = DateTime.UtcNow;
         order.CancelDecisionReason = approve ? null : reason;
         order.CancelPreviousStatus = null;
         await db.SaveChangesAsync(ct);
@@ -97,7 +103,7 @@ public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refund
     public async Task<Refund> RefundAsync(int orderId, string reason, int? returnRequestId,
         CancellationToken ct = default)
     {
-        if (reason is not ("return" or "cancel" or "delivery-failed"))
+        if (reason is not ("return" or "cancel" or "delivery-failed" or "dispute"))
             throw new ArgumentException("Invalid refund reason");
         var key = $"refund-{orderId}-{reason}";
         var existing = await db.Refunds.SingleOrDefaultAsync(r => r.IdempotencyKey == key, ct);
@@ -120,6 +126,9 @@ public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refund
             var shipment = await db.ShippingInfos.SingleAsync(s => s.OrderId == orderId && s.Direction == "Outbound", ct);
             if (shipment.Status != "ReturnedToSeller") throw new InvalidOperationException("Shipment has not returned to seller");
         }
+        if (reason == "dispute" && !await db.SellerSettlements.AnyAsync(s =>
+                s.OrderId == orderId && s.Status == "RefundPending", ct))
+            throw new InvalidOperationException("Dispute has not been resolved for the buyer");
         var payment = await db.Payments.SingleAsync(p => p.OrderId == orderId && p.Status == "Succeeded", ct);
         var paid = payment.Amount ?? 0m;
         var alreadyRefunded = await db.Refunds.Where(r => r.OrderId == orderId && r.Status == "Succeeded")
@@ -145,7 +154,8 @@ public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refund
                 request.Status = "Refunded"; request.RefundId = refund.Id;
             }
             if (reason != "cancel") order.Status = "Closed";
-            await new CheckoutService(db).QueueEmailAsync(order, "Refunded", "Refund completed", $"Order {orderId} was refunded.", ct);
+            order.UpdatedAt = DateTime.UtcNow;
+            await new CheckoutService(db).QueueEmailAsync(order, "Refunded", "Hoàn tiền thành công", $"Đơn hàng #{orderId} đã được hoàn tiền.", ct);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {

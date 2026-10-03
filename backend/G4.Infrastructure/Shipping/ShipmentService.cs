@@ -24,15 +24,17 @@ public sealed class ShipmentService(ApplicationDbContext db, ICarrierGateway car
             shipment.TrackingNumber = await RetryLabelAsync(orderId, "Outbound", key, ct);
             shipment.Status = ShippingState.Next("NotCreated", "LabelCreated");
             order.Status = "Shipping";
+            order.UpdatedAt = DateTime.UtcNow;
             db.ShippingEvents.Add(new ShippingEvent
             {
                 ShippingInfoId = shipment.Id, ExternalEventId = $"{key}-label", Status = "LabelCreated",
-                OccurredAt = DateTime.UtcNow, ReceivedAt = DateTime.UtcNow, Note = "Label created"
+                OccurredAt = DateTime.UtcNow, ReceivedAt = DateTime.UtcNow, Note = "Đã tạo vận đơn giao hàng"
             });
         }
         catch (HttpRequestException)
         {
             shipment.Status = "ShipmentCreationFailed";
+            order.UpdatedAt = DateTime.UtcNow;
         }
         await db.SaveChangesAsync(ct);
         return shipment;
@@ -42,6 +44,7 @@ public sealed class ShipmentService(ApplicationDbContext db, ICarrierGateway car
     {
         var existing = await db.ShippingInfos.SingleOrDefaultAsync(s => s.OrderId == orderId && s.Direction == "Return", ct);
         if (existing is not null && existing.TrackingNumber is not null) return existing;
+        var order = await db.OrderTables.SingleAsync(o => o.Id == orderId, ct);
         var key = $"ship-{orderId}-return";
         var shipment = existing ?? new ShippingInfo
         {
@@ -54,15 +57,17 @@ public sealed class ShipmentService(ApplicationDbContext db, ICarrierGateway car
         {
             shipment.TrackingNumber = await RetryLabelAsync(orderId, "Return", key, ct);
             shipment.Status = "LabelCreated";
+            order.UpdatedAt = DateTime.UtcNow;
             db.ShippingEvents.Add(new ShippingEvent
             {
                 ShippingInfoId = shipment.Id, ExternalEventId = $"{key}-label", Status = "LabelCreated",
-                OccurredAt = DateTime.UtcNow, ReceivedAt = DateTime.UtcNow, Note = "Return label created"
+                OccurredAt = DateTime.UtcNow, ReceivedAt = DateTime.UtcNow, Note = "Đã tạo vận đơn trả hàng"
             });
         }
         catch (HttpRequestException)
         {
             shipment.Status = "ShipmentCreationFailed";
+            order.UpdatedAt = DateTime.UtcNow;
         }
         await db.SaveChangesAsync(ct);
         return shipment;
@@ -77,6 +82,8 @@ public sealed class ShipmentService(ApplicationDbContext db, ICarrierGateway car
         if (shipment.Status is null || !ShippingState.TryNext(shipment.Status, nextStatus, out var status)) return false;
         if (status == "OutForDelivery" && shipment.DeliveryAttempts >= 2) return false;
         shipment.Status = status;
+        var orderForUpdate = await db.OrderTables.SingleAsync(o => o.Id == shipment.OrderId, ct);
+        orderForUpdate.UpdatedAt = DateTime.UtcNow;
         if (status == "OutForDelivery") shipment.DeliveryAttempts++;
         if (status == "Delivered") shipment.DeliveredAt = DateTime.UtcNow;
         if (status == "DeliveryFailed") shipment.FailureReason = note;
@@ -87,14 +94,12 @@ public sealed class ShipmentService(ApplicationDbContext db, ICarrierGateway car
         });
         if (shipment.Direction == "Outbound" && status == "Delivered")
         {
-            var order = await db.OrderTables.SingleAsync(o => o.Id == shipment.OrderId, ct);
-            order.Status = OrderState.Next(order.Status!, "Deliver");
-            await new CheckoutService(db).QueueEmailAsync(order, "Delivered", "Order delivered", $"Order {order.Id} was delivered.", ct);
+            orderForUpdate.Status = OrderState.Next(orderForUpdate.Status!, "Deliver");
+            await new CheckoutService(db).QueueEmailAsync(orderForUpdate, "Delivered", "Đơn hàng đã được giao", $"Đơn hàng #{orderForUpdate.Id} đã được giao thành công.", ct);
         }
         if (shipment.Direction == "Outbound" && status == "DeliveryFailed")
         {
-            var order = await db.OrderTables.SingleAsync(o => o.Id == shipment.OrderId, ct);
-            await new CheckoutService(db).QueueEmailAsync(order, "DeliveryFailed", "Delivery failed", $"Delivery of order {order.Id} failed.", ct);
+            await new CheckoutService(db).QueueEmailAsync(orderForUpdate, "DeliveryFailed", "Giao hàng chưa thành công", $"Đơn hàng #{orderForUpdate.Id} chưa giao thành công. Vui lòng theo dõi các bước tiếp theo.", ct);
         }
         await db.SaveChangesAsync(ct);
         return true;

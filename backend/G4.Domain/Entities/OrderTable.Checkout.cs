@@ -13,4 +13,5 @@ public partial class OrderTable
     public string? CheckoutKey { get; set; }
     public string? CancelPreviousStatus { get; set; }
     public string? CancelDecisionReason { get; set; }
+    public DateTime UpdatedAt { get; set; }
 }

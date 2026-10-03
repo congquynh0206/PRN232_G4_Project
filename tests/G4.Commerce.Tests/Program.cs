@@ -330,6 +330,113 @@ Equal(1, await financeDb.FinancialTransactions.CountAsync(x => x.Type == "Platfo
     "single platform fee entry");
 Console.WriteLine("Seller finance checks passed");
 
+var disputeOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+    .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+await using var disputeDb = new ApplicationDbContext(disputeOptions);
+var disputeSeller = new User { Id = 501, Username = "dispute-seller", Email = "dispute-seller@example.test", Role = "seller" };
+var disputeBuyer = new User { Id = 502, Username = "dispute-buyer", Email = "dispute-buyer@example.test", Role = "buyer" };
+disputeDb.AddRange(disputeSeller, disputeBuyer);
+foreach (var id in new[] { 501, 502 })
+{
+    disputeDb.OrderTables.Add(new OrderTable
+    {
+        Id = id, BuyerId = disputeBuyer.Id, SellerId = disputeSeller.Id, Status = "Delivered",
+        OrderDate = DateTime.UtcNow, TotalPrice = 100m, Currency = "USD"
+    });
+    disputeDb.Payments.Add(new Payment
+    {
+        Id = id, OrderId = id, UserId = disputeBuyer.Id, Amount = 100m, Method = "Card",
+        Status = "Succeeded", PaidAt = DateTime.UtcNow
+    });
+}
+await disputeDb.SaveChangesAsync();
+var disputeFinance = new SellerFinanceService(disputeDb, financeConfig);
+foreach (var id in new[] { 501, 502 })
+{
+    var paidSettlement = await disputeFinance.RecordSuccessfulPaymentAsync(id, id);
+    paidSettlement.ReleaseAt = DateTime.UtcNow.AddSeconds(-1);
+}
+await disputeDb.SaveChangesAsync();
+Equal(2, await disputeFinance.ReleaseDueFundsAsync(), "both orders become available");
+await disputeFinance.PlaceHoldAsync(501, "Not as described");
+await disputeFinance.PlaceHoldAsync(502, "Damaged item");
+var disputeAccount = await disputeDb.SellerAccounts.SingleAsync();
+Equal(175.40m, disputeAccount.OnHoldBalance, "two order holds");
+await disputeFinance.ResolveHoldAsync(501, false);
+Equal(175.40m, disputeAccount.OnHoldBalance, "buyer decision preserves both holds until refund");
+Equal("RefundPending", (await disputeDb.SellerSettlements.SingleAsync(x => x.OrderId == 501)).Status,
+    "buyer decision awaits refund");
+var flakyRefunds = new FlakyRefundGateway { FailuresRemaining = 1 };
+var disputeReturns = new ReturnService(disputeDb, flakyRefunds, new TestCarrier(), disputeFinance);
+Equal("Failed", (await disputeReturns.RefundAsync(501, "dispute", null)).Status, "failed refund remains retryable");
+Equal(175.40m, disputeAccount.OnHoldBalance, "failed refund leaves hold untouched");
+var completedDisputeRefund = await disputeReturns.RefundAsync(501, "dispute", null);
+Equal("Succeeded", completedDisputeRefund.Status, "dispute refund succeeds on retry");
+Equal(87.70m, disputeAccount.OnHoldBalance, "refund consumes only its order hold");
+Equal(0m, disputeAccount.NegativeBalance, "held refund does not create debt");
+Equal(12.30m, (await disputeDb.SellerSettlements.SingleAsync(x => x.OrderId == 501)).FeeCreditAmount,
+    "held refund credits platform fee");
+Equal(completedDisputeRefund.Id, (await disputeReturns.RefundAsync(501, "dispute", null)).Id,
+    "dispute refund retry is idempotent");
+Equal(2, flakyRefunds.Calls, "successful refund is not sent twice");
+Equal(1, await disputeDb.FinancialTransactions.CountAsync(x => x.EntryKey ==
+    $"refund:{completedDisputeRefund.Id}:applied"), "dispute refund affects ledger once");
+await disputeFinance.ResolveHoldAsync(502, true);
+Equal(0m, disputeAccount.OnHoldBalance, "seller decision releases its own hold");
+Equal(87.70m, disputeAccount.AvailableBalance, "seller decision restores available funds");
+
+var undeliveredOrder = new OrderTable
+{
+    Id = 503, BuyerId = disputeBuyer.Id, SellerId = disputeSeller.Id, Status = "Paid",
+    OrderDate = DateTime.UtcNow, TotalPrice = 100m, Currency = "USD"
+};
+var undeliveredPayment = new Payment
+{
+    Id = 503, OrderId = 503, UserId = disputeBuyer.Id, Amount = 100m, Method = "Card",
+    Status = "Succeeded", PaidAt = DateTime.UtcNow
+};
+disputeDb.AddRange(undeliveredOrder, undeliveredPayment);
+await disputeDb.SaveChangesAsync();
+await disputeFinance.RecordSuccessfulPaymentAsync(503, 503);
+await disputeFinance.PlaceHoldAsync(503, "Delivery delayed");
+await disputeFinance.ResolveHoldAsync(503, true);
+Equal(87.70m, disputeAccount.ProcessingBalance, "seller win before delivery restores processing");
+Equal(87.70m, disputeAccount.AvailableBalance, "seller win before delivery cannot release early");
+
+var legacyOrder = new OrderTable
+{
+    Id = 504, BuyerId = disputeBuyer.Id, SellerId = disputeSeller.Id, Status = "Delivered",
+    OrderDate = DateTime.UtcNow, TotalPrice = 100m, Currency = "USD"
+};
+var legacyPayment = new Payment
+{
+    Id = 504, OrderId = 504, UserId = disputeBuyer.Id, Amount = 100m, Method = "Card",
+    Status = "Succeeded", PaidAt = DateTime.UtcNow
+};
+disputeDb.AddRange(legacyOrder, legacyPayment);
+await disputeDb.SaveChangesAsync();
+var legacySettlement = await disputeFinance.RecordSuccessfulPaymentAsync(504, 504);
+legacySettlement.ReleaseAt = DateTime.UtcNow.AddSeconds(-1);
+await disputeDb.SaveChangesAsync();
+await disputeFinance.ReleaseDueFundsAsync();
+await disputeFinance.PlaceHoldAsync(504, "Legacy buyer decision");
+disputeAccount.OnHoldBalance -= 87.70m;
+legacySettlement.Status = "RefundPending";
+disputeDb.FinancialTransactions.Add(new FinancialTransaction
+{
+    SellerAccountId = disputeAccount.Id, SettlementId = legacySettlement.Id, OrderId = legacyOrder.Id,
+    Type = "HoldReserved", Bucket = "OnHold", Amount = 0m,
+    EntryKey = "order:504:hold:buyer", CreatedAt = DateTime.UtcNow
+});
+await disputeDb.SaveChangesAsync();
+var legacyRefund = await disputeReturns.RefundAsync(504, "dispute", null);
+Equal("Succeeded", legacyRefund.Status, "legacy pending dispute refunds successfully");
+Equal(0m, disputeAccount.OnHoldBalance, "legacy missing hold is restored then consumed");
+Equal(0m, disputeAccount.NegativeBalance, "legacy pending dispute does not create false debt");
+Equal(1, await disputeDb.FinancialTransactions.CountAsync(x => x.EntryKey == "order:504:hold:correction"),
+    "legacy correction is audited once");
+Console.WriteLine("Dispute refund and hold checks passed");
+
 var authOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
     .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
 await using var authDb = new ApplicationDbContext(authOptions);
@@ -361,6 +468,18 @@ sealed class TestRefundGateway : IRefundGateway
     public Task<string> RefundAsync(Payment payment, decimal amount, string key, CancellationToken ct)
     {
         Calls++;
+        return Task.FromResult("REFUND-" + payment.Id);
+    }
+}
+
+sealed class FlakyRefundGateway : IRefundGateway
+{
+    public int FailuresRemaining { get; set; }
+    public int Calls { get; private set; }
+    public Task<string> RefundAsync(Payment payment, decimal amount, string key, CancellationToken ct)
+    {
+        Calls++;
+        if (FailuresRemaining-- > 0) throw new HttpRequestException("temporary refund failure");
         return Task.FromResult("REFUND-" + payment.Id);
     }
 }

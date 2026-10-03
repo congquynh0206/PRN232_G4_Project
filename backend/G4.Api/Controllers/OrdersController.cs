@@ -23,6 +23,33 @@ public sealed class OrdersController(ApplicationDbContext db, ICheckoutService c
             .Select(o => new { o.Id, o.OrderDate, o.Status, o.TotalPrice, o.Currency }).ToListAsync(ct));
     }
 
+    [HttpGet("orders/page")]
+    public async Task<IActionResult> OrdersPage([FromQuery] int page = 1, [FromQuery] int pageSize = 10,
+        [FromQuery] string filter = "all", CancellationToken ct = default)
+    {
+        if (!IsAvailable) return NotFound();
+        var query = db.OrderTables.AsNoTracking();
+        if (HasRole("buyer")) query = query.Where(o => o.BuyerId == CurrentUserId);
+        else if (HasRole("seller")) query = query.Where(o => o.SellerId == CurrentUserId);
+        else return StatusCode(403);
+        query = filter switch
+        {
+            "pending" => query.Where(o => o.Status == "AwaitingPayment" || o.Status == "Paid" || o.Status == "Preparing" || o.Status == "CancelRequested"),
+            "shipping" => query.Where(o => o.Status == "Shipping"),
+            "complete" => query.Where(o => o.Status == "Delivered" || o.Status == "Closed"),
+            "cancelled" => query.Where(o => o.Status == "Cancelled" || o.Status == "Expired"),
+            _ => query
+        };
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 50);
+        var totalCount = await query.CountAsync(ct);
+        page = Math.Min(page, Math.Max(1, (totalCount + pageSize - 1) / pageSize));
+        var items = await query.OrderByDescending(o => o.Id).Skip((page - 1) * pageSize).Take(pageSize)
+            .Select(o => new { o.Id, o.OrderDate, o.UpdatedAt, o.Status, o.TotalPrice, o.Currency })
+            .ToListAsync(ct);
+        return Ok(new { page, pageSize, totalCount, items });
+    }
+
     [HttpGet("orders/{id:int}")]
     public async Task<IActionResult> Order(int id, CancellationToken ct)
     {
@@ -52,7 +79,7 @@ public sealed class OrdersController(ApplicationDbContext db, ICheckoutService c
                 s.FeeCreditAmount, s.Status, s.ReleaseAt, s.ReleasedAt }).SingleOrDefaultAsync(ct);
         return Ok(new
         {
-            order.Id, order.Status, order.OrderDate, order.PaymentExpiresAt, order.AddressSnapshot, order.CancelDecisionReason,
+            order.Id, order.Status, order.OrderDate, order.UpdatedAt, order.PaymentExpiresAt, order.AddressSnapshot, order.CancelDecisionReason,
             order.Subtotal, order.DiscountAmount, order.ShippingFee, order.TotalPrice, order.Currency, order.CouponCode,
             items, payments, shipments, events, returnRequest, refunds, settlement
         });
@@ -76,6 +103,7 @@ public sealed class OrdersController(ApplicationDbContext db, ICheckoutService c
         var order = await db.OrderTables.SingleAsync(o => o.Id == id, ct);
         if (order.SellerId != CurrentUserId) return StatusCode(403);
         order.Status = OrderState.Next(order.Status!, "Prepare");
+        order.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
         return Ok(new { order.Id, order.Status });
     }

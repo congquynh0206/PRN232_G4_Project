@@ -51,14 +51,16 @@ public sealed class CheckoutService(ApplicationDbContext db, ISellerFinanceServi
         try
         {
             var (quote, address, products, coupon) = await ValidateAndQuoteAsync(buyerId, request, ct);
+            var now = DateTime.UtcNow;
             var order = new OrderTable
             {
                 BuyerId = address.UserId,
                 SellerId = products[0].SellerId,
                 AddressId = address.Id,
                 AddressSnapshot = string.Join(", ", new[] { address.FullName, address.Street, address.City, address.State, address.Country }.Where(x => !string.IsNullOrWhiteSpace(x))),
-                OrderDate = DateTime.UtcNow,
-                PaymentExpiresAt = DateTime.UtcNow.AddMinutes(15),
+                OrderDate = now,
+                UpdatedAt = now,
+                PaymentExpiresAt = now.AddMinutes(15),
                 Subtotal = quote.Subtotal,
                 DiscountAmount = quote.Discount,
                 ShippingFee = quote.Shipping,
@@ -126,8 +128,9 @@ public sealed class CheckoutService(ApplicationDbContext db, ISellerFinanceServi
         if (outcome == "Succeeded")
         {
             order.Status = OrderState.Next(order.Status!, "PaymentSucceeded");
-            await QueueEmailAsync(order, "PaymentSucceeded", "Payment confirmed", $"Order {order.Id} was paid successfully.", ct);
+            await QueueEmailAsync(order, "PaymentSucceeded", "Thanh toán thành công", $"Đơn hàng #{order.Id} đã được thanh toán thành công.", ct);
         }
+        order.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
         if (outcome == "Succeeded" && finance is not null)
             await finance.RecordSuccessfulPaymentAsync(orderId, payment.Id, ct);
@@ -143,6 +146,7 @@ public sealed class CheckoutService(ApplicationDbContext db, ISellerFinanceServi
         foreach (var order in expired)
         {
             order.Status = OrderState.Next(order.Status!, "Expire");
+            order.UpdatedAt = DateTime.UtcNow;
             await RestoreStockAsync(order, ct);
         }
         await db.SaveChangesAsync(ct);
@@ -156,7 +160,11 @@ public sealed class CheckoutService(ApplicationDbContext db, ISellerFinanceServi
             db.ShippingInfos.Any(s => s.OrderId == o.Id && s.Direction == "Outbound" && s.DeliveredAt < cutoff) &&
             !db.ReturnRequests.Any(r => r.OrderId == o.Id && r.Status != "Rejected"))
             .ToListAsync(ct);
-        foreach (var order in orders) order.Status = OrderState.Next(order.Status!, "Close");
+        foreach (var order in orders)
+        {
+            order.Status = OrderState.Next(order.Status!, "Close");
+            order.UpdatedAt = DateTime.UtcNow;
+        }
         await db.SaveChangesAsync(ct);
         return orders.Count;
     }
@@ -165,6 +173,7 @@ public sealed class CheckoutService(ApplicationDbContext db, ISellerFinanceServi
     {
         var order = await db.OrderTables.Include(o => o.OrderItems).SingleAsync(o => o.Id == orderId, ct);
         order.Status = OrderState.Next(order.Status!, "Cancel");
+        order.UpdatedAt = DateTime.UtcNow;
         await RestoreStockAsync(order, ct);
         await db.SaveChangesAsync(ct);
         return order;

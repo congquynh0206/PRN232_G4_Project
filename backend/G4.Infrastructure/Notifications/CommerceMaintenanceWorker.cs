@@ -37,6 +37,17 @@ public sealed class CommerceMaintenanceWorker(IServiceScopeFactory scopes, IConf
                 await checkout.CloseDeliveredOutsideReturnWindowAsync(stoppingToken);
                 var finance = scope.ServiceProvider.GetRequiredService<ISellerFinanceService>();
                 await finance.BackfillAsync(stoppingToken);
+                var pendingDisputeRefunds = await db.SellerSettlements.Where(x => x.Status == "RefundPending")
+                    .Select(x => x.OrderId).OrderBy(x => x).Take(20).ToListAsync(stoppingToken);
+                var returns = scope.ServiceProvider.GetRequiredService<IReturnService>();
+                foreach (var orderId in pendingDisputeRefunds)
+                {
+                    try { await returns.RefundAsync(orderId, "dispute", null, stoppingToken); }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        logger.LogWarning(ex, "Dispute refund pending for order {OrderId}", orderId);
+                    }
+                }
                 await finance.ReleaseDueFundsAsync(stoppingToken);
                 await finance.AdvancePayoutsAsync(stoppingToken);
                 var pending = await db.NotificationOutbox.Where(x => x.Status == "Pending")

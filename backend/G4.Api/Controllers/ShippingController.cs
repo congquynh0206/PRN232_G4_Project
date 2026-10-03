@@ -53,4 +53,24 @@ public sealed class ShippingController(ApplicationDbContext db, IShipmentService
                     .Select(s => new { s.Id, s.Direction, s.TrackingNumber, s.Status, s.DeliveryAttempts }).ToList()
             }).ToListAsync(ct));
     }
+
+    [HttpGet("shipper/shipments/page")]
+    public async Task<IActionResult> ShipmentsPage([FromQuery] int page = 1, [FromQuery] int pageSize = 10,
+        CancellationToken ct = default)
+    {
+        if (!IsAvailable || !HasRole("shipper")) return StatusCode(403);
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 50);
+        var query = db.OrderTables.AsNoTracking().Where(o => db.ShippingInfos.Any(s => s.OrderId == o.Id));
+        var totalCount = await query.CountAsync(ct);
+        page = Math.Min(page, Math.Max(1, (totalCount + pageSize - 1) / pageSize));
+        var items = await query.OrderByDescending(o => o.Id).Skip((page - 1) * pageSize).Take(pageSize)
+            .Select(o => new
+            {
+                o.Id, o.OrderDate, o.UpdatedAt, o.Status, o.TotalPrice, o.Currency,
+                shipments = db.ShippingInfos.Where(s => s.OrderId == o.Id)
+                    .Select(s => new { s.Id, s.Direction, s.TrackingNumber, s.Status, s.DeliveryAttempts }).ToList()
+            }).ToListAsync(ct);
+        return Ok(new { page, pageSize, totalCount, items });
+    }
 }

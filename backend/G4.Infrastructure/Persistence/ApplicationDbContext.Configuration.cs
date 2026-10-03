@@ -25,6 +25,7 @@ public partial class ApplicationDbContext
             entity.Property(x => x.CheckoutKey).HasMaxLength(100);
             entity.Property(x => x.CancelPreviousStatus).HasMaxLength(20);
             entity.Property(x => x.CancelDecisionReason).HasMaxLength(500);
+            entity.Property(x => x.UpdatedAt).HasDefaultValueSql("SYSUTCDATETIME()");
         });
         modelBuilder.Entity<OrderItem>().Property(x => x.ProductTitleSnapshot).HasMaxLength(255);
         modelBuilder.Entity<Payment>(entity =>

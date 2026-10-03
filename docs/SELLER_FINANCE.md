@@ -46,8 +46,8 @@ Buyer có thể gọi luồng này bằng nút **Mở tranh chấp & giữ tiề
 
 `POST /api/orders/{orderId}/fund-hold/resolve` chỉ nhận JWT của tài khoản `admin`:
 
-- `releaseToSeller: true`: seller thắng, tiền từ `OnHold` trở lại `Available`.
-- `releaseToSeller: false`: buyer thắng, tiền tiếp tục nằm trong `OnHold` để chờ luồng refund. Khi refund thành công, khoản này được trừ đúng một lần.
+- `releaseToSeller: true`: seller thắng, tiền từ `OnHold` trở lại `Available` nếu đã giao và hết hạn giữ; nếu chưa đủ điều kiện thì trở lại `Processing`.
+- `releaseToSeller: false`: buyer thắng, tiền tiếp tục nằm trong `OnHold` và API tự khởi tạo refund. Nếu cổng refund lỗi, settlement ở `RefundPending`; Admin có thể thử lại và worker cũng tự retry. Chỉ khi refund thành công, khoản hold của **đúng order đó** mới được trừ và ghi fee credit đúng một lần. Nếu seller thắng trước khi đơn đủ điều kiện mở khóa tiền, khoản hold trở lại `Processing` thay vì vào `Available` sớm.
 
 ## API và giao diện
 

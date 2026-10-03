@@ -31,6 +31,7 @@ public sealed class PayPalPaymentService(ApplicationDbContext db, IPayPalGateway
             db.Payments.Add(payment);
         }
         else payment.ProviderOrderId = created.Id;
+        order.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
         return created;
     }
@@ -82,13 +83,14 @@ public sealed class PayPalPaymentService(ApplicationDbContext db, IPayPalGateway
             if (order.Status == "AwaitingPayment")
             {
                 order.Status = OrderState.Next(order.Status, "PaymentSucceeded");
-                await new CheckoutService(db).QueueEmailAsync(order, "PaymentSucceeded", "Payment confirmed",
-                    $"Order {order.Id} was paid successfully.", ct);
+                await new CheckoutService(db).QueueEmailAsync(order, "PaymentSucceeded", "Thanh toán thành công",
+                    $"Đơn hàng #{order.Id} đã được thanh toán thành công.", ct);
             }
         }
         else if (capture.Status is "VOIDED" or "DECLINED") payment.Status = "Failed";
         else payment.Status = "Verifying";
         payment.UpdatedAt = DateTime.UtcNow;
+        order.UpdatedAt = payment.UpdatedAt.Value;
         await db.SaveChangesAsync(ct);
         if (payment.Status == "Succeeded" && finance is not null)
             await finance.RecordSuccessfulPaymentAsync(order.Id, payment.Id, ct);

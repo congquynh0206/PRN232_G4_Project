@@ -86,6 +86,17 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
             settlement = await RecordSuccessfulPaymentAsync(orderId, paymentId, ct);
         }
         var account = await db.SellerAccounts.SingleAsync(x => x.Id == settlement.SellerAccountId, ct);
+        var held = settlement.Status is "OnHold" or "RefundPending"
+            ? await HeldAmountAsync(settlement.Id, ct) : 0m;
+        if (settlement.Status == "RefundPending" && held > 0 &&
+            await db.FinancialTransactions.AnyAsync(x => x.EntryKey == $"order:{orderId}:hold:buyer" && x.Amount == 0m, ct))
+        {
+            // Older buyer-win decisions removed the hold before a refund existed. Restore it in
+            // the same save as the refund application so those settlements can be retried safely.
+            account.OnHoldBalance += held;
+            AddEntry(account, settlement, "HoldCorrection", "OnHold", held,
+                $"order:{orderId}:hold:correction", "Restored funds reserved by an earlier buyer-win decision");
+        }
         var remainingGross = Math.Max(0m, settlement.GrossAmount - settlement.RefundedAmount);
         var appliedGross = Math.Min(refund.Amount, remainingGross);
         var feeCredit = settlement.GrossAmount == 0m ? 0m :
@@ -97,12 +108,14 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         settlement.ProcessingAmount -= fromProcessing;
         account.ProcessingBalance -= fromProcessing;
         var left = debit - fromProcessing;
+        if (account.OnHoldBalance < held)
+            throw new InvalidOperationException("Held seller balance is inconsistent");
+        var fromHold = Math.Min(held, left);
+        account.OnHoldBalance -= fromHold;
+        left -= fromHold;
         var fromAvailable = Math.Min(account.AvailableBalance, left);
         account.AvailableBalance -= fromAvailable;
         left -= fromAvailable;
-        var fromHold = Math.Min(account.OnHoldBalance, left);
-        account.OnHoldBalance -= fromHold;
-        left -= fromHold;
         if (left > 0) account.NegativeBalance += left;
 
         settlement.RefundedAmount += appliedGross;
@@ -121,6 +134,8 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         var settlement = await db.SellerSettlements.SingleAsync(x => x.OrderId == orderId, ct);
         var key = $"order:{orderId}:hold";
         if (await db.FinancialTransactions.AnyAsync(x => x.EntryKey == key, ct)) return;
+        if (settlement.Status is not ("Processing" or "Available"))
+            throw new InvalidOperationException("Order funds cannot be placed on hold");
         var account = await db.SellerAccounts.SingleAsync(x => x.Id == settlement.SellerAccountId, ct);
         var holdable = settlement.ProcessingAmount;
         if (holdable > 0)
@@ -128,7 +143,8 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
             settlement.ProcessingAmount = 0;
             account.ProcessingBalance -= holdable;
         }
-        else holdable = Math.Min(account.AvailableBalance, RemainingSellerProceeds(settlement));
+        else if (settlement.ReleasedAt is not null)
+            holdable = Math.Min(account.AvailableBalance, RemainingSellerProceeds(settlement));
         if (holdable > 0)
         {
             if (settlement.ReleasedAt is not null) account.AvailableBalance -= holdable;
@@ -136,6 +152,7 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
             account.UpdatedAt = DateTime.UtcNow;
         }
         settlement.Status = "OnHold";
+        (await db.OrderTables.SingleAsync(x => x.Id == orderId, ct)).UpdatedAt = DateTime.UtcNow;
         AddEntry(account, settlement, "FundHold", "OnHold", holdable, key, reason);
         await db.SaveChangesAsync(ct);
     }
@@ -147,21 +164,35 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         if (await db.FinancialTransactions.AnyAsync(x => x.EntryKey == key, ct)) return;
         if (settlement.Status != "OnHold") throw new InvalidOperationException("Order funds are not on hold");
         var account = await db.SellerAccounts.SingleAsync(x => x.Id == settlement.SellerAccountId, ct);
-        var held = Math.Min(account.OnHoldBalance, RemainingSellerProceeds(settlement));
-        account.OnHoldBalance -= held;
+        var held = await HeldAmountAsync(settlement.Id, ct);
+        if (account.OnHoldBalance < held)
+            throw new InvalidOperationException("Held seller balance is inconsistent");
         if (releaseToSeller)
         {
-            account.AvailableBalance += held;
-            settlement.Status = "Available";
-            settlement.ReleasedAt ??= DateTime.UtcNow;
-            AddEntry(account, settlement, "HoldReleased", "Available", held, key, "Dispute resolved for seller");
+            account.OnHoldBalance -= held;
+            var orderStatus = await db.OrderTables.Where(x => x.Id == orderId).Select(x => x.Status).SingleAsync(ct);
+            if (settlement.ReleaseAt <= DateTime.UtcNow && orderStatus is ("Delivered" or "Closed"))
+            {
+                account.AvailableBalance += held;
+                settlement.Status = "Available";
+                settlement.ReleasedAt ??= DateTime.UtcNow;
+                AddEntry(account, settlement, "HoldReleased", "Available", held, key, "Dispute resolved for seller");
+            }
+            else
+            {
+                account.ProcessingBalance += held;
+                settlement.ProcessingAmount += held;
+                settlement.Status = "Processing";
+                AddEntry(account, settlement, "HoldReleased", "Processing", held, key, "Dispute resolved for seller before funds became available");
+            }
         }
         else
         {
             settlement.Status = "RefundPending";
-            AddEntry(account, settlement, "HoldReserved", "OnHold", 0m, key, "Dispute resolved for buyer; held funds remain reserved until refund");
+            AddEntry(account, settlement, "HoldReserved", "OnHold", held, key, "Dispute resolved for buyer; held funds remain reserved until refund");
         }
         account.UpdatedAt = DateTime.UtcNow;
+        (await db.OrderTables.SingleAsync(x => x.Id == orderId, ct)).UpdatedAt = account.UpdatedAt;
         await db.SaveChangesAsync(ct);
     }
 
@@ -390,6 +421,9 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
     private static DateTime MonthStart() => new(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
     private static decimal RemainingSellerProceeds(SellerSettlement settlement) =>
         Math.Max(0m, settlement.NetAmount - (settlement.RefundedAmount - settlement.FeeCreditAmount));
+    private async Task<decimal> HeldAmountAsync(int settlementId, CancellationToken ct) =>
+        await db.FinancialTransactions.Where(x => x.SettlementId == settlementId && x.Type == "FundHold")
+            .Select(x => x.Amount).SingleOrDefaultAsync(ct);
     private decimal Level1Limit => configuration.GetValue("Finance:Levels:1:MonthlySalesLimit", 5_000m);
     private decimal Level2Limit => configuration.GetValue("Finance:Levels:2:MonthlySalesLimit", 10_000m);
     private decimal Level3Limit => configuration.GetValue("Finance:Levels:3:MonthlySalesLimit", 1_000_000m);

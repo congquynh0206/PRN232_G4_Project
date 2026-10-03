@@ -11,6 +11,8 @@ SQL Server là nguồn dữ liệu khi chạy ứng dụng. EF Core InMemory ch�
 1. Tạo một database **trống** bằng [database/baseline.sql](../database/baseline.sql) trong SSMS hoặc `sqlcmd`. Script này chứa `CREATE DATABASE CloneEbayDB`; **không chạy lại** trên database đã có bảng/dữ liệu.
 2. Cấu hình `ConnectionStrings__DefaultConnection` trong môi trường theo SQL Server của bạn. Mẫu cấu hình trong `backend/G4.Api/appsettings.json` dùng SQL Server Docker qua cổng `14333`; SQL Server cài trực tiếp thường có server/cổng khác.
 3. Từ thư mục gốc chạy `dotnet ef database update --project backend/G4.Infrastructure --startup-project backend/G4.Api`. Migration cũ `InitialCreate` không tạo bảng; bảng nền phải đến từ bước 1. Các migration tiếp theo thêm checkout, giao hàng và tài chính seller. Có thể xem [database/checkout-shipping-migration.sql](../database/checkout-shipping-migration.sql) và [database/seller-finance-migration.sql](../database/seller-finance-migration.sql) nếu muốn duyệt SQL trước.
+
+   Giao diện quản lý mới dùng cột `OrderTable.UpdatedAt` để hiển thị thời điểm cập nhật đơn. Với cơ sở dữ liệu đã có, chạy lại lệnh migration trên trước khi khởi động API mới; migration `AddOrderUpdatedAt` chỉ thêm cột và điền thời điểm ban đầu từ `OrderDate`.
 4. Chạy [database/seed-data.sql](../database/seed-data.sql) để thêm/cập nhật buyer, seller, shipper, admin, store, 5 sản phẩm, tồn kho, địa chỉ và coupon `G4SAVE10`. Script có thể chạy lại an toàn: không tạo bản ghi trùng và không đặt lại số lượng tồn kho đã bị đơn hàng trừ.
 5. Chạy API: `dotnet run --project backend/G4.Api --urls http://localhost:5251`.
 6. Chạy frontend ở cửa sổ khác: `dotnet run --project frontend --urls http://localhost:5131`.
