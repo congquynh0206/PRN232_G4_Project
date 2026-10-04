@@ -48,12 +48,17 @@ public sealed class ShippingController(ApplicationDbContext db, IShipmentService
 
     [HttpGet("shipper/shipments/page")]
     public async Task<IActionResult> ShipmentsPage([FromQuery] int page = 1, [FromQuery] int pageSize = 10,
-        [FromQuery] string filter = "pending",
+        [FromQuery] string filter = "pending", [FromQuery] string? search = null,
+        [FromQuery] string status = "all", [FromQuery] string direction = "all",
         CancellationToken ct = default)
     {
         if (!IsAvailable || !HasRole("shipper")) return StatusCode(403);
         if (filter is not ("pending" or "mine")) return BadRequest(new { error = "Bộ lọc vận đơn không hợp lệ." });
-        return Ok(await G4.Infrastructure.Shipping.ShipperShipmentList.ReadAsync(db, CurrentUserId, filter, page, pageSize, ct));
+        if (search?.Length > 100 || direction is not ("all" or "Outbound" or "Return") ||
+            status is not ("all" or "LabelCreated" or "PickedUp" or "InTransit" or "OutForDelivery" or "Delivered" or
+                "DeliveryFailed" or "ReturningToSender" or "ReturnedToSeller"))
+            return BadRequest(new { error = "Thông tin tìm kiếm hoặc bộ lọc không hợp lệ." });
+        return Ok(await G4.Infrastructure.Shipping.ShipperShipmentList.ReadAsync(db, CurrentUserId, filter, page, pageSize, ct, search, status, direction));
     }
 
     [HttpPost("shipper/shipments/{id:int}/claim")]

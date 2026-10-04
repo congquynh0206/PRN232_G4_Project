@@ -171,6 +171,62 @@ input,select{border-color:#bfcbd9;min-height:42px;color:#17243a}
     font-weight: 700;
 }
 
+.case-detail { color: #183455; }
+.case-detail h2 { font-size: 23px; line-height: 1.4; margin: 0 0 6px; }
+.case-parties { color: #586b82; font-size: 14px; line-height: 1.6; margin: 0 0 22px; overflow-wrap: anywhere; }
+.case-hero { padding: 22px; border-radius: 12px; background: #fff5e2; color: #795016; margin-bottom: 22px; }
+.case-hero-success { background: #edf8f1; color: #176842; }
+.case-hero-neutral { background: #f0f4fa; color: #244568; }
+.case-hero-status { font-weight: 600; font-size: 13px; }
+.case-detail .case-hero h3 { color: inherit; font-size: 24px; line-height: 1.4; margin: 9px 0; }
+.case-hero p { margin: 6px 0; font-size: 14px; line-height: 1.65; }
+.case-hero .case-next { border-top: 1px solid #b4c2d566; padding-top: 12px; margin-top: 14px; }
+.case-hero .actions { margin-bottom: 0; }
+.case-hero .case-deadline { color: inherit; font-weight: 700; }
+.case-tabs { display: flex; border-bottom: 1px solid #dfe7f0; gap: 4px; }
+.case-tabs button { flex: 1; min-width: 0; min-height: 46px; padding: 10px 6px; border: 0; border-bottom: 3px solid transparent; border-radius: 0; font-size: 14px; }
+.case-tabs button[aria-selected="true"] { color: #315fc6; border-bottom-color: #315fc6; background: #f4f7fb; }
+.case-tab-panel { padding-top: 20px; }
+.case-tab-panel[hidden] { display: none; }
+.case-detail .case-tab-panel h3 { font-size: 16px; margin: 0 0 10px; }
+.case-tab-panel .case-description { font-size: 14px; }
+.case-decision { padding: 18px; margin: 20px 0; background: #f4f7fb; border-radius: 10px; }
+.case-decision p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.65; }
+.case-payment, details.case-proposal-summary { margin-top: 20px; border-top: 1px solid #dfe7f0; padding-top: 16px; }
+.case-detail summary { min-height: 32px; align-content: center; cursor: pointer; font-weight: 600; font-size: 14px; }
+.case-proposal-summary > p { font-size: 14px; line-height: 1.65; }
+section.case-proposal-summary { background: #f4f7fb; padding: 18px; border-radius: 10px; margin: 20px 0; }
+.case-ledger { margin: 14px 0; display: grid; gap: 12px; font-size: 14px; }
+.case-ledger > div { display: flex; justify-content: space-between; gap: 12px; }
+.case-ledger dt { color: #586b82; }
+.case-ledger dd { margin: 0; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.case-refunds { padding-left: 20px; color: #586b82; font-size: 13px; }
+.case-evidence-action { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 14px 0 22px; }
+.case-evidence-action p { flex: 1 1 240px; margin: 0; }
+.case-evidence-action button { min-height: 44px; }
+.case-history-timeline { list-style: none; padding: 0 0 0 6px; margin: 20px 0 0; }
+.case-history-entry { position: relative; padding: 0 0 24px 22px; border-left: 2px solid #dfe7f0; }
+.case-history-entry:last-child { padding-bottom: 0; }
+.case-history-entry::before { content: ''; position: absolute; left: -6px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: #315fc6; }
+.case-history-entry header { display: grid; gap: 4px; }
+.case-history-entry strong { font-size: 14px; }
+.case-history-entry time { font-size: 12px; color: #586b82; }
+.case-history-entry p { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.65; margin: 6px 0 0; }
+.case-evidence-links { padding-left: 18px; margin: 8px 0; }
+.case-evidence-links li { margin: 6px 0; }
+.case-evidence-links a { display: inline-block; color: #214f8b; padding: 4px 0; font-size: 14px; }
+.case-order-total { padding: 14px 0; margin-bottom: 20px; text-align: right; }
+.case-tab-panel .tracking-list { margin-top: 16px; }
+@media(max-width:520px) {
+  .detail-dialog .case-detail { padding: 18px; }
+  .case-detail h2 { font-size: 21px; }
+  .case-hero { padding: 16px; }
+  .case-detail .case-hero h3 { font-size: 21px; }
+  .case-hero .actions button { width: 100%; }
+  .case-ledger > div { flex-wrap: wrap; }
+  .case-ledger dd { margin-left: auto; }
+}
+
 .case-description,
 .case-entry p,
 .case-result p {

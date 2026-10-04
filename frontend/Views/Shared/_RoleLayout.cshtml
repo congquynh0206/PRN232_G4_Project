@@ -27,10 +27,21 @@
         <link rel="stylesheet" href="~/css/checkout.css" asp-append-version="true" />
         <link rel="stylesheet" href="~/css/roles.css" asp-append-version="true" />
         <link rel="stylesheet" href="~/css/ui-refresh.css" asp-append-version="true" />
+        @if (role == "shipper")
+        {
+            <link rel="stylesheet" href="~/css/vnpost.css" asp-append-version="true" />
+        }
     </head>
-    <body>
+    <body class="@(role == "shipper" ? "vnpost-workspace" : "")">
         <header class="topbar role-topbar">
             <a class="brand" asp-controller="@roleController" asp-action="Index">
+                @if (role == "shipper")
+                {
+                    <img class="vn-logo" src="~/images/vnpost-logo.png" alt="Vietnam Post" />
+                    <span class="vn-brand-text">VNPost<small>Không gian nhân viên giao nhận</small></span>
+                }
+                else
+                {
                 <span class="ebay">
                     <b>e</b>
                     <b>b</b>
@@ -38,6 +49,7 @@
                     <b>y</b>
                 </span>
                 <span>Sàn G4</span>
+                }
             </a>
             <div class="account-area">
                 <div>
@@ -50,8 +62,15 @@
             </div>
         </header>
         <div class="role-banner">
-            Không gian làm việc của
+            @if (role == "shipper")
+            {
+                <span>VNPost · Quản lý vận đơn</span>
+            }
+            else
+            {
+            <span>Không gian làm việc của</span>
             <strong>@roleLabel</strong>
+            }
         </div>
         <main>@RenderBody()</main>
         <dialog id="detail-dialog" class="detail-dialog" aria-label="Chi tiết">

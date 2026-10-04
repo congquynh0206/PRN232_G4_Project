@@ -10,5 +10,6 @@ public sealed record DisputeSummary(int Id, int OrderId, int BuyerId, int Seller
     DateTime CreatedAt, DateTime UpdatedAt, DateTime? ResponseDueAt, decimal TotalPrice, decimal HeldAmount);
 public sealed record DisputeEntryView(int Id, int? ActorId, string ActorRole, string Kind,
     string Description, string[] EvidenceLinks, DateTime CreatedAt);
-public sealed record DisputeDetail(DisputeSummary Case, IReadOnlyList<DisputeEntryView> Entries);
+public sealed record DisputeDetail(DisputeSummary Case, IReadOnlyList<DisputeEntryView> Entries,
+    string? BuyerName = null, string? SellerName = null);
 public sealed record DisputePage(int Page, int PageSize, int TotalCount, int OpenCount, IReadOnlyList<DisputeSummary> Items);

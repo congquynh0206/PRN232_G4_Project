@@ -12,7 +12,7 @@ public static class ShipperShipmentList
         db.OrderTables.Any(o => o.Id == s.OrderId && o.Status != "Closed" && o.Status != "Cancelled" && o.Status != "Expired"));
 
     public static async Task<ShipperShipmentPage> ReadAsync(ApplicationDbContext db, int shipperId, string filter,
-        int page, int pageSize, CancellationToken ct = default)
+        int page, int pageSize, CancellationToken ct = default, string? search = null, string status = "all", string direction = "all")
     {
         var pending = Claimable(db).AsNoTracking();
         var mine = db.ShippingInfos.AsNoTracking().Where(s => s.ShipperId == shipperId);
@@ -20,6 +20,17 @@ public static class ShipperShipmentList
         var mineCount = await mine.CountAsync(ct);
         var query = filter == "pending" ? pending : mine;
         var count = filter == "pending" ? pendingCount : mineCount;
+        search = search?.Trim();
+        var filtered = !string.IsNullOrEmpty(search) || status != "all" || direction != "all";
+        if (!string.IsNullOrEmpty(search))
+        {
+            var hasOrderId = int.TryParse(search.TrimStart('#'), out var orderId);
+            query = query.Where(s => (s.TrackingNumber != null && s.TrackingNumber.Contains(search)) ||
+                (hasOrderId && s.OrderId == orderId));
+        }
+        if (status != "all") query = query.Where(s => s.Status == status);
+        if (direction != "all") query = query.Where(s => s.Direction == direction);
+        if (filtered) count = await query.CountAsync(ct);
         pageSize = Math.Clamp(pageSize, 1, 50);
         page = Math.Clamp(page, 1, Math.Max(1, (count + pageSize - 1) / pageSize));
         var items = await query.OrderByDescending(s => s.Id).Skip((page - 1) * pageSize).Take(pageSize)

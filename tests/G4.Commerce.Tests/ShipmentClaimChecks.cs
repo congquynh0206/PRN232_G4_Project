@@ -36,6 +36,12 @@ internal static class ShipmentClaimChecks
         ReturnAutomationChecks.Check(pending.Items.Count == 1 && pending.Items[0].Id == 3, "legacy unassigned active shipments can be claimed");
         await service.ClaimAsync(3, 1);
         ReturnAutomationChecks.Check((await db.ShippingInfos.SingleAsync(x => x.Id == 3)).Status == "InTransit", "legacy claim does not reset tracking");
+        var searched = await G4.Infrastructure.Shipping.ShipperShipmentList.ReadAsync(db, 1, "mine", 1, 1, search: "LEGACY", status: "InTransit", direction: "Outbound");
+        ReturnAutomationChecks.Check(searched.TotalCount == 1 && searched.Items.Single().Id == 3 && searched.MineCount == 2, "search and filters apply before pagination without altering tab totals");
+        var foreign = await G4.Infrastructure.Shipping.ShipperShipmentList.ReadAsync(db, 1, "mine", 1, 10, search: "RET-1");
+        ReturnAutomationChecks.Check(foreign.TotalCount == 0, "search cannot expose another shipper's shipments");
+        var orderSearch = await G4.Infrastructure.Shipping.ShipperShipmentList.ReadAsync(db, 1, "mine", 99, 1, search: "#1");
+        ReturnAutomationChecks.Check(orderSearch.TotalCount == 2 && orderSearch.Page == 2 && orderSearch.Items.Single().Id == 1, "order search and clamped pagination compose");
         var capture = new CaptureSellerSql();
         await using var sqlDb = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseSqlServer("Server=unused;Database=translation-test;Integrated Security=true")
@@ -43,6 +49,8 @@ internal static class ShipmentClaimChecks
         await G4.Infrastructure.Shipping.ShipperShipmentList.ReadAsync(sqlDb, 1, "pending", 1, 10);
         await G4.Infrastructure.Shipping.ShipperShipmentList.ReadAsync(sqlDb, 1, "mine", 1, 10);
         ReturnAutomationChecks.Check(capture.Commands == 6, "SQL Server translates both shipment list filters");
+        await G4.Infrastructure.Shipping.ShipperShipmentList.ReadAsync(sqlDb, 1, "mine", 1, 10, search: "#1", status: "PickedUp", direction: "Outbound");
+        ReturnAutomationChecks.Check(capture.Commands == 10, "SQL Server translates combined search and status filters");
         Console.WriteLine("Shipper ownership checks passed");
     }
 

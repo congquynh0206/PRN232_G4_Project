@@ -48,6 +48,9 @@ internal static class DisputeWorkflowChecks
         await Reject<InvalidOperationException>(() => service.ResolveAsync(first.Id, 3, new(true, "Buyer wins")));
         await Reject<UnauthorizedAccessException>(() => service.GetDetailAsync(first.Id, 9, "buyer"));
         await Reject<UnauthorizedAccessException>(() => service.GetDetailAsync(first.Id, 3, "admin"));
+        var namedDetail = await service.GetDetailAsync(first.Id, 1, "buyer");
+        Check("buyer@test", namedDetail.BuyerName, "buyer display name falls back to email");
+        Check("seller@test", namedDetail.SellerName, "seller display name falls back to email");
 
         await service.ProposeAsync(first.Id, 2, new("KeepOrder", "Hàng đúng mô tả", links));
         var buyerDeadline = first.BuyerResponseDueAt;

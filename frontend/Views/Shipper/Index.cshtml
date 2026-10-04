@@ -1,26 +1,34 @@
 @{
     Layout = "_RoleLayout";
-    ViewData["Title"] = "Đơn vị giao hàng";
+    ViewData["Title"] = "VNPost · Quản lý vận đơn";
 }
 <div id="message" class="message" role="status" aria-live="polite"></div>
-<section class="panel active">
+<section class="panel active vn-panel">
     <div class="section-head">
         <div>
-            <span class="eyebrow">Đơn vị giao hàng</span>
-            <h1>Điều phối vận chuyển</h1>
-            <p>Nhận vận đơn chiều đi hoặc chiều trả, sau đó cập nhật tiến trình giao hàng.</p>
+            <span class="eyebrow">Giao nhận bưu gửi</span>
+            <h1>Quản lý vận đơn</h1>
+            <p>Nhận vận đơn, theo dõi hành trình và cập nhật kết quả giao hàng.</p>
         </div>
         <button id="refresh-shipments">Làm mới</button>
     </div>
-    <div class="seller-filter-tabs" role="group" aria-label="Phân loại vận đơn">
-        <button type="button" data-shipment-filter="pending" class="active" aria-pressed="true">Chờ nhận <span id="pending-shipment-count">0</span></button>
+    <div class="vn-list-tabs" role="group" aria-label="Phân loại vận đơn">
+        <button type="button" data-shipment-filter="pending" class="active" aria-pressed="true">Chờ nhận vận đơn <span id="pending-shipment-count">0</span></button>
         <button type="button" data-shipment-filter="mine" aria-pressed="false">Vận đơn của tôi <span id="mine-shipment-count">0</span></button>
     </div>
-    <div id="shipment-list" class="order-list" aria-busy="false"></div>
+    <form id="shipment-search-form" class="vn-filters" role="search">
+        <div class="vn-search"><label for="shipment-search">Tìm vận đơn</label><div><input id="shipment-search" type="search" maxlength="100" placeholder="Mã vận đơn hoặc mã đơn hàng" /><button type="submit" class="primary">Tìm kiếm</button></div></div>
+        <div><label for="shipment-status">Trạng thái</label><select id="shipment-status"><option value="all">Tất cả trạng thái</option></select></div>
+        <div><label for="shipment-direction">Loại vận đơn</label><select id="shipment-direction"><option value="all">Tất cả loại</option><option value="Outbound">Giao hàng</option><option value="Return">Trả hàng</option></select></div>
+        <button type="button" id="shipment-reset">Xóa bộ lọc</button>
+    </form>
+    <p id="shipment-summary" class="vn-summary" role="status" aria-live="polite"></p>
+    <div id="shipment-list" class="vn-list" aria-busy="false"></div>
     <div id="shipment-pagination" class="pagination"></div>
 </section>
 @section Scripts
 {
     <script src="~/js/common.js" asp-append-version="true"></script>
+    <script src="~/js/shipper-ui.js" asp-append-version="true"></script>
     <script src="~/js/shipper.js" asp-append-version="true"></script>
 }

@@ -215,8 +215,12 @@ public sealed class DisputeService(ApplicationDbContext db, ISellerFinanceServic
         var summary = await Summaries(VisibleQuery(actorId, role).Where(x => x.Id == id)).SingleOrDefaultAsync(ct);
         if (summary is null) throw new UnauthorizedAccessException("Bạn không có quyền xem yêu cầu này.");
         var entries = await db.DisputeEntries.AsNoTracking().Where(x => x.DisputeId == id).OrderBy(x => x.Id).ToListAsync(ct);
+        var parties = await db.Users.AsNoTracking().Where(u => u.Id == summary.BuyerId || u.Id == summary.SellerId)
+            .Select(u => new { u.Id, Name = u.Username ?? u.Email }).ToListAsync(ct);
         return new DisputeDetail(summary, entries.Select(x => new DisputeEntryView(x.Id, x.ActorId, x.ActorRole,
-            x.Kind, x.Description, JsonSerializer.Deserialize<string[]>(x.EvidenceLinksJson) ?? [], x.CreatedAt)).ToList());
+            x.Kind, x.Description, JsonSerializer.Deserialize<string[]>(x.EvidenceLinksJson) ?? [], x.CreatedAt)).ToList(),
+            parties.FirstOrDefault(u => u.Id == summary.BuyerId)?.Name,
+            parties.FirstOrDefault(u => u.Id == summary.SellerId)?.Name);
     }
 
     public async Task MaintainAsync(CancellationToken ct = default)
