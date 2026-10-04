@@ -134,6 +134,7 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         var settlement = await db.SellerSettlements.SingleAsync(x => x.OrderId == orderId, ct);
         var key = disputeId is null ? $"order:{orderId}:hold" : $"order:{orderId}:case:{disputeId}:hold";
         if (await db.FinancialTransactions.AnyAsync(x => x.EntryKey == key, ct)) return;
+        if (settlement.Status == "OnHold") return;
         if (settlement.Status is not ("Processing" or "Available"))
             throw new InvalidOperationException("Order funds cannot be placed on hold");
         var account = await db.SellerAccounts.SingleAsync(x => x.Id == settlement.SellerAccountId, ct);
@@ -228,11 +229,25 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
     {
         var due = await db.SellerSettlements
             .Where(x => x.Status == "Processing" && x.ReleaseAt <= DateTime.UtcNow && x.ProcessingAmount > 0 &&
-                db.OrderTables.Any(o => o.Id == x.OrderId && (o.Status == "Delivered" || o.Status == "Closed")))
-            .ToListAsync(ct);
-        foreach (var settlement in due)
+                db.OrderTables.Any(o => o.Id == x.OrderId && (o.Status == "Delivered" || o.Status == "Closed")) &&
+                !db.ReturnRequests.Any(r => r.OrderId == x.OrderId && r.Status != "Rejected" && r.Status != "Refunded" && r.Status != "Closed") &&
+                !db.Disputes.Any(d => d.OrderId == x.OrderId && d.WorkflowEnabled && d.IsOpen))
+            .Select(x => new { x.Id, x.OrderId }).Take(100).ToListAsync(ct);
+        var count = 0;
+        foreach (var candidate in due)
         {
+            await using var transaction = db.Database.IsRelational() && db.Database.CurrentTransaction is null
+                ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
+            if (db.Database.IsSqlServer())
+                await db.OrderTables.FromSqlInterpolated($"SELECT * FROM [OrderTable] WITH (UPDLOCK, HOLDLOCK) WHERE [id] = {candidate.OrderId}").SingleAsync(ct);
+            var settlement = await db.SellerSettlements.SingleAsync(x => x.Id == candidate.Id, ct);
+            await db.Entry(settlement).ReloadAsync(ct);
+            if (settlement.Status != "Processing" || settlement.ReleaseAt > DateTime.UtcNow || settlement.ProcessingAmount <= 0 ||
+                !await db.OrderTables.AnyAsync(o => o.Id == candidate.OrderId && (o.Status == "Delivered" || o.Status == "Closed"), ct) ||
+                await db.ReturnRequests.AnyAsync(r => r.OrderId == candidate.OrderId && r.Status != "Rejected" && r.Status != "Refunded" && r.Status != "Closed", ct) ||
+                await db.Disputes.AnyAsync(d => d.OrderId == candidate.OrderId && d.WorkflowEnabled && d.IsOpen, ct)) continue;
             var account = await db.SellerAccounts.SingleAsync(x => x.Id == settlement.SellerAccountId, ct);
+            await db.Entry(account).ReloadAsync(ct);
             var amount = settlement.ProcessingAmount;
             account.ProcessingBalance -= amount;
             account.AvailableBalance += amount;
@@ -241,9 +256,11 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
             settlement.Status = "Available";
             settlement.ReleasedAt = DateTime.UtcNow;
             AddEntry(account, settlement, "FundsReleased", "Available", amount, $"order:{settlement.OrderId}:released", "Hold period completed after delivery");
+            await db.SaveChangesAsync(ct);
+            if (transaction is not null) await transaction.CommitAsync(ct);
+            count++;
         }
-        await db.SaveChangesAsync(ct);
-        return due.Count;
+        return count;
     }
 
     public async Task<SellerPayout> RequestPayoutAsync(int sellerId, decimal amount, string key, bool simulateFailure,

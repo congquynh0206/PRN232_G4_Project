@@ -36,11 +36,15 @@ public sealed class DisputeService(ApplicationDbContext db, ISellerFinanceServic
         Dispute? result = null;
         await AtomicAsync(async () =>
         {
-            var order = await db.OrderTables.SingleOrDefaultAsync(x => x.Id == orderId, ct)
+            var order = await (db.Database.IsSqlServer()
+                ? db.OrderTables.FromSqlInterpolated($"SELECT * FROM [OrderTable] WITH (UPDLOCK, HOLDLOCK) WHERE [id] = {orderId}")
+                : db.OrderTables.Where(x => x.Id == orderId)).SingleOrDefaultAsync(ct)
                 ?? throw new KeyNotFoundException("Không tìm thấy đơn hàng.");
             if (order.BuyerId != buyerId) throw new UnauthorizedAccessException("Bạn không có quyền mở yêu cầu cho đơn này.");
             result = await db.Disputes.SingleOrDefaultAsync(x => x.OrderId == orderId && x.WorkflowEnabled && x.IsOpen, ct);
             if (result is not null) return;
+            if (await db.ReturnRequests.AnyAsync(r => r.OrderId == orderId && r.Status != "Rejected" && r.Status != "Closed" && r.Status != "Refunded", ct))
+                throw new InvalidOperationException("Đơn đang xử lý trả hàng. Theo dõi yêu cầu trả hàng hoặc chờ người bán từ chối trước khi mở yêu cầu giải quyết.");
             var delivered = await db.ShippingInfos.Where(x => x.OrderId == orderId && x.Direction == "Outbound")
                 .Select(x => x.DeliveredAt).FirstOrDefaultAsync(ct);
             if (order.Status != "Delivered" || delivered is null || delivered < Now.AddDays(-7) ||
@@ -73,6 +77,46 @@ public sealed class DisputeService(ApplicationDbContext db, ISellerFinanceServic
                 throw new InvalidOperationException("Yêu cầu đã có kết quả hoặc đang thực hiện thỏa thuận; không thể bổ sung bằng chứng.");
             await AppendAsync(dispute, actorId, role, "Evidence", request.Description.Trim(), links, ct);
         }, ct);
+    }
+
+    public async Task<Dispute> ReportReturnIssueAsync(int returnId, int sellerId, DisputeEvidenceRequest request,
+        CancellationToken ct = default)
+    {
+        var links = ValidateEvidence(request.Description, request.EvidenceLinks);
+        Dispute? result = null;
+        await AtomicAsync(async () =>
+        {
+            var orderId = await db.ReturnRequests.Where(x => x.Id == returnId).Select(x => x.OrderId!.Value).SingleAsync(ct);
+            var order = db.Database.IsSqlServer()
+                ? await db.OrderTables.FromSqlInterpolated($"SELECT * FROM [OrderTable] WITH (UPDLOCK, HOLDLOCK) WHERE [id] = {orderId}").SingleAsync(ct)
+                : await db.OrderTables.SingleAsync(x => x.Id == orderId, ct);
+            if (order.SellerId != sellerId) throw new UnauthorizedAccessException("Bạn không có quyền xử lý hàng trả này.");
+            var returned = await db.ReturnRequests.SingleAsync(x => x.Id == returnId, ct);
+            if (db.Database.IsSqlServer()) await db.Entry(returned).ReloadAsync(ct);
+            result = await db.Disputes.SingleOrDefaultAsync(x => x.OrderId == orderId && x.WorkflowEnabled && x.IsOpen, ct);
+            if (returned.Status == "Disputed" && result?.Status == "Escalated") return;
+            var parcel = await db.ShippingInfos.SingleAsync(x => x.OrderId == orderId && x.Direction == "Return", ct);
+            var due = returned.ConfirmationDueAt ?? parcel.DeliveredAt?.AddSeconds(Math.Max(1, config.GetValue("Returns:ReceiptSeconds", 172800)));
+            if (returned.Status is not ("Approved" or "ReturnShipping") || parcel.Status != "Delivered" ||
+                due is null || Now >= due || await db.Refunds.AnyAsync(x => x.OrderId == orderId && x.Status == "Succeeded", ct))
+                throw new InvalidOperationException("Hàng chưa giao tới người bán hoặc đã hết hạn báo vấn đề hàng trả.");
+            var payment = await db.Payments.SingleAsync(x => x.OrderId == orderId && x.Status == "Succeeded", ct);
+            var settlement = await finance.RecordSuccessfulPaymentAsync(orderId, payment.Id, ct);
+            if (settlement.Status != "OnHold") await finance.PlaceHoldAsync(orderId, $"Vấn đề hàng trả #{returnId}", ct);
+            result ??= new Dispute { OrderId = orderId, RaisedBy = sellerId, Description = request.Description.Trim(),
+                WorkflowEnabled = true, IsOpen = true, CreatedAt = Now, SellerResponseDueAt = Now };
+            if (result.Id == 0) db.Disputes.Add(result);
+            result.Outcome = null;
+            result.Proposal = null;
+            result.Resolution = null;
+            result.Status = "Escalated";
+            result.EscalatedAt = Now;
+            returned.Status = "Disputed";
+            order.UpdatedAt = Now;
+            await db.SaveChangesAsync(ct);
+            await AppendAsync(result, sellerId, "seller", "ReturnIssue", request.Description.Trim(), links, ct);
+        }, ct);
+        return result!;
     }
 
     public async Task ProposeAsync(int id, int sellerId, DisputeProposalRequest request, CancellationToken ct = default)
@@ -140,6 +184,8 @@ public sealed class DisputeService(ApplicationDbContext db, ISellerFinanceServic
             if (!request.BuyerWins)
             {
                 await finance.ResolveHoldAsync(dispute.OrderId!.Value, true, ct, await HoldCaseIdAsync(dispute, ct));
+                var returned = await db.ReturnRequests.SingleOrDefaultAsync(x => x.OrderId == dispute.OrderId && x.Status == "Disputed", ct);
+                if (returned is not null) returned.Status = "Closed";
                 await CloseAsync(dispute, "SellerWins", dispute.Resolution, ct);
                 return;
             }
@@ -268,6 +314,8 @@ public sealed class DisputeService(ApplicationDbContext db, ISellerFinanceServic
                 request = await returns.MarkReceivedAsync(request.Id, ct);
             if (request.Status is "ReceivedBySeller" or "RefundFailed" or "RefundPending")
                 refund = await returns.RefundAsync(orderId, "return", request.Id, ct);
+            if (request.Status == "Refunded")
+                refund = await db.Refunds.SingleAsync(x => x.Id == request.RefundId, ct);
         }
         else
         {
@@ -322,7 +370,9 @@ public sealed class DisputeService(ApplicationDbContext db, ISellerFinanceServic
     private async Task ImportLegacyHoldsAsync(CancellationToken ct)
     {
         var ids = await db.SellerSettlements.AsNoTracking().Where(x => (x.Status == "OnHold" || x.Status == "RefundPending") &&
-            !db.Disputes.Any(d => d.OrderId == x.OrderId && d.WorkflowEnabled)).Select(x => x.OrderId).Take(50).ToListAsync(ct);
+            !db.Disputes.Any(d => d.OrderId == x.OrderId && d.WorkflowEnabled) &&
+            !db.ReturnRequests.Any(r => r.OrderId == x.OrderId && r.Status != "Requested" && r.Status != "Rejected" && r.Status != "Closed" && r.Status != "Refunded"))
+            .Select(x => x.OrderId).Take(50).ToListAsync(ct);
         foreach (var orderId in ids)
         {
             await AtomicAsync(async () =>

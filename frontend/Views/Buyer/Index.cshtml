@@ -105,6 +105,7 @@
                 <button id="apply-coupon">Áp dụng</button>
             </div>
             <dl>
+                <div><dt>Khối lượng</dt><dd id="checkout-weight">0 kg</dd></div>
                 <div>
                     <dt>Tiền hàng</dt>
                     <dd id="subtotal">$0.00</dd>
@@ -135,15 +136,18 @@
         </div>
         <button id="refresh-orders">Làm mới</button>
     </div>
-    <label for="order-filter">Lọc trạng thái</label>
-    <select id="order-filter">
-        <option value="all">Tất cả</option>
-        <option value="pending">Chờ xử lý</option>
-        <option value="shipping">Đang giao</option>
-        <option value="complete">Hoàn tất</option>
-        <option value="cancelled">Đã hủy</option>
-    </select>
-    <div id="order-list" class="order-list"></div>
+    <div class="seller-order-filters">
+        <div class="seller-filter-tabs" role="group" aria-label="Lọc đơn hàng theo trạng thái">
+            <button type="button" data-order-filter="all" class="active" aria-pressed="true">Tất cả <span data-filter-count="all">0</span></button>
+            <button type="button" data-order-filter="unpaid" aria-pressed="false">Chờ thanh toán <span data-filter-count="unpaid">0</span></button>
+            <button type="button" data-order-filter="ready" aria-pressed="false">Chờ giao <span data-filter-count="ready">0</span></button>
+            <button type="button" data-order-filter="shipping" aria-pressed="false">Đang giao <span data-filter-count="shipping">0</span></button>
+            <button type="button" data-order-filter="complete" aria-pressed="false">Đã kết thúc <span data-filter-count="complete">0</span></button>
+            <button type="button" data-order-filter="cancelled" aria-pressed="false">Đã hủy <span data-filter-count="cancelled">0</span></button>
+        </div>
+        <p id="buyer-order-summary" class="small" role="status" aria-live="polite">Đang tải đơn hàng…</p>
+    </div>
+    <div id="order-list" class="order-list" aria-busy="false"></div>
     <div id="order-pagination" class="pagination"></div>
 </section>
 <div id="paypal-loading" class="loading-overlay hidden" role="status" aria-live="assertive">

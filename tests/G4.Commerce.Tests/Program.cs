@@ -11,12 +11,16 @@ static void Equal<T>(T expected, T actual, string name)
 }
 
 var quote = OrderPricing.Calculate(
-    new[] { new PriceLine(10m, 2), new PriceLine(5m, 1) },
+    new[] { new PriceLine(10m, 2, .3m), new PriceLine(5m, 1, .4m) },
     10m, sameState: false);
 Equal(25m, quote.Subtotal, "subtotal");
 Equal(2.50m, quote.Discount, "discount");
 Equal(5m, quote.Shipping, "shipping");
 Equal(27.50m, quote.Total, "total");
+
+await ReturnAutomationChecks.RunAsync();
+await ShippingWeightChecks.RunAsync();
+await ShipmentClaimChecks.RunAsync();
 
 try
 {
@@ -41,13 +45,15 @@ var options = new DbContextOptionsBuilder<ApplicationDbContext>()
 await using var db = new ApplicationDbContext(options);
 var buyer = new User { Id = 11, Username = "buyer", Role = "buyer", Email = "buyer@example.test" };
 var seller = new User { Id = 22, Username = "seller", Role = "seller", Email = "seller@example.test" };
-var product = new Product { Id = 10, Title = "Camera", Price = 10m, SellerId = 22, IsAuction = false };
+var product = new Product { Id = 10, Title = "Camera", Price = 10m, SellerId = 22, IsAuction = false, WeightKg = .5m };
 var inventory = new Inventory { Id = 10, ProductId = 10, Quantity = 3 };
 var address = new Address { Id = 11, UserId = 11, FullName = "Buyer", State = "Hanoi", City = "Hanoi", Country = "Vietnam", Street = "1 Example St" };
 db.Users.AddRange(buyer, seller);
+db.Users.Add(new User { Id = 900, Role = "shipper" });
 db.Products.Add(product);
 db.Inventories.Add(inventory);
 db.Addresses.Add(address);
+db.Addresses.Add(new Address { Id = 22, UserId = 22, FullName = "Seller", Street = "2 Seller St", State = "Hanoi", Country = "Vietnam", IsDefault = true });
 await db.SaveChangesAsync();
 
 var service = new CheckoutService(db);
@@ -78,14 +84,15 @@ var shipment = await shipmentService.CreateOutboundAsync(first.Id);
 Equal(3, carrier.Attempts, "carrier retries twice before success");
 var sameShipment = await shipmentService.CreateOutboundAsync(first.Id);
 Equal(shipment.Id, sameShipment.Id, "single outbound label");
-await shipmentService.RecordEventAsync(shipment.Id, "event-1", "PickedUp");
-await shipmentService.RecordEventAsync(shipment.Id, "event-2", "InTransit");
-await shipmentService.RecordEventAsync(shipment.Id, "event-3", "OutForDelivery");
-await shipmentService.RecordEventAsync(shipment.Id, "event-4", "Delivered");
-await shipmentService.RecordEventAsync(shipment.Id, "event-4", "Delivered");
+await shipmentService.ClaimAsync(shipment.Id, 900);
+await shipmentService.RecordEventAsync(shipment.Id, "event-1", "PickedUp", shipperId: 900);
+await shipmentService.RecordEventAsync(shipment.Id, "event-2", "InTransit", shipperId: 900);
+await shipmentService.RecordEventAsync(shipment.Id, "event-3", "OutForDelivery", shipperId: 900);
+await shipmentService.RecordEventAsync(shipment.Id, "event-4", "Delivered", shipperId: 900);
+await shipmentService.RecordEventAsync(shipment.Id, "event-4", "Delivered", shipperId: 900);
 Equal(5, await db.ShippingEvents.CountAsync(), "duplicate event ignored including label");
 Equal("Delivered", first.Status, "delivered order");
-if (await shipmentService.RecordEventAsync(shipment.Id, "late", "InTransit"))
+if (await shipmentService.RecordEventAsync(shipment.Id, "late", "InTransit", shipperId: 900))
     throw new Exception("late event accepted");
 
 var refundGateway = new TestRefundGateway();
@@ -99,9 +106,10 @@ try
 }
 catch (InvalidOperationException) { }
 var returnShipment = await db.ShippingInfos.SingleAsync(s => s.OrderId == first.Id && s.Direction == "Return");
+await shipmentService.ClaimAsync(returnShipment.Id, 900);
 foreach (var (eventId, status) in new[] { ("return-1", "PickedUp"), ("return-2", "InTransit"),
     ("return-3", "OutForDelivery"), ("return-4", "Delivered") })
-    await shipmentService.RecordEventAsync(returnShipment.Id, eventId, status);
+    await shipmentService.RecordEventAsync(returnShipment.Id, eventId, status, shipperId: 900);
 Equal("ReturnShipping", requestReturn.Status, "tracking does not confirm seller receipt");
 await returns.MarkReceivedAsync(requestReturn.Id);
 var refund = await returns.RefundAsync(first.Id, "return", requestReturn.Id);
@@ -163,7 +171,7 @@ var seedOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
 await using var seedDb = new ApplicationDbContext(seedOptions);
 var fixtureBuyer = new User { Id = 201, Username = "buyer", Email = "buyer@example.test", Role = "buyer" };
 var fixtureSeller = new User { Id = 202, Username = "seller", Email = "seller@example.test", Role = "seller" };
-var seededProduct = new Product { Id = 201, SellerId = fixtureSeller.Id, Title = "Fixture product", Price = 25m, IsAuction = false };
+var seededProduct = new Product { Id = 201, SellerId = fixtureSeller.Id, Title = "Fixture product", Price = 25m, IsAuction = false, WeightKg = .5m };
 var seededAddress = new Address
 {
     Id = 201, UserId = fixtureBuyer.Id, FullName = "Buyer", Street = "1 Example Street",
@@ -171,6 +179,7 @@ var seededAddress = new Address
 };
 var seededStock = new Inventory { Id = 201, ProductId = seededProduct.Id, Quantity = 20, LastUpdated = DateTime.UtcNow };
 seedDb.AddRange(fixtureBuyer, fixtureSeller, seededProduct, seededAddress, seededStock);
+seedDb.Addresses.Add(new Address { Id = 202, UserId = fixtureSeller.Id, FullName = "Seller", Street = "2 Seller St", State = "Hanoi", Country = "Vietnam", IsDefault = true });
 await seedDb.SaveChangesAsync();
 
 var initialStock = seededStock.Quantity;
@@ -453,6 +462,7 @@ Console.WriteLine("Authentication checks passed");
 
 await DisputeWorkflowChecks.RunAsync();
 await SellerOrderListChecks.RunAsync();
+await BuyerOrderListChecks.RunAsync();
 
 sealed class TestCarrier : ICarrierGateway
 {

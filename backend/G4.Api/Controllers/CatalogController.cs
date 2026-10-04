@@ -21,7 +21,7 @@ public sealed class CatalogController(ApplicationDbContext db, ICheckoutService 
             .ToDictionaryAsync(i => i.ProductId!.Value, ct);
         return Ok(products.Select(p => new
         {
-            productId = p.Id, title = p.Title, price = p.Price,
+            productId = p.Id, title = p.Title, price = p.Price, p.WeightKg, imageUrl = p.Images,
             quantity = Random.Shared.Next(1, Math.Min(3, stock[p.Id].Quantity!.Value) + 1),
             available = stock[p.Id].Quantity
         }));

@@ -55,7 +55,18 @@
   }
   function returnStatus(status) {
     return ({Requested:'Chờ người bán duyệt',Approved:'Đã duyệt',Rejected:'Đã từ chối',ReturnShipping:'Đang trả hàng về người bán',
-      ReceivedBySeller:'Người bán đã nhận hàng',RefundPending:'Đang hoàn tiền',Refunded:'Đã hoàn tiền',RefundFailed:'Hoàn tiền thất bại'})[status] ?? label(status);
+      ReceivedBySeller:'Người bán đã nhận hàng',RefundPending:'Đang hoàn tiền',Refunded:'Đã hoàn tiền',RefundFailed:'Hoàn tiền thất bại',Disputed:'Đang chờ admin xử lý hàng trả',Closed:'Đã kết thúc yêu cầu trả hàng'})[status] ?? label(status);
+  }
+  function returnSummary(o) {
+    const r = o.returnRequest;
+    if (!r) return '';
+    const deadline = r.confirmationDueAt && ['Approved','ReturnShipping'].includes(r.status) ? `<p class="small">Hạn xác nhận hàng trả: ${date(r.confirmationDueAt)}. Hệ thống tự hoàn tiền nếu người bán không phản hồi trong hạn.</p>` : '';
+    const retry = ['ReceivedBySeller','RefundPending','RefundFailed'].includes(r.status) ? '<p class="small">Hệ thống đang xử lý hoàn tiền và sẽ tự thử lại nếu cổng thanh toán gặp lỗi.</p>' : '';
+    return `<section class="return-summary"><p>Trả hàng: ${esc(r.reason)} · ${esc(returnStatus(r.status))}</p>${deadline}${retry}</section>`;
+  }
+  function shipperShipmentCard(s) {
+    const action = s.shipperId == null ? `<button data-claim-shipment="${s.id}" data-order="${s.orderId}">Nhận vận đơn</button>` : `<button data-open-order="${s.orderId}">Xem chi tiết</button>`;
+    return `<article class="order-card shipment-card" data-shipment-row="${s.id}"><div class="order-card-main"><span class="overline">${s.direction === 'Return' ? 'Chiều trả' : 'Chiều giao'} · đơn #${s.orderId}</span><strong>${esc(shippingStatus(s.status,s.direction))}</strong><small>Vận đơn: ${esc(s.trackingNumber || 'Chưa có')} · ${s.totalWeightKg == null ? 'Chưa có khối lượng' : `${Number(s.totalWeightKg)} kg`}</small><small>Lấy hàng: ${esc(s.pickupAddress || 'Chưa có địa chỉ lấy hàng')}</small><small>Giao tới: ${esc(s.deliveryAddress || 'Chưa có địa chỉ giao hàng')}</small></div>${action}</article>`;
   }
   const eventText = value => ({'Label created':'Đã tạo vận đơn giao hàng','Return label created':'Đã tạo vận đơn trả hàng','Distribution hub':'Trung tâm phân phối','Recipient unavailable':'Không liên hệ được người nhận'})[value] || value;
   function shipmentHtml(o, shipment, direction, actions = '') {
@@ -71,7 +82,19 @@
   function disputeBadge(dispute) {
     return dispute ? `<button type="button" class="dispute-badge ${dispute.isOpen?'is-open':''}" data-open-case="${dispute.id}">${esc(window.G4.Disputes?.statusText(dispute.status,dispute.outcome)||'Có yêu cầu giải quyết')}</button>` : '';
   }
-  function sellerOrderCard(o) {
+  function productThumbnail(url, title, className = 'thumb') {
+    let src = '';
+    try {
+      const parsed = new URL(String(url || '').trim());
+      if (['http:', 'https:'].includes(parsed.protocol)) src = parsed.href;
+    } catch { /* Missing or invalid URLs use the placeholder. */ }
+    return `<div class="${esc(className)} product-thumbnail"><span class="product-image-placeholder" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m16 3 12 7v14l-12 7-12-7V10Z M4 10l12 7 12-7 M16 17v14 M10 6l12 7v6" /></svg></span>${src?`<img src="${esc(src)}" alt="${esc(title || 'Ảnh sản phẩm')}" loading="lazy" decoding="async" referrerpolicy="no-referrer">`:''}</div>`;
+  }
+  document.addEventListener?.('error', event => {
+    const img = event.target;
+    if (img?.tagName === 'IMG' && img.parentElement?.classList.contains('product-thumbnail')) img.hidden = true;
+  }, true);
+  function productOrderCard(o, source) {
     const localDate = value => date(typeof value === 'string' && !/(Z|[+-]\d{2}:\d{2})$/i.test(value) ? value + 'Z' : value);
     const refunded = o.hasRefund && o.status === 'Closed';
     const status = refunded ? 'Đã hoàn tiền' : label(o.status);
@@ -81,13 +104,13 @@
     const items = Number(o.itemCount) > 0 ? `${Number(o.itemCount)} món` : 'Chưa có thông tin số lượng';
     return `<article class="order-card seller-order-card" data-order-row="${o.id}">
       <header class="seller-order-head"><strong>Đơn #${o.id}</strong><div class="seller-order-times"><span>Tạo: ${esc(localDate(o.orderDate))}</span><span>Cập nhật: ${esc(localDate(o.updatedAt || o.orderDate))}</span></div></header>
-      <div class="seller-order-body"><div class="seller-product-thumb" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m16 3 12 7v14l-12 7-12-7V10Z M4 10l12 7 12-7 M16 17v14 M10 6l12 7v6" /></svg></div>
-        <div class="seller-product-info"><strong class="seller-product-title" title="${esc(title)}">${esc(title)}</strong><span class="seller-product-count">${extras}${items}</span><span class="seller-buyer">Người mua: ${esc(o.buyerName || 'Chưa có thông tin')}</span></div>
+      <div class="seller-order-body">${productThumbnail(o.imageUrl,title,'seller-product-thumb')}
+        <div class="seller-product-info"><strong class="seller-product-title" title="${esc(title)}">${esc(title)}</strong><span class="seller-product-count">${extras}${items}</span><span class="seller-buyer">${source==='buyer'?'Người bán':'Người mua'}: ${esc((source==='buyer'?o.sellerName:o.buyerName) || 'Chưa có thông tin')}</span></div>
         <div class="seller-order-total"><span>Tổng đơn</span><strong>${money(o.totalPrice)}</strong></div></div>
-      <footer class="seller-order-foot"><div class="seller-order-badges"><span class="seller-status seller-status-${tone}">${esc(status)}</span>${o.hasRefund&&!refunded?'<span class="seller-status seller-status-refund">Đã hoàn tiền</span>':''}${o.attention?`<span class="seller-attention">${esc(o.attention)}</span>`:''}${disputeBadge(o.dispute)}</div><button type="button" data-open-order="${o.id}" data-source="seller" aria-label="Xem chi tiết đơn #${o.id}">Xem chi tiết</button></footer></article>`;
+      <footer class="seller-order-foot"><div class="seller-order-badges"><span class="seller-status seller-status-${tone}">${esc(status)}</span>${o.hasRefund&&!refunded?'<span class="seller-status seller-status-refund">Đã hoàn tiền</span>':''}${o.attention?`<span class="seller-attention">${esc(o.attention)}</span>`:''}${disputeBadge(o.dispute)}</div><button type="button" data-open-order="${o.id}" data-source="${source}" aria-label="Xem chi tiết đơn #${o.id}">Xem chi tiết</button></footer></article>`;
   }
   function orderCard(o, source = 'orders') {
-    if (source === 'seller') return sellerOrderCard(o);
+    if (source === 'seller' || source === 'buyer') return productOrderCard(o, source);
     return `<article class="order-card" data-order-row="${o.id}"><div class="order-card-main"><span class="overline">Đơn mua hàng · #${o.id}</span><strong>${esc(label(o.status))}</strong><small>Tạo: ${date(o.orderDate)} · Cập nhật: ${date(o.updatedAt || o.orderDate)}</small>${disputeBadge(o.dispute)}</div><div class="order-card-side"><b>${money(o.totalPrice)}</b><button data-open-order="${o.id}" data-source="${source}">Xem chi tiết</button></div></article>`;
   }
   function pager(id, result, onPage) {
@@ -172,7 +195,7 @@
   function modal({title, description, fields = [], confirm = 'Xác nhận'}) {
     const dialog = $('action-dialog');
     $('action-title').textContent = title;
-    $('action-description').textContent = description || '';
+    $('action-context').textContent = description || '';
     $('action-fields').innerHTML = fields.map(f => {
       const attributes=`id="action-${esc(f.name)}" name="${esc(f.name)}" ${f.required?'required':''}`;
       const control=f.type==='textarea'
@@ -206,5 +229,5 @@
   $('detail-close').onclick = closeDetail;
   if(typeof ResizeObserver!=='undefined')new ResizeObserver(layoutTimelines).observe($('detail-content'));
   window.addEventListener?.('resize',layoutTimelines);
-  window.G4 = {$,money,date,esc,label,api,message,safe,shippingStatus,returnStatus,trackingHtml,orderCard,disputeBadge,pager,pageChanges,patchPagedList,modal,openDetail,closeDetail,layoutTimeline};
+  window.G4 = {$,money,date,esc,label,api,message,safe,shippingStatus,returnStatus,returnSummary,shipmentHtml,shipperShipmentCard,trackingHtml,productThumbnail,orderCard,disputeBadge,pager,pageChanges,patchPagedList,modal,openDetail,closeDetail,layoutTimeline};
 })();

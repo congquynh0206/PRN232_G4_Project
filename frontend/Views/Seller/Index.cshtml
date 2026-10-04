@@ -5,6 +5,7 @@
 <nav class="tabs role-tabs">
     <button data-tab="orders" class="active">Đơn hàng</button>
     <button data-tab="finance">Tài chính</button>
+    <button data-tab="shipping-settings">Thiết lập giao hàng</button>
     <button data-tab="disputes">
         Tranh chấp
         <span id="dispute-tab-count"></span>
@@ -79,9 +80,25 @@
     </div>
 </section>
 <partial name="_DisputesPanel" model="false" />
+<section id="shipping-settings" class="panel tab-panel">
+    <div class="section-head"><div><span class="eyebrow">Người bán</span><h1>Thiết lập giao hàng</h1><p>Khai báo địa chỉ lấy hàng và khối lượng trước khi buyer checkout.</p></div></div>
+    <form id="pickup-form" class="finance-block">
+        <h2>Địa chỉ lấy hàng</h2>
+        <div class="shipping-settings-fields">
+            <label>Tên người gửi<input id="pickup-fullName" required maxlength="100" autocomplete="name" /></label>
+            <label>Đường, số nhà<input id="pickup-street" required maxlength="100" autocomplete="street-address" /></label>
+            <label>Thành phố<input id="pickup-city" required maxlength="50" autocomplete="address-level2" /></label>
+            <label>Tỉnh / vùng<input id="pickup-state" required maxlength="50" placeholder="Hà Nội" autocomplete="address-level1" /></label>
+            <label>Quốc gia<input id="pickup-country" required maxlength="50" placeholder="Việt Nam" autocomplete="country-name" /></label>
+        </div>
+        <button type="submit" class="primary">Lưu địa chỉ lấy hàng</button>
+    </form>
+    <div class="finance-block"><h2>Khối lượng sản phẩm</h2><p class="small">Đơn vị kg, tối đa 3 chữ số thập phân. Sản phẩm thiếu khối lượng chưa được checkout.</p><div id="product-weights"></div><div id="product-weights-pagination" class="pagination"></div></div>
+</section>
 @section Scripts
 {
     <script src="~/js/common.js" asp-append-version="true"></script>
     <script src="~/js/disputes.js" asp-append-version="true"></script>
+    <script src="~/js/seller-shipping.js" asp-append-version="true"></script>
     <script src="~/js/seller.js" asp-append-version="true"></script>
 }

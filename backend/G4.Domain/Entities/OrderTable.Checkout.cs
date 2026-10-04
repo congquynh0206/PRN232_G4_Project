@@ -9,6 +9,8 @@ public partial class OrderTable
     public string Currency { get; set; } = "USD";
     public DateTime? PaymentExpiresAt { get; set; }
     public string? AddressSnapshot { get; set; }
+    public string? PickupAddressSnapshot { get; set; }
+    public decimal? TotalWeightKg { get; set; }
     public string? CouponCode { get; set; }
     public string? CheckoutKey { get; set; }
     public string? CancelPreviousStatus { get; set; }

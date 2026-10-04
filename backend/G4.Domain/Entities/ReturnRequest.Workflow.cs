@@ -6,5 +6,6 @@ public partial class ReturnRequest
     public string? DecisionReason { get; set; }
     public DateTime? ReturnDeadline { get; set; }
     public DateTime? ReceivedAt { get; set; }
+    public DateTime? ConfirmationDueAt { get; set; }
     public int? RefundId { get; set; }
 }

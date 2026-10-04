@@ -8,11 +8,15 @@
         <div>
             <span class="eyebrow">Đơn vị giao hàng</span>
             <h1>Điều phối vận chuyển</h1>
-            <p>Cập nhật vận chuyển cho vận đơn chiều đi và chiều trả.</p>
+            <p>Nhận vận đơn chiều đi hoặc chiều trả, sau đó cập nhật tiến trình giao hàng.</p>
         </div>
         <button id="refresh-shipments">Làm mới</button>
     </div>
-    <div id="shipment-list" class="order-list"></div>
+    <div class="seller-filter-tabs" role="group" aria-label="Phân loại vận đơn">
+        <button type="button" data-shipment-filter="pending" class="active" aria-pressed="true">Chờ nhận <span id="pending-shipment-count">0</span></button>
+        <button type="button" data-shipment-filter="mine" aria-pressed="false">Vận đơn của tôi <span id="mine-shipment-count">0</span></button>
+    </div>
+    <div id="shipment-list" class="order-list" aria-busy="false"></div>
     <div id="shipment-pagination" class="pagination"></div>
 </section>
 @section Scripts

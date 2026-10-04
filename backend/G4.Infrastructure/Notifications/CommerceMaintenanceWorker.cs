@@ -37,6 +37,7 @@ public sealed class CommerceMaintenanceWorker(IServiceScopeFactory scopes, IConf
                 await checkout.CloseDeliveredOutsideReturnWindowAsync(stoppingToken);
                 var finance = scope.ServiceProvider.GetRequiredService<ISellerFinanceService>();
                 await finance.BackfillAsync(stoppingToken);
+                await scope.ServiceProvider.GetRequiredService<IReturnService>().MaintainAsync(stoppingToken);
                 await scope.ServiceProvider.GetRequiredService<IDisputeService>().MaintainAsync(stoppingToken);
                 var pendingDisputeRefunds = await db.SellerSettlements.Where(x => x.Status == "RefundPending" &&
                     !db.Disputes.Any(d => d.OrderId == x.OrderId && d.WorkflowEnabled))

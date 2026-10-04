@@ -9,10 +9,35 @@ function loadCommon() {
     if (!elements.has(id)) elements.set(id, { innerHTML: '', textContent: '' });
     return elements.get(id);
   };
-  const context = { window: {}, document: { getElementById: element }, setTimeout, clearTimeout };
+  const context = { window: {}, document: { getElementById: element }, URL, setTimeout, clearTimeout };
   vm.runInNewContext(fs.readFileSync('frontend/wwwroot/js/common.js', 'utf8'), context);
   return { G4: context.window.G4, element };
 }
+
+test('hộp thoại có trường mô tả không trùng ID với phần hướng dẫn', () => {
+  const {G4, element} = loadCommon();
+  element('action-dialog').showModal = () => {};
+  element('action-form').querySelector = () => ({focus() {}});
+  G4.modal({title:'Báo vấn đề hàng trả', description:'Tiền tiếp tục được giữ',
+    fields:[{name:'description',label:'Mô tả',type:'textarea',required:true}]});
+  const layout = fs.readFileSync('frontend/Views/Shared/_RoleLayout.cshtml','utf8');
+  const staticIds = [...layout.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
+  const fieldIds = [...element('action-fields').innerHTML.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
+  assert.deepEqual(fieldIds.filter(id=>staticIds.includes(id)),[], 'label và validation phải trỏ đến đúng control');
+});
+
+test('vận đơn chờ nhận hiển thị địa chỉ và chỉ có nút nhận, không có nút cập nhật tracking', () => {
+  const {G4} = loadCommon();
+  const html = G4.shipperShipmentCard({id: 12, orderId: 46, direction: 'Return', status: 'LabelCreated',
+    trackingNumber: 'RET-12', pickupAddress: '<script>buyer</script>', deliveryAddress: 'Seller street', totalWeightKg: 1.2});
+  assert.match(html, /data-claim-shipment="12"/);
+  assert.doesNotMatch(html, /data-open-order|data-event/);
+  assert.match(html, /&lt;script&gt;buyer&lt;\/script&gt;/);
+  assert.match(html, /1.2 kg/);
+  const owned = G4.shipperShipmentCard({id: 12, orderId: 46, direction: 'Return', shipperId: 7, status: 'InTransit'});
+  assert.match(owned, /data-open-order="46"/);
+  assert.doesNotMatch(owned, /data-claim-shipment/);
+});
 
 test('phân trang hiện số trang và cho chọn trực tiếp trang khác', () => {
   const { G4, element } = loadCommon();
@@ -89,4 +114,32 @@ test('thẻ seller nhận diện sản phẩm, người mua và refund mà khôn
   assert.match(html, /Tổng đơn/);
   assert.match(html, /\$191\.89/);
   assert.match(html, /data-open-order="46"/);
+});
+
+test('thẻ buyer dùng bố cục seller, ảnh sản phẩm và thông tin người bán', () => {
+  const {G4} = loadCommon();
+  const html = G4.orderCard({id:46,status:'Closed',totalPrice:191.89,productTitle:'Camera',
+    imageUrl:'https://example.test/camera.jpg',sellerName:'Shop A & B',buyerName:'Không hiển thị',
+    productCount:2,itemCount:3,hasRefund:true},'buyer');
+  assert.match(html,/seller-order-head/);
+  assert.match(html,/seller-order-body/);
+  assert.match(html,/seller-order-foot/);
+  assert.match(html,/<img[^>]+src="https:\/\/example.test\/camera.jpg"/);
+  assert.match(html,/Người bán: Shop A &amp; B/);
+  assert.doesNotMatch(html,/Người mua:|Không hiển thị/);
+  assert.match(html,/Đã hoàn tiền/);
+  assert.match(html,/data-source="buyer"/);
+});
+
+test('ảnh sản phẩm dùng URL HTTP(S), escape tên và có placeholder khi không có ảnh', () => {
+  const {G4} = loadCommon();
+  const photo = G4.productThumbnail('https://example.test/photo.jpg','Camera "A" <test>');
+  assert.match(photo,/alt="Camera &quot;A&quot; &lt;test&gt;"/);
+  assert.match(photo,/loading="lazy"/);
+  assert.match(photo,/product-image-placeholder/);
+  for(const url of [null,'','javascript:alert(1)','data:text/html,test']) {
+    const html = G4.productThumbnail(url,'Camera');
+    assert.match(html,/product-image-placeholder/);
+    assert.doesNotMatch(html,/<img/);
+  }
 });

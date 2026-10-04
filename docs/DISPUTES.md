@@ -54,7 +54,9 @@ Endpoint cũ `fund-hold` vẫn tồn tại nhưng chuyển qua cùng quy trình:
 
 Khóa giữ tiền mới có dạng `order:{orderId}:case:{disputeId}:hold`; mỗi hồ sơ có khóa giải quyết riêng. Đóng một hồ sơ không làm mất lịch sử, mở lại trong thời hạn tạo hồ sơ và khoản giữ mới. Tài chính lấy khoản giữ gần nhất của đúng đơn.
 
-Khoản `OnHold`/`RefundPending` có trước nâng cấp mà chưa có hồ sơ mới được worker nhập thành hồ sơ chuyển admin/đang hoàn tiền. Giữ nguyên giao dịch tài chính và các bản ghi tranh chấp cũ; lịch sử mới ghi rõ hồ sơ nhập từ trước nâng cấp.
+Khoản `OnHold`/`RefundPending` có trước nâng cấp mà chưa có hồ sơ mới được worker nhập thành hồ sơ chuyển admin/đang hoàn tiền, trừ khoản giữ của yêu cầu trả hàng thường đang xử lý. Giữ nguyên giao dịch tài chính và các bản ghi tranh chấp cũ; lịch sử mới ghi rõ hồ sơ nhập từ trước nâng cấp.
+
+Seller báo vấn đề sau khi hàng trả giao tới mình và trước deadline sẽ tạo/chuyển hồ sơ lên admin, giữ tiền và dừng tự refund. Buyer không mở thêm hồ sơ song song khi trả hàng thường đang hoạt động. Xem [RETURNS_AND_SHIPPING.md](RETURNS_AND_SHIPPING.md).
 
 Migration `AddDisputeWorkflow` thêm trường trạng thái/thời gian, `rowversion`, bảng lịch sử và chỉ mục duy nhất cho một hồ sơ đang mở trên mỗi đơn. Chạy từ thư mục gốc sau khi dừng API đang chạy:
 

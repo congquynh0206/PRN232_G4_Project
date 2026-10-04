@@ -29,7 +29,7 @@ BEGIN TRY
     IF NOT EXISTS (SELECT 1 FROM dbo.[User] WHERE email = N'buyer@example.test')
     BEGIN
         INSERT INTO dbo.[User] (username, email, [password], role, avatarURL)
-        VALUES (N'buyer', N'buyer@example.test', NULL, N'buyer', NULL);
+        VALUES (N'buyer', N'buyer@example.test', N'PBKDF2$100000$ZzQtYnV5ZXItYXV0aC1zYWx0LTIwMjY=$Wgm3b6IizRGo8CDLurHUJAAlcbSLY1ASzgQLLysRq6Q=', N'buyer', NULL);
     END;
 
     IF NOT EXISTS (SELECT 1 FROM dbo.[User] WHERE email = N'seller@example.test')
@@ -64,7 +64,7 @@ BEGIN TRY
     IF NOT EXISTS (SELECT 1 FROM dbo.[User] WHERE email = N'seller@example.test')
     BEGIN
         INSERT INTO dbo.[User] (username, email, [password], role, avatarURL)
-        VALUES (N'seller', N'seller@example.test', NULL, N'seller', NULL);
+        VALUES (N'seller', N'seller@example.test', N'PBKDF2$100000$ZzQtc2VsbGVyLWF1dGgtc2FsdC0yMDI2$bvbBUVZpDtB6R8yq4JMzCmYk75mQrXZFzoj0dLX7VnA=', N'seller', NULL);
     END;
 
     DECLARE @BuyerId INT = (SELECT id FROM dbo.[User] WHERE email = N'buyer@example.test');
@@ -92,23 +92,31 @@ BEGIN TRY
         VALUES (@BuyerId, N'Buyer', N'0900000000', N'2 Example Street', N'Ho Chi Minh City', N'HCM', N'Vietnam', 0);
     END;
 
+    IF NOT EXISTS (SELECT 1 FROM dbo.[Address] WHERE userId = @SellerId AND isDefault = 1)
+    BEGIN
+        INSERT INTO dbo.[Address] (userId, fullName, phone, street, city, state, country, isDefault)
+        VALUES (@SellerId, N'G4 Demo Seller', N'0900000001', N'3 Demo Pickup Street', N'Hanoi', N'Hanoi', N'Vietnam', 1);
+    END;
+
     DECLARE @Products TABLE
     (
         title NVARCHAR(255) NOT NULL,
         price DECIMAL(10,2) NOT NULL,
+        weightKg DECIMAL(10,3) NOT NULL,
         [description] NVARCHAR(MAX) NOT NULL
     );
 
-    INSERT INTO @Products (title, price, [description])
+    -- Explicit fictional weights for these five demo fixtures only.
+    INSERT INTO @Products (title, price, weightKg, [description])
     VALUES
-        (N'Wireless Headphones', 29.90, N'Bluetooth over-ear headphones'),
-        (N'Compact Camera',      49.00, N'Travel-friendly digital camera'),
-        (N'Smart Watch',         35.50, N'Fitness and notification watch'),
-        (N'Phone Case',           9.99, N'Protective case for smartphone'),
-        (N'Portable Charger',    19.95, N'Fast charging power bank');
+        (N'Wireless Headphones', 29.90, 0.300, N'Bluetooth over-ear headphones'),
+        (N'Compact Camera',      49.00, 0.600, N'Travel-friendly digital camera'),
+        (N'Smart Watch',         35.50, 0.200, N'Fitness and notification watch'),
+        (N'Phone Case',           9.99, 0.050, N'Protective case for smartphone'),
+        (N'Portable Charger',    19.95, 0.250, N'Fast charging power bank');
 
-    INSERT INTO dbo.Product (title, [description], price, images, categoryId, sellerId, isAuction, auctionEndTime)
-    SELECT source.title, source.[description], source.price, NULL, NULL, @SellerId, 0, NULL
+    INSERT INTO dbo.Product (title, [description], price, WeightKg, images, categoryId, sellerId, isAuction, auctionEndTime)
+    SELECT source.title, source.[description], source.price, source.weightKg, NULL, NULL, @SellerId, 0, NULL
     FROM @Products AS source
     WHERE NOT EXISTS
     (
@@ -116,6 +124,10 @@ BEGIN TRY
         FROM dbo.Product AS existing
         WHERE existing.sellerId = @SellerId AND existing.title = source.title
     );
+
+    UPDATE product SET WeightKg = source.weightKg
+    FROM dbo.Product AS product INNER JOIN @Products AS source ON source.title = product.title
+    WHERE product.sellerId = @SellerId AND product.WeightKg IS NULL;
 
     INSERT INTO dbo.Inventory (productId, quantity, lastUpdated)
     SELECT product.id, 20, SYSUTCDATETIME()

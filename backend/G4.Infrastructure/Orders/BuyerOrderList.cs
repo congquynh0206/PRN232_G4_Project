@@ -3,40 +3,30 @@ using Microsoft.EntityFrameworkCore;
 
 namespace G4.Infrastructure.Orders;
 
-public static class SellerOrderList
+public static class BuyerOrderList
 {
-    public static async Task<SellerOrderListPage> ReadAsync(ApplicationDbContext db, int sellerId,
-        int page, int pageSize, string filter, bool needsAction, CancellationToken ct = default)
+    public static async Task<BuyerOrderListPage> ReadAsync(ApplicationDbContext db, int buyerId,
+        int page, int pageSize, string filter, CancellationToken ct = default)
     {
-        // Project only list summaries; never fetch each order's detail to render a page.
-        var query = db.OrderTables.AsNoTracking().Where(o => o.SellerId == sellerId).Select(o => new
+        var query = db.OrderTables.AsNoTracking().Where(o => o.BuyerId == buyerId).Select(o => new
         {
             o.Id, o.OrderDate, o.UpdatedAt, o.Status, o.TotalPrice, o.Currency,
             ProductTitle = db.OrderItems.Where(i => i.OrderId == o.Id).OrderBy(i => i.Id)
                 .Select(i => i.ProductTitleSnapshot ?? (i.Product == null ? null : i.Product.Title)).FirstOrDefault(),
             ImageUrl = db.OrderItems.Where(i => i.OrderId == o.Id).OrderBy(i => i.Id)
                 .Select(i => i.Product == null ? null : i.Product.Images).FirstOrDefault(),
-            BuyerName = db.Users.Where(u => u.Id == o.BuyerId).Select(u => u.Username ?? u.Email).FirstOrDefault(),
+            SellerName = db.Users.Where(u => u.Id == o.SellerId).Select(u => u.Username ?? u.Email).FirstOrDefault(),
             ProductCount = db.OrderItems.Count(i => i.OrderId == o.Id),
             ItemCount = db.OrderItems.Where(i => i.OrderId == o.Id).Sum(i => i.Quantity) ?? 0,
             HasRefund = db.Refunds.Any(r => r.OrderId == o.Id && r.Status == "Succeeded"),
             Attention = db.Refunds.Any(r => r.OrderId == o.Id && r.Status == "Succeeded") ? null
-                : db.Disputes.Any(d => d.OrderId == o.Id && d.WorkflowEnabled && d.IsOpen && d.Status == "AwaitingSeller") ? "Cần phản hồi tranh chấp"
-                : o.Status == "CancelRequested" ? "Chờ duyệt hủy"
-                : db.ReturnRequests.Any(r => r.OrderId == o.Id && r.Status == "Requested") ? "Chờ duyệt trả hàng"
-                : db.ShippingInfos.Any(s => s.OrderId == o.Id && s.Status == "ShipmentCreationFailed") ? "Cần tạo lại vận đơn"
-                : db.ReturnRequests.Any(r => r.OrderId == o.Id && r.Status == "RefundFailed") ? "Hoàn tiền thất bại"
-                : db.ReturnRequests.Any(r => r.OrderId == o.Id && (r.Status == "Approved" || r.Status == "ReturnShipping")) &&
-                  db.ShippingInfos.Any(s => s.OrderId == o.Id && s.Direction == "Return" && s.Status == "Delivered") ? "Chờ xác nhận hàng trả"
-                : db.ReturnRequests.Any(r => r.OrderId == o.Id && r.Status == "ReceivedBySeller") ? "Chờ hoàn tiền hàng trả"
-                : db.ShippingInfos.Any(s => s.OrderId == o.Id && s.Direction == "Outbound" && s.Status == "ReturnedToSeller") ? "Chờ hoàn tiền chuyển hoàn"
-                : o.Status == "Paid" ? "Chờ chuẩn bị hàng"
-                : o.Status == "Preparing" && !db.ShippingInfos.Any(s => s.OrderId == o.Id && s.Direction == "Outbound") ? "Chờ tạo vận đơn" : null,
+                : db.Disputes.Any(d => d.OrderId == o.Id && d.WorkflowEnabled && d.IsOpen && d.Status == "AwaitingBuyer") ? "Cần phản hồi phương án"
+                : db.ReturnRequests.Any(r => r.OrderId == o.Id && r.Status == "Requested") ? "Chờ người bán duyệt trả hàng"
+                : db.ReturnRequests.Any(r => r.OrderId == o.Id && r.Status == "ReturnShipping") ? "Đang trả hàng về người bán"
+                : o.Status == "CancelRequested" ? "Chờ người bán duyệt hủy" : null,
             Dispute = db.Disputes.Where(d => d.OrderId == o.Id && d.WorkflowEnabled).OrderByDescending(d => d.Id)
                 .Select(d => new SellerOrderCaseBadge(d.Id, d.Status!, d.IsOpen, d.Outcome)).FirstOrDefault()
         });
-        var actionCount = await query.CountAsync(o => o.Attention != null, ct);
-        if (needsAction) query = query.Where(o => o.Attention != null);
         var statusCounts = await query.GroupBy(o => o.Status)
             .Select(g => new { Status = g.Key, Count = g.Count() }).ToListAsync(ct);
         int Count(params string[] statuses) => statusCounts.Where(g => statuses.Contains(g.Status)).Sum(g => g.Count);
@@ -50,6 +40,7 @@ public static class SellerOrderList
         {
             "unpaid" => query.Where(o => o.Status == "AwaitingPayment"),
             "ready" => query.Where(o => o.Status == "Paid" || o.Status == "Preparing" || o.Status == "CancelRequested"),
+            "pending" => query.Where(o => o.Status == "AwaitingPayment" || o.Status == "Paid" || o.Status == "Preparing" || o.Status == "CancelRequested"),
             "shipping" => query.Where(o => o.Status == "Shipping"),
             "complete" => query.Where(o => o.Status == "Delivered" || o.Status == "Closed"),
             "cancelled" => query.Where(o => o.Status == "Cancelled" || o.Status == "Expired"),
@@ -59,8 +50,8 @@ public static class SellerOrderList
         pageSize = Math.Clamp(pageSize, 1, 50);
         page = Math.Clamp(page, 1, Math.Max(1, (totalCount + pageSize - 1) / pageSize));
         var rows = await query.OrderByDescending(o => o.Id).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
-        return new SellerOrderListPage(page, pageSize, totalCount, counts, actionCount,
-            rows.Select(o => new SellerOrderCard(o.Id, o.OrderDate, o.UpdatedAt, o.Status, o.TotalPrice,
-                o.Currency, o.ProductTitle, o.BuyerName, o.ProductCount, o.ItemCount, o.HasRefund, o.Attention, o.Dispute, o.ImageUrl)).ToList());
+        return new BuyerOrderListPage(page, pageSize, totalCount, counts,
+            rows.Select(o => new BuyerOrderCard(o.Id, o.OrderDate, o.UpdatedAt, o.Status, o.TotalPrice,
+                o.Currency, o.ProductTitle, o.ImageUrl, o.SellerName, o.ProductCount, o.ItemCount, o.HasRefund, o.Attention, o.Dispute)).ToList());
     }
 }

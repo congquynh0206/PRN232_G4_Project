@@ -18,7 +18,7 @@ Trong Development, `Finance:AcceleratedHoldSeconds = 30` giúp trình diễn mà
 | --- | --- |
 | `Processing` | Tiền bán hàng đã trừ phí nhưng còn chờ giao hàng/hết hạn giữ. |
 | `Available` | Tiền seller được phép payout. |
-| `OnHold` | Tiền bị khóa vì tranh chấp, seller không thể rút. |
+| `OnHold` | Tiền bị khóa vì tranh chấp hoặc trả hàng đã được duyệt, seller không thể rút. |
 | `Negative` | Nghĩa vụ seller còn nợ hệ thống sau refund/chargeback khi các số dư khác không đủ. |
 
 `FinancialTransaction` là sổ cái chỉ thêm mới. Mỗi giao dịch có `EntryKey` duy nhất để retry không ghi phí, refund hay payout hai lần. `SellerSettlement` là bảng đối soát theo từng order/payment; `SellerAccount` giữ số dư hiện tại; `SellerPayout` giữ lịch sử rút tiền.
@@ -35,7 +35,9 @@ Doanh số được tính theo tháng UTC và tự về 0 khi sang tháng. Backe
 
 ## Hoàn tiền và số dư âm
 
-Khi refund thành công, hệ thống hoàn lại phần phí nền tảng theo tỷ lệ số tiền refund. Nghĩa vụ còn lại được trừ lần lượt từ tiền của settlement đang `Processing`, rồi `Available`, rồi `OnHold`. Phần vẫn còn thiếu trở thành `Negative`.
+Khi refund thành công, hệ thống hoàn lại phần phí nền tảng theo tỷ lệ số tiền refund. Nghĩa vụ còn lại được trừ lần lượt từ tiền của settlement đang `Processing`, khoản `OnHold` của đúng đơn, rồi `Available`. Phần vẫn còn thiếu trở thành `Negative`.
+
+Trả hàng thường đã duyệt giữ tiền đến khi receipt/refund hoặc admin giải quyết vấn đề hàng trả. Worker không nhập khoản giữ này thành hồ sơ tranh chấp cũ và không mở khóa tiền khi còn yêu cầu trả đang xử lý. Xem [RETURNS_AND_SHIPPING.md](RETURNS_AND_SHIPPING.md).
 
 Seller có `Negative > 0` không được tạo payout. Khi có giao dịch bán mới, hệ thống tự dùng Net mới để bù `Negative` trước; phần dư mới vào `Processing`. Vì vậy seller bỏ tài khoản không làm khoản nợ biến mất trong dữ liệu. Việc khóa danh tính seller hoặc thu nợ thật nằm ngoài phạm vi mô phỏng.
 

@@ -35,7 +35,7 @@ public sealed class ShippingController(ApplicationDbContext db, IShipmentService
         if (!IsAvailable || !HasRole("shipper")) return StatusCode(403);
         if (!await db.ShippingInfos.AnyAsync(s => s.Id == id, ct)) return NotFound();
         var applied = await shipping.RecordEventAsync(id, request.EventId ?? Guid.NewGuid().ToString("N"),
-            request.Status, request.Location, request.Note, ct);
+            request.Status, request.Location, request.Note, ct, CurrentUserId);
         return Ok(new { applied });
     }
 
@@ -43,34 +43,24 @@ public sealed class ShippingController(ApplicationDbContext db, IShipmentService
     public async Task<IActionResult> Shipments(CancellationToken ct)
     {
         if (!IsAvailable || !HasRole("shipper")) return StatusCode(403);
-        return Ok(await db.OrderTables.AsNoTracking()
-            .Where(o => db.ShippingInfos.Any(s => s.OrderId == o.Id))
-            .OrderByDescending(o => o.Id)
-            .Select(o => new
-            {
-                o.Id, o.OrderDate, o.Status, o.TotalPrice, o.Currency,
-                shipments = db.ShippingInfos.Where(s => s.OrderId == o.Id)
-                    .Select(s => new { s.Id, s.Direction, s.TrackingNumber, s.Status, s.DeliveryAttempts }).ToList()
-            }).ToListAsync(ct));
+        return Ok((await G4.Infrastructure.Shipping.ShipperShipmentList.ReadAsync(db, CurrentUserId, "mine", 1, 50, ct)).Items);
     }
 
     [HttpGet("shipper/shipments/page")]
     public async Task<IActionResult> ShipmentsPage([FromQuery] int page = 1, [FromQuery] int pageSize = 10,
+        [FromQuery] string filter = "pending",
         CancellationToken ct = default)
     {
         if (!IsAvailable || !HasRole("shipper")) return StatusCode(403);
-        page = Math.Max(1, page);
-        pageSize = Math.Clamp(pageSize, 1, 50);
-        var query = db.OrderTables.AsNoTracking().Where(o => db.ShippingInfos.Any(s => s.OrderId == o.Id));
-        var totalCount = await query.CountAsync(ct);
-        page = Math.Min(page, Math.Max(1, (totalCount + pageSize - 1) / pageSize));
-        var items = await query.OrderByDescending(o => o.Id).Skip((page - 1) * pageSize).Take(pageSize)
-            .Select(o => new
-            {
-                o.Id, o.OrderDate, o.UpdatedAt, o.Status, o.TotalPrice, o.Currency,
-                shipments = db.ShippingInfos.Where(s => s.OrderId == o.Id)
-                    .Select(s => new { s.Id, s.Direction, s.TrackingNumber, s.Status, s.DeliveryAttempts }).ToList()
-            }).ToListAsync(ct);
-        return Ok(new { page, pageSize, totalCount, items });
+        if (filter is not ("pending" or "mine")) return BadRequest(new { error = "Bộ lọc vận đơn không hợp lệ." });
+        return Ok(await G4.Infrastructure.Shipping.ShipperShipmentList.ReadAsync(db, CurrentUserId, filter, page, pageSize, ct));
+    }
+
+    [HttpPost("shipper/shipments/{id:int}/claim")]
+    public async Task<IActionResult> Claim(int id, CancellationToken ct)
+    {
+        if (!IsAvailable || !HasRole("shipper")) return StatusCode(403);
+        var result = await shipping.ClaimAsync(id, CurrentUserId, ct);
+        return Ok(new { result.Id, result.ShipperId, result.ClaimedAt });
     }
 }

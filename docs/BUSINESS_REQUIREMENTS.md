@@ -164,7 +164,9 @@ Các kịch bản tối thiểu để nghiệm thu:
 
 ## 13. Khoảng cách với code hiện tại
 
-Code hiện có đăng nhập/phân quyền, giỏ random, checkout, coupon phần trăm cơ bản, thanh toán, tracking hai chiều, return/refund, seller balance/level/payout và Admin xử lý hold ở mức đơn giản. Các phần trong tài liệu này **chưa được coi là đã triển khai** gồm: khối lượng và phí ship theo kg; promotion do seller/Admin quản lý và nguồn tài trợ; shipper tự nhận vận đơn; đổi địa chỉ một lần và mức seller chịu; return tự refund theo hạn; dispute có bằng chứng và hoàn một phần; mức fee mới; tiêu chí level mở rộng; nợ xấu, thu nợ giả lập và blacklist. Khi phát triển, cần migration, API, giao diện và kiểm thử tương ứng; giữ dữ liệu SQL Server hiện có bằng migration thay vì chạy lại baseline.
+Code hiện có đăng nhập/phân quyền, checkout, coupon phần trăm cơ bản, thanh toán, tracking hai chiều, seller balance/level/payout và workflow tranh chấp có bằng chứng, thương lượng, deadline và chuyển admin. Đã bổ sung khối lượng/ship theo kg, địa chỉ lấy hàng, shipper tự nhận từng vận đơn và return tự refund sau hạn kể từ chiều trả giao tới seller; xem [RETURNS_AND_SHIPPING.md](RETURNS_AND_SHIPPING.md).
+
+Các phần trong tài liệu này **chưa được coi là đã triển khai đầy đủ** gồm: promotion do seller/Admin quản lý và nguồn tài trợ; đổi địa chỉ đơn một lần và mức seller chịu; chia phí ship trả theo lý do và hạn chế hoàn phí chiều đi; hoàn một phần; mức fee mới; tiêu chí level mở rộng; nợ xấu, thu nợ giả lập và blacklist. Khi phát triển, cần migration, API, giao diện và kiểm thử tương ứng; giữ dữ liệu SQL Server hiện có bằng migration thay vì chạy lại baseline.
 
 ## 14. Các quy ước đề xuất để nhóm duyệt
 

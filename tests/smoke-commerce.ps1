@@ -1,4 +1,4 @@
-param([string]$Backend = 'http://localhost:5251', [string]$Frontend = 'http://localhost:5131')
+param([string]$Backend = 'http://localhost:5251', [string]$Frontend = 'http://localhost:5131', [int]$AutoRefundTimeoutSeconds = 75)
 $ErrorActionPreference = 'Stop'
 
 $password = 'G4@123456'
@@ -79,6 +79,7 @@ if ($payment.status -ne 'Succeeded') { throw 'Fake card payment failed' }
 Invoke-Api 'POST' "seller/orders/$($order.id)/prepare" 'seller' | Out-Null
 $shipment = Invoke-Api 'POST' "seller/orders/$($order.id)/ship" 'seller'
 if (!$shipment.trackingNumber) { throw 'Tracking number missing' }
+Invoke-Api 'POST' "shipper/shipments/$($shipment.id)/claim" 'shipper' | Out-Null
 foreach ($status in @('PickedUp','InTransit','OutForDelivery','Delivered')) {
     $event = Invoke-Api 'POST' "shipments/$($shipment.id)/events" 'shipper' @{ status = $status; eventId = [guid]::NewGuid().ToString('N'); location = 'Distribution hub' }
     if (!$event.applied) { throw "Tracking event $status was rejected" }
@@ -107,6 +108,7 @@ $returnShipment = @($returnDetail.shipments | Where-Object { $_.direction -eq 'R
 if ($returnShipment.id -ne $failedReturnId -or $returnDetail.returnRequest.status -ne 'ReturnShipping') { throw 'Return retry did not reuse the correct shipment' }
 if (@($returnDetail.shipments | Where-Object { $_.direction -eq 'Outbound' })[0].id -ne $shipment.id) { throw 'Return retry changed outbound shipment' }
 if (!$returnShipment.trackingNumber) { throw 'Return tracking number missing' }
+Invoke-Api 'POST' "shipper/shipments/$($returnShipment.id)/claim" 'shipper' | Out-Null
 foreach ($status in @('PickedUp','InTransit','OutForDelivery','Delivered')) {
     $event = Invoke-Api 'POST' "shipments/$($returnShipment.id)/events" 'shipper' @{ status = $status; eventId = [guid]::NewGuid().ToString('N'); location = 'Return hub' }
     if (!$event.applied) { throw "Return tracking event $status was rejected" }
@@ -152,6 +154,7 @@ $failedLabel = Invoke-Api 'POST' "seller/orders/$($deliveryOrder.id)/ship" 'sell
 if ($failedLabel.status -ne 'ShipmentCreationFailed') { throw 'Carrier failure was not handled' }
 $deliveryShipment = Invoke-Api 'POST' "seller/orders/$($deliveryOrder.id)/ship" 'seller'
 if (!$deliveryShipment.trackingNumber -or $deliveryShipment.id -ne $failedLabel.id) { throw 'Carrier retry created a duplicate shipment' }
+Invoke-Api 'POST' "shipper/shipments/$($deliveryShipment.id)/claim" 'shipper' | Out-Null
 foreach ($status in @('PickedUp','InTransit','OutForDelivery','DeliveryFailed','ReturningToSender','ReturnedToSeller')) {
     $event = Invoke-Api 'POST' "shipments/$($deliveryShipment.id)/events" 'shipper' @{ status = $status; eventId = [guid]::NewGuid().ToString('N'); note = 'Shipping event' }
     if (!$event.applied) { throw "Delivery failure event $status was rejected" }
@@ -159,5 +162,37 @@ foreach ($status in @('PickedUp','InTransit','OutForDelivery','DeliveryFailed','
 $deliveryRefund = Invoke-Api 'POST' "seller/orders/$($deliveryOrder.id)/refund" 'seller' @{ reason = 'delivery-failed' }
 if ($deliveryRefund.status -ne 'Succeeded' -or (Invoke-Api 'GET' "orders/$($deliveryOrder.id)").status -ne 'Closed') { throw 'Delivery failure refund failed' }
 
-if (@(Invoke-Api 'GET' 'shipper/shipments' 'shipper').Count -lt 1) { throw 'Shipper cannot list shipments' }
-Write-Output "PASS: login, role tokens, checkout, seller evidence, dispute negotiation, admin visibility gate, finance, tracking, returns and refunds"
+# Ordinary return: no dispute and no seller receipt/refund API after return delivery.
+$single = Invoke-Api 'GET' 'catalog/random?count=1'
+$autoRequest = @{ addressId = $addresses[0].id; items = @(@{ productId = $single[0].productId; quantity = 1 }); checkoutKey = [guid]::NewGuid().ToString('N') }
+$autoOrder = Invoke-Api 'POST' 'orders' 'buyer' $autoRequest
+Invoke-Api 'POST' "orders/$($autoOrder.id)/pay/card" 'buyer' @{ number = '4111111111111111'; expiry = '12/30'; key = [guid]::NewGuid().ToString('N') } | Out-Null
+$autoOutbound = Invoke-Api 'POST' "seller/orders/$($autoOrder.id)/ship" 'seller'
+Invoke-Api 'POST' "shipper/shipments/$($autoOutbound.id)/claim" 'shipper' | Out-Null
+foreach ($status in @('PickedUp','InTransit','OutForDelivery','Delivered')) {
+    Invoke-Api 'POST' "shipments/$($autoOutbound.id)/events" 'shipper' @{ status = $status; eventId = [guid]::NewGuid().ToString('N') } | Out-Null
+}
+$autoReturn = Invoke-Api 'POST' "orders/$($autoOrder.id)/returns" 'buyer' @{ reason = 'Ordinary automatic refund smoke' }
+Invoke-Api 'POST' "seller/returns/$($autoReturn.id)/approve" 'seller' | Out-Null
+$autoDetail = Invoke-Api 'GET' "orders/$($autoOrder.id)"
+if ($autoDetail.settlement.status -ne 'OnHold') { throw 'Ordinary return did not hold seller funds' }
+$autoParcel = @($autoDetail.shipments | Where-Object { $_.direction -eq 'Return' })[0]
+Invoke-Api 'POST' "shipper/shipments/$($autoParcel.id)/claim" 'shipper' | Out-Null
+foreach ($status in @('PickedUp','InTransit','OutForDelivery','Delivered')) {
+    Invoke-Api 'POST' "shipments/$($autoParcel.id)/events" 'shipper' @{ status = $status; eventId = [guid]::NewGuid().ToString('N') } | Out-Null
+}
+$autoDetail = Invoke-Api 'GET' "orders/$($autoOrder.id)"
+if (!$autoDetail.returnRequest.confirmationDueAt) { throw 'Return receipt deadline missing' }
+Write-Output "Waiting for ordinary return #$($autoReturn.id) automatic refund (Development receipt timeout: 45 seconds)..."
+$waitUntil = [DateTime]::UtcNow.AddSeconds($AutoRefundTimeoutSeconds)
+do {
+    Start-Sleep -Seconds 2
+    $autoDetail = Invoke-Api 'GET' "orders/$($autoOrder.id)"
+} while ($autoDetail.returnRequest.status -ne 'Refunded' -and [DateTime]::UtcNow -lt $waitUntil)
+if ($autoDetail.returnRequest.status -ne 'Refunded' -or $autoDetail.status -ne 'Closed') { throw 'Ordinary return did not auto-refund within the configured smoke timeout' }
+if (@($autoDetail.refunds | Where-Object { $_.status -eq 'Succeeded' }).Count -ne 1) { throw 'Ordinary return must refund exactly once' }
+if ($autoDetail.settlement.status -ne 'Refunded' -or $null -ne $autoDetail.dispute) { throw 'Ordinary return finance state or dispute isolation failed' }
+if ($autoDetail.totalWeightKg -ne $single[0].weightKg) { throw 'Checkout weight snapshot missing' }
+
+if (@(Invoke-Api 'GET' 'shipper/shipments' 'shipper').Count -lt 1) { throw 'Shipper cannot list owned shipments' }
+Write-Output "PASS: login, role tokens, weight snapshots, checkout, evidence, negotiation, finance holds, claimed tracking, returns, automatic refund and idempotent refunds"

@@ -31,28 +31,10 @@ public sealed class OrdersController(ApplicationDbContext db, ICheckoutService c
         if (HasRole("seller"))
             return Ok(await G4.Infrastructure.Orders.SellerOrderList.ReadAsync(db, CurrentUserId,
                 page, pageSize, filter, needsAction, ct));
-        var query = db.OrderTables.AsNoTracking();
-        if (HasRole("buyer")) query = query.Where(o => o.BuyerId == CurrentUserId);
-        else if (HasRole("seller")) query = query.Where(o => o.SellerId == CurrentUserId);
-        else return StatusCode(403);
-        query = filter switch
-        {
-            "pending" => query.Where(o => o.Status == "AwaitingPayment" || o.Status == "Paid" || o.Status == "Preparing" || o.Status == "CancelRequested"),
-            "shipping" => query.Where(o => o.Status == "Shipping"),
-            "complete" => query.Where(o => o.Status == "Delivered" || o.Status == "Closed"),
-            "cancelled" => query.Where(o => o.Status == "Cancelled" || o.Status == "Expired"),
-            _ => query
-        };
-        page = Math.Max(1, page);
-        pageSize = Math.Clamp(pageSize, 1, 50);
-        var totalCount = await query.CountAsync(ct);
-        page = Math.Min(page, Math.Max(1, (totalCount + pageSize - 1) / pageSize));
-        var items = await query.OrderByDescending(o => o.Id).Skip((page - 1) * pageSize).Take(pageSize)
-            .Select(o => new { o.Id, o.OrderDate, o.UpdatedAt, o.Status, o.TotalPrice, o.Currency,
-                dispute = db.Disputes.Where(d => d.OrderId == o.Id && d.WorkflowEnabled).OrderByDescending(d => d.Id)
-                    .Select(d => new { d.Id, d.Status, d.IsOpen, d.Outcome }).FirstOrDefault() })
-            .ToListAsync(ct);
-        return Ok(new { page, pageSize, totalCount, items });
+        if (HasRole("buyer"))
+            return Ok(await G4.Infrastructure.Orders.BuyerOrderList.ReadAsync(db, CurrentUserId,
+                page, pageSize, filter, ct));
+        return StatusCode(403);
     }
 
     [HttpGet("orders/{id:int}")]
@@ -63,21 +45,36 @@ public sealed class OrdersController(ApplicationDbContext db, ICheckoutService c
         if (order is null) return NotFound();
         var canRead = HasRole("buyer") && order.BuyerId == CurrentUserId ||
             HasRole("seller") && order.SellerId == CurrentUserId ||
-            HasRole("shipper") && await db.ShippingInfos.AnyAsync(s => s.OrderId == id, ct) ||
+            HasRole("shipper") && await db.ShippingInfos.AnyAsync(s => s.OrderId == id && s.ShipperId == CurrentUserId, ct) ||
             HasRole("admin") && await db.Disputes.AnyAsync(d => d.OrderId == id && d.WorkflowEnabled && d.EscalatedAt != null, ct);
         if (!canRead) return StatusCode(403);
+        if (HasRole("shipper"))
+        {
+            var assigned = await db.ShippingInfos.AsNoTracking().Where(s => s.OrderId == id && s.ShipperId == CurrentUserId)
+                .Select(s => new { s.Id, s.Direction, s.Status, s.TrackingNumber, s.DeliveryAttempts,
+                    PickupAddressSnapshot = s.PickupAddressSnapshot ?? (s.Direction == "Return" ? order.AddressSnapshot : order.PickupAddressSnapshot),
+                    DeliveryAddressSnapshot = s.DeliveryAddressSnapshot ?? (s.Direction == "Return" ? order.PickupAddressSnapshot : order.AddressSnapshot),
+                    s.ShipperId }).ToListAsync(ct);
+            var assignedIds = assigned.Select(s => s.Id).ToArray();
+            var assignedEvents = await db.ShippingEvents.AsNoTracking().Where(e => assignedIds.Contains(e.ShippingInfoId))
+                .OrderBy(e => e.OccurredAt).Select(e => new { e.ShippingInfoId, e.Status, e.Location, e.Note, e.OccurredAt }).ToListAsync(ct);
+            return Ok(new { order.Id, order.Status, order.OrderDate, order.UpdatedAt, order.TotalWeightKg,
+                shipments = assigned, events = assignedEvents });
+        }
         var items = await db.OrderItems.AsNoTracking().Where(i => i.OrderId == id)
-            .Select(i => new { i.ProductId, i.ProductTitleSnapshot, i.UnitPrice, i.Quantity }).ToListAsync(ct);
+            .Select(i => new { i.ProductId, i.ProductTitleSnapshot, i.UnitPrice, i.Quantity, i.UnitWeightKgSnapshot,
+                imageUrl = i.Product == null ? null : i.Product.Images }).ToListAsync(ct);
         var payments = await db.Payments.AsNoTracking().Where(p => p.OrderId == id)
             .Select(p => new { p.Id, p.Method, p.Status, p.Amount, p.CreatedAt, p.PaidAt, p.ErrorCode }).ToListAsync(ct);
         var shipments = await db.ShippingInfos.AsNoTracking().Where(s => s.OrderId == id)
-            .Select(s => new { s.Id, s.Direction, s.TrackingNumber, s.Status, s.DeliveryAttempts, s.FailureReason }).ToListAsync(ct);
+            .Select(s => new { s.Id, s.Direction, s.TrackingNumber, s.Status, s.DeliveryAttempts, s.FailureReason,
+                s.ShipperId, s.ClaimedAt, s.PickupAddressSnapshot, s.DeliveryAddressSnapshot }).ToListAsync(ct);
         var shipmentIds = shipments.Select(s => s.Id).ToArray();
         var events = await db.ShippingEvents.AsNoTracking().Where(e => shipmentIds.Contains(e.ShippingInfoId))
             .OrderBy(e => e.OccurredAt).Select(e => new { e.ShippingInfoId, e.Status, e.Location, e.Note, e.OccurredAt })
             .ToListAsync(ct);
         var returnRequest = await db.ReturnRequests.AsNoTracking().Where(r => r.OrderId == id)
-            .Select(r => new { r.Id, r.Reason, r.Status, r.DecisionReason, r.CreatedAt, r.ReceivedAt }).SingleOrDefaultAsync(ct);
+            .Select(r => new { r.Id, r.Reason, r.Status, r.DecisionReason, r.CreatedAt, r.ReceivedAt, r.ConfirmationDueAt }).SingleOrDefaultAsync(ct);
         var refunds = await db.Refunds.AsNoTracking().Where(r => r.OrderId == id)
             .Select(r => new { r.Id, r.Amount, r.Status, r.Reason, r.CreatedAt, r.CompletedAt }).ToListAsync(ct);
         var settlement = await db.SellerSettlements.AsNoTracking().Where(s => s.OrderId == id)
@@ -89,6 +86,7 @@ public sealed class OrdersController(ApplicationDbContext db, ICheckoutService c
         {
             order.Id, order.Status, order.OrderDate, order.UpdatedAt, order.PaymentExpiresAt, order.AddressSnapshot, order.CancelDecisionReason,
             order.Subtotal, order.DiscountAmount, order.ShippingFee, order.TotalPrice, order.Currency, order.CouponCode,
+            order.TotalWeightKg, order.PickupAddressSnapshot,
             items, payments, shipments, events, returnRequest, refunds, settlement, dispute
         });
     }

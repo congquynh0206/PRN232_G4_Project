@@ -1,14 +1,21 @@
 using G4.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace G4.Infrastructure.Returns;
 
 public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refunds, ICarrierGateway carrier,
-    ISellerFinanceService? finance = null) : IReturnService
+    ISellerFinanceService? finance = null, IConfiguration? config = null, TimeProvider? clock = null) : IReturnService
 {
+    private DateTime Now => (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime;
+    private int ReceiptSeconds => Math.Max(1, config?.GetValue("Returns:ReceiptSeconds", 172800) ?? 172800);
+
     public async Task<ReturnRequest> RequestReturnAsync(int orderId, string reason, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(reason)) throw new ArgumentException("Return reason required");
+        await using var transaction = db.Database.IsRelational() && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
+        await LockOrderAsync(orderId, ct);
         var existing = await db.ReturnRequests.SingleOrDefaultAsync(r => r.OrderId == orderId, ct);
         if (existing is not null) return existing;
         var order = await db.OrderTables.SingleAsync(o => o.Id == orderId, ct);
@@ -16,28 +23,50 @@ public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refund
             .Select(s => s.DeliveredAt).SingleOrDefaultAsync(ct);
         var agreedReturn = await db.Disputes.AnyAsync(d => d.OrderId == orderId && d.WorkflowEnabled && d.IsOpen &&
             d.Status == "ExecutingAgreement" && d.Proposal == "ReturnRefund", ct);
-        if (!agreedReturn && (order.Status != "Delivered" || deliveredAt is null || deliveredAt < DateTime.UtcNow.AddDays(-7)))
+        if (!agreedReturn && await db.Disputes.AnyAsync(d => d.OrderId == orderId && d.WorkflowEnabled && d.IsOpen, ct))
+            throw new InvalidOperationException("Đơn đang có yêu cầu giải quyết; hãy xử lý trả hàng trong yêu cầu đó.");
+        if (!agreedReturn && (order.Status != "Delivered" || deliveredAt is null || deliveredAt < Now.AddDays(-7)))
             throw new InvalidOperationException("Order is outside return window");
         var request = new ReturnRequest
         {
             OrderId = orderId, UserId = order.BuyerId, Reason = reason,
-            Status = "Requested", CreatedAt = DateTime.UtcNow,
-            ReturnDeadline = DateTime.UtcNow.AddDays(7)
+            Status = "Requested", CreatedAt = Now,
+            ReturnDeadline = Now.AddDays(7)
         };
         db.ReturnRequests.Add(request);
         order.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
+        if (transaction is not null) await transaction.CommitAsync(ct);
         return request;
     }
 
     public async Task<ReturnRequest> ApproveAsync(int returnId, CancellationToken ct = default)
     {
+        await using var transaction = db.Database.IsRelational() && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
+        var orderId = await db.ReturnRequests.Where(r => r.Id == returnId).Select(r => r.OrderId!.Value).SingleAsync(ct);
+        await LockOrderAsync(orderId, ct);
         var request = await db.ReturnRequests.SingleAsync(r => r.Id == returnId, ct);
+        await db.Entry(request).ReloadAsync(ct);
+        await EnsureRefundAllowedAsync(orderId, ct);
+        if (request.Status is "Approved" or "ReturnShipping") return request;
         if (request.Status != "Requested") throw new InvalidOperationException("Return cannot be approved");
+        if (finance is not null)
+        {
+            var payment = await db.Payments.SingleAsync(x => x.OrderId == request.OrderId && x.Status == "Succeeded", ct);
+            var settlement = await finance.RecordSuccessfulPaymentAsync(orderId, payment.Id, ct);
+            if (settlement.Status != "OnHold")
+                await finance.PlaceHoldAsync(orderId, $"Trả hàng #{request.Id} đã được duyệt", ct);
+        }
         request.Status = "Approved";
         request.DecidedAt = DateTime.UtcNow;
         (await db.OrderTables.SingleAsync(o => o.Id == request.OrderId, ct)).UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
+        if (transaction is not null)
+        {
+            await transaction.CommitAsync(ct);
+            await transaction.DisposeAsync();
+        }
         return await RetryShipmentAsync(returnId, ct);
     }
 
@@ -65,15 +94,67 @@ public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refund
 
     public async Task<ReturnRequest> MarkReceivedAsync(int returnId, CancellationToken ct = default)
     {
+        await using var transaction = db.Database.IsRelational() && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
+        var orderId = await db.ReturnRequests.Where(r => r.Id == returnId).Select(r => r.OrderId!.Value).SingleAsync(ct);
+        await LockOrderAsync(orderId, ct);
         var request = await db.ReturnRequests.SingleAsync(r => r.Id == returnId, ct);
+        await db.Entry(request).ReloadAsync(ct);
+        if (request.Status == "Refunded") return request;
+        await EnsureRefundAllowedAsync(orderId, ct);
         if (request.Status is not ("Approved" or "ReturnShipping"))
             throw new InvalidOperationException("Return is not in transit");
         var shipment = await db.ShippingInfos.SingleOrDefaultAsync(s => s.OrderId == request.OrderId && s.Direction == "Return", ct);
         if (shipment?.Status != "Delivered") throw new InvalidOperationException("Return parcel has not reached seller");
-        request.Status = "ReceivedBySeller"; request.ReceivedAt = DateTime.UtcNow;
+        request.Status = "ReceivedBySeller"; request.ReceivedAt = Now;
         (await db.OrderTables.SingleAsync(o => o.Id == request.OrderId, ct)).UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
+        await RefundAsync(orderId, "return", request.Id, ct);
+        if (transaction is not null) await transaction.CommitAsync(ct);
         return request;
+    }
+
+    public async Task MaintainAsync(CancellationToken ct = default)
+    {
+        var now = Now;
+        var cutoff = now.AddSeconds(-ReceiptSeconds);
+        var ids = await db.ReturnRequests.AsNoTracking().Where(r =>
+            !db.Disputes.Any(d => d.OrderId == r.OrderId && d.WorkflowEnabled && d.IsOpen) &&
+            (r.Status == "ReceivedBySeller" || r.Status == "RefundFailed" || r.Status == "RefundPending" ||
+             (r.Status == "Approved" || r.Status == "ReturnShipping") &&
+             db.ShippingInfos.Any(s => s.OrderId == r.OrderId && s.Direction == "Return" && s.Status == "Delivered" &&
+                 s.DeliveredAt != null && (r.ConfirmationDueAt != null ? r.ConfirmationDueAt <= now : s.DeliveredAt <= cutoff))))
+            .OrderBy(r => r.Id).Select(r => r.Id).Take(10).ToListAsync(ct);
+        foreach (var id in ids)
+        {
+            using var budget = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            budget.CancelAfter(TimeSpan.FromSeconds(3));
+            try
+            {
+                var request = await db.ReturnRequests.SingleAsync(r => r.Id == id, budget.Token);
+                if (request.Status is "Approved" or "ReturnShipping") await MarkReceivedAsync(id, budget.Token);
+                else await RefundAsync(request.OrderId!.Value, "return", id, budget.Token);
+            }
+            catch (Exception) when (!ct.IsCancellationRequested)
+            {
+                // Discard changes rolled back by a timeout or a concurrent receipt/issue decision.
+                db.ChangeTracker.Clear();
+            }
+        }
+    }
+
+    private async Task EnsureRefundAllowedAsync(int orderId, CancellationToken ct)
+    {
+        if (await db.Disputes.AnyAsync(d => d.OrderId == orderId && d.WorkflowEnabled && d.IsOpen &&
+            !(d.Status == "ExecutingAgreement" && d.Proposal == "ReturnRefund"), ct))
+            throw new InvalidOperationException("Đơn đang có tranh chấp; khoản hoàn tiền cần chờ xử lý.");
+    }
+
+    private async Task LockOrderAsync(int orderId, CancellationToken ct)
+    {
+        if (db.Database.IsSqlServer())
+            await db.OrderTables.FromSqlInterpolated(
+                $"SELECT * FROM [OrderTable] WITH (UPDLOCK, HOLDLOCK) WHERE [id] = {orderId}").SingleAsync(ct);
     }
 
     public async Task<OrderTable> RequestCancelAsync(int orderId, CancellationToken ct = default)
@@ -128,12 +209,19 @@ public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refund
         var existing = await db.Refunds.SingleOrDefaultAsync(r => r.IdempotencyKey == key, ct);
         if (existing?.Status == "Succeeded")
         {
+            if (returnRequestId is not null)
+            {
+                var completed = await db.ReturnRequests.SingleAsync(r => r.Id == returnRequestId && r.OrderId == orderId, ct);
+                completed.Status = "Refunded"; completed.RefundId = existing.Id;
+                await db.SaveChangesAsync(ct);
+            }
             if (finance is not null) await finance.ApplyRefundAsync(orderId, existing.Id, ct);
             return existing;
         }
         var order = await db.OrderTables.SingleAsync(o => o.Id == orderId, ct);
         if (reason == "return")
         {
+            await EnsureRefundAllowedAsync(orderId, ct);
             var request = await db.ReturnRequests.SingleAsync(r => r.Id == returnRequestId && r.OrderId == orderId, ct);
             if (request.Status is not ("ReceivedBySeller" or "RefundFailed" or "RefundPending"))
                 throw new InvalidOperationException("Return has not been received");
@@ -171,6 +259,11 @@ public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refund
             {
                 var request = await db.ReturnRequests.SingleAsync(r => r.Id == returnRequestId, ct);
                 request.Status = "Refunded"; request.RefundId = refund.Id;
+            }
+            if (reason == "dispute")
+            {
+                var returned = await db.ReturnRequests.SingleOrDefaultAsync(r => r.OrderId == orderId && r.Status == "Disputed", ct);
+                if (returned is not null) { returned.Status = "Refunded"; returned.RefundId = refund.Id; }
             }
             if (reason != "cancel") order.Status = "Closed";
             order.UpdatedAt = DateTime.UtcNow;

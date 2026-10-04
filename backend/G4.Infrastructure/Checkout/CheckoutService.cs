@@ -8,13 +8,12 @@ namespace G4.Infrastructure.Checkout;
 
 public sealed class CheckoutService(ApplicationDbContext db, ISellerFinanceService? finance = null) : ICheckoutService
 {
-    private const string SellerState = "Hanoi";
-
     public async Task<IReadOnlyList<Product>> RandomProductsAsync(int count, CancellationToken ct = default)
     {
         if (count is < 1 or > 5) throw new ArgumentOutOfRangeException(nameof(count));
         var products = await db.Products.AsNoTracking()
-            .Where(p => p.SellerId != null && p.IsAuction != true && p.Price != null)
+            .Where(p => p.SellerId != null && p.IsAuction != true && p.Price != null && p.WeightKg > 0 &&
+                db.Addresses.Any(a => a.UserId == p.SellerId && a.IsDefault == true))
             .Join(db.Inventories.Where(i => i.Quantity > 0), p => p.Id, i => i.ProductId,
                 (p, i) => p)
             .ToListAsync(ct);
@@ -51,6 +50,7 @@ public sealed class CheckoutService(ApplicationDbContext db, ISellerFinanceServi
         try
         {
             var (quote, address, products, coupon) = await ValidateAndQuoteAsync(buyerId, request, ct);
+            var pickup = await PickupAsync(products[0].SellerId!.Value, ct);
             var now = DateTime.UtcNow;
             var order = new OrderTable
             {
@@ -58,6 +58,8 @@ public sealed class CheckoutService(ApplicationDbContext db, ISellerFinanceServi
                 SellerId = products[0].SellerId,
                 AddressId = address.Id,
                 AddressSnapshot = string.Join(", ", new[] { address.FullName, address.Street, address.City, address.State, address.Country }.Where(x => !string.IsNullOrWhiteSpace(x))),
+                PickupAddressSnapshot = string.Join(", ", new[] { pickup.FullName, pickup.Street, pickup.City, pickup.State, pickup.Country }.Where(x => !string.IsNullOrWhiteSpace(x))),
+                TotalWeightKg = quote.TotalWeightKg,
                 OrderDate = now,
                 UpdatedAt = now,
                 PaymentExpiresAt = now.AddMinutes(15),
@@ -83,6 +85,7 @@ public sealed class CheckoutService(ApplicationDbContext db, ISellerFinanceServi
                     Quantity = line.Quantity,
                     UnitPrice = product.Price,
                     ProductTitleSnapshot = product.Title,
+                    UnitWeightKgSnapshot = product.WeightKg,
                     SellerIdSnapshot = product.SellerId
                 });
             }
@@ -203,6 +206,9 @@ public sealed class CheckoutService(ApplicationDbContext db, ISellerFinanceServi
         var products = await db.Products.Where(p => ids.Contains(p.Id) && p.Price != null && p.IsAuction != true).ToArrayAsync(ct);
         if (products.Length != ids.Length || products.Select(p => p.SellerId).Distinct().Count() != 1)
             throw new ArgumentException("All products must exist and belong to one seller");
+        if (products.Any(p => p.WeightKg is null or <= 0))
+            throw new InvalidOperationException("Người bán cần khai báo khối lượng sản phẩm trước khi checkout.");
+        var pickup = await PickupAsync(products[0].SellerId ?? throw new InvalidOperationException("Sản phẩm chưa có người bán."), ct);
         foreach (var line in request.Items)
         {
             var stock = await db.Inventories.SingleOrDefaultAsync(i => i.ProductId == line.ProductId, ct);
@@ -224,11 +230,15 @@ public sealed class CheckoutService(ApplicationDbContext db, ISellerFinanceServi
             }
         }
         var quote = OrderPricing.Calculate(request.Items.Select(i =>
-            new PriceLine(products.Single(p => p.Id == i.ProductId).Price!.Value, i.Quantity)),
+            new PriceLine(products.Single(p => p.Id == i.ProductId).Price!.Value, i.Quantity, products.Single(p => p.Id == i.ProductId).WeightKg!.Value)),
             coupon?.DiscountPercent ?? 0m,
-            string.Equals(address.State, SellerState, StringComparison.OrdinalIgnoreCase));
+            ShippingPricing.IsHanoiLocal(pickup.State, pickup.Country, address.State, address.Country));
         return (quote, address, products, coupon);
     }
+
+    private async Task<Address> PickupAsync(int sellerId, CancellationToken ct) =>
+        await db.Addresses.Where(a => a.UserId == sellerId && a.IsDefault == true).OrderBy(a => a.Id).FirstOrDefaultAsync(ct)
+        ?? throw new InvalidOperationException("Người bán cần khai báo địa chỉ lấy hàng trước khi checkout.");
 
     private static void ValidateAwaitingPayment(OrderTable order)
     {

@@ -7,7 +7,8 @@ namespace G4.Api.Controllers;
 
 [ApiController]
 [Route("api")]
-public sealed class ReturnsController(ApplicationDbContext db, IReturnService returns, IHostEnvironment environment) : ApiControllerBase(environment)
+public sealed class ReturnsController(ApplicationDbContext db, IReturnService returns, IDisputeService disputes,
+    IHostEnvironment environment) : ApiControllerBase(environment)
 {
     [HttpPost("orders/{id:int}/returns")]
     public async Task<IActionResult> RequestReturn(int id, ReasonRequest request, CancellationToken ct)
@@ -57,4 +58,12 @@ public sealed class ReturnsController(ApplicationDbContext db, IReturnService re
     private Task<bool> SellerOwnsReturnAsync(int returnId, CancellationToken ct) =>
         db.ReturnRequests.AnyAsync(r => r.Id == returnId &&
             db.OrderTables.Any(o => o.Id == r.OrderId && o.SellerId == CurrentUserId), ct);
+
+    [HttpPost("seller/returns/{id:int}/issue")]
+    public async Task<IActionResult> ReturnIssue(int id, DisputeEvidenceRequest request, CancellationToken ct)
+    {
+        if (!IsAvailable || !HasRole("seller")) return StatusCode(403);
+        var result = await disputes.ReportReturnIssueAsync(id, CurrentUserId, request, ct);
+        return Ok(new { result.Id, result.Status });
+    }
 }

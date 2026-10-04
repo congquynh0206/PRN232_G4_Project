@@ -12,12 +12,13 @@ internal static class SellerOrderListChecks
         await using var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
         db.Users.Add(new User { Id = 1, Username = "Nguyễn Văn A", Role = "buyer" });
+        db.Products.Add(new Product {Id=1,Title="Tai nghe",Images="https://example.test/headphones.jpg",SellerId=2});
         string[] statuses = ["AwaitingPayment", "Paid", "Preparing", "Shipping", "Delivered", "Closed", "Cancelled", "Expired", "CancelRequested"];
         for (var i = 0; i < statuses.Length; i++)
             db.OrderTables.Add(new OrderTable { Id = i + 1, SellerId = 2, BuyerId = 1, Status = statuses[i], TotalPrice = 191.89m });
         db.OrderTables.Add(new OrderTable { Id = 99, SellerId = 3, Status = "Paid" });
         db.OrderItems.AddRange(
-            new OrderItem { Id = 1, OrderId = 2, ProductTitleSnapshot = "Tai nghe", Quantity = 2 },
+            new OrderItem { Id = 1, OrderId = 2, ProductId=1, ProductTitleSnapshot = "Tai nghe", Quantity = 2 },
             new OrderItem { Id = 2, OrderId = 2, ProductTitleSnapshot = "Bàn phím", Quantity = 3 });
         db.ReturnRequests.Add(new ReturnRequest { OrderId = 5, Status = "Requested" });
         db.Refunds.Add(new Refund { OrderId = 6, Status = "Succeeded", Amount = 191.89m });
@@ -35,6 +36,7 @@ internal static class SellerOrderListChecks
         page = await SellerOrderList.ReadAsync(db, 2, 3, 1, "ready", false);
         var card = page.Items.Single();
         Check("Tai nghe", card.ProductTitle, "deterministic first product snapshot");
+        Check("https://example.test/headphones.jpg",card.ImageUrl,"seller card image reads Product.images");
         Check("Nguyễn Văn A", card.BuyerName, "buyer summary");
         Check(2, card.ProductCount, "distinct order lines");
         Check(5, card.ItemCount, "total quantities");

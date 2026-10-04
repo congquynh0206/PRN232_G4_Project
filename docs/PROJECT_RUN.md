@@ -60,12 +60,12 @@ Seller thao tác tạo vận đơn và xác nhận nhận hàng trả trong chi 
 
 Nếu tạo vận đơn trả thất bại, seller bấm **Thử tạo vận đơn trả lại** trong khối trả về seller. API `POST /api/seller/returns/{id}/ship` chỉ xử lý yêu cầu đã duyệt, dùng lại vận đơn và khóa tạo nhãn cũ; không tạo lại vận đơn chiều đi.
 
-Thay đổi này dùng `ShippingInfo.Direction` và `ShippingEvent.ShippingInfoId` đã có, **không cần migration database mới**. Các giá trị trạng thái lưu trong database giữ nguyên; giao diện dịch nhãn theo hướng vận chuyển.
+Tracking hai chiều dùng `ShippingInfo.Direction` và `ShippingEvent.ShippingInfoId`. Phần kg, receipt deadline và shipper nhận vận đơn cần migration `AddReturnWeightAndShipmentClaims`; chạy `dotnet ef database update` và seed mới trước khi dùng. Xem hướng dẫn chuẩn bị và test tại [RETURNS_AND_SHIPPING.md](RETURNS_AND_SHIPPING.md).
 
 Kiểm tra giao diện bằng các kịch bản:
 
 1. Buyer đặt và thanh toán bằng thẻ giả lập, seller tạo vận đơn: chỉ có khối giao tới buyer. Shipper phát tracking đến `Delivered` và kiểm tra nhãn **Buyer đã nhận hàng**.
-2. Buyer yêu cầu trả, seller duyệt: xuất hiện khối trả về seller. Shipper phát sự kiện chiều trả và kiểm tra timeline chiều đi không thay đổi. Sau `Delivered`, seller xác nhận nhận hàng rồi hoàn tiền; hai timeline và kết quả hoàn tiền vẫn hiển thị riêng.
+2. Buyer yêu cầu trả, seller duyệt: xuất hiện khối trả về seller. Shipper nhận riêng vận đơn trả rồi phát tracking; timeline chiều đi không thay đổi. Sau `Delivered`, seller xác nhận hàng hợp lệ để hoàn ngay hoặc chờ 45 giây Development để tự hoàn; hai timeline và kết quả hoàn tiền vẫn hiển thị riêng.
 3. Với một đơn mới, mô phỏng `DeliveryFailed → ReturningToSender → ReturnedToSeller`: chỉ có timeline chiều đi kèm giải thích chuyển hoàn, không sinh khối yêu cầu trả hàng.
 4. Đăng nhập lần lượt bằng buyer, seller, shipper và admin; kiểm tra mỗi tài khoản chỉ thấy trang và thao tác của role đó. Kiểm tra cả màn hình điện thoại và desktop.
 

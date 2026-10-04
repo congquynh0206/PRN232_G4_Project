@@ -1,10 +1,13 @@
 using G4.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace G4.Infrastructure.Shipping;
 
-public sealed class ShipmentService(ApplicationDbContext db, ICarrierGateway carrier) : IShipmentService
+public sealed class ShipmentService(ApplicationDbContext db, ICarrierGateway carrier,
+    IConfiguration? config = null, TimeProvider? clock = null) : IShipmentService
 {
+    private DateTime Now => (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime;
     public async Task<ShippingInfo> CreateOutboundAsync(int orderId, CancellationToken ct = default)
     {
         var existing = await db.ShippingInfos.SingleOrDefaultAsync(s => s.OrderId == orderId && s.Direction == "Outbound", ct);
@@ -15,7 +18,8 @@ public sealed class ShipmentService(ApplicationDbContext db, ICarrierGateway car
         var shipment = existing ?? new ShippingInfo
         {
             OrderId = orderId, Direction = "Outbound", Status = "NotCreated",
-            IdempotencyKey = key, CreatedAt = DateTime.UtcNow, Carrier = "G4 Carrier Simulator"
+            IdempotencyKey = key, CreatedAt = DateTime.UtcNow, Carrier = "G4 Carrier Simulator",
+            PickupAddressSnapshot = order.PickupAddressSnapshot, DeliveryAddressSnapshot = order.AddressSnapshot
         };
         if (existing is null) db.ShippingInfos.Add(shipment);
         await db.SaveChangesAsync(ct);
@@ -49,7 +53,8 @@ public sealed class ShipmentService(ApplicationDbContext db, ICarrierGateway car
         var shipment = existing ?? new ShippingInfo
         {
             OrderId = orderId, Direction = "Return", Status = "NotCreated", IdempotencyKey = key,
-            CreatedAt = DateTime.UtcNow, Carrier = "G4 Carrier Simulator"
+            CreatedAt = DateTime.UtcNow, Carrier = "G4 Carrier Simulator",
+            PickupAddressSnapshot = order.AddressSnapshot, DeliveryAddressSnapshot = order.PickupAddressSnapshot
         };
         if (existing is null) db.ShippingInfos.Add(shipment);
         await db.SaveChangesAsync(ct);
@@ -74,18 +79,33 @@ public sealed class ShipmentService(ApplicationDbContext db, ICarrierGateway car
     }
 
     public async Task<bool> RecordEventAsync(int shippingInfoId, string eventId, string nextStatus,
-        string? location = null, string? note = null, CancellationToken ct = default)
+        string? location = null, string? note = null, CancellationToken ct = default, int? shipperId = null)
     {
+        await using var transaction = db.Database.IsRelational()
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
+        var shipment = db.Database.IsSqlServer()
+            ? await db.ShippingInfos.FromSqlInterpolated($"SELECT * FROM [ShippingInfo] WITH (UPDLOCK, HOLDLOCK) WHERE [id] = {shippingInfoId}").SingleAsync(ct)
+            : await db.ShippingInfos.SingleAsync(s => s.Id == shippingInfoId, ct);
+        if (db.Database.IsSqlServer()) await db.Entry(shipment).ReloadAsync(ct);
+        if (shipperId is null || shipment.ShipperId != shipperId)
+            throw new UnauthorizedAccessException("Chỉ shipper đã nhận vận đơn được cập nhật tracking.");
         if (string.IsNullOrWhiteSpace(eventId) || eventId.Length > 100) throw new ArgumentException("Event ID required");
         if (await db.ShippingEvents.AnyAsync(e => e.ExternalEventId == eventId, ct)) return false;
-        var shipment = await db.ShippingInfos.SingleAsync(s => s.Id == shippingInfoId, ct);
         if (shipment.Status is null || !ShippingState.TryNext(shipment.Status, nextStatus, out var status)) return false;
         if (status == "OutForDelivery" && shipment.DeliveryAttempts >= 2) return false;
         shipment.Status = status;
         var orderForUpdate = await db.OrderTables.SingleAsync(o => o.Id == shipment.OrderId, ct);
         orderForUpdate.UpdatedAt = DateTime.UtcNow;
         if (status == "OutForDelivery") shipment.DeliveryAttempts++;
-        if (status == "Delivered") shipment.DeliveredAt = DateTime.UtcNow;
+        if (status == "Delivered")
+        {
+            shipment.DeliveredAt = Now;
+            if (shipment.Direction == "Return")
+            {
+                var returned = await db.ReturnRequests.SingleOrDefaultAsync(r => r.OrderId == shipment.OrderId, ct);
+                if (returned is not null) returned.ConfirmationDueAt = Now.AddSeconds(Math.Max(1, config?.GetValue("Returns:ReceiptSeconds", 172800) ?? 172800));
+            }
+        }
         if (status == "DeliveryFailed") shipment.FailureReason = note;
         db.ShippingEvents.Add(new ShippingEvent
         {
@@ -102,7 +122,27 @@ public sealed class ShipmentService(ApplicationDbContext db, ICarrierGateway car
             await new CheckoutService(db).QueueEmailAsync(orderForUpdate, "DeliveryFailed", "Giao hàng chưa thành công", $"Đơn hàng #{orderForUpdate.Id} chưa giao thành công. Vui lòng theo dõi các bước tiếp theo.", ct);
         }
         await db.SaveChangesAsync(ct);
+        if (transaction is not null) await transaction.CommitAsync(ct);
         return true;
+    }
+
+    public async Task<ShippingInfo> ClaimAsync(int shippingInfoId, int shipperId, CancellationToken ct = default)
+    {
+        if (!await db.Users.AnyAsync(u => u.Id == shipperId && u.Role == "shipper", ct))
+            throw new UnauthorizedAccessException("Chỉ tài khoản shipper được nhận vận đơn.");
+        var query = ShipperShipmentList.Claimable(db).Where(s => s.Id == shippingInfoId);
+        if (db.Database.IsRelational())
+            await query.ExecuteUpdateAsync(set => set.SetProperty(s => s.ShipperId, shipperId).SetProperty(s => s.ClaimedAt, Now), ct);
+        else
+        {
+            var pending = await query.SingleOrDefaultAsync(ct);
+            if (pending is not null) { pending.ShipperId = shipperId; pending.ClaimedAt = Now; await db.SaveChangesAsync(ct); }
+        }
+        var shipment = await db.ShippingInfos.AsNoTracking().SingleOrDefaultAsync(s => s.Id == shippingInfoId, ct)
+            ?? throw new KeyNotFoundException("Không tìm thấy vận đơn.");
+        if (shipment.ShipperId != shipperId)
+            throw new InvalidOperationException("Vận đơn đã được shipper khác nhận hoặc không còn chờ nhận.");
+        return shipment;
     }
 
     private async Task<string> RetryLabelAsync(int orderId, string direction, string key, CancellationToken ct)

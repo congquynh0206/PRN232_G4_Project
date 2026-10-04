@@ -5,6 +5,7 @@ namespace G4.Application.Services;
 public interface IDisputeService
 {
     Task<Dispute> OpenAsync(int orderId, int buyerId, OpenDisputeRequest request, CancellationToken ct = default);
+    Task<Dispute> ReportReturnIssueAsync(int returnId, int sellerId, DisputeEvidenceRequest request, CancellationToken ct = default);
     Task AddEvidenceAsync(int id, int actorId, string role, DisputeEvidenceRequest request, CancellationToken ct = default);
     Task ProposeAsync(int id, int sellerId, DisputeProposalRequest request, CancellationToken ct = default);
     Task RespondAsync(int id, int buyerId, DisputeResponseRequest request, CancellationToken ct = default);

@@ -17,7 +17,7 @@ Hệ thống có bốn role độc lập. Người dùng đăng nhập tại `/A
 
 - **Buyer:** random giỏ, checkout, Credit Card/PayPal, xem đơn của chính mình, tracking, hủy, trả hàng; tab Tranh chấp để mở yêu cầu có bằng chứng, bổ sung và chấp nhận/từ chối phương án.
 - **Seller:** chỉ xem đơn bán của mình; chuẩn bị hàng, tạo vận đơn, xử lý hủy/trả/refund, xem balance, level, ledger và payout; tab Tranh chấp để gửi bằng chứng và phương án. Seller không có quyền phát tracking event hoặc quyết định thay admin.
-- **Shipper:** xem các vận đơn đã được seller tạo và cập nhật mốc vận chuyển chiều đi/chiều trả. Shipper không thanh toán hoặc xử lý refund.
+- **Shipper:** xem vận đơn chờ nhận, nhận riêng chiều đi/chiều trả rồi cập nhật tracking của mình. Chi tiết đơn chỉ chứa vận đơn và lịch sử đang sở hữu; payment, refund và balance không trả về cho shipper. Xem [RETURNS_AND_SHIPPING.md](RETURNS_AND_SHIPPING.md).
 - **Admin:** chỉ xem hồ sơ tranh chấp đã chuyển lên (seller hết hạn hoặc buyer từ chối phương án), quyết định seller thắng/buyer thắng kèm lý do và xem nhật ký email hệ thống. Chi tiết đơn chỉ đọc được khi có hồ sơ đã chuyển admin.
 
 API còn kiểm tra quyền sở hữu dữ liệu: buyer chỉ truy cập order có `BuyerId` của mình, seller chỉ truy cập order có `SellerId` của mình. Có token đúng role nhưng dùng ID của người khác vẫn nhận `403`.
