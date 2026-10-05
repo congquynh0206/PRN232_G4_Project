@@ -11,28 +11,41 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
 
     public async Task ValidateMonthlyLimitAsync(int orderId, CancellationToken ct = default)
     {
+        await using var transaction = db.Database.IsRelational() && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
+        await LockOrderAsync(orderId, ct);
         var order = await db.OrderTables.AsNoTracking().SingleAsync(x => x.Id == orderId, ct);
         var sellerId = order.SellerId ?? throw new InvalidOperationException("Order has no seller");
+        await AccountGateAsync(sellerId, ct);
         var account = await GetOrCreateAccountAsync(sellerId, ct);
+        await LockAccountAsync(account, ct);
         ResetMonth(account);
         if (account.Status != "Active") throw new InvalidOperationException("Seller account is restricted");
-        if (account.MonthlySalesAmount + (order.TotalPrice ?? 0m) > account.MonthlySalesLimit)
+        if (account.MonthlySalesAmount + SnapshotGross(order, order.TotalPrice ?? 0m) > account.MonthlySalesLimit)
             throw new InvalidOperationException($"Seller level {account.Level} monthly sales limit would be exceeded");
         await db.SaveChangesAsync(ct);
+        if (transaction is not null) await transaction.CommitAsync(ct);
     }
 
     public async Task<SellerSettlement> RecordSuccessfulPaymentAsync(int orderId, int paymentId, CancellationToken ct = default)
     {
+        await using var transaction = db.Database.IsRelational() && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
+        await LockOrderAsync(orderId, ct);
+        var order = await db.OrderTables.AsNoTracking().SingleAsync(x => x.Id == orderId, ct);
+        var sellerId = order.SellerId ?? throw new InvalidOperationException("Order has no seller");
+        await AccountGateAsync(sellerId, ct);
         var existing = await db.SellerSettlements.SingleOrDefaultAsync(x => x.OrderId == orderId, ct);
         if (existing is not null) return existing;
 
-        var order = await db.OrderTables.AsNoTracking().SingleAsync(x => x.Id == orderId, ct);
         var payment = await db.Payments.AsNoTracking().SingleAsync(x => x.Id == paymentId, ct);
-        if (payment.Status != "Succeeded") throw new InvalidOperationException("Only successful payments can be settled");
-        var sellerId = order.SellerId ?? throw new InvalidOperationException("Order has no seller");
-        var gross = payment.Amount ?? order.TotalPrice ?? 0m;
-        var fee = SellerFinanceRules.CalculateFees(gross, FeePercent, FixedFee);
+        if (payment.Status != "Succeeded" || payment.OrderId != orderId)
+            throw new InvalidOperationException("Only the order's successful payment can be settled");
+        var gross = SnapshotGross(order, payment.Amount ?? order.TotalPrice ?? 0m);
+        var fee = gross == 0m && order.PricingSchemaVersion == 1
+            ? new FeeBreakdown(0m, 0m, 0m, 0m) : SellerFinanceRules.CalculateFees(gross, FeePercent, FixedFee);
         var account = await GetOrCreateAccountAsync(sellerId, ct);
+        await LockAccountAsync(account, ct);
         ResetMonth(account);
         if (account.MonthlySalesAmount + gross > account.MonthlySalesLimit)
             throw new InvalidOperationException($"Seller level {account.Level} monthly sales limit exceeded");
@@ -64,20 +77,31 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         account.MonthlySalesAmount += gross;
         account.UpdatedAt = now;
 
-        AddEntry(account, settlement, "Sale", "Processing", gross, $"order:{orderId}:sale", "Buyer payment received");
+        var subsidy = order.PricingSchemaVersion == 1 ? order.PlatformSubsidy : 0m;
+        AddEntry(account, settlement, "Sale", "Processing", gross - subsidy, $"order:{orderId}:sale", "Buyer payment received");
+        if (subsidy > 0)
+            AddEntry(account, settlement, "PlatformSubsidy", "Processing", subsidy,
+                $"order:{orderId}:platform-subsidy", "Platform promotion funded seller proceeds");
         AddEntry(account, settlement, "PlatformFee", "Processing", -fee.TotalFee, $"order:{orderId}:fee", $"Platform fee {FeePercent:0.##}% + {fee.FixedFee:0.00}");
         if (recovered > 0)
             AddEntry(account, settlement, "DebtRecovery", "Negative", -recovered, $"order:{orderId}:debt-recovery", "Previous negative balance recovered from sale proceeds");
         await db.SaveChangesAsync(ct);
+        if (transaction is not null) await transaction.CommitAsync(ct);
         return settlement;
     }
 
     public async Task ApplyRefundAsync(int orderId, int refundId, CancellationToken ct = default)
     {
+        await using var transaction = db.Database.IsRelational() && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
+        await LockOrderAsync(orderId, ct);
+        var order = await db.OrderTables.AsNoTracking().SingleAsync(x => x.Id == orderId, ct);
+        await AccountGateAsync(order.SellerId ?? throw new InvalidOperationException("Order has no seller"), ct);
         var marker = $"refund:{refundId}:applied";
         if (await db.FinancialTransactions.AnyAsync(x => x.EntryKey == marker, ct)) return;
         var refund = await db.Refunds.AsNoTracking().SingleAsync(x => x.Id == refundId, ct);
-        if (refund.Status != "Succeeded") throw new InvalidOperationException("Only successful refunds affect seller balance");
+        if (refund.Status != "Succeeded" || refund.OrderId != orderId || refund.Amount < 0)
+            throw new InvalidOperationException("Only the order's successful refund affects seller balance");
         var settlement = await db.SellerSettlements.SingleOrDefaultAsync(x => x.OrderId == orderId, ct);
         if (settlement is null)
         {
@@ -85,8 +109,27 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
                 .Select(x => x.Id).FirstAsync(ct);
             settlement = await RecordSuccessfulPaymentAsync(orderId, paymentId, ct);
         }
+        await db.Entry(settlement).ReloadAsync(ct);
+        if (refund.PaymentId != settlement.PaymentId) throw new InvalidOperationException("Refund belongs to another payment");
         var account = await db.SellerAccounts.SingleAsync(x => x.Id == settlement.SellerAccountId, ct);
-        var held = settlement.Status is "OnHold" or "RefundPending"
+        await LockAccountAsync(account, ct);
+        var subsidyReversal = 0m;
+        if (order.PricingSchemaVersion == 1)
+        {
+            var payment = await db.Payments.AsNoTracking().SingleAsync(x => x.Id == settlement.PaymentId, ct);
+            var buyerPaid = payment.Amount ?? order.TotalPrice ?? 0m;
+            SnapshotGross(order, buyerPaid);
+            var cumulativeBuyerRefund = await db.Refunds.Where(r => r.OrderId == orderId && r.Status == "Succeeded")
+                .SumAsync(r => r.Amount, ct);
+            if (cumulativeBuyerRefund > buyerPaid || buyerPaid < 0m)
+                throw new InvalidOperationException("Refund would exceed captured buyer payment");
+            var alreadyReversed = -await db.FinancialTransactions.Where(x => x.OrderId == orderId && x.Type == "PlatformSubsidyReversal")
+                .SumAsync(x => x.Amount, ct);
+            var targetReversal = buyerPaid == 0m ? order.PlatformSubsidy :
+                Math.Min(order.PlatformSubsidy, Money(order.PlatformSubsidy * cumulativeBuyerRefund / buyerPaid));
+            subsidyReversal = Math.Max(0m, targetReversal - alreadyReversed);
+        }
+        var held = settlement.Status is "OnHold" or "RefundPending" or "PartiallyRefunded"
             ? await HeldAmountAsync(settlement.Id, ct) : 0m;
         if (settlement.Status == "RefundPending" && held > 0 &&
             await db.FinancialTransactions.AnyAsync(x => x.EntryKey == $"order:{orderId}:hold:buyer" && x.Amount == 0m, ct))
@@ -98,9 +141,13 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
                 $"order:{orderId}:hold:correction", "Restored funds reserved by an earlier buyer-win decision");
         }
         var remainingGross = Math.Max(0m, settlement.GrossAmount - settlement.RefundedAmount);
-        var appliedGross = Math.Min(refund.Amount, remainingGross);
-        var feeCredit = settlement.GrossAmount == 0m ? 0m :
-            decimal.Round(settlement.PlatformFeeAmount * appliedGross / settlement.GrossAmount, 2, MidpointRounding.AwayFromZero);
+        var requestedGross = refund.Amount + subsidyReversal;
+        if (order.PricingSchemaVersion == 1 && requestedGross > remainingGross)
+            throw new InvalidOperationException("Refund would exceed remaining seller gross");
+        var appliedGross = Math.Min(requestedGross, remainingGross);
+        var feeCredit = settlement.GrossAmount == 0m ? 0m : order.PricingSchemaVersion == 1
+            ? Math.Max(0m, Money(settlement.PlatformFeeAmount * (settlement.RefundedAmount + appliedGross) / settlement.GrossAmount) - settlement.FeeCreditAmount)
+            : Money(settlement.PlatformFeeAmount * appliedGross / settlement.GrossAmount);
         feeCredit = Math.Min(feeCredit, settlement.PlatformFeeAmount - settlement.FeeCreditAmount);
         var debit = Math.Max(0m, appliedGross - feeCredit);
 
@@ -122,11 +169,18 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         settlement.FeeCreditAmount += feeCredit;
         settlement.Status = settlement.RefundedAmount >= settlement.GrossAmount ? "Refunded" : "PartiallyRefunded";
         account.UpdatedAt = DateTime.UtcNow;
-        AddEntry(account, settlement, "Refund", "SellerBalance", -appliedGross, $"refund:{refundId}:refund", "Refund sent to buyer", refundId);
+        AddEntry(account, settlement, "Refund", "SellerBalance", -(appliedGross - subsidyReversal), $"refund:{refundId}:refund", "Refund sent to buyer", refundId);
+        if (fromHold > 0)
+            AddEntry(account, settlement, "FundHoldConsumed", "OnHold", -fromHold,
+                $"refund:{refundId}:hold-consumed", "Held seller funds consumed by refund", refundId);
+        if (subsidyReversal > 0)
+            AddEntry(account, settlement, "PlatformSubsidyReversal", "SellerBalance", -subsidyReversal,
+                $"refund:{refundId}:platform-subsidy-reversal", "Platform promotion funding reversed", refundId);
         if (feeCredit > 0) AddEntry(account, settlement, "FeeCredit", "SellerBalance", feeCredit, $"refund:{refundId}:fee-credit", "Platform fee credited proportionally", refundId);
         if (left > 0) AddEntry(account, settlement, "NegativeBalance", "Negative", -left, $"refund:{refundId}:negative", "Refund exceeded seller funds", refundId);
         AddEntry(account, settlement, "RefundApplied", "Audit", 0m, marker, "Refund applied to seller account", refundId);
         await db.SaveChangesAsync(ct);
+        if (transaction is not null) await transaction.CommitAsync(ct);
     }
 
     public async Task PlaceHoldAsync(int orderId, string reason, CancellationToken ct = default, int? disputeId = null)
@@ -437,11 +491,51 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
     }
 
     private static DateTime MonthStart() => new(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+    private static decimal Money(decimal amount) => decimal.Round(amount, 2, MidpointRounding.AwayFromZero);
+    private static decimal SnapshotGross(OrderTable order, decimal buyerPaid)
+    {
+        if (order.PricingSchemaVersion != 1) return buyerPaid;
+        if (buyerPaid < 0 || order.PlatformSubsidy < 0 || order.SellerGrossSnapshot < 0 ||
+            order.SellerGrossSnapshot != Money(buyerPaid + order.PlatformSubsidy))
+            throw new InvalidOperationException("Promotion funding snapshot does not match buyer payment");
+        return order.SellerGrossSnapshot;
+    }
+    private async Task LockOrderAsync(int orderId, CancellationToken ct)
+    {
+        if (db.Database.IsSqlServer())
+            await db.OrderTables.FromSqlInterpolated($"SELECT * FROM [OrderTable] WITH (UPDLOCK, HOLDLOCK) WHERE [id] = {orderId}").AsNoTracking().SingleAsync(ct);
+    }
+    private async Task LockAccountAsync(SellerAccount account, CancellationToken ct)
+    {
+        if (db.Database.IsSqlServer())
+            await db.SellerAccounts.FromSqlInterpolated($"SELECT * FROM [SellerAccount] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {account.Id}").SingleAsync(ct);
+        await db.Entry(account).ReloadAsync(ct);
+    }
+    private async Task AccountGateAsync(int sellerId, CancellationToken ct)
+    {
+        if (!db.Database.IsSqlServer()) return;
+        // Acquire before the first account read: Serializable shared locks from two
+        // orders must not both reach the later balance update and require conversion.
+        var resource = $"commerce:seller-finance:{sellerId}";
+        await db.Database.ExecuteSqlInterpolatedAsync($@"
+            DECLARE @result int;
+            EXEC @result = sys.sp_getapplock @Resource = {resource},
+                @LockMode = N'Exclusive', @LockOwner = N'Transaction', @LockTimeout = 10000;
+            IF @result < 0 THROW 51000, 'Cannot acquire seller finance transaction lock', 1;", ct);
+    }
     private static decimal RemainingSellerProceeds(SellerSettlement settlement) =>
         Math.Max(0m, settlement.NetAmount - (settlement.RefundedAmount - settlement.FeeCreditAmount));
-    private async Task<decimal> HeldAmountAsync(int settlementId, CancellationToken ct) =>
-        await db.FinancialTransactions.Where(x => x.SettlementId == settlementId && x.Type == "FundHold")
-            .OrderByDescending(x => x.Id).Select(x => x.Amount).FirstOrDefaultAsync(ct);
+    private async Task<decimal> HeldAmountAsync(int settlementId, CancellationToken ct)
+    {
+        var hold = await db.FinancialTransactions.Where(x => x.SettlementId == settlementId && x.Type == "FundHold")
+            .OrderByDescending(x => x.Id).Select(x => new { x.Id, x.Amount }).FirstOrDefaultAsync(ct);
+        if (hold is null) return 0m;
+        var consumed = -await db.FinancialTransactions.Where(x => x.SettlementId == settlementId && x.Id > hold.Id && x.Type == "FundHoldConsumed")
+            .SumAsync(x => x.Amount, ct);
+        var released = await db.FinancialTransactions.Where(x => x.SettlementId == settlementId && x.Id > hold.Id && x.Type == "HoldReleased")
+            .SumAsync(x => x.Amount, ct);
+        return Math.Max(0m, hold.Amount - consumed - released);
+    }
     private decimal Level1Limit => configuration.GetValue("Finance:Levels:1:MonthlySalesLimit", 5_000m);
     private decimal Level2Limit => configuration.GetValue("Finance:Levels:2:MonthlySalesLimit", 10_000m);
     private decimal Level3Limit => configuration.GetValue("Finance:Levels:3:MonthlySalesLimit", 1_000_000m);

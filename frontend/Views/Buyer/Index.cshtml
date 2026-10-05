@@ -11,6 +11,7 @@
         <span id="dispute-tab-count"></span>
     </button>
 </nav>
+<link rel="stylesheet" href="~/css/promotions.css" asp-append-version="true" />
 <div id="message" class="message" role="status" aria-live="polite"></div>
 <section id="summary" class="panel tab-panel active">
     <div class="section-head">
@@ -111,7 +112,7 @@
                     <dd id="subtotal">$0.00</dd>
                 </div>
                 <div>
-                    <dt>Giảm</dt>
+                    <dt>Giảm tiền hàng</dt>
                     <dd id="discount">-$0.00</dd>
                 </div>
                 <div>
@@ -123,6 +124,10 @@
                     <dd id="total">$0.00</dd>
                 </div>
             </dl>
+            <div id="checkout-promotions" aria-live="polite"></div>
+            <p id="checkout-promotion-note" class="promotion-checkout-note" hidden></p>
+            <button type="button" id="refresh-quote" class="wide">Cập nhật báo giá</button>
+            <p class="promotion-checkout-note">Báo giá chưa giữ lượt khuyến mãi. Giá được xác nhận khi tạo đơn.</p>
             <button class="primary wide" id="pay" disabled>Thanh toán</button>
         </aside>
     </div>
@@ -161,6 +166,7 @@
 @section Scripts
 {
     <script src="~/js/common.js" asp-append-version="true"></script>
+    <script src="~/js/promotions.js" asp-append-version="true"></script>
     <script src="~/js/disputes.js" asp-append-version="true"></script>
     <script src="~/js/buyer.js" asp-append-version="true"></script>
 }

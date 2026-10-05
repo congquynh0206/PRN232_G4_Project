@@ -6,6 +6,7 @@
     <button data-tab="orders" class="active">Đơn hàng</button>
     <button data-tab="finance">Tài chính</button>
     <button data-tab="shipping-settings">Thiết lập giao hàng</button>
+    <button data-tab="promotions">Khuyến mãi</button>
     <button data-tab="disputes">
         Tranh chấp
         <span id="dispute-tab-count"></span>
@@ -98,7 +99,9 @@
 @section Scripts
 {
     <script src="~/js/common.js" asp-append-version="true"></script>
+    <script src="~/js/promotions.js" asp-append-version="true"></script>
     <script src="~/js/disputes.js" asp-append-version="true"></script>
     <script src="~/js/seller-shipping.js" asp-append-version="true"></script>
     <script src="~/js/seller.js" asp-append-version="true"></script>
 }
+<partial name="_PromotionsPanel" model="false" />

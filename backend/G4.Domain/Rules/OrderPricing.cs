@@ -1,7 +1,17 @@
 namespace G4.Domain.Rules;
 
 public readonly record struct PriceLine(decimal UnitPrice, int Quantity, decimal UnitWeightKg = 1m);
-public readonly record struct PriceQuote(decimal Subtotal, decimal Discount, decimal Shipping, decimal Total, decimal TotalWeightKg = 0m);
+public readonly record struct PriceQuote(decimal Subtotal, decimal Discount, decimal Shipping, decimal Total, decimal TotalWeightKg = 0m)
+{
+    public decimal ShippingBase { get; init; }
+    public decimal ShippingDiscount { get; init; }
+    public decimal SellerDiscount { get; init; }
+    public decimal PlatformSubsidy { get; init; }
+    public decimal SellerGross { get; init; }
+    public string? PricingFingerprint { get; init; }
+    public IReadOnlyList<PromotionLinePrice> Lines { get; init; } = [];
+    public IReadOnlyList<AppliedPromotion> Promotions { get; init; } = [];
+}
 
 public static class OrderPricing
 {

@@ -51,24 +51,60 @@ public sealed class OrdersController(ApplicationDbContext db, ICheckoutService c
         if (HasRole("shipper"))
         {
             var assigned = await db.ShippingInfos.AsNoTracking().Where(s => s.OrderId == id && s.ShipperId == CurrentUserId)
-                .Select(s => new { s.Id, s.Direction, s.Status, s.TrackingNumber, s.DeliveryAttempts,
+                .Select(s => new
+                {
+                    s.Id,
+                    s.Direction,
+                    s.Status,
+                    s.TrackingNumber,
+                    s.DeliveryAttempts,
                     PickupAddressSnapshot = s.PickupAddressSnapshot ?? (s.Direction == "Return" ? order.AddressSnapshot : order.PickupAddressSnapshot),
                     DeliveryAddressSnapshot = s.DeliveryAddressSnapshot ?? (s.Direction == "Return" ? order.PickupAddressSnapshot : order.AddressSnapshot),
-                    s.ShipperId }).ToListAsync(ct);
+                    s.ShipperId
+                }).ToListAsync(ct);
             var assignedIds = assigned.Select(s => s.Id).ToArray();
             var assignedEvents = await db.ShippingEvents.AsNoTracking().Where(e => assignedIds.Contains(e.ShippingInfoId))
                 .OrderBy(e => e.OccurredAt).Select(e => new { e.ShippingInfoId, e.Status, e.Location, e.Note, e.OccurredAt }).ToListAsync(ct);
-            return Ok(new { order.Id, order.Status, order.OrderDate, order.UpdatedAt, order.TotalWeightKg,
-                shipments = assigned, events = assignedEvents });
+            return Ok(new
+            {
+                order.Id,
+                order.Status,
+                order.OrderDate,
+                order.UpdatedAt,
+                order.TotalWeightKg,
+                shipments = assigned,
+                events = assignedEvents
+            });
         }
         var items = await db.OrderItems.AsNoTracking().Where(i => i.OrderId == id)
-            .Select(i => new { i.ProductId, i.ProductTitleSnapshot, i.UnitPrice, i.Quantity, i.UnitWeightKgSnapshot,
-                imageUrl = i.Product == null ? null : i.Product.Images }).ToListAsync(ct);
+            .Select(i => new
+            {
+                i.ProductId,
+                i.ProductTitleSnapshot,
+                i.UnitPrice,
+                i.Quantity,
+                i.UnitWeightKgSnapshot,
+                originalTotal = (i.UnitPrice ?? 0) * (i.Quantity ?? 0),
+                sellerDiscount = i.SellerDiscountSnapshot,
+                platformDiscount = i.PlatformDiscountSnapshot,
+                imageUrl = i.Product == null ? null : i.Product.Images
+            }).ToListAsync(ct);
         var payments = await db.Payments.AsNoTracking().Where(p => p.OrderId == id)
             .Select(p => new { p.Id, p.Method, p.Status, p.Amount, p.CreatedAt, p.PaidAt, p.ErrorCode }).ToListAsync(ct);
         var shipments = await db.ShippingInfos.AsNoTracking().Where(s => s.OrderId == id)
-            .Select(s => new { s.Id, s.Direction, s.TrackingNumber, s.Status, s.DeliveryAttempts, s.FailureReason,
-                s.ShipperId, s.ClaimedAt, s.PickupAddressSnapshot, s.DeliveryAddressSnapshot }).ToListAsync(ct);
+            .Select(s => new
+            {
+                s.Id,
+                s.Direction,
+                s.TrackingNumber,
+                s.Status,
+                s.DeliveryAttempts,
+                s.FailureReason,
+                s.ShipperId,
+                s.ClaimedAt,
+                s.PickupAddressSnapshot,
+                s.DeliveryAddressSnapshot
+            }).ToListAsync(ct);
         var shipmentIds = shipments.Select(s => s.Id).ToArray();
         var events = await db.ShippingEvents.AsNoTracking().Where(e => shipmentIds.Contains(e.ShippingInfoId))
             .OrderBy(e => e.OccurredAt).Select(e => new { e.ShippingInfoId, e.Status, e.Location, e.Note, e.OccurredAt })
@@ -78,16 +114,53 @@ public sealed class OrdersController(ApplicationDbContext db, ICheckoutService c
         var refunds = await db.Refunds.AsNoTracking().Where(r => r.OrderId == id)
             .Select(r => new { r.Id, r.Amount, r.Status, r.Reason, r.CreatedAt, r.CompletedAt }).ToListAsync(ct);
         var settlement = await db.SellerSettlements.AsNoTracking().Where(s => s.OrderId == id)
-            .Select(s => new { s.GrossAmount, s.PlatformFeeAmount, s.NetAmount, s.ProcessingAmount, s.RefundedAmount,
-                s.FeeCreditAmount, s.Status, s.ReleaseAt, s.ReleasedAt }).SingleOrDefaultAsync(ct);
+            .Select(s => new
+            {
+                s.GrossAmount,
+                s.PlatformFeeAmount,
+                s.NetAmount,
+                s.ProcessingAmount,
+                s.RefundedAmount,
+                s.FeeCreditAmount,
+                s.Status,
+                s.ReleaseAt,
+                s.ReleasedAt
+            }).SingleOrDefaultAsync(ct);
         var dispute = await db.Disputes.AsNoTracking().Where(d => d.OrderId == id && d.WorkflowEnabled)
             .OrderByDescending(d => d.Id).Select(d => new { d.Id, d.Status, d.IsOpen, d.Outcome }).FirstOrDefaultAsync(ct);
+        var promotions = await db.OrderPromotionSnapshots.AsNoTracking().Where(x => x.OrderId == id).OrderBy(x => x.PromotionId)
+            .Select(x => new { x.PromotionId, x.Name, x.Type, x.FundingSource, x.Code, x.Version, x.Amount }).ToListAsync(ct);
         return Ok(new
         {
-            order.Id, order.Status, order.OrderDate, order.UpdatedAt, order.PaymentExpiresAt, order.AddressSnapshot, order.CancelDecisionReason,
-            order.Subtotal, order.DiscountAmount, order.ShippingFee, order.TotalPrice, order.Currency, order.CouponCode,
-            order.TotalWeightKg, order.PickupAddressSnapshot,
-            items, payments, shipments, events, returnRequest, refunds, settlement, dispute
+            order.Id,
+            order.Status,
+            order.OrderDate,
+            order.UpdatedAt,
+            order.PaymentExpiresAt,
+            order.AddressSnapshot,
+            order.CancelDecisionReason,
+            order.Subtotal,
+            order.DiscountAmount,
+            order.ShippingFee,
+            order.TotalPrice,
+            order.Currency,
+            order.CouponCode,
+            order.TotalWeightKg,
+            order.PickupAddressSnapshot,
+            shippingBase = order.PricingSchemaVersion == 1 ? order.ShippingBase : order.ShippingFee,
+            order.ShippingDiscount,
+            order.SellerGoodsDiscount,
+            order.PlatformSubsidy,
+            sellerGross = order.PricingSchemaVersion == 1 ? order.SellerGrossSnapshot : order.TotalPrice,
+            promotions,
+            items,
+            payments,
+            shipments,
+            events,
+            returnRequest,
+            refunds,
+            settlement,
+            dispute
         });
     }
 

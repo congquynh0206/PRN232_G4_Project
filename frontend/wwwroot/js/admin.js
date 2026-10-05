@@ -11,7 +11,7 @@
   function tab(id) {
     document.querySelectorAll('.tab-panel').forEach(x => x.classList.toggle('active', x.id === id));
     document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('active', x.dataset.tab === id));
-    safe(id === 'disputes' ? () => G4.Disputes.load() : loadInbox);
+    safe(id === 'disputes' ? () => G4.Disputes.load() : id === 'promotions' ? () => G4.Promotions.load() : loadInbox);
   }
 
   async function loadInbox(next = emailPage) {
@@ -50,4 +50,5 @@
     </div>`);
   });
   G4.Disputes.init('admin');
+  G4.Promotions.init('admin');
 })();

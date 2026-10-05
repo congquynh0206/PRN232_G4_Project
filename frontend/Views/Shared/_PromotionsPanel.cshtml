@@ -1,0 +1,41 @@
+@model bool
+<link rel="stylesheet" href="~/css/promotions.css" asp-append-version="true" />
+<section id="promotions" class="panel tab-panel">
+    <div class="section-head">
+        <div><span class="eyebrow">@(Model ? "Quản trị viên" : "Người bán")</span><h1>Khuyến mãi</h1><p>@(Model ? "Phát mã do nền tảng tài trợ và giám sát chương trình của các shop." : "Tạo ưu đãi cho shop và theo dõi số lượt đã dùng, đang giữ.")</p></div>
+        <div class="promotion-head-actions"><button type="button" id="promotion-refresh">Làm mới</button><button type="button" id="promotion-create" class="primary">@(Model ? "Tạo mã toàn sàn" : "Tạo khuyến mãi")</button></div>
+    </div>
+    <div class="promotion-status-tabs" role="group" aria-label="Lọc trạng thái khuyến mãi">
+        <button type="button" data-promotion-filter="all" class="active" aria-pressed="true">Tất cả <span>0</span></button>
+        <button type="button" data-promotion-filter="scheduled" aria-pressed="false">Sắp bắt đầu <span>0</span></button>
+        <button type="button" data-promotion-filter="active" aria-pressed="false">Đang chạy <span>0</span></button>
+        <button type="button" data-promotion-filter="paused" aria-pressed="false">Tạm dừng <span>0</span></button>
+        <button type="button" data-promotion-filter="ended" aria-pressed="false">Đã kết thúc <span>0</span></button>
+    </div>
+    <form id="promotion-search-form" class="promotion-search">
+        <div><label for="promotion-search">Tên hoặc mã</label><input id="promotion-search" type="search" maxlength="150" placeholder="Tìm khuyến mãi" /></div>
+        <div><label for="promotion-type-filter">Loại</label><select id="promotion-type-filter"><option value="all">Tất cả loại</option><option value="Sale">Giảm giá sản phẩm</option><option value="Volume">Giảm theo số lượng</option><option value="Order">Giảm theo đơn</option><option value="Coupon">Mã giảm giá</option><option value="Shipping">Giảm phí vận chuyển</option></select></div>
+        @if (Model) {
+            <div><label for="promotion-seller-filter">Shop</label><select id="promotion-seller-filter"><option value="">Tất cả shop và nền tảng</option></select></div>
+            <div><label for="promotion-source-filter">Nguồn tài trợ</label><select id="promotion-source-filter"><option value="all">Tất cả nguồn</option><option value="Seller">Shop</option><option value="Platform">Nền tảng</option></select></div>
+        }
+        <button type="submit">Tìm kiếm</button>
+    </form>
+    <p id="promotion-summary" class="small" role="status" aria-live="polite">Chọn tab để tải khuyến mãi.</p>
+    <div id="promotion-list" class="promotion-list" aria-busy="false"></div><div id="promotion-pagination" class="pagination"></div>
+</section>
+<dialog id="promotion-dialog" class="promotion-dialog" aria-labelledby="promotion-dialog-title">
+    <form id="promotion-form" novalidate>
+        <div class="promotion-dialog-head"><h2 id="promotion-dialog-title">Tạo khuyến mãi</h2><button type="button" id="promotion-close" aria-label="Đóng form khuyến mãi">Đóng</button></div>
+        <div class="promotion-dialog-body">
+            <div id="promotion-errors" class="promotion-errors" role="alert" tabindex="-1" hidden></div>
+            <div id="promotion-fields"></div>
+            <div id="promotion-preview" class="promotion-preview" aria-live="polite"></div>
+            <section id="promotion-audit-section" class="promotion-audit-section" aria-labelledby="promotion-audit-title" hidden>
+                <h3 id="promotion-audit-title">Lịch sử khuyến mãi</h3>
+                <div id="promotion-audits" aria-busy="false"></div>
+            </section>
+        </div>
+        <div class="promotion-dialog-actions"><span class="small">Thời gian theo múi giờ trên thiết bị. Tiền USD.</span><button type="submit" id="promotion-save" class="primary">Lưu khuyến mãi</button></div>
+    </form>
+</dialog>

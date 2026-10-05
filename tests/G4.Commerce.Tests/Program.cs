@@ -21,6 +21,10 @@ Equal(27.50m, quote.Total, "total");
 await ReturnAutomationChecks.RunAsync();
 await ShippingWeightChecks.RunAsync();
 await ShipmentClaimChecks.RunAsync();
+await PromotionManagementChecks.RunAsync();
+PromotionPricingChecks.Run();
+await PromotionCheckoutChecks.RunAsync();
+await PromotionFinanceChecks.RunAsync();
 
 try
 {

@@ -240,7 +240,11 @@ public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refund
         var paid = payment.Amount ?? 0m;
         var alreadyRefunded = await db.Refunds.Where(r => r.OrderId == orderId && r.Status == "Succeeded")
             .SumAsync(r => r.Amount, ct);
-        if (paid <= 0 || paid - alreadyRefunded < paid) throw new InvalidOperationException("Refund would exceed captured amount");
+        var promotionZeroPayment = paid == 0m && payment.Amount == 0m && payment.Method == "Promotion" &&
+            order.PricingSchemaVersion == 1 && order.TotalPrice == 0m;
+        if (paid < 0 || paid == 0m && !promotionZeroPayment || paid - alreadyRefunded < paid ||
+            promotionZeroPayment && await db.Refunds.AnyAsync(r => r.OrderId == orderId && r.Status == "Succeeded", ct))
+            throw new InvalidOperationException("Refund would exceed captured amount");
         var refund = existing ?? new Refund
         {
             OrderId = orderId, PaymentId = payment.Id, ReturnRequestId = returnRequestId,
@@ -252,7 +256,8 @@ public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refund
         await db.SaveChangesAsync(ct);
         try
         {
-            refund.ProviderRefundId = await refunds.RefundAsync(payment, refund.Amount, key, ct);
+            refund.ProviderRefundId = promotionZeroPayment ? $"INTERNAL-{key}" :
+                await refunds.RefundAsync(payment, refund.Amount, key, ct);
             refund.Status = "Succeeded";
             refund.CompletedAt = DateTime.UtcNow;
             if (reason == "return")
