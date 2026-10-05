@@ -4,6 +4,8 @@ using G4.Contracts.Checkout;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
+if (args.Contains("--email-sql")) { await NotificationSqlChecks.RunAsync(); return; }
+
 static void Equal<T>(T expected, T actual, string name)
 {
     if (!EqualityComparer<T>.Default.Equals(expected, actual))
@@ -25,6 +27,13 @@ await PromotionManagementChecks.RunAsync();
 PromotionPricingChecks.Run();
 await PromotionCheckoutChecks.RunAsync();
 await PromotionFinanceChecks.RunAsync();
+NotificationProcessingChecks.CheckRetryRules();
+await NotificationTemplateChecks.RunAsync();
+await NotificationProcessorBehaviorChecks.RunAsync();
+await IntegrationDiagnosticsChecks.RunAsync();
+await IntegrationBufferChecks.RunAsync();
+await NotificationAuthorizationChecks.RunAsync();
+await SmtpEmailChecks.RunAsync();
 
 try
 {

@@ -1,11 +1,12 @@
 using G4.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using G4.Infrastructure.Diagnostics;
 
 namespace G4.Infrastructure.Returns;
 
 public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refunds, ICarrierGateway carrier,
-    ISellerFinanceService? finance = null, IConfiguration? config = null, TimeProvider? clock = null) : IReturnService
+    ISellerFinanceService? finance = null, IConfiguration? config = null, TimeProvider? clock = null, IIntegrationLogWriter? logs = null) : IReturnService
 {
     private DateTime Now => (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime;
     private int ReceiptSeconds => Math.Max(1, config?.GetValue("Returns:ReceiptSeconds", 172800) ?? 172800);
@@ -203,6 +204,7 @@ public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refund
     private async Task<Refund> RefundCoreAsync(int orderId, string reason, int? returnRequestId,
         CancellationToken ct)
     {
+        using var diagnostic = IntegrationContext.ForOrder(orderId);
         if (reason is not ("return" or "cancel" or "delivery-failed" or "dispute"))
             throw new ArgumentException("Invalid refund reason");
         var key = $"refund-{orderId}-{reason}";
@@ -258,6 +260,11 @@ public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refund
         {
             refund.ProviderRefundId = promotionZeroPayment ? $"INTERNAL-{key}" :
                 await refunds.RefundAsync(payment, refund.Amount, key, ct);
+            if (promotionZeroPayment)
+            {
+                await using var internalRefund = new IntegrationCallRecorder(logs).Start("Promotion", "Refund", "Internal");
+                await internalRefund.CompleteAsync("Succeeded", providerReference: refund.ProviderRefundId, ct: ct);
+            }
             refund.Status = "Succeeded";
             refund.CompletedAt = DateTime.UtcNow;
             if (reason == "return")
@@ -272,7 +279,7 @@ public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refund
             }
             if (reason != "cancel") order.Status = "Closed";
             order.UpdatedAt = DateTime.UtcNow;
-            await new CheckoutService(db).QueueEmailAsync(order, "Refunded", "Hoàn tiền thành công", $"Đơn hàng #{orderId} đã được hoàn tiền.", ct);
+            await new CheckoutService(db, config: config).QueueEmailAsync(order, "Refunded", "Hoàn tiền thành công", $"Đơn hàng #{orderId} đã được hoàn tiền.", ct);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {

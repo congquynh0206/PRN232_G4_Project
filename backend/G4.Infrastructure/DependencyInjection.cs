@@ -6,6 +6,7 @@ using G4.Infrastructure.Disputes;
 using G4.Infrastructure.Authentication;
 using G4.Infrastructure.Notifications;
 using G4.Infrastructure.Payments;
+using G4.Infrastructure.Diagnostics;
 using G4.Infrastructure.Returns;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -19,8 +20,14 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
+        services.AddDbContextFactory<ApplicationDbContext>(options =>
+            options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")), ServiceLifetime.Scoped);
+        services.AddScoped<IEmailSender, SmtpEmailSender>();
+        services.AddScoped<NotificationProcessor>();
+        services.AddScoped<IntegrationLogWriter>();
+        services.AddSingleton<BufferedIntegrationLogWriter>();
+        services.AddSingleton<IIntegrationLogWriter>(sp=>sp.GetRequiredService<BufferedIntegrationLogWriter>());
+        services.AddHostedService(sp=>sp.GetRequiredService<BufferedIntegrationLogWriter>());
 
         services.AddScoped<ICheckoutService, CheckoutService>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();

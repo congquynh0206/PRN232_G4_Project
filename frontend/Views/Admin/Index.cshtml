@@ -7,26 +7,20 @@
         Tranh chấp
         <span id="dispute-tab-count"></span>
     </button>
-    <button data-tab="inbox">Nhật ký thư điện tử</button>
+    <button data-tab="inbox">Email thông báo</button>
+    <button data-tab="integration-logs">Nhật ký tích hợp</button>
     <button data-tab="promotions">Khuyến mãi</button>
 </nav>
 <div id="message" class="message" role="status" aria-live="polite"></div>
 <partial name="_DisputesPanel" model="true" />
-<section id="inbox" class="panel tab-panel">
-    <div class="section-head">
-        <div>
-            <span class="eyebrow">Quản trị viên</span>
-            <h1>Nhật ký thư điện tử</h1>
-            <p>Thông báo được ghi nhận bởi hệ thống.</p>
-        </div>
-        <button id="refresh-inbox">Làm mới</button>
-    </div>
-    <div id="email-list" class="order-list"></div>
-    <div id="email-pagination" class="pagination"></div>
-</section>
+
+<partial name="_NotificationsPanel" />
+<partial name="_IntegrationLogsPanel" />
 @section Scripts
 {
     <script src="~/js/common.js" asp-append-version="true"></script>
+    <script src="~/js/notifications.js" asp-append-version="true"></script>
+    <script src="~/js/integration-logs.js" asp-append-version="true"></script>
     <script src="~/js/promotions.js" asp-append-version="true"></script>
     <script src="~/js/disputes.js" asp-append-version="true"></script>
     <script src="~/js/admin.js" asp-append-version="true"></script>

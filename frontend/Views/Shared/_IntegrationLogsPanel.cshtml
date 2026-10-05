@@ -1,0 +1,14 @@
+<section id="integration-logs" class="panel tab-panel diagnostics-panel">
+    <div class="section-head"><div><span class="eyebrow">Theo dõi xử lý đơn</span><h1>Nhật ký tích hợp</h1><p>Tra từng lần xử lý thanh toán, tạo vận đơn và gửi email theo mã đơn.</p></div><button type="button" id="refresh-integration-logs">Làm mới</button></div>
+    <p class="diagnostics-note">“Chưa xác định kết quả” cần được đối soát. Kết quả một lần gọi dịch vụ không thay thế trạng thái thanh toán trong chi tiết đơn.</p>
+    <form id="integration-log-filters" class="diagnostics-filters">
+        <label>Mã đơn<input name="orderId" type="number" min="1" step="1" placeholder="Ví dụ: 46" /></label>
+        <label>Dịch vụ<select name="service"><option value="">Tất cả</option><option value="PayPal">PayPal</option><option value="Carrier">Vận chuyển</option><option value="Email">Email</option><option value="Card">Thẻ giả lập</option><option value="Promotion">Thanh toán bằng khuyến mãi</option></select></label>
+        <label>Kết quả<select name="outcome"><option value="">Tất cả</option><option value="Succeeded">Thành công</option><option value="Failed">Lỗi</option><option value="Unknown">Chưa xác định kết quả</option></select></label>
+        <label>Từ thời điểm<input name="from" type="datetime-local" /></label><label>Trước thời điểm<input name="to" type="datetime-local" /></label>
+        <div class="diagnostics-filter-actions"><button type="submit" class="primary">Lọc nhật ký</button><button type="button" id="clear-log-filters">Xóa bộ lọc</button></div>
+    </form>
+    <p id="integration-log-summary" class="small" role="status" aria-live="polite"></p>
+    <div id="integration-log-list" class="diagnostics-list" aria-busy="false"></div>
+    <div id="integration-log-pagination" class="pagination"></div>
+</section>

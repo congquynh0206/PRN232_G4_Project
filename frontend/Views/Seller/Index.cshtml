@@ -7,6 +7,8 @@
     <button data-tab="finance">Tài chính</button>
     <button data-tab="shipping-settings">Thiết lập giao hàng</button>
     <button data-tab="promotions">Khuyến mãi</button>
+    <button data-tab="notifications">Email thông báo</button>
+    <button data-tab="integration-logs">Nhật ký tích hợp</button>
     <button data-tab="disputes">
         Tranh chấp
         <span id="dispute-tab-count"></span>
@@ -96,9 +98,13 @@
     </form>
     <div class="finance-block"><h2>Khối lượng sản phẩm</h2><p class="small">Đơn vị kg, tối đa 3 chữ số thập phân. Sản phẩm thiếu khối lượng chưa được checkout.</p><div id="product-weights"></div><div id="product-weights-pagination" class="pagination"></div></div>
 </section>
+<partial name="_NotificationsPanel" />
+<partial name="_IntegrationLogsPanel" />
 @section Scripts
 {
     <script src="~/js/common.js" asp-append-version="true"></script>
+    <script src="~/js/notifications.js" asp-append-version="true"></script>
+    <script src="~/js/integration-logs.js" asp-append-version="true"></script>
     <script src="~/js/promotions.js" asp-append-version="true"></script>
     <script src="~/js/disputes.js" asp-append-version="true"></script>
     <script src="~/js/seller-shipping.js" asp-append-version="true"></script>

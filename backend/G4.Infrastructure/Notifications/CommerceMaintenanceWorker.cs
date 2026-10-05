@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 
 namespace G4.Infrastructure.Notifications;
 
-public sealed class CommerceMaintenanceWorker(IServiceScopeFactory scopes, IConfiguration config, ILogger<CommerceMaintenanceWorker> logger) : BackgroundService
+public sealed class CommerceMaintenanceWorker(IServiceScopeFactory scopes, ILogger<CommerceMaintenanceWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -53,29 +53,7 @@ public sealed class CommerceMaintenanceWorker(IServiceScopeFactory scopes, IConf
                 }
                 await finance.ReleaseDueFundsAsync(stoppingToken);
                 await finance.AdvancePayoutsAsync(stoppingToken);
-                var pending = await db.NotificationOutbox.Where(x => x.Status == "Pending")
-                    .OrderBy(x => x.Id).Take(20).ToListAsync(stoppingToken);
-                foreach (var mail in pending)
-                {
-                    try
-                    {
-                        var host = config["Mail:Host"];
-                        if (!string.IsNullOrWhiteSpace(host))
-                        {
-                            using var smtp = new SmtpClient(host, int.TryParse(config["Mail:Port"], out var port) ? port : 1025);
-                            using var message = new MailMessage("g4@example.test", mail.Recipient, mail.Subject, mail.Body);
-                            await smtp.SendMailAsync(message, stoppingToken);
-                            mail.Status = "Sent";
-                        }
-                        else mail.Status = "Captured";
-                        mail.SentAt = DateTime.UtcNow;
-                    }
-                    catch (SmtpException ex)
-                    {
-                        mail.Attempts++;
-                        logger.LogWarning(ex, "Email send failed for notification {NotificationId}", mail.Id);
-                    }
-                }
+                await scope.ServiceProvider.GetRequiredService<NotificationProcessor>().ProcessDueAsync(20, stoppingToken);
                 await db.SaveChangesAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }

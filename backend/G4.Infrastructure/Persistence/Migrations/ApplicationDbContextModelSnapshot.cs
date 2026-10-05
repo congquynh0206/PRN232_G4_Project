@@ -408,6 +408,87 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.ToTable("FinancialTransaction", (string)null);
                 });
 
+            modelBuilder.Entity("G4.Domain.Entities.IntegrationLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("Attempt")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CorrelationId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("Cycle")
+                        .HasColumnType("int");
+
+                    b.Property<long>("DurationMs")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("EntityId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ErrorCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("ErrorSummary")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<int?>("HttpStatus")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int?>("NotificationId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int?>("OrderId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("ProviderReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Service")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NotificationId", "CreatedAt", "Id");
+
+                    b.HasIndex("OrderId", "CreatedAt", "Id");
+
+                    b.HasIndex("Service", "CreatedAt", "Id");
+
+                    b.ToTable("IntegrationLog", (string)null);
+                });
+
             modelBuilder.Entity("G4.Domain.Entities.Inventory", b =>
                 {
                     b.Property<int>("Id")
@@ -483,20 +564,58 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<int>("Attempts")
                         .HasColumnType("int");
 
+                    b.Property<int>("AttemptsInCycle")
+                        .HasColumnType("int");
+
                     b.Property<string>("Body")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime?>("CapturedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("Cycle")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
 
                     b.Property<string>("EventType")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<string>("From")
+                        .HasMaxLength(254)
+                        .HasColumnType("nvarchar(254)");
+
+                    b.Property<string>("HtmlBody")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("LastAttemptAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LastErrorCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("LastErrorSummary")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<DateTime?>("NextAttemptAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("OrderId")
                         .HasColumnType("int");
+
+                    b.Property<Guid?>("ProcessingToken")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ProcessingUntil")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Recipient")
                         .IsRequired()
@@ -519,6 +638,10 @@ namespace G4.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("OrderId", "EventType")
                         .IsUnique();
+
+                    b.HasIndex("Status", "NextAttemptAt");
+
+                    b.HasIndex("Status", "ProcessingUntil");
 
                     b.ToTable("NotificationOutbox", (string)null);
                 });

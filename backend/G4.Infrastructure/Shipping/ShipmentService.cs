@@ -1,6 +1,7 @@
 using G4.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using G4.Infrastructure.Diagnostics;
 
 namespace G4.Infrastructure.Shipping;
 
@@ -115,11 +116,11 @@ public sealed class ShipmentService(ApplicationDbContext db, ICarrierGateway car
         if (shipment.Direction == "Outbound" && status == "Delivered")
         {
             orderForUpdate.Status = OrderState.Next(orderForUpdate.Status!, "Deliver");
-            await new CheckoutService(db).QueueEmailAsync(orderForUpdate, "Delivered", "Đơn hàng đã được giao", $"Đơn hàng #{orderForUpdate.Id} đã được giao thành công.", ct);
+            await new CheckoutService(db, config: config).QueueEmailAsync(orderForUpdate, "Delivered", "Đơn hàng đã được giao", $"Đơn hàng #{orderForUpdate.Id} đã được giao thành công.", ct);
         }
         if (shipment.Direction == "Outbound" && status == "DeliveryFailed")
         {
-            await new CheckoutService(db).QueueEmailAsync(orderForUpdate, "DeliveryFailed", "Giao hàng chưa thành công", $"Đơn hàng #{orderForUpdate.Id} chưa giao thành công. Vui lòng theo dõi các bước tiếp theo.", ct);
+            await new CheckoutService(db, config: config).QueueEmailAsync(orderForUpdate, "DeliveryFailed", "Giao hàng chưa thành công", $"Đơn hàng #{orderForUpdate.Id} chưa giao thành công. Vui lòng theo dõi các bước tiếp theo.", ct);
         }
         await db.SaveChangesAsync(ct);
         if (transaction is not null) await transaction.CommitAsync(ct);
@@ -149,6 +150,7 @@ public sealed class ShipmentService(ApplicationDbContext db, ICarrierGateway car
     {
         for (var attempt = 1; attempt <= 3; attempt++)
         {
+            using var context = IntegrationContext.ForOrder(orderId, attempt);
             try { return await carrier.CreateLabelAsync(orderId, direction, key, ct); }
             catch (HttpRequestException) when (attempt < 3) { await Task.Delay(50 * (1 << (attempt - 1)), ct); }
         }

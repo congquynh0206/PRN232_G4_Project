@@ -1,0 +1,14 @@
+@{ var panelId = User.IsInRole("admin") ? "inbox" : "notifications"; }
+<section id="@panelId" class="panel tab-panel diagnostics-panel">
+    <div class="section-head"><div><span class="eyebrow">Thông báo đơn hàng</span><h1>Email thông báo</h1><p>Xem nội dung và kết quả xử lý email liên quan đến đơn hàng.</p></div><button type="button" id="refresh-notifications">Làm mới</button></div>
+    <p class="diagnostics-note">“Đã lưu để xem” là email demo được lưu trong app, chưa gửi tới hộp thư. Khi bật SMTP, trạng thái gửi được theo dõi riêng.</p>
+    <form id="notification-filters" class="diagnostics-filters">
+        <label>Mã đơn<input name="orderId" type="number" min="1" step="1" placeholder="Ví dụ: 46" /></label>
+        <label>Loại thông báo<select name="eventType"><option value="">Tất cả</option><option value="PaymentSucceeded">Thanh toán thành công</option><option value="Delivered">Giao thành công</option><option value="DeliveryFailed">Giao chưa thành công</option><option value="Refunded">Hoàn tiền thành công</option></select></label>
+        <label>Trạng thái<select name="status"><option value="">Tất cả</option><option value="Captured">Đã lưu để xem</option><option value="Sent">Đã gửi</option><option value="Pending">Chờ gửi / thử lại</option><option value="Processing">Đang xử lý</option><option value="Failed">Lỗi, cần kiểm tra</option></select></label>
+        <div class="diagnostics-filter-actions"><button type="submit" class="primary">Lọc email</button><button type="button" id="clear-notification-filters">Xóa bộ lọc</button></div>
+    </form>
+    <p id="notification-summary" class="small" role="status" aria-live="polite"></p>
+    <div id="notification-list" class="diagnostics-list" aria-busy="false"></div>
+    <div id="notification-pagination" class="pagination"></div>
+</section>

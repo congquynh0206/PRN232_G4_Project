@@ -2,6 +2,7 @@ using G4.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using G4.Infrastructure.Promotions;
+using G4.Infrastructure.Diagnostics;
 
 namespace G4.Infrastructure.Payments;
 
@@ -10,6 +11,7 @@ public sealed class PayPalPaymentService(ApplicationDbContext db, IPayPalGateway
 {
     public async Task<PayPalCreated> StartAsync(int orderId, string key, CancellationToken ct = default)
     {
+        using var diagnostic = IntegrationContext.ForOrder(orderId);
         await using var tx = await PromotionLifecycle.LockOrderAsync(db, orderId, ct);
         if (string.IsNullOrWhiteSpace(key) || key.Length > 100) throw new ArgumentException("Payment key required");
         var order = await db.OrderTables.SingleAsync(o => o.Id == orderId, ct);
@@ -48,6 +50,7 @@ public sealed class PayPalPaymentService(ApplicationDbContext db, IPayPalGateway
 
     public async Task<Payment> CaptureAsync(int orderId, string providerOrderId, CancellationToken ct = default)
     {
+        using var diagnostic = IntegrationContext.ForOrder(orderId);
         // Hold usage while a capture is in flight or its result is unknown.
         await using (var tx = await PromotionLifecycle.LockOrderAsync(db, orderId, ct))
         {
@@ -93,6 +96,7 @@ public sealed class PayPalPaymentService(ApplicationDbContext db, IPayPalGateway
 
     public async Task<Payment> ReconcileAsync(int orderId, CancellationToken ct = default)
     {
+        using var diagnostic = IntegrationContext.ForOrder(orderId);
         var payment = await db.Payments.Where(p => p.OrderId == orderId && p.Method == "PayPal")
             .OrderByDescending(p => p.Status == "Verifying").ThenByDescending(p => p.Id).FirstAsync(ct);
         if (payment.Status == "Succeeded")
@@ -127,7 +131,7 @@ public sealed class PayPalPaymentService(ApplicationDbContext db, IPayPalGateway
             if (order.Status == "AwaitingPayment")
             {
                 order.Status = OrderState.Next(order.Status, "PaymentSucceeded");
-                await new CheckoutService(db).QueueEmailAsync(order, "PaymentSucceeded", "Thanh toán thành công",
+                await new CheckoutService(db, config: config).QueueEmailAsync(order, "PaymentSucceeded", "Thanh toán thành công",
                     $"Đơn hàng #{order.Id} đã được thanh toán thành công.", ct);
             }
         }

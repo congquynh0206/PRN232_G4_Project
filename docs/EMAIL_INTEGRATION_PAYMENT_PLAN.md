@@ -1,8 +1,8 @@
 # Kế hoạch: Email, nhật ký tích hợp và chi tiết thanh toán/hoàn tiền
 
-Ngày: 28/09/2026. Trạng thái: **ĐỀ XUẤT — CHỜ NGƯỜI DÙNG DUYỆT**.
+Ngày đề xuất: 28/09/2026. Cập nhật 05/10/2026: **Phần A/B đã triển khai code và kiểm thử QA; migration database chính chờ duyệt riêng. Phần C chưa triển khai.**
 
-Tài liệu này là kế hoạch cho lần triển khai tiếp theo, không mô tả tính năng đã hoàn thành. Chỉ bắt đầu sửa code và database khi người dùng nói “ok” để duyệt kế hoạch này. Lần chuẩn bị tài liệu không gửi email, gọi PayPal hay chạy migration.
+Các mục bên dưới giữ đề xuất ban đầu để tham khảo. Thiết kế đã duyệt và thực thi A/B xem [email-integration-design](superpowers/specs/2026-10-05-email-integration-design.md), cách dùng/test xem [EMAIL_INTEGRATION_TEST_GUIDE.md](EMAIL_INTEGRATION_TEST_GUIDE.md). Phiên bản thực thi dùng JWT hiện có, Capture mặc định, admin retry và phân quyền theo đơn; không áp dụng những giả định role giả lập hoặc SMTP mặc định trong đề xuất cũ.
 
 ## 1. Mục tiêu và phạm vi
 

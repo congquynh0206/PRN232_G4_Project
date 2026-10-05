@@ -6,6 +6,7 @@
     <button data-tab="summary" class="active">Giỏ hàng</button>
     <button data-tab="checkout">Thanh toán</button>
     <button data-tab="orders">Đơn của tôi</button>
+    <button data-tab="notifications">Email thông báo</button>
     <button data-tab="disputes">
         Tranh chấp
         <span id="dispute-tab-count"></span>
@@ -163,9 +164,11 @@
     </div>
 </div>
 <partial name="_DisputesPanel" model="false" />
+<partial name="_NotificationsPanel" />
 @section Scripts
 {
     <script src="~/js/common.js" asp-append-version="true"></script>
+    <script src="~/js/notifications.js" asp-append-version="true"></script>
     <script src="~/js/promotions.js" asp-append-version="true"></script>
     <script src="~/js/disputes.js" asp-append-version="true"></script>
     <script src="~/js/buyer.js" asp-append-version="true"></script>

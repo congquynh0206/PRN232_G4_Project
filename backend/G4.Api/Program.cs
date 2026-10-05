@@ -67,6 +67,11 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
+app.Use(async (context, next) =>
+{
+    using var correlation = G4.Infrastructure.Diagnostics.IntegrationContext.Begin(null, Guid.NewGuid().ToString("N"));
+    await next(context);
+});
 app.UseAuthorization();
 
 app.MapControllers();

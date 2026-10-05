@@ -77,7 +77,7 @@ function buyerHarness(api) {
   };
   const noop=()=>{};
   const G4={$:element,money:x=>'$'+Number(x||0).toFixed(2),date:x=>x,esc:x=>String(x??''),api,safe:fn=>fn(),message:noop,label:x=>x,
-    productThumbnail:()=>'',orderCard:()=>'',patchPagedList:noop,pager:noop,Disputes:{init:noop},Promotions:helpers(),disputeBadge:()=>'',returnSummary:()=>'',trackingHtml:()=>'',openDetail:noop};
+    productThumbnail:()=>'',orderCard:()=>'',patchPagedList:noop,pager:noop,Disputes:{init:noop},Notifications:{init:noop},Promotions:helpers(),disputeBadge:()=>'',returnSummary:()=>'',trackingHtml:()=>'',openDetail:noop};
   const context={G4,Date,URLSearchParams,crypto:{randomUUID:()=>Math.random().toString()},setInterval:noop,location:{search:'',assign:noop},document:{body:{addEventListener:noop},querySelectorAll:()=>[],querySelector:selector=>selector.includes('name="method"')?{value:'card'}:null}};
   vm.runInNewContext(fs.readFileSync('frontend/wwwroot/js/buyer.js','utf8'),context);
   return element;

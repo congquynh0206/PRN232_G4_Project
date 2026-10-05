@@ -5,10 +5,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using G4.Infrastructure.Promotions;
 using System.Text.Json;
+using Microsoft.Extensions.Configuration;
+using G4.Infrastructure.Notifications;
+using G4.Infrastructure.Diagnostics;
 
 namespace G4.Infrastructure.Checkout;
 
-public sealed class CheckoutService(ApplicationDbContext db, ISellerFinanceService? finance = null) : ICheckoutService
+public sealed class CheckoutService(ApplicationDbContext db, ISellerFinanceService? finance = null, IConfiguration? config = null, IIntegrationLogWriter? logs = null) : ICheckoutService
 {
     public async Task<IReadOnlyList<Product>> RandomProductsAsync(int count, CancellationToken ct = default)
     {
@@ -125,6 +128,9 @@ public sealed class CheckoutService(ApplicationDbContext db, ISellerFinanceServi
             {
                 var zero = new Payment { OrderId = order.Id, UserId = buyerId, Amount = 0, Method = "Promotion", Status = "Succeeded", ProviderTransactionId = $"PROMOTION-{order.Id}", IdempotencyKey = $"promotion-paid-{order.Id}", CreatedAt = now, UpdatedAt = now, PaidAt = now };
                 db.Payments.Add(zero); order.Status = "Paid";
+                using var diagnostic = IntegrationContext.ForOrder(order.Id);
+                await using var internalPayment = new IntegrationCallRecorder(logs).Start("Promotion", "Payment", "Internal");
+                await internalPayment.CompleteAsync("Succeeded", providerReference: zero.ProviderTransactionId, ct: ct);
                 foreach (var usage in db.ChangeTracker.Entries<PromotionUsage>().Where(x => x.Entity.OrderId == order.Id)) { usage.Entity.State = "Consumed"; usage.Entity.ConsumedAt = now; }
                 await QueueEmailAsync(order, "PaymentSucceeded", "Thanh toán bằng khuyến mãi", $"Đơn hàng #{order.Id} được thanh toán bằng khuyến mãi.", ct);
                 await db.SaveChangesAsync(ct);
@@ -178,6 +184,10 @@ public sealed class CheckoutService(ApplicationDbContext db, ISellerFinanceServi
             PaidAt = outcome == "Succeeded" ? DateTime.UtcNow : null
         };
         db.Payments.Add(payment);
+        using var diagnostic = IntegrationContext.ForOrder(orderId);
+        await using var cardAttempt = new IntegrationCallRecorder(logs).Start("Card", "Payment", "Simulated");
+        await cardAttempt.CompleteAsync(outcome == "Succeeded" ? "Succeeded" : "Failed", providerReference: payment.ProviderTransactionId,
+            errorCode: payment.ErrorCode, safeSummary: outcome == "Succeeded" ? null : "Thanh toán thẻ giả lập chưa được chấp nhận.", ct: ct);
         if (outcome == "Succeeded")
         {
             order.Status = OrderState.Next(order.Status!, "PaymentSucceeded");
@@ -246,17 +256,7 @@ public sealed class CheckoutService(ApplicationDbContext db, ISellerFinanceServi
 
     public async Task QueueEmailAsync(OrderTable order, string eventType, string subject, string body, CancellationToken ct = default)
     {
-        if (await db.NotificationOutbox.AnyAsync(x => x.OrderId == order.Id && x.EventType == eventType, ct)) return;
-        var recipient = await db.Users.Where(u => u.Id == order.BuyerId).Select(u => u.Email).SingleOrDefaultAsync(ct);
-        db.NotificationOutbox.Add(new NotificationOutbox
-        {
-            OrderId = order.Id,
-            EventType = eventType,
-            Recipient = recipient ?? "buyer@example.test",
-            Subject = subject,
-            Body = body,
-            CreatedAt = DateTime.UtcNow
-        });
+        await new NotificationService(db, config).EnqueueAsync(order, eventType, ct);
     }
 
     private async Task<(PriceQuote Quote, Address Address, Product[] Products, Coupon? Coupon)> ValidateAndQuoteAsync(

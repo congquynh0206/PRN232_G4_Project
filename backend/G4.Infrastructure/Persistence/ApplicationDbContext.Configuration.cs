@@ -15,6 +15,7 @@ public partial class ApplicationDbContext
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
     {
         ConfigurePromotions(modelBuilder);
+        ConfigureDiagnostics(modelBuilder);
         modelBuilder.Entity<Product>().Property(x => x.WeightKg).HasColumnType("decimal(10,3)");
         modelBuilder.Entity<OrderItem>().Property(x => x.UnitWeightKgSnapshot).HasColumnType("decimal(10,3)");
         modelBuilder.Entity<OrderTable>().Property(x => x.TotalWeightKg).HasColumnType("decimal(18,3)");
