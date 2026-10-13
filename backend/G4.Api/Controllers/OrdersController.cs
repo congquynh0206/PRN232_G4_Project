@@ -48,6 +48,8 @@ public sealed class OrdersController(ApplicationDbContext db, ICheckoutService c
             HasRole("shipper") && await db.ShippingInfos.AnyAsync(s => s.OrderId == id && s.ShipperId == CurrentUserId, ct) ||
             HasRole("admin") && await db.Disputes.AnyAsync(d => d.OrderId == id && d.WorkflowEnabled && d.EscalatedAt != null, ct);
         if (!canRead) return StatusCode(403);
+        var changeRows = await db.AddressChangeRequests.AsNoTracking().Where(x => x.OrderId == id).OrderByDescending(x => x.Id).ToListAsync(ct);
+        var addressChanges = changeRows.Select(AddressChangeService.View).ToArray();
         if (HasRole("shipper"))
         {
             var assigned = await db.ShippingInfos.AsNoTracking().Where(s => s.OrderId == id && s.ShipperId == CurrentUserId)
@@ -60,7 +62,9 @@ public sealed class OrdersController(ApplicationDbContext db, ICheckoutService c
                     s.DeliveryAttempts,
                     PickupAddressSnapshot = s.PickupAddressSnapshot ?? (s.Direction == "Return" ? order.AddressSnapshot : order.PickupAddressSnapshot),
                     DeliveryAddressSnapshot = s.DeliveryAddressSnapshot ?? (s.Direction == "Return" ? order.PickupAddressSnapshot : order.AddressSnapshot),
-                    s.ShipperId
+                    s.ShipperId,
+                    s.AddressChangeRequestId,
+                    s.AddressChangeAcknowledgedAt
                 }).ToListAsync(ct);
             var assignedIds = assigned.Select(s => s.Id).ToArray();
             var assignedEvents = await db.ShippingEvents.AsNoTracking().Where(e => assignedIds.Contains(e.ShippingInfoId))
@@ -73,7 +77,8 @@ public sealed class OrdersController(ApplicationDbContext db, ICheckoutService c
                 order.UpdatedAt,
                 order.TotalWeightKg,
                 shipments = assigned,
-                events = assignedEvents
+                events = assignedEvents,
+                addressChanges = addressChanges.Where(x => x.Status == "Approved").Select(x => new { x.Id, x.OldAddress, x.NewAddress, x.Status })
             });
         }
         var items = await db.OrderItems.AsNoTracking().Where(i => i.OrderId == id)
@@ -103,7 +108,9 @@ public sealed class OrdersController(ApplicationDbContext db, ICheckoutService c
                 s.ShipperId,
                 s.ClaimedAt,
                 s.PickupAddressSnapshot,
-                s.DeliveryAddressSnapshot
+                s.DeliveryAddressSnapshot,
+                s.AddressChangeRequestId,
+                s.AddressChangeAcknowledgedAt
             }).ToListAsync(ct);
         var shipmentIds = shipments.Select(s => s.Id).ToArray();
         var events = await db.ShippingEvents.AsNoTracking().Where(e => shipmentIds.Contains(e.ShippingInfoId))
@@ -124,12 +131,17 @@ public sealed class OrdersController(ApplicationDbContext db, ICheckoutService c
                 s.FeeCreditAmount,
                 s.Status,
                 s.ReleaseAt,
-                s.ReleasedAt
+                s.ReleasedAt,
+                s.ShippingAdjustmentCost
             }).SingleOrDefaultAsync(ct);
         var dispute = await db.Disputes.AsNoTracking().Where(d => d.OrderId == id && d.WorkflowEnabled)
             .OrderByDescending(d => d.Id).Select(d => new { d.Id, d.Status, d.IsOpen, d.Outcome }).FirstOrDefaultAsync(ct);
         var promotions = await db.OrderPromotionSnapshots.AsNoTracking().Where(x => x.OrderId == id).OrderBy(x => x.PromotionId)
             .Select(x => new { x.PromotionId, x.Name, x.Type, x.FundingSource, x.Code, x.Version, x.Amount }).ToListAsync(ct);
+        var outbound = shipments.FirstOrDefault(x => x.Direction == "Outbound");
+        var canRequestAddressChange = (order.Status is "Paid" or "Preparing" or "Shipping") && order.AddressChangeCount == 0 &&
+            !addressChanges.Any(x => x.Status == "Pending") && dispute?.IsOpen != true && returnRequest == null &&
+            (outbound == null || outbound.DeliveryAttempts == 0 && (outbound.Status is "NotCreated" or "ShipmentCreationFailed" or "LabelCreated" or "PickedUp" or "InTransit"));
         return Ok(new
         {
             order.Id,
@@ -138,6 +150,9 @@ public sealed class OrdersController(ApplicationDbContext db, ICheckoutService c
             order.UpdatedAt,
             order.PaymentExpiresAt,
             order.AddressSnapshot,
+            order.AddressChangeCount,
+            addressChanges,
+            canRequestAddressChange,
             order.CancelDecisionReason,
             order.Subtotal,
             order.DiscountAmount,

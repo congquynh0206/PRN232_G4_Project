@@ -12,6 +12,7 @@ public sealed class SellerSettlement
     public decimal FixedFeeAmount { get; set; }
     public decimal NetAmount { get; set; }
     public decimal ProcessingAmount { get; set; }
+    public decimal ShippingAdjustmentCost { get; set; }
     public decimal RefundedAmount { get; set; }
     public decimal FeeCreditAmount { get; set; }
     public string Currency { get; set; } = "USD";

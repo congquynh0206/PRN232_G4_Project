@@ -13,4 +13,6 @@ public partial class ShippingInfo
     public string? PickupAddressSnapshot { get; set; }
     public string? DeliveryAddressSnapshot { get; set; }
     public byte[] RowVersion { get; set; } = [];
+    public int? AddressChangeRequestId { get; set; }
+    public DateTime? AddressChangeAcknowledgedAt { get; set; }
 }

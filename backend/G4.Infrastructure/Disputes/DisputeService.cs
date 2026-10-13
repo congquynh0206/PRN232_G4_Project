@@ -48,7 +48,7 @@ public sealed class DisputeService(ApplicationDbContext db, ISellerFinanceServic
             var delivered = await db.ShippingInfos.Where(x => x.OrderId == orderId && x.Direction == "Outbound")
                 .Select(x => x.DeliveredAt).FirstOrDefaultAsync(ct);
             if (order.Status != "Delivered" || delivered is null || delivered < Now.AddDays(-7) ||
-                await db.Refunds.AnyAsync(x => x.OrderId == orderId && x.Status == "Succeeded", ct))
+                await db.Refunds.AnyAsync(x => x.OrderId == orderId && x.Status == "Succeeded" && x.Reason != "shipping-adjustment", ct))
                 throw new InvalidOperationException("Đơn chưa đủ điều kiện hoặc đã hết thời hạn mở yêu cầu giải quyết.");
             var payment = await db.Payments.SingleAsync(x => x.OrderId == orderId && x.Status == "Succeeded", ct);
             await finance.RecordSuccessfulPaymentAsync(orderId, payment.Id, ct);
@@ -98,7 +98,7 @@ public sealed class DisputeService(ApplicationDbContext db, ISellerFinanceServic
             var parcel = await db.ShippingInfos.SingleAsync(x => x.OrderId == orderId && x.Direction == "Return", ct);
             var due = returned.ConfirmationDueAt ?? parcel.DeliveredAt?.AddSeconds(Math.Max(1, config.GetValue("Returns:ReceiptSeconds", 172800)));
             if (returned.Status is not ("Approved" or "ReturnShipping") || parcel.Status != "Delivered" ||
-                due is null || Now >= due || await db.Refunds.AnyAsync(x => x.OrderId == orderId && x.Status == "Succeeded", ct))
+                due is null || Now >= due || await db.Refunds.AnyAsync(x => x.OrderId == orderId && x.Status == "Succeeded" && x.Reason != "shipping-adjustment", ct))
                 throw new InvalidOperationException("Hàng chưa giao tới người bán hoặc đã hết hạn báo vấn đề hàng trả.");
             var payment = await db.Payments.SingleAsync(x => x.OrderId == orderId && x.Status == "Succeeded", ct);
             var settlement = await finance.RecordSuccessfulPaymentAsync(orderId, payment.Id, ct);
@@ -230,7 +230,7 @@ public sealed class DisputeService(ApplicationDbContext db, ISellerFinanceServic
         var ids = await db.Disputes.AsNoTracking().Where(x => x.WorkflowEnabled && x.IsOpen &&
                 (x.Status == "AwaitingSeller" && x.SellerResponseDueAt <= now ||
                  x.Status == "AwaitingBuyer" && x.BuyerResponseDueAt <= now ||
-                 db.Refunds.Any(r => r.OrderId == x.OrderId && r.Status == "Succeeded")))
+                 db.Refunds.Any(r => r.OrderId == x.OrderId && r.Status == "Succeeded" && r.Reason != "shipping-adjustment")))
             .OrderBy(x => x.UpdatedAt)
             .Select(x => x.Id).Take(100).ToListAsync(ct);
         foreach (var id in ids)
@@ -238,7 +238,7 @@ public sealed class DisputeService(ApplicationDbContext db, ISellerFinanceServic
             await RunCaseAsync(id, async dispute =>
             {
                 if (!dispute.IsOpen) return;
-                if (await db.Refunds.AnyAsync(x => x.OrderId == dispute.OrderId && x.Status == "Succeeded", ct))
+                if (await db.Refunds.AnyAsync(x => x.OrderId == dispute.OrderId && x.Status == "Succeeded" && x.Reason != "shipping-adjustment", ct))
                     await CloseAsync(dispute, dispute.Outcome ?? "RefundCompleted", dispute.Resolution ?? "Đơn hàng đã được hoàn tiền thành công.", ct);
                 else if (dispute.Status == "AwaitingSeller" && Now >= dispute.SellerResponseDueAt)
                     await EscalateAsync(dispute, "Người bán không phản hồi đúng hạn; hệ thống tự chuyển admin xử lý.", ct);
@@ -295,7 +295,7 @@ public sealed class DisputeService(ApplicationDbContext db, ISellerFinanceServic
     private async Task CompleteAgreementAsync(Dispute dispute, CancellationToken ct)
     {
         var orderId = dispute.OrderId!.Value;
-        if (await db.Refunds.AnyAsync(x => x.OrderId == orderId && x.Status == "Succeeded", ct))
+        if (await db.Refunds.AnyAsync(x => x.OrderId == orderId && x.Status == "Succeeded" && x.Reason != "shipping-adjustment", ct))
         {
             await CloseAsync(dispute, dispute.Outcome!, dispute.Resolution ?? "Đã hoàn tiền theo thỏa thuận.", ct);
             return;

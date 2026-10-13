@@ -22,7 +22,22 @@ public sealed class SellerShippingSettingsController(ApplicationDbContext db, IH
             .OrderBy(a => a.Id).Select(a => new { a.FullName, a.Street, a.City, a.State, a.Country }).FirstOrDefaultAsync(ct);
         var items = await query.OrderBy(p => p.Id).Skip((page - 1) * pageSize).Take(pageSize)
             .Select(p => new { p.Id, p.Title, p.WeightKg }).ToListAsync(ct);
-        return Ok(new { pickup, page, pageSize, totalCount = count, items });
+        var addressChangeCap = await db.SellerShippingPreferences.Where(x => x.SellerId == CurrentUserId)
+            .Select(x => (decimal?)x.AddressChangeCap).SingleOrDefaultAsync(ct) ?? 0m;
+        return Ok(new { pickup, addressChangeCap, page, pageSize, totalCount = count, items });
+    }
+
+    [HttpPost("address-change-cap")]
+    public async Task<IActionResult> AddressChangeCap(AddressChangeCapInput input, CancellationToken ct)
+    {
+        if (!IsAvailable || !HasRole("seller")) return StatusCode(403);
+        if (input.Amount < 0 || input.Amount > 10000 || decimal.Round(input.Amount, 2) != input.Amount)
+            return BadRequest(new { error = "Mức chịu phí cần từ 0 đến 10.000 USD, tối đa 2 chữ số thập phân." });
+        var preference = await db.SellerShippingPreferences.SingleOrDefaultAsync(x => x.SellerId == CurrentUserId, ct);
+        if (preference == null) { preference = new SellerShippingPreference { SellerId = CurrentUserId }; db.SellerShippingPreferences.Add(preference); }
+        preference.AddressChangeCap = input.Amount;
+        await db.SaveChangesAsync(ct);
+        return Ok(new { addressChangeCap = preference.AddressChangeCap });
     }
 
     [HttpPost("products/{id:int}/weight")]

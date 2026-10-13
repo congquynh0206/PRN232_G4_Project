@@ -50,7 +50,7 @@ public sealed class CheckoutService(ApplicationDbContext db, ISellerFinanceServi
             return existing;
         }
 
-        IDbContextTransaction? tx = db.Database.IsRelational()
+        IDbContextTransaction? tx = db.Database.IsRelational() && db.Database.CurrentTransaction is null
             ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct) : null;
         try
         {
@@ -74,6 +74,10 @@ public sealed class CheckoutService(ApplicationDbContext db, ISellerFinanceServi
                 BuyerId = address.UserId,
                 SellerId = products[0].SellerId,
                 AddressId = address.Id,
+                DeliveryStateSnapshot = address.State,
+                DeliveryCountrySnapshot = address.Country,
+                PickupStateSnapshot = pickup.State,
+                PickupCountrySnapshot = pickup.Country,
                 AddressSnapshot = string.Join(", ", new[] { address.FullName, address.Street, address.City, address.State, address.Country }.Where(x => !string.IsNullOrWhiteSpace(x))),
                 PickupAddressSnapshot = string.Join(", ", new[] { pickup.FullName, pickup.Street, pickup.City, pickup.State, pickup.Country }.Where(x => !string.IsNullOrWhiteSpace(x))),
                 TotalWeightKg = quote.TotalWeightKg,

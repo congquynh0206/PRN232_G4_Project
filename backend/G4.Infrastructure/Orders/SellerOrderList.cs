@@ -19,8 +19,9 @@ public static class SellerOrderList
             BuyerName = db.Users.Where(u => u.Id == o.BuyerId).Select(u => u.Username ?? u.Email).FirstOrDefault(),
             ProductCount = db.OrderItems.Count(i => i.OrderId == o.Id),
             ItemCount = db.OrderItems.Where(i => i.OrderId == o.Id).Sum(i => i.Quantity) ?? 0,
-            HasRefund = db.Refunds.Any(r => r.OrderId == o.Id && r.Status == "Succeeded"),
-            Attention = db.Refunds.Any(r => r.OrderId == o.Id && r.Status == "Succeeded") ? null
+            HasRefund = db.Refunds.Any(r => r.OrderId == o.Id && r.Status == "Succeeded" && r.Reason != "shipping-adjustment"),
+            Attention = db.AddressChangeRequests.Any(r => r.OrderId == o.Id && r.Status == "Pending") ? "Chờ duyệt đổi địa chỉ"
+                : db.Refunds.Any(r => r.OrderId == o.Id && r.Status == "Succeeded" && r.Reason != "shipping-adjustment") ? null
                 : db.Disputes.Any(d => d.OrderId == o.Id && d.WorkflowEnabled && d.IsOpen && d.Status == "AwaitingSeller") ? "Cần phản hồi tranh chấp"
                 : o.Status == "CancelRequested" ? "Chờ duyệt hủy"
                 : db.ReturnRequests.Any(r => r.OrderId == o.Id && r.Status == "Requested") ? "Chờ duyệt trả hàng"

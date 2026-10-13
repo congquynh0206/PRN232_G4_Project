@@ -114,7 +114,7 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         var account = await db.SellerAccounts.SingleAsync(x => x.Id == settlement.SellerAccountId, ct);
         await LockAccountAsync(account, ct);
         var subsidyReversal = 0m;
-        if (order.PricingSchemaVersion == 1)
+        if (order.PricingSchemaVersion == 1 && refund.Reason != "shipping-adjustment")
         {
             var payment = await db.Payments.AsNoTracking().SingleAsync(x => x.Id == settlement.PaymentId, ct);
             var buyerPaid = payment.Amount ?? order.TotalPrice ?? 0m;
@@ -145,7 +145,7 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         if (order.PricingSchemaVersion == 1 && requestedGross > remainingGross)
             throw new InvalidOperationException("Refund would exceed remaining seller gross");
         var appliedGross = Math.Min(requestedGross, remainingGross);
-        var feeCredit = settlement.GrossAmount == 0m ? 0m : order.PricingSchemaVersion == 1
+        var feeCredit = settlement.GrossAmount == 0m || refund.Reason == "shipping-adjustment" ? 0m : order.PricingSchemaVersion == 1
             ? Math.Max(0m, Money(settlement.PlatformFeeAmount * (settlement.RefundedAmount + appliedGross) / settlement.GrossAmount) - settlement.FeeCreditAmount)
             : Money(settlement.PlatformFeeAmount * appliedGross / settlement.GrossAmount);
         feeCredit = Math.Min(feeCredit, settlement.PlatformFeeAmount - settlement.FeeCreditAmount);
@@ -167,7 +167,8 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
 
         settlement.RefundedAmount += appliedGross;
         settlement.FeeCreditAmount += feeCredit;
-        settlement.Status = settlement.RefundedAmount >= settlement.GrossAmount ? "Refunded" : "PartiallyRefunded";
+        if (refund.Reason != "shipping-adjustment")
+            settlement.Status = settlement.RefundedAmount >= settlement.GrossAmount ? "Refunded" : "PartiallyRefunded";
         account.UpdatedAt = DateTime.UtcNow;
         AddEntry(account, settlement, "Refund", "SellerBalance", -(appliedGross - subsidyReversal), $"refund:{refundId}:refund", "Refund sent to buyer", refundId);
         if (fromHold > 0)
@@ -181,6 +182,34 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         AddEntry(account, settlement, "RefundApplied", "Audit", 0m, marker, "Refund applied to seller account", refundId);
         await db.SaveChangesAsync(ct);
         if (transaction is not null) await transaction.CommitAsync(ct);
+    }
+
+    public async Task ApplyShippingCostAsync(int orderId, int requestId, decimal amount, CancellationToken ct = default)
+    {
+        if (amount <= 0) throw new ArgumentOutOfRangeException(nameof(amount));
+        await using var transaction = db.Database.IsRelational() && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
+        await LockOrderAsync(orderId, ct);
+        var order = await db.OrderTables.SingleAsync(x => x.Id == orderId, ct);
+        await AccountGateAsync(order.SellerId!.Value, ct);
+        var key = $"address-change:{requestId}:cost";
+        if (await db.FinancialTransactions.AnyAsync(x => x.EntryKey == key, ct)) return;
+        var settlement = await db.SellerSettlements.SingleOrDefaultAsync(x => x.OrderId == orderId, ct);
+        if (settlement == null)
+        {
+            var payment = await db.Payments.SingleAsync(x => x.OrderId == orderId && x.Status == "Succeeded", ct);
+            settlement = await RecordSuccessfulPaymentAsync(orderId, payment.Id, ct);
+        }
+        var account = await db.SellerAccounts.SingleAsync(x => x.Id == settlement.SellerAccountId, ct);
+        await LockAccountAsync(account, ct);
+        var debit = Math.Min(amount, settlement.ProcessingAmount);
+        settlement.ProcessingAmount -= debit; account.ProcessingBalance -= debit;
+        settlement.ShippingAdjustmentCost += amount;
+        account.NegativeBalance += amount - debit; account.UpdatedAt = DateTime.UtcNow;
+        AddEntry(account, settlement, "ShippingAdjustmentCost", "Processing", -debit, key, "Seller paid additional shipping after address change");
+        if (amount > debit) AddEntry(account, settlement, "NegativeBalance", "Negative", -(amount - debit), key + ":negative", "Shipping adjustment exceeded seller proceeds");
+        await db.SaveChangesAsync(ct);
+        if (transaction != null) await transaction.CommitAsync(ct);
     }
 
     public async Task PlaceHoldAsync(int orderId, string reason, CancellationToken ct = default, int? disputeId = null)
@@ -524,7 +553,7 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
             IF @result < 0 THROW 51000, 'Cannot acquire seller finance transaction lock', 1;", ct);
     }
     private static decimal RemainingSellerProceeds(SellerSettlement settlement) =>
-        Math.Max(0m, settlement.NetAmount - (settlement.RefundedAmount - settlement.FeeCreditAmount));
+        Math.Max(0m, settlement.NetAmount - (settlement.RefundedAmount - settlement.FeeCreditAmount) - settlement.ShippingAdjustmentCost);
     private async Task<decimal> HeldAmountAsync(int settlementId, CancellationToken ct)
     {
         var hold = await db.FinancialTransactions.Where(x => x.SettlementId == settlementId && x.Type == "FundHold")
