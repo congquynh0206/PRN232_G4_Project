@@ -34,7 +34,9 @@
     if (response.redirected && response.url.includes('/Account/Login')) { location.assign(response.url); throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'); }
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(friendlyError(response.status,data.error || data.title));
+      const error = new Error(friendlyError(response.status,data.error || data.title));
+      error.status = response.status;
+      throw error;
     }
     return data;
   }

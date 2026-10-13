@@ -1,0 +1,3 @@
+.address-change-summary{margin:18px 0;padding:18px;border:1px solid #d7e0f3;border-radius:10px;background:#f8faff;overflow-wrap:anywhere}
+.address-change-summary h3{margin-top:0}.address-change-entry{padding:14px 0;border-top:1px solid #d7e0f3}.address-change-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.address-change-grid>div{min-width:0}.address-change-grid p{margin:8px 0}.address-change-summary button{min-height:44px}.address-change-note{padding:12px;border-radius:6px;background:#fff1d8;color:#725014}#address-change-cap-form{margin:18px 0}
+@media(max-width:600px){.address-change-grid{grid-template-columns:1fr}.address-change-summary{padding:14px}.address-change-summary .actions{flex-wrap:wrap}.address-change-summary .actions button{width:100%}}

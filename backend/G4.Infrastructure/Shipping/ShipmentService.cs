@@ -2,6 +2,7 @@ using G4.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using G4.Infrastructure.Diagnostics;
+using G4.Infrastructure.Promotions;
 
 namespace G4.Infrastructure.Shipping;
 
@@ -11,9 +12,11 @@ public sealed class ShipmentService(ApplicationDbContext db, ICarrierGateway car
     private DateTime Now => (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime;
     public async Task<ShippingInfo> CreateOutboundAsync(int orderId, CancellationToken ct = default)
     {
+        await using var tx = await PromotionLifecycle.LockOrderAsync(db, orderId, ct);
         var existing = await db.ShippingInfos.SingleOrDefaultAsync(s => s.OrderId == orderId && s.Direction == "Outbound", ct);
         if (existing is not null && existing.TrackingNumber is not null) return existing;
         var order = await db.OrderTables.SingleAsync(o => o.Id == orderId, ct);
+        if (db.Database.IsRelational()) await db.Entry(order).ReloadAsync(ct);
         if (order.Status is not ("Paid" or "Preparing")) throw new InvalidOperationException("Order is not ready to ship");
         var key = $"ship-{orderId}-outbound";
         var shipment = existing ?? new ShippingInfo
@@ -23,6 +26,9 @@ public sealed class ShipmentService(ApplicationDbContext db, ICarrierGateway car
             PickupAddressSnapshot = order.PickupAddressSnapshot, DeliveryAddressSnapshot = order.AddressSnapshot
         };
         if (existing is null) db.ShippingInfos.Add(shipment);
+        shipment.DeliveryAddressSnapshot = order.AddressSnapshot;
+        if (order.AddressChangeCount > 0)
+            shipment.AddressChangeRequestId = await db.AddressChangeRequests.Where(x => x.OrderId == orderId && x.Status == "Approved").Select(x => (int?)x.Id).SingleOrDefaultAsync(ct);
         await db.SaveChangesAsync(ct);
         try
         {
@@ -42,6 +48,7 @@ public sealed class ShipmentService(ApplicationDbContext db, ICarrierGateway car
             order.UpdatedAt = DateTime.UtcNow;
         }
         await db.SaveChangesAsync(ct);
+        if (tx != null) await tx.CommitAsync(ct);
         return shipment;
     }
 
@@ -82,8 +89,9 @@ public sealed class ShipmentService(ApplicationDbContext db, ICarrierGateway car
     public async Task<bool> RecordEventAsync(int shippingInfoId, string eventId, string nextStatus,
         string? location = null, string? note = null, CancellationToken ct = default, int? shipperId = null)
     {
-        await using var transaction = db.Database.IsRelational()
-            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
+        var orderId = await db.ShippingInfos.AsNoTracking().Where(x => x.Id == shippingInfoId).Select(x => x.OrderId).SingleAsync(ct)
+            ?? throw new KeyNotFoundException("Không tìm thấy đơn của vận đơn.");
+        await using var transaction = await PromotionLifecycle.LockOrderAsync(db, orderId, ct);
         var shipment = db.Database.IsSqlServer()
             ? await db.ShippingInfos.FromSqlInterpolated($"SELECT * FROM [ShippingInfo] WITH (UPDLOCK, HOLDLOCK) WHERE [id] = {shippingInfoId}").SingleAsync(ct)
             : await db.ShippingInfos.SingleAsync(s => s.Id == shippingInfoId, ct);
@@ -93,9 +101,22 @@ public sealed class ShipmentService(ApplicationDbContext db, ICarrierGateway car
         if (string.IsNullOrWhiteSpace(eventId) || eventId.Length > 100) throw new ArgumentException("Event ID required");
         if (await db.ShippingEvents.AnyAsync(e => e.ExternalEventId == eventId, ct)) return false;
         if (shipment.Status is null || !ShippingState.TryNext(shipment.Status, nextStatus, out var status)) return false;
+        if (shipment.AddressChangeRequestId != null && shipment.AddressChangeAcknowledgedAt == null)
+            throw new InvalidOperationException("Cần xác nhận địa chỉ mới đã được seller duyệt trước khi cập nhật vận chuyển.");
         if (status == "OutForDelivery" && shipment.DeliveryAttempts >= 2) return false;
         shipment.Status = status;
         var orderForUpdate = await db.OrderTables.SingleAsync(o => o.Id == shipment.OrderId, ct);
+        if (db.Database.IsRelational()) await db.Entry(orderForUpdate).ReloadAsync(ct);
+        if (status == "OutForDelivery" && shipment.Direction == "Outbound")
+        {
+            var pending = await db.AddressChangeRequests.Where(x => x.OrderId == orderId && x.Status == "Pending").ToListAsync(ct);
+            foreach (var change in pending)
+            {
+                change.Status = "Rejected"; change.DecidedAt = Now;
+                change.DecisionReason = "Đơn đã bắt đầu giao tới người mua trước khi seller duyệt. Giữ địa chỉ cũ.";
+                await AddressChangeService.EnqueueStatusAsync(db, orderForUpdate, change, config, ct);
+            }
+        }
         orderForUpdate.UpdatedAt = DateTime.UtcNow;
         if (status == "OutForDelivery") shipment.DeliveryAttempts++;
         if (status == "Delivered")

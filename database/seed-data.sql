@@ -145,6 +145,30 @@ BEGIN TRY
         VALUES (N'G4SAVE10', 10.00, '2024-01-01T00:00:00', '2099-12-31T23:59:59', 100, NULL);
     END;
 
+    -- Independent second seller for the two-seller random cart. Existing stock is never reset.
+    IF NOT EXISTS (SELECT 1 FROM dbo.[User] WHERE email = N'seller2@example.test')
+        INSERT INTO dbo.[User] (username, email, [password], role, avatarURL)
+        SELECT N'seller2', N'seller2@example.test', [password], N'seller', NULL
+        FROM dbo.[User] WHERE id = @SellerId;
+    DECLARE @Seller2Id INT = (SELECT id FROM dbo.[User] WHERE email = N'seller2@example.test');
+    IF NOT EXISTS (SELECT 1 FROM dbo.Store WHERE sellerId = @Seller2Id)
+        INSERT INTO dbo.Store (sellerId, storeName, [description], bannerImageURL)
+        VALUES (@Seller2Id, N'G4 Second Store', N'Second seller for multi-seller checkout', NULL);
+    IF NOT EXISTS (SELECT 1 FROM dbo.[Address] WHERE userId = @Seller2Id AND isDefault = 1)
+        INSERT INTO dbo.[Address] (userId, fullName, phone, street, city, state, country, isDefault)
+        VALUES (@Seller2Id, N'G4 Second Seller', N'0900000002', N'4 Demo Pickup Street', N'Ho Chi Minh City', N'HCM', N'Vietnam', 1);
+    INSERT INTO dbo.Product (title, [description], price, WeightKg, images, categoryId, sellerId, isAuction, auctionEndTime)
+    SELECT source.title, source.[description], source.price, source.weightKg, NULL, NULL, @Seller2Id, 0, NULL
+    FROM @Products source
+    WHERE NOT EXISTS (SELECT 1 FROM dbo.Product existing WHERE existing.sellerId = @Seller2Id AND existing.title = source.title);
+    UPDATE product SET WeightKg = source.weightKg
+    FROM dbo.Product product INNER JOIN @Products source ON source.title = product.title
+    WHERE product.sellerId = @Seller2Id AND product.WeightKg IS NULL;
+    INSERT INTO dbo.Inventory (productId, quantity, lastUpdated)
+    SELECT product.id, 20, SYSUTCDATETIME()
+    FROM dbo.Product product INNER JOIN @Products source ON source.title = product.title
+    WHERE product.sellerId = @Seller2Id AND NOT EXISTS (SELECT 1 FROM dbo.Inventory i WHERE i.productId = product.id);
+
     COMMIT TRANSACTION;
 END TRY
 BEGIN CATCH

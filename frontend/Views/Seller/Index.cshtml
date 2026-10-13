@@ -96,6 +96,13 @@
         </div>
         <button type="submit" class="primary">Lưu địa chỉ lấy hàng</button>
     </form>
+    <form id="address-change-cap-form" class="finance-block">
+        <h2>Đổi địa chỉ đơn hàng</h2>
+        <p>Mức tăng phí ship tối đa bạn chấp nhận chịu cho một lần đổi địa chỉ. Mặc định 0 USD; yêu cầu vượt mức này tự bị từ chối.</p>
+        <label for="address-change-cap">Mức chịu thêm phí ship (USD)</label>
+        <input id="address-change-cap" type="number" min="0" max="10000" step="0.01" required value="0" />
+        <button type="submit" class="primary">Lưu mức chịu phí</button>
+    </form>
     <div class="finance-block"><h2>Khối lượng sản phẩm</h2><p class="small">Đơn vị kg, tối đa 3 chữ số thập phân. Sản phẩm thiếu khối lượng chưa được checkout.</p><div id="product-weights"></div><div id="product-weights-pagination" class="pagination"></div></div>
 </section>
 <partial name="_NotificationsPanel" />
@@ -103,6 +110,7 @@
 @section Scripts
 {
     <script src="~/js/common.js" asp-append-version="true"></script>
+    <script src="~/js/address-changes.js" asp-append-version="true"></script>
     <script src="~/js/notifications.js" asp-append-version="true"></script>
     <script src="~/js/integration-logs.js" asp-append-version="true"></script>
     <script src="~/js/promotions.js" asp-append-version="true"></script>

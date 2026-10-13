@@ -14,6 +14,8 @@ public partial class ApplicationDbContext
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
     {
+        ConfigureCart(modelBuilder);
+        ConfigureAddressChanges(modelBuilder);
         ConfigurePromotions(modelBuilder);
         ConfigureDiagnostics(modelBuilder);
         modelBuilder.Entity<Product>().Property(x => x.WeightKg).HasColumnType("decimal(10,3)");

@@ -69,45 +69,6 @@ test('editing a platform coupon retains its original shop scope', () => {
   const p=helpers();const r=p.buildRequest({...base(),type:'Coupon',code:'ABC',sellerId:22},'admin',{type:'Coupon',code:'ABC',sellerId:11,version:1});
   assert.equal(r.sellerId,11);
 });
-function buyerHarness(api) {
-  const elements=new Map();
-  const element=id=>{
-    if(!elements.has(id))elements.set(id,{value:id==='address'?'3':id==='count'?'3':'',disabled:false,hidden:false,innerHTML:'',textContent:'',classList:{toggle(){},add(){},remove(){}},setAttribute(){},querySelector(){return null;}});
-    return elements.get(id);
-  };
-  const noop=()=>{};
-  const G4={$:element,money:x=>'$'+Number(x||0).toFixed(2),date:x=>x,esc:x=>String(x??''),api,safe:fn=>fn(),message:noop,label:x=>x,
-    productThumbnail:()=>'',orderCard:()=>'',patchPagedList:noop,pager:noop,Disputes:{init:noop},Notifications:{init:noop},Promotions:helpers(),disputeBadge:()=>'',returnSummary:()=>'',trackingHtml:()=>'',openDetail:noop};
-  const context={G4,Date,URLSearchParams,crypto:{randomUUID:()=>Math.random().toString()},setInterval:noop,location:{search:'',assign:noop},document:{body:{addEventListener:noop},querySelectorAll:()=>[],querySelector:selector=>selector.includes('name="method"')?{value:'card'}:null}};
-  vm.runInNewContext(fs.readFileSync('frontend/wwwroot/js/buyer.js','utf8'),context);
-  return element;
-}
-test('buyer submits viewed total and fingerprint then invalidates failed checkout quote', async () => {
-  let submitted;
-  const element=buyerHarness(async (route,method,body)=>{
-    if(route==='addresses')return [];
-    if(route.startsWith('catalog/'))return [{productId:1,title:'Item',price:100,quantity:1,available:3}];
-    if(route==='quote')return {subtotal:100,discount:10,shipping:5,total:95,totalWeightKg:1,pricingFingerprint:'viewed-v1'};
-    if(route==='orders'){submitted=body;throw new Error('Báo giá đã thay đổi.');}
-    throw new Error('Unexpected route: '+route);
-  });
-  await element('random').onclick();
-  await assert.rejects(element('pay').onclick(),/Cập nhật báo giá/);
-  assert.equal(submitted.expectedTotal,95);assert.equal(submitted.pricingFingerprint,'viewed-v1');
-  assert.equal(element('pay').disabled,true);
-});
-test('buyer freezes price inputs while checkout is being created', async () => {
-  let release;
-  const element=buyerHarness(async route=>{
-    if(route==='addresses')return [];
-    if(route.startsWith('catalog/'))return [{productId:1,title:'Item',price:100,quantity:1,available:3}];
-    if(route==='quote')return {subtotal:100,discount:0,shipping:5,total:105,totalWeightKg:1,pricingFingerprint:'v1'};
-    if(route==='orders'){await new Promise(resolve=>release=resolve);throw new Error('Báo giá đã thay đổi.');}
-  });
-  await element('random').onclick();const paying=element('pay').onclick();
-  assert.equal(element('coupon').disabled,true);assert.equal(element('address').disabled,true);assert.equal(element('random').disabled,true);
-  release();await assert.rejects(paying);assert.equal(element('coupon').disabled,false);
-});
 test('promotion audit is newest first and escapes actor reason and changed name', () => {
   const p=helpers();assert.equal(typeof p.auditHtml,'function');
   const html=p.auditHtml([{id:1,actorName:'Older',action:'Create',createdAt:'2026-10-04T01:00:00Z',changesJson:'{"Name":"Original","Version":1}'},

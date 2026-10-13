@@ -77,6 +77,91 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.ToTable("Address", (string)null);
                 });
 
+            modelBuilder.Entity("G4.Domain.Entities.AddressChangeRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("BuyerRefund")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DecidedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DecisionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("NewAddress")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("NewCountry")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal>("NewShippingCost")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("NewState")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("OldAddress")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<decimal>("OldShippingCost")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("OrderId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int?>("RefundId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RequestKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal>("SellerCap")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId")
+                        .IsUnique()
+                        .HasFilter("[Status] = 'Pending'");
+
+                    b.HasIndex("RefundId");
+
+                    b.HasIndex("RequestKey")
+                        .IsUnique();
+
+                    b.ToTable("AddressChangeRequest", (string)null);
+                });
+
             modelBuilder.Entity("G4.Domain.Entities.Bid", b =>
                 {
                     b.Property<int>("Id")
@@ -112,6 +197,24 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.ToTable("Bid", (string)null);
                 });
 
+            modelBuilder.Entity("G4.Domain.Entities.BuyerCart", b =>
+                {
+                    b.Property<int>("BuyerId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ItemsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("BuyerId");
+
+                    b.ToTable("BuyerCart", (string)null);
+                });
+
             modelBuilder.Entity("G4.Domain.Entities.Category", b =>
                 {
                     b.Property<int>("Id")
@@ -130,6 +233,30 @@ namespace G4.Infrastructure.Persistence.Migrations
                         .HasName("PK__Category__3213E83F484D1DAA");
 
                     b.ToTable("Category", (string)null);
+                });
+
+            modelBuilder.Entity("G4.Domain.Entities.CheckoutBatch", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<int>("BuyerId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("OrderIdsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RequestJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Key");
+
+                    b.HasIndex("BuyerId");
+
+                    b.ToTable("CheckoutBatch", (string)null);
                 });
 
             modelBuilder.Entity("G4.Domain.Entities.Coupon", b =>
@@ -759,6 +886,9 @@ namespace G4.Infrastructure.Persistence.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("AddressChangeCount")
+                        .HasColumnType("int");
+
                     b.Property<int?>("AddressId")
                         .HasColumnType("int")
                         .HasColumnName("addressId");
@@ -791,6 +921,14 @@ namespace G4.Infrastructure.Persistence.Migrations
                         .HasMaxLength(3)
                         .HasColumnType("nvarchar(3)");
 
+                    b.Property<string>("DeliveryCountrySnapshot")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("DeliveryStateSnapshot")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<decimal>("DiscountAmount")
                         .HasColumnType("decimal(10,2)");
 
@@ -804,6 +942,14 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<string>("PickupAddressSnapshot")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("PickupCountrySnapshot")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("PickupStateSnapshot")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<decimal>("PlatformSubsidy")
                         .HasColumnType("decimal(18,2)");
@@ -1567,6 +1713,9 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<int>("SellerId")
                         .HasColumnType("int");
 
+                    b.Property<decimal>("ShippingAdjustmentCost")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -1583,6 +1732,19 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.HasIndex("SellerAccountId");
 
                     b.ToTable("SellerSettlement", (string)null);
+                });
+
+            modelBuilder.Entity("G4.Domain.Entities.SellerShippingPreference", b =>
+                {
+                    b.Property<int>("SellerId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("AddressChangeCap")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("SellerId");
+
+                    b.ToTable("SellerShippingPreference", (string)null);
                 });
 
             modelBuilder.Entity("G4.Domain.Entities.ShippingEvent", b =>
@@ -1637,6 +1799,12 @@ namespace G4.Infrastructure.Persistence.Migrations
                         .HasColumnName("id");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("AddressChangeAcknowledgedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("AddressChangeRequestId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Carrier")
                         .HasMaxLength(100)
@@ -1704,6 +1872,8 @@ namespace G4.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("PK__Shipping__3213E83FD2824D3E");
+
+                    b.HasIndex("AddressChangeRequestId");
 
                     b.HasIndex("IdempotencyKey")
                         .IsUnique()
@@ -1807,6 +1977,20 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("G4.Domain.Entities.AddressChangeRequest", b =>
+                {
+                    b.HasOne("G4.Domain.Entities.OrderTable", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("G4.Domain.Entities.Refund", null)
+                        .WithMany()
+                        .HasForeignKey("RefundId")
+                        .OnDelete(DeleteBehavior.NoAction);
+                });
+
             modelBuilder.Entity("G4.Domain.Entities.Bid", b =>
                 {
                     b.HasOne("G4.Domain.Entities.User", "Bidder")
@@ -1822,6 +2006,24 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Navigation("Bidder");
 
                     b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("G4.Domain.Entities.BuyerCart", b =>
+                {
+                    b.HasOne("G4.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("BuyerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("G4.Domain.Entities.CheckoutBatch", b =>
+                {
+                    b.HasOne("G4.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("BuyerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("G4.Domain.Entities.Coupon", b =>
@@ -2180,6 +2382,15 @@ namespace G4.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("G4.Domain.Entities.SellerShippingPreference", b =>
+                {
+                    b.HasOne("G4.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("SellerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("G4.Domain.Entities.ShippingEvent", b =>
                 {
                     b.HasOne("G4.Domain.Entities.ShippingInfo", null)
@@ -2191,6 +2402,11 @@ namespace G4.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("G4.Domain.Entities.ShippingInfo", b =>
                 {
+                    b.HasOne("G4.Domain.Entities.AddressChangeRequest", null)
+                        .WithMany()
+                        .HasForeignKey("AddressChangeRequestId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.HasOne("G4.Domain.Entities.OrderTable", "Order")
                         .WithMany("ShippingInfos")
                         .HasForeignKey("OrderId")

@@ -19,21 +19,21 @@
         <div>
             <span class="eyebrow">Người mua</span>
             <h1>Giỏ hàng</h1>
-            <p>Tạo giỏ từ các sản phẩm hiện có.</p>
+            <p>Tạo giỏ ngẫu nhiên từ hai seller. Giỏ được lưu theo tài khoản của bạn.</p>
         </div>
     </div>
     <div class="toolbar">
         <label for="count">Số sản phẩm</label>
         <select id="count">
-            <option>1</option>
             <option>2</option>
             <option selected>3</option>
             <option>4</option>
             <option>5</option>
         </select>
-        <button class="primary" id="random">Tạo giỏ ngẫu nhiên</button>
+        <button class="primary" id="random" disabled>Tạo giỏ từ 2 seller</button>
+        <button id="reload-cart" type="button">Tải lại giỏ</button>
     </div>
-    <div id="cart" class="item-list empty">Chọn số sản phẩm rồi tạo giỏ.</div>
+    <div id="cart" class="item-list empty" aria-busy="true">Đang tải giỏ hàng…</div>
     <div class="summary-footer">
         <strong id="cart-subtotal">Tạm tính: $0.00</strong>
         <button id="continue" class="primary" disabled>Tiếp tục thanh toán</button>
@@ -101,11 +101,7 @@
         </div>
         <aside class="total-card">
             <h2>Tổng kết đơn hàng</h2>
-            <label for="coupon">Mã giảm giá</label>
-            <div class="coupon-row">
-                <input id="coupon" placeholder="G4SAVE10"/>
-                <button id="apply-coupon">Áp dụng</button>
-            </div>
+            <p class="promotion-checkout-note">Mã giảm giá nhập theo từng seller bên trái. Phí ship được tính riêng cho từng đơn.</p>
             <dl>
                 <div><dt>Khối lượng</dt><dd id="checkout-weight">0 kg</dd></div>
                 <div>
@@ -129,7 +125,8 @@
             <p id="checkout-promotion-note" class="promotion-checkout-note" hidden></p>
             <button type="button" id="refresh-quote" class="wide">Cập nhật báo giá</button>
             <p class="promotion-checkout-note">Báo giá chưa giữ lượt khuyến mãi. Giá được xác nhận khi tạo đơn.</p>
-            <button class="primary wide" id="pay" disabled>Thanh toán</button>
+            <p class="promotion-checkout-note">Mỗi seller nhận một đơn riêng. PayPal thanh toán từng đơn; các đơn còn lại nằm trong “Đơn của tôi”.</p>
+            <button class="primary wide" id="pay" disabled>Đặt hàng &amp; thanh toán</button>
         </aside>
     </div>
 </section>
@@ -168,8 +165,10 @@
 @section Scripts
 {
     <script src="~/js/common.js" asp-append-version="true"></script>
+    <script src="~/js/address-changes.js" asp-append-version="true"></script>
     <script src="~/js/notifications.js" asp-append-version="true"></script>
     <script src="~/js/promotions.js" asp-append-version="true"></script>
     <script src="~/js/disputes.js" asp-append-version="true"></script>
+    <script src="~/js/buyer-cart.js" asp-append-version="true"></script>
     <script src="~/js/buyer.js" asp-append-version="true"></script>
 }

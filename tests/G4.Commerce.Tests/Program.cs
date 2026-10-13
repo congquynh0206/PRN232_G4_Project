@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
 if (args.Contains("--email-sql")) { await NotificationSqlChecks.RunAsync(); return; }
+if (args.Contains("--cart-sql")) { await BuyerCartSqlChecks.RunAsync(); return; }
+if (args.Contains("--address-sql")) { await AddressChangeSqlChecks.RunAsync(); return; }
 
 static void Equal<T>(T expected, T actual, string name)
 {
@@ -26,6 +28,8 @@ await ShipmentClaimChecks.RunAsync();
 await PromotionManagementChecks.RunAsync();
 PromotionPricingChecks.Run();
 await PromotionCheckoutChecks.RunAsync();
+await BuyerCartChecks.RunAsync();
+await AddressChangeChecks.RunAsync();
 await PromotionFinanceChecks.RunAsync();
 NotificationProcessingChecks.CheckRetryRules();
 await NotificationTemplateChecks.RunAsync();

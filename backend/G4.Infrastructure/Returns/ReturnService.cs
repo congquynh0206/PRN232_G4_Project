@@ -244,13 +244,15 @@ public sealed class ReturnService(ApplicationDbContext db, IRefundGateway refund
             .SumAsync(r => r.Amount, ct);
         var promotionZeroPayment = paid == 0m && payment.Amount == 0m && payment.Method == "Promotion" &&
             order.PricingSchemaVersion == 1 && order.TotalPrice == 0m;
-        if (paid < 0 || paid == 0m && !promotionZeroPayment || paid - alreadyRefunded < paid ||
+        if (paid < 0 || paid == 0m && !promotionZeroPayment || alreadyRefunded > paid ||
+            paid > 0 && paid == alreadyRefunded ||
+            await db.Refunds.AnyAsync(r => r.OrderId == orderId && r.Status == "Succeeded" && r.Reason != "shipping-adjustment", ct) ||
             promotionZeroPayment && await db.Refunds.AnyAsync(r => r.OrderId == orderId && r.Status == "Succeeded", ct))
             throw new InvalidOperationException("Refund would exceed captured amount");
         var refund = existing ?? new Refund
         {
             OrderId = orderId, PaymentId = payment.Id, ReturnRequestId = returnRequestId,
-            Amount = paid, Currency = order.Currency, Reason = reason, IdempotencyKey = key,
+            Amount = paid - alreadyRefunded, Currency = order.Currency, Reason = reason, IdempotencyKey = key,
             CreatedAt = DateTime.UtcNow
         };
         if (existing is null) db.Refunds.Add(refund);

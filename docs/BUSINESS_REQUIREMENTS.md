@@ -19,9 +19,9 @@ Hệ thống có bốn vai trò `buyer`, `seller`, `shipper`, `admin`. API kiể
 
 ## 3. Giỏ hàng, checkout và đơn hàng
 
-1. Nút **Random** chọn 1–5 sản phẩm còn tồn kho, cùng một seller, không phải hàng đấu giá. Buyer được sửa số lượng và chọn/sửa địa chỉ trước khi tạo đơn.
-2. Checkout hiển thị từng sản phẩm, số lượng, giá, khối lượng, giảm giá theo từng promotion, phí ship và tổng phải trả. Server tính lại toàn bộ khi buyer đổi giỏ/địa chỉ/mã; client không quyết định giá.
-3. Khi tạo đơn, hệ thống lưu snapshot sản phẩm, giá, khối lượng, địa chỉ, promotion, phí ship và tổng tiền; trừ tồn kho trong giao dịch. Một checkout key chỉ tạo tối đa một đơn. Đơn chờ thanh toán tối đa 15 phút.
+1. Nút **Random** chọn 2–5 sản phẩm còn tồn kho từ đúng hai seller, không phải hàng đấu giá. Giỏ lưu theo buyer trong database; buyer được sửa số lượng, xóa sản phẩm và chọn/sửa địa chỉ trước khi tạo đơn. Nếu xóa hết hàng của một seller, giỏ còn lại được checkout bình thường. Không cần trang danh sách/chi tiết sản phẩm.
+2. Checkout nhóm sản phẩm theo seller và hiển thị số lượng, giá, khối lượng, giảm giá theo từng promotion, phí ship và tổng riêng mỗi nhóm. Mã giảm giá nhập riêng theo seller. Server tính lại toàn bộ khi buyer đổi giỏ/địa chỉ/mã; client không quyết định giá.
+3. Khi tạo đơn, hệ thống lưu snapshot sản phẩm, giá, khối lượng, địa chỉ, promotion, phí ship và tổng tiền; trừ tồn kho trong giao dịch. Một batch checkout key chỉ tạo một nhóm đơn, mỗi seller có một đơn. Lỗi tạo bất kỳ đơn nào rollback toàn bộ nhóm; retry đúng request trả về nhóm đơn đã tạo. Giỏ được xóa sau khi tạo nhóm thành công. Thanh toán theo từng đơn; đơn chưa trả tiền nằm trong Đơn của tôi và chờ tối đa 15 phút.
 4. Đơn chưa trả tiền có thể hủy ngay. Đơn đã trả tiền nhưng chưa bàn giao shipper cần seller duyệt yêu cầu hủy; khi duyệt phải refund. Sau khi shipper nhận hàng, không hủy trực tiếp: xử lý qua giao hàng thất bại/chuyển hoàn hoặc trả hàng sau khi đã giao.
 5. Nếu hết 15 phút mà chưa thanh toán, đơn thành `Expired` và tồn kho được trả lại đúng một lần. Trường hợp PayPal còn đang xác minh phải đối soát trước khi hết hạn/hủy để tránh vừa thu tiền vừa nhả hàng.
 
@@ -166,7 +166,9 @@ Các kịch bản tối thiểu để nghiệm thu:
 
 Code hiện có đăng nhập/phân quyền, checkout, coupon phần trăm cơ bản, thanh toán, tracking hai chiều, seller balance/level/payout và workflow tranh chấp có bằng chứng, thương lượng, deadline và chuyển admin. Đã bổ sung khối lượng/ship theo kg, địa chỉ lấy hàng, shipper tự nhận từng vận đơn và return tự refund sau hạn kể từ chiều trả giao tới seller; xem [RETURNS_AND_SHIPPING.md](RETURNS_AND_SHIPPING.md).
 
-Các phần trong tài liệu này **chưa được coi là đã triển khai đầy đủ** gồm: promotion do seller/Admin quản lý và nguồn tài trợ; đổi địa chỉ đơn một lần và mức seller chịu; chia phí ship trả theo lý do và hạn chế hoàn phí chiều đi; hoàn một phần; mức fee mới; tiêu chí level mở rộng; nợ xấu, thu nợ giả lập và blacklist. Khi phát triển, cần migration, API, giao diện và kiểm thử tương ứng; giữ dữ liệu SQL Server hiện có bằng migration thay vì chạy lại baseline.
+Đã bổ sung promotion seller/Admin và nguồn tài trợ, giỏ lưu theo buyer/checkout hai seller, và đổi địa chỉ đơn một lần với mức seller chịu, hoàn ship giả lập, shipper xác nhận địa chỉ mới; xem [MULTI_SELLER_CART.md](MULTI_SELLER_CART.md) và [ORDER_ADDRESS_CHANGES.md](ORDER_ADDRESS_CHANGES.md).
+
+Các phần trong tài liệu này **chưa được coi là đã triển khai đầy đủ** gồm: chia phí ship trả theo lý do và hạn chế hoàn phí chiều đi; hoàn một phần do admin chọn; mức fee mới; tiêu chí level mở rộng; nợ xấu, thu nợ giả lập và blacklist. Khi phát triển, cần migration, API, giao diện và kiểm thử tương ứng; giữ dữ liệu SQL Server hiện có bằng migration thay vì chạy lại baseline.
 
 ## 14. Các quy ước đề xuất để nhóm duyệt
 

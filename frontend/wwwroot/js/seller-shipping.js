@@ -7,6 +7,7 @@
     if (!initialized) {
       for (const key of ['fullName', 'street', 'city', 'state', 'country']) $('pickup-' + key).value = result.pickup?.[key] || '';
       initialized = true;
+      $('address-change-cap').value = Number(result.addressChangeCap || 0);
     }
     $('product-weights').innerHTML = result.items.length ? result.items.map(p => `<form class="product-weight-row" data-weight-product="${p.id}"><div><strong>${esc(p.title)}</strong><small>#${p.id}${p.weightKg == null ? ' · Chưa khai báo khối lượng' : ''}</small></div><label>Khối lượng (kg)<input name="weight" type="number" min="0.001" max="10000" step="0.001" required value="${p.weightKg == null ? '' : Number(p.weightKg)}" /></label><button type="submit">Lưu</button></form>`).join('') : '<p class="empty-note">Chưa có sản phẩm.</p>';
     pager('product-weights-pagination', result, n => safe(() => load(n)));
@@ -29,4 +30,10 @@
     });
   });
   G4.SellerShipping = {load};
+  $('address-change-cap-form').onsubmit = event => {
+    event.preventDefault();
+    const controls=[...$('address-change-cap-form').querySelectorAll('input,button')];
+    controls.forEach(x=>x.disabled=true);
+    safe(async()=>{try{await api('seller/shipping/address-change-cap','POST',{amount:Number($('address-change-cap').value)});message('Đã lưu mức chịu thêm phí khi đổi địa chỉ.',true);}finally{controls.forEach(x=>x.disabled=false);}});
+  };
 })();

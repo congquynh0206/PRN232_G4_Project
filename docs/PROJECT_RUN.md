@@ -6,6 +6,10 @@ Xem cách chia các project tại [BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE
 
 SQL Server là nguồn dữ liệu khi chạy ứng dụng. EF Core InMemory chỉ còn được dùng bên trong kiểm thử tự động, không dùng để khởi tạo dữ liệu cho giao diện.
 
+Giỏ buyer hiện random từ đúng hai seller, lưu theo tài khoản và checkout thành các đơn riêng. Cần migration `AddBuyerCartCheckoutBatch` và seed thêm seller thứ hai trước khi dùng; xem [MULTI_SELLER_CART.md](MULTI_SELLER_CART.md).
+
+Đổi địa chỉ đơn đã thanh toán cần migration `AddOrderAddressChanges`. Buyer gửi yêu cầu, seller duyệt trong mức phí chấp nhận và shipper xác nhận địa chỉ mới trước tracking; xem [ORDER_ADDRESS_CHANGES.md](ORDER_ADDRESS_CHANGES.md).
+
 ## Chạy với SQL Server
 
 1. Tạo một database **trống** bằng [database/baseline.sql](../database/baseline.sql) trong SSMS hoặc `sqlcmd`. Script này chứa `CREATE DATABASE CloneEbayDB`; **không chạy lại** trên database đã có bảng/dữ liệu.
