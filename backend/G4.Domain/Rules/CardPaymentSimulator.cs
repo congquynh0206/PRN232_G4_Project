@@ -1,13 +1,12 @@
 using System.Globalization;
 
 namespace G4.Domain.Rules;
-
 public static class CardPaymentSimulator
 {
     public static string Outcome(string number, string expiry)
     {
-        if (!DateTime.TryParseExact("01/" + expiry, "dd/MM/yy", CultureInfo.InvariantCulture,
-                DateTimeStyles.None, out var month)) return "Invalid";
+        if (!DateTime.TryParseExact("01/" + expiry, "dd/MM/yy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var month))
+            return "Invalid";
         if (month.Year < DateTime.UtcNow.Year || (month.Year == DateTime.UtcNow.Year && month.Month < DateTime.UtcNow.Month))
             return "Expired";
         return number switch

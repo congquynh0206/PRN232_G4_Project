@@ -1,5 +1,4 @@
 namespace G4.Domain.Entities;
-
 public sealed class ShippingEvent
 {
     public int Id { get; set; }

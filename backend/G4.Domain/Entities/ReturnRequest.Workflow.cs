@@ -1,5 +1,4 @@
 namespace G4.Domain.Entities;
-
 public partial class ReturnRequest
 {
     public DateTime? DecidedAt { get; set; }

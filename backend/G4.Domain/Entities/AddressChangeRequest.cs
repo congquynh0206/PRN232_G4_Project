@@ -1,5 +1,4 @@
 namespace G4.Domain.Entities;
-
 public sealed class AddressChangeRequest
 {
     public int Id { get; set; }

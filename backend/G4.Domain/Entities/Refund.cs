@@ -1,5 +1,4 @@
 namespace G4.Domain.Entities;
-
 public sealed class Refund
 {
     public int Id { get; set; }

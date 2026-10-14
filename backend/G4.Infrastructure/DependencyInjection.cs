@@ -13,22 +13,20 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace G4.Infrastructure;
-
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructure(
-        this IServiceCollection services,
-        IConfiguration configuration)
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddDbContextFactory<ApplicationDbContext>(options =>
-            options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")), ServiceLifetime.Scoped);
+        services.AddDbContextFactory<ApplicationDbContext>(
+            options => options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")),
+            ServiceLifetime.Scoped
+        );
         services.AddScoped<IEmailSender, SmtpEmailSender>();
         services.AddScoped<NotificationProcessor>();
         services.AddScoped<IntegrationLogWriter>();
         services.AddSingleton<BufferedIntegrationLogWriter>();
-        services.AddSingleton<IIntegrationLogWriter>(sp=>sp.GetRequiredService<BufferedIntegrationLogWriter>());
-        services.AddHostedService(sp=>sp.GetRequiredService<BufferedIntegrationLogWriter>());
-
+        services.AddSingleton<IIntegrationLogWriter>(sp => sp.GetRequiredService<BufferedIntegrationLogWriter>());
+        services.AddHostedService(sp => sp.GetRequiredService<BufferedIntegrationLogWriter>());
         services.AddScoped<ICheckoutService, CheckoutService>();
         services.AddScoped<IBuyerCartService, BuyerCartService>();
         services.AddScoped<IAddressChangeService, AddressChangeService>();
@@ -44,7 +42,6 @@ public static class DependencyInjection
         services.AddHttpClient<IPayPalGateway, PayPalSandboxGateway>();
         services.AddHttpClient<ICarrierGateway, HttpCarrierGateway>();
         services.AddHostedService<CommerceMaintenanceWorker>();
-
         return services;
     }
 }

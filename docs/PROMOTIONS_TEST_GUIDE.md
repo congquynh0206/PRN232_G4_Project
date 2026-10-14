@@ -49,8 +49,9 @@ Sửa chương trình rồi kiểm tra phiên bản mới; tìm theo tên/mã, l
 ## Admin và đối soát
 
 - Admin → Khuyến mãi: tạo mã nguồn **Nền tảng**, toàn sàn hoặc phạm vi shop/sản phẩm/danh mục; không tạo Sale/Volume/Order/Shipping.
-- Admin xem chương trình seller và tạm dừng kèm lý do. Seller thấy lý do, không tự kích hoạt lại. Lịch sử hiển thị người thực hiện, thời gian và cấu hình đã lưu.
-- Seller khác không được xem/sửa chương trình của shop khác, kể cả gọi API trực tiếp.
+- Admin chỉ xem, đình chỉ hoặc gỡ đình chỉ chương trình seller, phải ghi lý do; không sửa cấu hình hay bật/tắt thay seller. Gỡ đình chỉ giữ chương trình tạm dừng để seller chủ động kích hoạt lại. Seller thấy lý do đình chỉ và không được tự gỡ. Lịch sử phân biệt Suspend/ReleaseSuspension với Pause/Resume của chủ chương trình.
+- Seller khác không được xem/sửa/bật/tắt chương trình của shop khác, kể cả gọi API trực tiếp. Coupon do nền tảng tài trợ vẫn do admin tạo/sửa/bật/tắt.
+- Kiểm thử phân quyền: seller tự tạm dừng → admin không có nút kích hoạt; admin đình chỉ → seller không thể bật qua form/API; admin gỡ đình chỉ → buyer vẫn chưa được giảm giá; seller kích hoạt lại → buyer mới được áp dụng. API admin `/state` cho chương trình shop phải trả 403; API seller `/suspension` phải trả 403.
 
 Ví dụ đối soát: hàng 100, seller giảm 10, ship 5, coupon nền tảng giảm 5 → buyer trả 90, seller gross 95. Với phí hiện tại 12% + 0.30: fee 11.70, net 83.30. Hoàn toàn bộ trả buyer 90; seller gross đảo 95, gồm khoản nền tảng 5; hoàn lại fee 11.70. Không hoàn thêm 5 cho buyer.
 

@@ -1,7 +1,6 @@
 using G4.Domain.Entities;
 
 namespace G4.Application.Services;
-
 public interface IPayPalPaymentService
 {
     Task<PayPalCreated> StartAsync(int orderId, string key, CancellationToken ct = default);

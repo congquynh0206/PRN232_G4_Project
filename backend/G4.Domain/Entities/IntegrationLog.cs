@@ -1,5 +1,4 @@
 namespace G4.Domain.Entities;
-
 public sealed class IntegrationLog
 {
     public long Id { get; set; }

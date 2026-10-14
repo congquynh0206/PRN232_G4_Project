@@ -56,29 +56,29 @@
                 <button id="edit-address" type="button" class="text-button">Sửa địa chỉ</button>
                 <div id="address-fields" class="address-fields hidden">
                     <label for="address-name">Họ tên</label>
-                    <input id="address-name"/>
+                    <input id="address-name" />
                     <label for="address-street">Đường</label>
-                    <input id="address-street"/>
+                    <input id="address-street" />
                     <label for="address-city">Thành phố</label>
-                    <input id="address-city"/>
+                    <input id="address-city" />
                     <label for="address-state">Tỉnh/khu vực</label>
-                    <input id="address-state"/>
+                    <input id="address-state" />
                     <label for="address-country">Quốc gia</label>
-                    <input id="address-country"/>
+                    <input id="address-country" />
                     <button id="save-address">Lưu địa chỉ</button>
                 </div>
             </div>
             <div class="block">
                 <h2>Phương thức thanh toán</h2>
                 <label class="payment-option">
-                    <input type="radio" name="method" value="paypal" checked/>
+                    <input type="radio" name="method" value="paypal" checked />
                     <span>
                         <strong>PayPal thử nghiệm</strong>
                         <small>Tài khoản thử nghiệm</small>
                     </span>
                 </label>
                 <label class="payment-option">
-                    <input type="radio" name="method" value="card"/>
+                    <input type="radio" name="method" value="card" />
                     <span>
                         <strong>Thẻ tín dụng giả lập</strong>
                         <small>Không nhập thông tin thẻ thật</small>
@@ -91,7 +91,7 @@
                         <option value="4000000000000002">4000...0002 — từ chối</option>
                     </select>
                     <label for="card-expiry">Hạn</label>
-                    <input id="card-expiry" value="12/30"/>
+                    <input id="card-expiry" value="12/30" />
                 </div>
             </div>
             <div class="block">
@@ -101,9 +101,14 @@
         </div>
         <aside class="total-card">
             <h2>Tổng kết đơn hàng</h2>
-            <p class="promotion-checkout-note">Mã giảm giá nhập theo từng seller bên trái. Phí ship được tính riêng cho từng đơn.</p>
+            <p class="promotion-checkout-note">
+                Mã giảm giá nhập theo từng seller bên trái. Phí ship được tính riêng cho từng đơn.
+            </p>
             <dl>
-                <div><dt>Khối lượng</dt><dd id="checkout-weight">0 kg</dd></div>
+                <div>
+                    <dt>Khối lượng</dt>
+                    <dd id="checkout-weight">0 kg</dd>
+                </div>
                 <div>
                     <dt>Tiền hàng</dt>
                     <dd id="subtotal">$0.00</dd>
@@ -124,8 +129,13 @@
             <div id="checkout-promotions" aria-live="polite"></div>
             <p id="checkout-promotion-note" class="promotion-checkout-note" hidden></p>
             <button type="button" id="refresh-quote" class="wide">Cập nhật báo giá</button>
-            <p class="promotion-checkout-note">Báo giá chưa giữ lượt khuyến mãi. Giá được xác nhận khi tạo đơn.</p>
-            <p class="promotion-checkout-note">Mỗi seller nhận một đơn riêng. PayPal thanh toán từng đơn; các đơn còn lại nằm trong “Đơn của tôi”.</p>
+            <p class="promotion-checkout-note">
+                Báo giá chưa giữ lượt khuyến mãi. Giá được xác nhận khi tạo đơn.
+            </p>
+            <p class="promotion-checkout-note">
+                Mỗi seller nhận một đơn riêng. PayPal thanh toán từng đơn; các đơn còn lại nằm trong
+                “Đơn của tôi”.
+            </p>
             <button class="primary wide" id="pay" disabled>Đặt hàng &amp; thanh toán</button>
         </aside>
     </div>
@@ -141,14 +151,28 @@
     </div>
     <div class="seller-order-filters">
         <div class="seller-filter-tabs" role="group" aria-label="Lọc đơn hàng theo trạng thái">
-            <button type="button" data-order-filter="all" class="active" aria-pressed="true">Tất cả <span data-filter-count="all">0</span></button>
-            <button type="button" data-order-filter="unpaid" aria-pressed="false">Chờ thanh toán <span data-filter-count="unpaid">0</span></button>
-            <button type="button" data-order-filter="ready" aria-pressed="false">Chờ giao <span data-filter-count="ready">0</span></button>
-            <button type="button" data-order-filter="shipping" aria-pressed="false">Đang giao <span data-filter-count="shipping">0</span></button>
-            <button type="button" data-order-filter="complete" aria-pressed="false">Đã kết thúc <span data-filter-count="complete">0</span></button>
-            <button type="button" data-order-filter="cancelled" aria-pressed="false">Đã hủy <span data-filter-count="cancelled">0</span></button>
+            <button type="button" data-order-filter="all" class="active" aria-pressed="true">
+                Tất cả <span data-filter-count="all">0</span>
+            </button>
+            <button type="button" data-order-filter="unpaid" aria-pressed="false">
+                Chờ thanh toán <span data-filter-count="unpaid">0</span>
+            </button>
+            <button type="button" data-order-filter="ready" aria-pressed="false">
+                Chờ giao <span data-filter-count="ready">0</span>
+            </button>
+            <button type="button" data-order-filter="shipping" aria-pressed="false">
+                Đang giao <span data-filter-count="shipping">0</span>
+            </button>
+            <button type="button" data-order-filter="complete" aria-pressed="false">
+                Đã kết thúc <span data-filter-count="complete">0</span>
+            </button>
+            <button type="button" data-order-filter="cancelled" aria-pressed="false">
+                Đã hủy <span data-filter-count="cancelled">0</span>
+            </button>
         </div>
-        <p id="buyer-order-summary" class="small" role="status" aria-live="polite">Đang tải đơn hàng…</p>
+        <p id="buyer-order-summary" class="small" role="status" aria-live="polite">
+            Đang tải đơn hàng…
+        </p>
     </div>
     <div id="order-list" class="order-list" aria-busy="false"></div>
     <div id="order-pagination" class="pagination"></div>
@@ -164,11 +188,11 @@
 <partial name="_NotificationsPanel" />
 @section Scripts
 {
-    <script src="~/js/common.js" asp-append-version="true"></script>
-    <script src="~/js/address-changes.js" asp-append-version="true"></script>
-    <script src="~/js/notifications.js" asp-append-version="true"></script>
-    <script src="~/js/promotions.js" asp-append-version="true"></script>
-    <script src="~/js/disputes.js" asp-append-version="true"></script>
-    <script src="~/js/buyer-cart.js" asp-append-version="true"></script>
-    <script src="~/js/buyer.js" asp-append-version="true"></script>
+<script src="~/js/common.js" asp-append-version="true"></script>
+<script src="~/js/address-changes.js" asp-append-version="true"></script>
+<script src="~/js/notifications.js" asp-append-version="true"></script>
+<script src="~/js/promotions.js" asp-append-version="true"></script>
+<script src="~/js/disputes.js" asp-append-version="true"></script>
+<script src="~/js/buyer-cart.js" asp-append-version="true"></script>
+<script src="~/js/buyer.js" asp-append-version="true"></script>
 }

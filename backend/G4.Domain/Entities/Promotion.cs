@@ -1,5 +1,4 @@
 namespace G4.Domain.Entities;
-
 public class Promotion
 {
     public int Id { get; set; }
@@ -30,6 +29,7 @@ public class Promotion
     public List<PromotionTarget> Targets { get; set; } = [];
     public List<PromotionTier> Tiers { get; set; } = [];
 }
+
 public class PromotionTarget
 {
     public int Id { get; set; }
@@ -37,6 +37,7 @@ public class PromotionTarget
     public int? ProductId { get; set; }
     public int? CategoryId { get; set; }
 }
+
 public class PromotionTier
 {
     public int Id { get; set; }
@@ -44,6 +45,7 @@ public class PromotionTier
     public int MinQuantity { get; set; }
     public decimal Percent { get; set; }
 }
+
 public class PromotionUsage
 {
     public int Id { get; set; }
@@ -56,6 +58,7 @@ public class PromotionUsage
     public DateTime? ConsumedAt { get; set; }
     public DateTime? ReleasedAt { get; set; }
 }
+
 public class OrderPromotionSnapshot
 {
     public int Id { get; set; }
@@ -69,6 +72,7 @@ public class OrderPromotionSnapshot
     public decimal Amount { get; set; }
     public string AllocationJson { get; set; } = "[]";
 }
+
 public class PromotionAudit
 {
     public int Id { get; set; }

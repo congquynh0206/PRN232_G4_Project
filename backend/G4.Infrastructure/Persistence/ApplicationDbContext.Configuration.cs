@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
 namespace G4.Infrastructure.Persistence;
-
 public partial class ApplicationDbContext
 {
     public DbSet<ShippingEvent> ShippingEvents => Set<ShippingEvent>();
@@ -27,8 +26,7 @@ public partial class ApplicationDbContext
             entity.Property(x => x.Proposal).HasMaxLength(30);
             entity.Property(x => x.Outcome).HasMaxLength(30);
             entity.Property(x => x.RowVersion).IsRowVersion();
-            entity.HasIndex(x => x.OrderId).IsUnique()
-                .HasFilter("[IsOpen] = 1 AND [WorkflowEnabled] = 1 AND [orderId] IS NOT NULL");
+            entity.HasIndex(x => x.OrderId).IsUnique().HasFilter("[IsOpen] = 1 AND [WorkflowEnabled] = 1 AND [orderId] IS NOT NULL");
             entity.HasIndex(x => new { x.WorkflowEnabled, x.Status, x.SellerResponseDueAt });
         });
         modelBuilder.Entity<DisputeEntry>(entity =>

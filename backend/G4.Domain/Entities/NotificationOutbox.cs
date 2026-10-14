@@ -1,5 +1,4 @@
 namespace G4.Domain.Entities;
-
 public sealed class NotificationOutbox
 {
     public int Id { get; set; }

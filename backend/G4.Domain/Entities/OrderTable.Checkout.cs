@@ -1,5 +1,4 @@
 namespace G4.Domain.Entities;
-
 public partial class OrderTable
 {
     public int? SellerId { get; set; }

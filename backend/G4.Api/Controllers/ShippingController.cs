@@ -1,20 +1,24 @@
-
 using G4.Contracts.Checkout;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace G4.Api.Controllers;
-
 [ApiController]
 [Route("api")]
-public sealed class ShippingController(ApplicationDbContext db, IShipmentService shipping, CarrierAvailabilityState carrierState,
-    IHostEnvironment environment) : ApiControllerBase(environment)
+public sealed class ShippingController(
+    ApplicationDbContext db,
+    IShipmentService shipping,
+    CarrierAvailabilityState carrierState,
+    IHostEnvironment environment
+) : ApiControllerBase(environment)
 {
     [HttpPost("seller/orders/{id:int}/ship")]
     public async Task<IActionResult> Ship(int id, CancellationToken ct)
     {
-        if (!IsAvailable || !HasRole("seller")) return StatusCode(403);
-        if (!await db.OrderTables.AnyAsync(o => o.Id == id && o.SellerId == CurrentUserId, ct)) return StatusCode(403);
+        if (!IsAvailable || !HasRole("seller"))
+            return StatusCode(403);
+        if (!await db.OrderTables.AnyAsync(o => o.Id == id && o.SellerId == CurrentUserId, ct))
+            return StatusCode(403);
         var shipment = await shipping.CreateOutboundAsync(id, ct);
         return Ok(new { shipment.Id, shipment.Status, shipment.TrackingNumber });
     }
@@ -22,9 +26,12 @@ public sealed class ShippingController(ApplicationDbContext db, IShipmentService
     [HttpPost("carrier/fail-next")]
     public IActionResult FailNext(CarrierFailureRequest request)
     {
-        if (!IsAvailable || !HasRole("seller")) return StatusCode(403);
-        if (!db.OrderTables.Any(o => o.Id == request.OrderId && o.SellerId == CurrentUserId)) return StatusCode(403);
-        if (request.Direction is not ("Outbound" or "Return")) return BadRequest();
+        if (!IsAvailable || !HasRole("seller"))
+            return StatusCode(403);
+        if (!db.OrderTables.Any(o => o.Id == request.OrderId && o.SellerId == CurrentUserId))
+            return StatusCode(403);
+        if (request.Direction is not ("Outbound" or "Return"))
+            return BadRequest();
         carrierState.FailNext($"ship-{request.OrderId}-{request.Direction.ToLowerInvariant()}", request.Count);
         return Ok();
     }
@@ -32,31 +39,46 @@ public sealed class ShippingController(ApplicationDbContext db, IShipmentService
     [HttpPost("shipments/{id:int}/events")]
     public async Task<IActionResult> AddEvent(int id, ShippingEventRequest request, CancellationToken ct)
     {
-        if (!IsAvailable || !HasRole("shipper")) return StatusCode(403);
-        if (!await db.ShippingInfos.AnyAsync(s => s.Id == id, ct)) return NotFound();
-        var applied = await shipping.RecordEventAsync(id, request.EventId ?? Guid.NewGuid().ToString("N"),
-            request.Status, request.Location, request.Note, ct, CurrentUserId);
+        if (!IsAvailable || !HasRole("shipper"))
+            return StatusCode(403);
+        if (!await db.ShippingInfos.AnyAsync(s => s.Id == id, ct))
+            return NotFound();
+        var applied = await shipping.RecordEventAsync(
+            id,
+            request.EventId ?? Guid.NewGuid().ToString("N"),
+            request.Status,
+            request.Location,
+            request.Note,
+            ct,
+            CurrentUserId
+        );
         return Ok(new { applied });
     }
 
     [HttpGet("shipper/shipments")]
     public async Task<IActionResult> Shipments(CancellationToken ct)
     {
-        if (!IsAvailable || !HasRole("shipper")) return StatusCode(403);
+        if (!IsAvailable || !HasRole("shipper"))
+            return StatusCode(403);
         return Ok((await G4.Infrastructure.Shipping.ShipperShipmentList.ReadAsync(db, CurrentUserId, "mine", 1, 50, ct)).Items);
     }
 
     [HttpGet("shipper/shipments/page")]
-    public async Task<IActionResult> ShipmentsPage([FromQuery] int page = 1, [FromQuery] int pageSize = 10,
-        [FromQuery] string filter = "pending", [FromQuery] string? search = null,
-        [FromQuery] string status = "all", [FromQuery] string direction = "all",
-        CancellationToken ct = default)
+    public async Task<IActionResult> ShipmentsPage(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string filter = "pending",
+        [FromQuery] string? search = null,
+        [FromQuery] string status = "all",
+        [FromQuery] string direction = "all",
+        CancellationToken ct = default
+    )
     {
-        if (!IsAvailable || !HasRole("shipper")) return StatusCode(403);
-        if (filter is not ("pending" or "mine")) return BadRequest(new { error = "Bộ lọc vận đơn không hợp lệ." });
-        if (search?.Length > 100 || direction is not ("all" or "Outbound" or "Return") ||
-            status is not ("all" or "LabelCreated" or "PickedUp" or "InTransit" or "OutForDelivery" or "Delivered" or
-                "DeliveryFailed" or "ReturningToSender" or "ReturnedToSeller"))
+        if (!IsAvailable || !HasRole("shipper"))
+            return StatusCode(403);
+        if (filter is not ("pending" or "mine"))
+            return BadRequest(new { error = "Bộ lọc vận đơn không hợp lệ." });
+        if (search?.Length > 100 || direction is not ("all" or "Outbound" or "Return") || status is not ("all" or "LabelCreated" or "PickedUp" or "InTransit" or "OutForDelivery" or "Delivered" or "DeliveryFailed" or "ReturningToSender" or "ReturnedToSeller"))
             return BadRequest(new { error = "Thông tin tìm kiếm hoặc bộ lọc không hợp lệ." });
         return Ok(await G4.Infrastructure.Shipping.ShipperShipmentList.ReadAsync(db, CurrentUserId, filter, page, pageSize, ct, search, status, direction));
     }
@@ -64,7 +86,8 @@ public sealed class ShippingController(ApplicationDbContext db, IShipmentService
     [HttpPost("shipper/shipments/{id:int}/claim")]
     public async Task<IActionResult> Claim(int id, CancellationToken ct)
     {
-        if (!IsAvailable || !HasRole("shipper")) return StatusCode(403);
+        if (!IsAvailable || !HasRole("shipper"))
+            return StatusCode(403);
         var result = await shipping.ClaimAsync(id, CurrentUserId, ct);
         return Ok(new { result.Id, result.ShipperId, result.ClaimedAt });
     }

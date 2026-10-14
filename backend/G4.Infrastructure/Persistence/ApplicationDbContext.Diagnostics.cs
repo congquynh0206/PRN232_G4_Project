@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
 namespace G4.Infrastructure.Persistence;
-
 public partial class ApplicationDbContext
 {
     public DbSet<IntegrationLog> IntegrationLogs => Set<IntegrationLog>();

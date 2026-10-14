@@ -1,5 +1,4 @@
 namespace G4.Domain.Rules;
-
 public static class OrderState
 {
     private static readonly Dictionary<(string, string), string> Allowed = new()
@@ -16,10 +15,6 @@ public static class OrderState
         [("Shipping", "Deliver")] = "Delivered",
         [("Delivered", "Close")] = "Closed"
     };
-
-    public static bool TryNext(string current, string action, out string next) =>
-        Allowed.TryGetValue((current, action), out next!);
-
-    public static string Next(string current, string action) =>
-        TryNext(current, action, out var next) ? next : throw new InvalidOperationException($"Cannot {action} from {current}");
+    public static bool TryNext(string current, string action, out string next) => Allowed.TryGetValue((current, action), out next!);
+    public static string Next(string current, string action) => TryNext(current, action, out var next) ? next : throw new InvalidOperationException($"Cannot {action} from {current}");
 }

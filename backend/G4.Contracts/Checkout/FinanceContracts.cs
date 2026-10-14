@@ -1,9 +1,7 @@
 namespace G4.Contracts.Checkout;
-
 public sealed record PayoutRequest(decimal Amount, string Key, bool SimulateFailure = false);
 public sealed record FundHoldRequest(string Reason, string[] EvidenceLinks);
 public sealed record FundHoldResolutionRequest(bool ReleaseToSeller, string Reason);
-
 public sealed record SellerLevelProgress(
     int CompletedOrders,
     decimal PositiveFeedbackRate,
@@ -11,8 +9,8 @@ public sealed record SellerLevelProgress(
     int NextLevel,
     int RequiredOrders,
     decimal RequiredFeedbackRate,
-    decimal RequiredOnTimeRate);
-
+    decimal RequiredOnTimeRate
+);
 public sealed record FinanceTransactionView(
     long Id,
     int? OrderId,
@@ -21,8 +19,8 @@ public sealed record FinanceTransactionView(
     decimal Amount,
     string Currency,
     string? Description,
-    DateTime CreatedAt);
-
+    DateTime CreatedAt
+);
 public sealed record PayoutView(
     int Id,
     decimal Amount,
@@ -31,8 +29,8 @@ public sealed record PayoutView(
     string DestinationMasked,
     string? BankReferenceId,
     DateTime CreatedAt,
-    DateTime? CompletedAt);
-
+    DateTime? CompletedAt
+);
 public sealed record SellerFinanceSummary(
     int SellerId,
     int Level,
@@ -47,4 +45,5 @@ public sealed record SellerFinanceSummary(
     decimal Negative,
     SellerLevelProgress LevelProgress,
     IReadOnlyList<FinanceTransactionView> Transactions,
-    IReadOnlyList<PayoutView> Payouts);
+    IReadOnlyList<PayoutView> Payouts
+);

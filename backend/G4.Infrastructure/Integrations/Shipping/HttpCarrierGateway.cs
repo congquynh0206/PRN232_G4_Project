@@ -4,7 +4,6 @@ using Microsoft.Extensions.Configuration;
 using G4.Infrastructure.Diagnostics;
 
 namespace G4.Infrastructure.Integrations.Shipping;
-
 public sealed class HttpCarrierGateway(HttpClient http, IConfiguration config, IIntegrationLogWriter? logs = null) : ICarrierGateway
 {
     public async Task<string> CreateLabelAsync(int orderId, string direction, string key, CancellationToken ct)
@@ -19,12 +18,17 @@ public sealed class HttpCarrierGateway(HttpClient http, IConfiguration config, I
         {
             using var response = await http.SendAsync(request, ct);
             call.HttpStatus = (int)response.StatusCode;
-            if (!response.IsSuccessStatusCode) throw new HttpRequestException($"Carrier returned {response.StatusCode}", null, response.StatusCode);
+            if (!response.IsSuccessStatusCode)
+                throw new HttpRequestException($"Carrier returned {response.StatusCode}", null, response.StatusCode);
             using var body = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
             var tracking = body.RootElement.GetProperty("trackingNumber").GetString() ?? throw new HttpRequestException("Tracking number missing");
             await call.CompleteAsync("Succeeded", providerReference: tracking, ct: ct);
             return tracking;
         }
-        catch (Exception ex) { await call.FailAsync(ex, ct); throw; }
+        catch (Exception ex)
+        {
+            await call.FailAsync(ex, ct);
+            throw;
+        }
     }
 }
