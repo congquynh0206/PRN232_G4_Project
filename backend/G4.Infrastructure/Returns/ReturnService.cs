@@ -2,6 +2,7 @@ using G4.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using G4.Infrastructure.Diagnostics;
+using G4.Contracts.Checkout;
 
 namespace G4.Infrastructure.Returns;
 public sealed class ReturnService(
@@ -16,6 +17,49 @@ public sealed class ReturnService(
 {
     private DateTime Now => (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime;
     private int ReceiptSeconds => Math.Max(1, config?.GetValue("Returns:ReceiptSeconds", 172800) ?? 172800);
+
+    public Task<ReturnQuote> QuoteAsync(int orderId, string reasonCode, CancellationToken ct = default) =>
+        ReturnQuoteBuilder.BuildAsync(db, orderId, reasonCode, Now, ct);
+
+    public async Task<ReturnRequest> RequestPricedReturnAsync(int orderId, ReturnRequestInput input, CancellationToken ct = default)
+    {
+        _ = ReturnPricing.ReasonLabel(input.ReasonCode);
+        if (string.IsNullOrWhiteSpace(input.Key) || input.Key.Length > 100 || string.IsNullOrWhiteSpace(input.PricingFingerprint)
+            || input.PricingFingerprint.Length != 64 || (input.Description?.Length ?? 0) > 2000)
+            throw new ArgumentException("Yêu cầu cần khóa, báo giá đã xác nhận và mô tả tối đa 2.000 ký tự.");
+        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction == null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
+        await LockOrderAsync(orderId, ct);
+        var existing = await db.ReturnRequests.SingleOrDefaultAsync(x => x.OrderId == orderId || x.RequestKey == input.Key, ct);
+        if (existing != null)
+        {
+            if (existing.OrderId != orderId || existing.RequestKey != input.Key || existing.ReasonCode != input.ReasonCode
+                || existing.Description != (input.Description ?? "").Trim() || existing.PricingFingerprint != input.PricingFingerprint)
+                throw new InvalidOperationException("Đơn hoặc khóa đã có yêu cầu khác. Tải lại chi tiết đơn.");
+            return existing;
+        }
+        var quote = await QuoteAsync(orderId, input.ReasonCode, ct);
+        if (!quote.CanRequest) throw new InvalidOperationException(quote.BlockReason);
+        if (quote.PricingFingerprint != input.PricingFingerprint)
+            throw new InvalidOperationException("Khoản hoàn hoặc phí đã thay đổi. Xem lại báo giá trước khi xác nhận.");
+        var order = await db.OrderTables.SingleAsync(x => x.Id == orderId, ct);
+        var request = new ReturnRequest
+        {
+            OrderId = orderId, UserId = order.BuyerId, Reason = quote.ReasonLabel, Description = (input.Description ?? "").Trim(),
+            Status = "Requested", CreatedAt = Now, ReturnDeadline = Now.AddDays(7), PricingPolicyVersion = 1,
+            ReasonCode = input.ReasonCode, RequestKey = input.Key, PricingFingerprint = quote.PricingFingerprint,
+            ShippingPayer = quote.ShippingPayer, GoodsPaidSnapshot = quote.GoodsPaid,
+            OutboundShippingRetained = quote.OutboundShippingRetained, ReturnShippingFee = quote.ReturnShippingFee,
+            BuyerReturnShippingFee = quote.BuyerReturnShippingFee, BuyerRefundAmount = quote.BuyerRefund,
+            PlatformSubsidyReversal = quote.PlatformSubsidyReversal, SellerGrossRefund = quote.SellerGrossRefund,
+            WeightKgSnapshot = quote.WeightKg, PickupAddressSnapshot = quote.PickupAddress, DeliveryAddressSnapshot = quote.DeliveryAddress
+        };
+        db.ReturnRequests.Add(request);
+        order.UpdatedAt = Now;
+        await db.SaveChangesAsync(ct);
+        if (tx != null) await tx.CommitAsync(ct);
+        return request;
+    }
 
     public async Task<ReturnRequest> RequestReturnAsync(int orderId, string reason, CancellationToken ct = default)
     {
@@ -46,6 +90,27 @@ public sealed class ReturnService(
             CreatedAt = Now,
             ReturnDeadline = Now.AddDays(7)
         };
+        // Accepted full-refund agreements have no buyer postage deduction. Old orders
+        // without enough shipping snapshots keep their pre-upgrade treatment.
+        if (agreedReturn && ReturnQuoteBuilder.HasRouteSnapshot(order))
+        {
+            var q = await ReturnQuoteBuilder.BuildAgreementAsync(db, order, ct);
+            request.PricingPolicyVersion = 1;
+            request.ReasonCode = q.ReasonCode;
+            request.RequestKey = $"agreement-return:{orderId}";
+            request.PricingFingerprint = q.PricingFingerprint;
+            request.ShippingPayer = q.ShippingPayer;
+            request.GoodsPaidSnapshot = q.GoodsPaid;
+            request.OutboundShippingRetained = q.OutboundShippingRetained;
+            request.ReturnShippingFee = q.ReturnShippingFee;
+            request.BuyerReturnShippingFee = q.BuyerReturnShippingFee;
+            request.BuyerRefundAmount = q.BuyerRefund;
+            request.PlatformSubsidyReversal = q.PlatformSubsidyReversal;
+            request.SellerGrossRefund = q.SellerGrossRefund;
+            request.WeightKgSnapshot = q.WeightKg;
+            request.PickupAddressSnapshot = q.PickupAddress;
+            request.DeliveryAddressSnapshot = q.DeliveryAddress;
+        }
         db.ReturnRequests.Add(request);
         order.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
@@ -56,8 +121,8 @@ public sealed class ReturnService(
 
     public async Task<ReturnRequest> ApproveAsync(int returnId, CancellationToken ct = default)
     {
+        var orderId = await db.ReturnRequests.AsNoTracking().Where(r => r.Id == returnId).Select(r => r.OrderId!.Value).SingleAsync(ct);
         await using var transaction = db.Database.IsRelational() && db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
-        var orderId = await db.ReturnRequests.Where(r => r.Id == returnId).Select(r => r.OrderId!.Value).SingleAsync(ct);
         await LockOrderAsync(orderId, ct);
         var request = await db.ReturnRequests.SingleAsync(r => r.Id == returnId, ct);
         await db.Entry(request).ReloadAsync(ct);
@@ -89,13 +154,27 @@ public sealed class ReturnService(
 
     public async Task<ReturnRequest> RetryShipmentAsync(int returnId, CancellationToken ct = default)
     {
+        var orderId = await db.ReturnRequests.AsNoTracking().Where(x => x.Id == returnId).Select(x => x.OrderId!.Value).SingleAsync(ct);
+        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction == null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
+        await LockOrderAsync(orderId, ct);
         var request = await db.ReturnRequests.SingleAsync(r => r.Id == returnId, ct);
+        await db.Entry(request).ReloadAsync(ct);
         if (request.Status is not ("Approved" or "ReturnShipping"))
             throw new InvalidOperationException("Return must be approved before creating its shipment");
         var shipment = await new ShipmentService(db, carrier).CreateReturnAsync(request.OrderId!.Value, ct);
         if (shipment.TrackingNumber is not null)
+        {
             request.Status = "ReturnShipping";
+            if (request.PricingPolicyVersion == 1)
+            {
+                if (finance == null) throw new InvalidOperationException("Return shipping requires finance service");
+                await finance.ApplyReturnShippingCostAsync(orderId, returnId, request.ReturnShippingFee, ct);
+                request.ShippingCostChargedAt ??= Now;
+            }
+        }
         await db.SaveChangesAsync(ct);
+        if (tx != null) await tx.CommitAsync(ct);
         return request;
     }
 
@@ -103,7 +182,12 @@ public sealed class ReturnService(
     {
         if (string.IsNullOrWhiteSpace(reason))
             throw new ArgumentException("Decision reason required");
+        var orderId = await db.ReturnRequests.AsNoTracking().Where(x => x.Id == returnId).Select(x => x.OrderId!.Value).SingleAsync(ct);
+        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction == null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
+        await LockOrderAsync(orderId, ct);
         var request = await db.ReturnRequests.SingleAsync(r => r.Id == returnId, ct);
+        await db.Entry(request).ReloadAsync(ct);
         if (request.Status != "Requested")
             throw new InvalidOperationException("Return cannot be rejected");
         request.Status = "Rejected";
@@ -111,13 +195,14 @@ public sealed class ReturnService(
         request.DecidedAt = DateTime.UtcNow;
         (await db.OrderTables.SingleAsync(o => o.Id == request.OrderId, ct)).UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
+        if (tx != null) await tx.CommitAsync(ct);
         return request;
     }
 
     public async Task<ReturnRequest> MarkReceivedAsync(int returnId, CancellationToken ct = default)
     {
+        var orderId = await db.ReturnRequests.AsNoTracking().Where(r => r.Id == returnId).Select(r => r.OrderId!.Value).SingleAsync(ct);
         await using var transaction = db.Database.IsRelational() && db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
-        var orderId = await db.ReturnRequests.Where(r => r.Id == returnId).Select(r => r.OrderId!.Value).SingleAsync(ct);
         await LockOrderAsync(orderId, ct);
         var request = await db.ReturnRequests.SingleAsync(r => r.Id == returnId, ct);
         await db.Entry(request).ReloadAsync(ct);
@@ -262,6 +347,7 @@ public sealed class ReturnService(
         }
 
         var order = await db.OrderTables.SingleAsync(o => o.Id == orderId, ct);
+        ReturnRequest? pricedReturn = null;
         if (reason == "return")
         {
             await EnsureRefundAllowedAsync(orderId, ct);
@@ -269,6 +355,7 @@ public sealed class ReturnService(
             if (request.Status is not ("ReceivedBySeller" or "RefundFailed" or "RefundPending"))
                 throw new InvalidOperationException("Return has not been received");
             request.Status = "RefundPending";
+            if (request.PricingPolicyVersion == 1) pricedReturn = request;
         }
 
         if (reason == "cancel" && order.Status != "Cancelled")
@@ -282,33 +369,50 @@ public sealed class ReturnService(
 
         if (reason == "dispute" && !await db.SellerSettlements.AnyAsync(s => s.OrderId == orderId && s.Status == "RefundPending", ct))
             throw new InvalidOperationException("Dispute has not been resolved for the buyer");
+        if (reason == "dispute")
+            pricedReturn = await db.ReturnRequests.SingleOrDefaultAsync(r => r.OrderId == orderId && r.PricingPolicyVersion == 1
+                && r.Status == "Disputed" && r.ShippingCostChargedAt != null, ct);
         var payment = await db.Payments.SingleAsync(p => p.OrderId == orderId && p.Status == "Succeeded", ct);
         var paid = payment.Amount ?? 0m;
         var alreadyRefunded = await db.Refunds.Where(r => r.OrderId == orderId && r.Status == "Succeeded").SumAsync(r => r.Amount, ct);
         var promotionZeroPayment = paid == 0m && payment.Amount == 0m && payment.Method == "Promotion" && order.PricingSchemaVersion == 1 && order.TotalPrice == 0m;
         if (paid < 0 || paid == 0m && !promotionZeroPayment || alreadyRefunded > paid || paid > 0 && paid == alreadyRefunded || await db.Refunds.AnyAsync(r => r.OrderId == orderId && r.Status == "Succeeded" && r.Reason != "shipping-adjustment", ct) || promotionZeroPayment && await db.Refunds.AnyAsync(r => r.OrderId == orderId && r.Status == "Succeeded", ct))
             throw new InvalidOperationException("Refund would exceed captured amount");
+        var amount = pricedReturn != null && reason == "return" ? pricedReturn.BuyerRefundAmount : paid - alreadyRefunded;
+        if (amount < 0 || amount > paid - alreadyRefunded)
+            throw new InvalidOperationException("Khoản hoàn vượt số tiền buyer còn có thể nhận.");
+        if (pricedReturn != null && pricedReturn.ShippingCostChargedAt == null)
+            throw new InvalidOperationException("Phí vận chuyển trả hàng chưa được ghi nhận.");
         var refund = existing ?? new Refund
         {
             OrderId = orderId,
             PaymentId = payment.Id,
-            ReturnRequestId = returnRequestId,
-            Amount = paid - alreadyRefunded,
+            ReturnRequestId = pricedReturn?.Id ?? returnRequestId,
+            Amount = amount,
             Currency = order.Currency,
             Reason = reason,
             IdempotencyKey = key,
             CreatedAt = DateTime.UtcNow
         };
+        if (existing == null && pricedReturn != null)
+        {
+            refund.ReturnPolicyVersion = 1;
+            var reversed = -await db.FinancialTransactions.Where(x => x.OrderId == orderId && x.Type == "PlatformSubsidyReversal").SumAsync(x => x.Amount, ct);
+            refund.PlatformSubsidyReversalAmount = reason == "return" ? pricedReturn.PlatformSubsidyReversal
+                : Math.Max(0m, (order.PricingSchemaVersion == 1 ? order.PlatformSubsidy : 0m) - reversed);
+            refund.BuyerReturnShippingRecovery = reason == "return" ? pricedReturn.BuyerReturnShippingFee : 0m;
+            refund.SellerGrossRefundAmount = refund.Amount + refund.PlatformSubsidyReversalAmount + refund.BuyerReturnShippingRecovery;
+        }
         if (existing is null)
             db.Refunds.Add(refund);
         refund.Status = "Pending";
         await db.SaveChangesAsync(ct);
         try
         {
-            refund.ProviderRefundId = promotionZeroPayment ? $"INTERNAL-{key}" : await refunds.RefundAsync(payment, refund.Amount, key, ct);
-            if (promotionZeroPayment)
+            refund.ProviderRefundId = refund.Amount == 0 ? $"INTERNAL-{key}" : await refunds.RefundAsync(payment, refund.Amount, key, ct);
+            if (refund.Amount == 0)
             {
-                await using var internalRefund = new IntegrationCallRecorder(logs).Start("Promotion", "Refund", "Internal");
+                await using var internalRefund = new IntegrationCallRecorder(logs).Start(pricedReturn == null ? "Promotion" : "Return", "Refund", "Internal");
                 await internalRefund.CompleteAsync("Succeeded", providerReference: refund.ProviderRefundId, ct: ct);
             }
 

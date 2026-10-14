@@ -1,0 +1,26 @@
+<dialog id="return-dialog" class="action-dialog" aria-labelledby="return-title" aria-describedby="return-context">
+    <form id="return-form">
+        <h2 id="return-title">Yêu cầu trả toàn bộ hàng</h2>
+        <p id="return-context"></p>
+        <div id="return-error" role="alert" tabindex="-1" hidden></div>
+        <fieldset id="return-fields">
+            <label for="return-reason">Lý do trả hàng</label>
+            <select id="return-reason" required>
+                <option value="WrongItem">Sai hàng</option>
+                <option value="NotAsDescribed">Sai mô tả</option>
+                <option value="DamagedOrMissing">Hàng hỏng hoặc thiếu do người bán</option>
+                <option value="ChangedMind">Đổi ý</option>
+                <option value="OtherBuyerReason">Lý do khác không do người bán</option>
+            </select>
+            <label for="return-description">Mô tả thêm (không bắt buộc)</label>
+            <textarea id="return-description" rows="3" maxlength="2000"></textarea>
+            <div id="return-quote" aria-live="polite" aria-busy="false"></div>
+            <button type="button" id="return-requote">Tính lại khoản hoàn</button>
+            <p class="small">Seller cần duyệt và nhận hàng trả hợp lệ trước khi hệ thống thực hiện hoàn tiền.</p>
+        </fieldset>
+        <div class="dialog-actions">
+            <button type="button" id="return-close">Đóng</button>
+            <button type="submit" class="primary" id="return-confirm" disabled>Xác nhận khoản hoàn và gửi</button>
+        </div>
+    </form>
+</dialog>

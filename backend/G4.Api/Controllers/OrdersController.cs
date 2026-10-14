@@ -81,11 +81,13 @@ public sealed class OrdersController(
         var events = await db.ShippingEvents.AsNoTracking().Where(e => shipmentIds.Contains(e.ShippingInfoId)).OrderBy(e => e.OccurredAt)
             .Select(e => new { e.ShippingInfoId, e.Status, e.Location, e.Note, e.OccurredAt })
             .ToListAsync(ct);
-        var returnRequest = await db.ReturnRequests.AsNoTracking().Where(r => r.OrderId == id).Select(r => new { r.Id, r.Reason, r.Status, r.DecisionReason, r.CreatedAt, r.ReceivedAt, r.ConfirmationDueAt })
+        var returnRequest = await db.ReturnRequests.AsNoTracking().Where(r => r.OrderId == id).Select(r => new { r.Id, r.Reason, r.Status, r.DecisionReason, r.CreatedAt, r.ReceivedAt, r.ConfirmationDueAt,
+            r.PricingPolicyVersion, r.ReasonCode, r.Description, r.ShippingPayer, r.GoodsPaidSnapshot, r.OutboundShippingRetained,
+            r.ReturnShippingFee, r.BuyerReturnShippingFee, r.BuyerRefundAmount, r.PlatformSubsidyReversal, r.ShippingCostChargedAt })
             .SingleOrDefaultAsync(ct);
-        var refunds = await db.Refunds.AsNoTracking().Where(r => r.OrderId == id).Select(r => new { r.Id, r.Amount, r.Status, r.Reason, r.CreatedAt, r.CompletedAt })
+        var refunds = await db.Refunds.AsNoTracking().Where(r => r.OrderId == id).Select(r => new { r.Id, r.Amount, r.Status, r.Reason, r.CreatedAt, r.CompletedAt, r.ReturnRequestId })
             .ToListAsync(ct);
-        var settlement = await db.SellerSettlements.AsNoTracking().Where(s => s.OrderId == id).Select(s => new { s.GrossAmount, s.PlatformFeeAmount, s.NetAmount, s.ProcessingAmount, s.RefundedAmount, s.FeeCreditAmount, s.Status, s.ReleaseAt, s.ReleasedAt, s.ShippingAdjustmentCost, s.HoldStartedAt, s.HoldSecondsSnapshot, s.SellerLevelSnapshot, s.HoldPolicyVersion, s.FeePercentSnapshot })
+        var settlement = await db.SellerSettlements.AsNoTracking().Where(s => s.OrderId == id).Select(s => new { s.GrossAmount, s.PlatformFeeAmount, s.NetAmount, s.ProcessingAmount, s.RefundedAmount, s.FeeCreditAmount, s.Status, s.ReleaseAt, s.ReleasedAt, s.ShippingAdjustmentCost, s.HoldStartedAt, s.HoldSecondsSnapshot, s.SellerLevelSnapshot, s.HoldPolicyVersion, s.FeePercentSnapshot, s.ReturnShippingCost, s.ReturnShippingRecovery })
             .SingleOrDefaultAsync(ct);
         var dispute = await db.Disputes.AsNoTracking().Where(d => d.OrderId == id && d.WorkflowEnabled).OrderByDescending(d => d.Id)
             .Select(d => new { d.Id, d.Status, d.IsOpen, d.Outcome })

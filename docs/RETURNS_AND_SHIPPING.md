@@ -17,17 +17,17 @@ Khởi động lại API và frontend sau khi build. API Development dùng `Retu
 ## Trả hàng thường
 
 1. Buyer đặt đơn, thanh toán, seller tạo vận đơn; shipper nhận vận đơn chiều đi và tracking đến `Delivered`.
-2. Buyer bấm **Yêu cầu trả hàng** trong vòng 7 ngày từ giao thành công. Trạng thái `Requested` chỉ chờ seller, chưa tự hoàn tiền.
+2. Buyer bấm **Yêu cầu trả hàng** trong vòng 7 ngày từ giao thành công, chọn lý do và xác nhận báo giá gồm refund/phí chiều về trước khi gửi. Trạng thái `Requested` chỉ chờ seller, chưa tự hoàn tiền. Xem [RETURN_PRICING.md](RETURN_PRICING.md).
 3. Seller duyệt. Tiền seller chuyển sang `OnHold`; hệ thống tạo vận đơn chiều trả. Nếu carrier thất bại, bấm **Thử tạo vận đơn trả lại**.
 4. Shipper nhận riêng vận đơn chiều trả, cập nhật `PickedUp → InTransit → OutForDelivery → Delivered`.
 5. Từ thời điểm chiều trả `Delivered`, seller có 45 giây ở Development để kiểm tra hàng. Seller bấm **Xác nhận hàng hợp lệ và hoàn tiền** thì hoàn ngay. Nếu seller không phản hồi, worker tự xác nhận và hoàn tiền ở lần kiểm tra sau hạn.
-6. Kiểm tra yêu cầu `Refunded`, đơn `Closed`, một refund `Succeeded`, settlement `Refunded`. Không cần bấm thêm nút hoàn tiền. Gateway lỗi giữ khoản tiền và trạng thái có thể thử lại; worker dùng lại refund và idempotency key.
+6. Kiểm tra yêu cầu `Refunded`, đơn `Closed`, một refund `Succeeded` đúng báo giá. Với lỗi seller, phần SellerGross bị hoàn toàn bộ; với buyer đổi ý, tiền ship chiều đi còn lại được giải phóng theo lịch gốc nên settlement có thể về Processing/Available. Không cần bấm thêm nút hoàn tiền. Gateway lỗi giữ khoản tiền và trạng thái có thể thử lại; worker dùng lại refund và idempotency key.
 
 Nếu hàng trả có vấn đề, seller bấm **Báo vấn đề hàng trả** trước hạn và nhập mô tả cùng 1–10 link bằng chứng hợp lệ. Yêu cầu trả thành `Disputed`, hồ sơ chuyển admin (`Escalated`), tiền tiếp tục giữ và worker dừng tự hoàn. Admin quyết định buyer thắng thì refund; seller thắng thì đóng yêu cầu trả và giải phóng khoản giữ theo điều kiện tài chính.
 
 Buyer không mở một hồ sơ tranh chấp song song trong khi yêu cầu trả thường đang xử lý. Trả hàng theo phương án `ReturnRefund` đã được hai bên thống nhất tiếp tục dùng workflow tranh chấp riêng; cả hai luồng dùng cùng cơ chế receipt/refund để tránh hoàn hai lần.
 
-Phần này giữ chính sách hoàn toàn bộ số tiền thanh toán hiện tại. Chia phí ship trả theo lý do, không hoàn phí ship chiều đi khi buyer đổi ý và hoàn một phần chưa thuộc thay đổi này.
+Từ `AddReasonBasedReturnPricing`, yêu cầu mới chia phí chiều về theo lý do, không hoàn phí chiều đi khi buyer đổi ý, và lưu báo giá buyer đã xác nhận. Yêu cầu cũ giữ chính sách cũ; xem [RETURN_PRICING.md](RETURN_PRICING.md). Admin chọn hoàn một phần hoặc tùy chỉnh bên chịu phí trong phán quyết là phần còn lại cần triển khai.
 
 ## Phí ship theo khối lượng
 

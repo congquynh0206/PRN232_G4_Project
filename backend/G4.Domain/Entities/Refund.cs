@@ -13,4 +13,8 @@ public sealed class Refund
     public string Status { get; set; } = "Pending";
     public DateTime CreatedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
+    public int ReturnPolicyVersion { get; set; }
+    public decimal SellerGrossRefundAmount { get; set; }
+    public decimal PlatformSubsidyReversalAmount { get; set; }
+    public decimal BuyerReturnShippingRecovery { get; set; }
 }

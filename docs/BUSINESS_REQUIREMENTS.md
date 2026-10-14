@@ -170,7 +170,9 @@ Code hiện có đăng nhập/phân quyền, checkout, coupon phần trăm cơ b
 
 Đã chuẩn hóa phí mặc định 12% + 0,30 USD, cấu hình phí admin có thời điểm hiệu lực và lịch sử, hold Level 1/2 từ Delivered, và Instant Level 3 tự vào ví từ payment thành công. Settlement đã tồn tại trước migration giữ nguyên phí và lịch mở khóa cũ; chính sách mới áp dụng cho settlement tạo sau nâng cấp. Xem [SELLER_FINANCE.md](SELLER_FINANCE.md).
 
-Các phần trong tài liệu này **chưa được coi là đã triển khai đầy đủ** gồm: chia phí ship trả theo lý do và hạn chế hoàn phí chiều đi; hoàn một phần do admin chọn; tiêu chí level mở rộng; nợ xấu, thu nợ giả lập và blacklist. Khi phát triển, cần migration, API, giao diện và kiểm thử tương ứng; giữ dữ liệu SQL Server hiện có bằng migration thay vì chạy lại baseline.
+Đã bổ sung chia phí trả hàng theo lý do, không hoàn ship chiều đi khi buyer đổi ý, báo giá và snapshot buyer xác nhận, ledger postage/subsidy/fee credit và giải phóng phần hold còn lại; xem [RETURN_PRICING.md](RETURN_PRICING.md). Yêu cầu đã tồn tại giữ chính sách trước nâng cấp.
+
+Các phần trong tài liệu này **chưa được coi là đã triển khai đầy đủ** gồm: hoàn một phần do admin chọn và tùy chỉnh bên chịu phí trong phán quyết; tiêu chí level mở rộng; nợ xấu, thu nợ giả lập và blacklist. Khi phát triển, cần migration, API, giao diện và kiểm thử tương ứng; giữ dữ liệu SQL Server hiện có bằng migration thay vì chạy lại baseline.
 
 ## 14. Các quy ước đề xuất để nhóm duyệt
 

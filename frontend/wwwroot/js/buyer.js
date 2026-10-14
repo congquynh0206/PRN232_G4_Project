@@ -134,6 +134,10 @@
     const id = Number(b.dataset.id),
       kind = b.dataset.action;
     if (kind === 'hold') return G4.Disputes.openNew(id);
+    if (kind === 'return') return G4.Returns.open(id, async () => {
+      await loadOrders(state.page, id);
+      await showOrder(id);
+    });
     const titles = {
       cancel: 'Xác nhận hủy đơn',
       return: 'Yêu cầu trả hàng',
@@ -172,7 +176,6 @@
       if (result.status !== 'Succeeded')
         throw new Error('Thanh toán chưa thành công. Vui lòng thử lại.');
     } else if (kind === 'cancel') await api(`orders/${id}/cancel`, 'POST');
-    else if (kind === 'return') await api(`orders/${id}/returns`, 'POST', { reason: input.reason });
     message('Đã lưu thay đổi cho đơn hàng.', true);
     await loadOrders(state.page, id);
     await showOrder(id);
@@ -198,6 +201,7 @@
     await showOrder(id);
   });
   G4.Notifications.init('buyer');
+  G4.Returns.init();
   G4.Disputes.init('buyer', async (id) => {
     await loadOrders(state.page, id);
   });

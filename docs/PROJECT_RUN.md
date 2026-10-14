@@ -70,6 +70,8 @@ Nếu tạo vận đơn trả thất bại, seller bấm **Thử tạo vận đ�
 
 Tracking hai chiều dùng `ShippingInfo.Direction` và `ShippingEvent.ShippingInfoId`. Phần kg, receipt deadline và shipper nhận vận đơn cần migration `AddReturnWeightAndShipmentClaims`; chạy `dotnet ef database update` và seed mới trước khi dùng. Xem hướng dẫn chuẩn bị và test tại [RETURNS_AND_SHIPPING.md](RETURNS_AND_SHIPPING.md).
 
+Trả hàng theo lý do cần migration `20261014061325_AddReasonBasedReturnPricing`. Buyer chọn lý do và xem tiền hoàn trước khi xác nhận: lỗi seller hoàn toàn bộ khoản buyer còn được nhận và seller chịu phí trả; đổi ý/lý do buyer không hoàn phí chiều đi, trừ phí trả khỏi tiền hàng. Báo giá được lưu cố định, vận đơn/refund retry không ghi phí hai lần; yêu cầu cũ giữ chính sách cũ. Xem [RETURN_PRICING.md](RETURN_PRICING.md) và SQL [return-pricing-migration.sql](../database/return-pricing-migration.sql). Dừng API, chạy migration rồi khởi động lại API/frontend mới.
+
 Kiểm tra giao diện bằng các kịch bản:
 
 1. Buyer đặt và thanh toán bằng thẻ giả lập, seller tạo vận đơn: chỉ có khối giao tới buyer. Shipper phát tracking đến `Delivered` và kiểm tra nhãn **Buyer đã nhận hàng**.
@@ -82,7 +84,7 @@ Kiểm tra giao diện bằng các kịch bản:
 ```powershell
 dotnet build G4_Project.sln
 dotnet run --project tests/G4.Commerce.Tests
-node --test tests/ui-navigation.test.cjs tests/dispute-ui.test.cjs
+node --test tests/*.test.cjs
 ./tests/smoke-commerce.ps1
 ```
 

@@ -155,7 +155,21 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         var account = await db.SellerAccounts.SingleAsync(x => x.Id == settlement.SellerAccountId, ct);
         await LockAccountAsync(account, ct);
         var subsidyReversal = 0m;
-        if (order.PricingSchemaVersion == 1 && refund.Reason != "shipping-adjustment")
+        var buyerShippingRecovery = refund.ReturnPolicyVersion == 1 ? refund.BuyerReturnShippingRecovery : 0m;
+        if (refund.ReturnPolicyVersion == 1)
+        {
+            var buyerPaid = (await db.Payments.AsNoTracking().SingleAsync(x => x.Id == settlement.PaymentId, ct)).Amount ?? 0m;
+            var totalBuyerRefund = await db.Refunds.Where(x => x.OrderId == orderId && x.Status == "Succeeded").SumAsync(x => x.Amount, ct);
+            if (totalBuyerRefund > buyerPaid) throw new InvalidOperationException("Refund would exceed captured buyer payment");
+            var reversed = -await db.FinancialTransactions.Where(x => x.OrderId == orderId && x.Type == "PlatformSubsidyReversal").SumAsync(x => x.Amount, ct);
+            subsidyReversal = refund.PlatformSubsidyReversalAmount;
+            var subsidyRemaining = (order.PricingSchemaVersion == 1 ? order.PlatformSubsidy : 0m) - reversed;
+            if (subsidyReversal < 0 || subsidyReversal > subsidyRemaining || buyerShippingRecovery < 0
+                || buyerShippingRecovery > settlement.ReturnShippingCost - settlement.ReturnShippingRecovery
+                || refund.SellerGrossRefundAmount != refund.Amount + subsidyReversal + buyerShippingRecovery)
+                throw new InvalidOperationException("Return funding snapshot is inconsistent");
+        }
+        else if (order.PricingSchemaVersion == 1 && refund.Reason != "shipping-adjustment")
         {
             var payment = await db.Payments.AsNoTracking().SingleAsync(x => x.Id == settlement.PaymentId, ct);
             var buyerPaid = payment.Amount ?? order.TotalPrice ?? 0m;
@@ -187,16 +201,18 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         }
 
         var remainingGross = Math.Max(0m, settlement.GrossAmount - settlement.RefundedAmount);
-        var requestedGross = refund.Amount + subsidyReversal;
-        if (order.PricingSchemaVersion == 1 && requestedGross > remainingGross)
+        var requestedGross = refund.ReturnPolicyVersion == 1 ? refund.SellerGrossRefundAmount : refund.Amount + subsidyReversal;
+        if ((order.PricingSchemaVersion == 1 || refund.ReturnPolicyVersion == 1) && requestedGross > remainingGross)
             throw new InvalidOperationException("Refund would exceed remaining seller gross");
         var appliedGross = Math.Min(requestedGross, remainingGross);
-        var feeCredit = settlement.GrossAmount == 0m || refund.Reason == "shipping-adjustment" ? 0m : order.PricingSchemaVersion == 1 ? Math.Max(
+        var feeCredit = settlement.GrossAmount == 0m || refund.Reason == "shipping-adjustment" ? 0m : order.PricingSchemaVersion == 1 || refund.ReturnPolicyVersion == 1 ? Math.Max(
             0m,
             Money(settlement.PlatformFeeAmount * (settlement.RefundedAmount + appliedGross) / settlement.GrossAmount) - settlement.FeeCreditAmount
         ) : Money(settlement.PlatformFeeAmount * appliedGross / settlement.GrossAmount);
         feeCredit = Math.Min(feeCredit, settlement.PlatformFeeAmount - settlement.FeeCreditAmount);
-        var debit = Math.Max(0m, appliedGross - feeCredit);
+        // Buyer-funded return postage was already paid when its label was created.
+        var debit = Math.Max(0m, appliedGross - feeCredit - buyerShippingRecovery);
+        var refundCredit = Math.Max(0m, feeCredit + buyerShippingRecovery - appliedGross);
         var fromProcessing = Math.Min(settlement.ProcessingAmount, debit);
         settlement.ProcessingAmount -= fromProcessing;
         account.ProcessingBalance -= fromProcessing;
@@ -213,6 +229,17 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
             account.NegativeBalance += left;
         settlement.RefundedAmount += appliedGross;
         settlement.FeeCreditAmount += feeCredit;
+        settlement.ReturnShippingRecovery += buyerShippingRecovery;
+        if (refundCredit > 0)
+        {
+            var recovered = Math.Min(account.NegativeBalance, refundCredit);
+            account.NegativeBalance -= recovered;
+            account.ProcessingBalance += refundCredit - recovered;
+            settlement.ProcessingAmount += refundCredit - recovered;
+            if (recovered > 0)
+                AddEntry(account, settlement, "DebtRecovery", "Negative", -recovered,
+                    $"refund:{refund.Id}:credit-debt", "Refund fee credit recovered seller debt", refund.Id);
+        }
         if (refund.Reason != "shipping-adjustment")
             settlement.Status = settlement.RefundedAmount >= settlement.GrossAmount ? "Refunded" : "PartiallyRefunded";
         account.UpdatedAt = Now;
@@ -221,7 +248,7 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
             settlement,
             "Refund",
             "SellerBalance",
-            -(appliedGross - subsidyReversal),
+            -(appliedGross - subsidyReversal - buyerShippingRecovery),
             $"refund:{refundId}:refund",
             "Refund sent to buyer",
             refundId
@@ -281,6 +308,8 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
             refundId
         );
         await db.SaveChangesAsync(ct);
+        if (refund.ReturnPolicyVersion == 1)
+            await ReleaseCompletedReturnRemainderAsync(settlement, account, refund, ct);
         if (transaction is not null)
             await transaction.CommitAsync(ct);
     }
@@ -338,6 +367,79 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         await db.SaveChangesAsync(ct);
         if (transaction != null)
             await transaction.CommitAsync(ct);
+    }
+
+    public async Task ApplyReturnShippingCostAsync(int orderId, int returnId, decimal amount, CancellationToken ct = default)
+    {
+        if (amount <= 0) throw new ArgumentOutOfRangeException(nameof(amount));
+        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction == null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
+        await LockOrderAsync(orderId, ct);
+        var request = await db.ReturnRequests.SingleAsync(x => x.Id == returnId && x.OrderId == orderId, ct);
+        if (request.PricingPolicyVersion != 1 || request.ReturnShippingFee != amount)
+            throw new InvalidOperationException("Return shipping cost does not match the accepted quote");
+        var settlement = await db.SellerSettlements.SingleAsync(x => x.OrderId == orderId, ct);
+        await AccountGateAsync(settlement.SellerId, ct);
+        await db.Entry(settlement).ReloadAsync(ct);
+        var key = $"return:{returnId}:shipping-cost";
+        if (await db.FinancialTransactions.AnyAsync(x => x.EntryKey == key, ct)) return;
+        var account = await db.SellerAccounts.SingleAsync(x => x.Id == settlement.SellerAccountId, ct);
+        await LockAccountAsync(account, ct);
+        var held = settlement.Status is "OnHold" or "RefundPending" ? await HeldAmountAsync(settlement.Id, ct) : 0m;
+        if (account.OnHoldBalance < held) throw new InvalidOperationException("Held seller balance is inconsistent");
+        var fromProcessing = Math.Min(settlement.ProcessingAmount, amount);
+        account.ProcessingBalance -= fromProcessing;
+        settlement.ProcessingAmount -= fromProcessing;
+        var fromHold = Math.Min(held, amount - fromProcessing);
+        account.OnHoldBalance -= fromHold;
+        var fromAvailable = Math.Min(account.AvailableBalance, amount - fromProcessing - fromHold);
+        account.AvailableBalance -= fromAvailable;
+        var debt = amount - fromProcessing - fromHold - fromAvailable;
+        account.NegativeBalance += debt;
+        settlement.ReturnShippingCost += amount;
+        account.UpdatedAt = Now;
+        AddEntry(account, settlement, "ReturnShippingCost", "SellerBalance", -amount, key,
+            request.ShippingPayer == "Buyer" ? "Return postage advanced; buyer funds it by refund deduction" : "Seller paid return postage");
+        if (fromHold > 0)
+            AddEntry(account, settlement, "FundHoldConsumed", "OnHold", -fromHold, key + ":hold",
+                "Held order funds used for return postage");
+        if (debt > 0)
+            AddEntry(account, settlement, "NegativeBalance", "Negative", -debt, key + ":negative", "Return postage exceeded seller funds");
+        await db.SaveChangesAsync(ct);
+        if (tx != null) await tx.CommitAsync(ct);
+    }
+
+    private async Task ReleaseCompletedReturnRemainderAsync(SellerSettlement settlement, SellerAccount account, Refund refund, CancellationToken ct)
+    {
+        if (await db.Disputes.AnyAsync(d => d.OrderId == settlement.OrderId && d.WorkflowEnabled && d.IsOpen
+            && !(d.Status == "ExecutingAgreement" && d.Proposal == "ReturnRefund"), ct)) return;
+        var held = await HeldAmountAsync(settlement.Id, ct);
+        if (account.OnHoldBalance < held) throw new InvalidOperationException("Held seller balance is inconsistent");
+        var ready = await CanReleaseAsync(settlement, ct);
+        account.OnHoldBalance -= held;
+        if (ready)
+        {
+            var processing = settlement.ProcessingAmount;
+            account.AvailableBalance += held + processing;
+            account.ProcessingBalance -= processing;
+            settlement.ProcessingAmount = 0;
+            if (held + processing > 0) settlement.ReleasedAt ??= Now;
+            if (settlement.RefundedAmount < settlement.GrossAmount) settlement.Status = "Available";
+            if (processing > 0)
+                AddEntry(account, settlement, "RefundCreditReleased", "Available", processing,
+                    $"refund:{refund.Id}:credit-released", "Return refund fee credit released to wallet", refund.Id);
+        }
+        else
+        {
+            account.ProcessingBalance += held;
+            settlement.ProcessingAmount += held;
+            if (settlement.RefundedAmount < settlement.GrossAmount) settlement.Status = "Processing";
+        }
+        if (held > 0)
+            AddEntry(account, settlement, "HoldReleased", ready ? "Available" : "Processing", held,
+                $"refund:{refund.Id}:return-remainder", "Completed return released remaining seller funds", refund.Id);
+        account.UpdatedAt = Now;
+        await db.SaveChangesAsync(ct);
     }
 
     public async Task PlaceHoldAsync(
@@ -865,6 +967,7 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
     private static decimal RemainingSellerProceeds(SellerSettlement settlement) => Math.Max(
         0m,
         settlement.NetAmount - (settlement.RefundedAmount - settlement.FeeCreditAmount) - settlement.ShippingAdjustmentCost
+            - settlement.ReturnShippingCost + settlement.ReturnShippingRecovery
     );
     private async Task<decimal> HeldAmountAsync(int settlementId, CancellationToken ct)
     {

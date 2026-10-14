@@ -39,6 +39,8 @@ Doanh số được tính theo tháng UTC và tự về 0 khi sang tháng. Backe
 
 Khi refund thành công, hệ thống hoàn lại phần phí nền tảng theo tỷ lệ số tiền refund. Nghĩa vụ còn lại được trừ lần lượt từ tiền của settlement đang `Processing`, khoản `OnHold` của đúng đơn, rồi `Available`. Phần vẫn còn thiếu trở thành `Negative`.
 
+Với yêu cầu trả mới (`PricingPolicyVersion = 1`), phí trả được ghi một lần khi tạo nhãn thành công vào `ReturnShippingCost`. Nếu buyer chịu phí, khoản bị trừ khỏi tiền hoàn được bù vào chi phí đã ứng qua `ReturnShippingRecovery`, tránh thu hai lần. Refund tách tiền mặt buyer, phần tài trợ coupon của nền tảng và Gross seller phải hoàn; fee credit dựa trên Gross được hoàn. Phần tiền giữ còn lại được giải phóng theo lịch settlement sau khi refund thành công. Seller Instant đã rút tiền có thể phát sinh số dư âm. Công thức và ví dụ ở [RETURN_PRICING.md](RETURN_PRICING.md); yêu cầu cũ phiên bản 0 giữ cách tính trước nâng cấp.
+
 Trả hàng thường đã duyệt giữ tiền đến khi receipt/refund hoặc admin giải quyết vấn đề hàng trả. Worker không nhập khoản giữ này thành hồ sơ tranh chấp cũ và không mở khóa tiền khi còn yêu cầu trả đang xử lý. Xem [RETURNS_AND_SHIPPING.md](RETURNS_AND_SHIPPING.md).
 
 Seller có `Negative > 0` không được tạo payout. Khi có giao dịch bán mới, hệ thống tự dùng Net mới để bù `Negative` trước; phần dư mới vào `Processing`. Vì vậy seller bỏ tài khoản không làm khoản nợ biến mất trong dữ liệu. Việc khóa danh tính seller hoặc thu nợ thật nằm ngoài phạm vi mô phỏng.

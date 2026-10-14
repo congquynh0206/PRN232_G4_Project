@@ -1468,6 +1468,10 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(10,2)");
 
+                    b.Property<decimal>("BuyerReturnShippingRecovery")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("datetime2");
 
@@ -1489,6 +1493,10 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<int>("PaymentId")
                         .HasColumnType("int");
 
+                    b.Property<decimal>("PlatformSubsidyReversalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("ProviderRefundId")
                         .HasColumnType("nvarchar(max)");
 
@@ -1497,8 +1505,15 @@ namespace G4.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<int>("ReturnPolicyVersion")
+                        .HasColumnType("int");
+
                     b.Property<int?>("ReturnRequestId")
                         .HasColumnType("int");
+
+                    b.Property<decimal>("SellerGrossRefundAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -1526,6 +1541,14 @@ namespace G4.Infrastructure.Persistence.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<decimal>("BuyerRefundAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("BuyerReturnShippingFee")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<DateTime?>("ConfirmationDueAt")
                         .HasColumnType("datetime2");
 
@@ -1539,13 +1562,48 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<string>("DecisionReason")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("DeliveryAddressSnapshot")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<decimal>("GoodsPaidSnapshot")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<int?>("OrderId")
                         .HasColumnType("int")
                         .HasColumnName("orderId");
 
+                    b.Property<decimal>("OutboundShippingRetained")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("PickupAddressSnapshot")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<decimal>("PlatformSubsidyReversal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("PricingFingerprint")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("PricingPolicyVersion")
+                        .HasColumnType("int");
+
                     b.Property<string>("Reason")
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("reason");
+
+                    b.Property<string>("ReasonCode")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.Property<DateTime?>("ReceivedAt")
                         .HasColumnType("datetime2");
@@ -1553,8 +1611,27 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<int?>("RefundId")
                         .HasColumnType("int");
 
+                    b.Property<string>("RequestKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<DateTime?>("ReturnDeadline")
                         .HasColumnType("datetime2");
+
+                    b.Property<decimal>("ReturnShippingFee")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("SellerGrossRefund")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("ShippingCostChargedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ShippingPayer")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("Status")
                         .HasMaxLength(20)
@@ -1565,10 +1642,18 @@ namespace G4.Infrastructure.Persistence.Migrations
                         .HasColumnType("int")
                         .HasColumnName("userId");
 
+                    b.Property<decimal?>("WeightKgSnapshot")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
                     b.HasKey("Id")
                         .HasName("PK__ReturnRe__3213E83FDAE0EE4D");
 
                     b.HasIndex("OrderId");
+
+                    b.HasIndex("RequestKey")
+                        .IsUnique()
+                        .HasFilter("[RequestKey] IS NOT NULL");
 
                     b.HasIndex("UserId");
 
@@ -1792,6 +1877,14 @@ namespace G4.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTime?>("ReleasedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<decimal>("ReturnShippingCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("ReturnShippingRecovery")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("SellerAccountId")
                         .HasColumnType("int");

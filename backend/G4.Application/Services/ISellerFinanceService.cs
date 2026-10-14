@@ -8,6 +8,7 @@ public interface ISellerFinanceService
     Task<SellerSettlement> RecordSuccessfulPaymentAsync(int orderId, int paymentId, CancellationToken ct = default);
     Task ApplyRefundAsync(int orderId, int refundId, CancellationToken ct = default);
     Task ApplyShippingCostAsync(int orderId, int requestId, decimal amount, CancellationToken ct = default);
+    Task ApplyReturnShippingCostAsync(int orderId, int returnId, decimal amount, CancellationToken ct = default);
     Task PlaceHoldAsync(
         int orderId,
         string reason,

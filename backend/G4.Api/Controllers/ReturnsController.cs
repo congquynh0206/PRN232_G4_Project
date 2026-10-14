@@ -13,14 +13,22 @@ public sealed class ReturnsController(
 ) : ApiControllerBase(environment)
 {
     [HttpPost("orders/{id:int}/returns")]
-    public async Task<IActionResult> RequestReturn(int id, ReasonRequest request, CancellationToken ct)
+    public async Task<IActionResult> RequestReturn(int id, ReturnRequestInput request, CancellationToken ct)
     {
         if (!IsAvailable || !HasRole("buyer"))
             return StatusCode(403);
         if (!await db.OrderTables.AnyAsync(o => o.Id == id && o.BuyerId == CurrentUserId, ct))
             return StatusCode(403);
-        var result = await returns.RequestReturnAsync(id, request.Reason, ct);
+        var result = await returns.RequestPricedReturnAsync(id, request, ct);
         return Ok(new { result.Id, result.Status });
+    }
+
+    [HttpGet("orders/{id:int}/returns/quote")]
+    public async Task<IActionResult> QuoteReturn(int id, string reasonCode, CancellationToken ct)
+    {
+        if (!IsAvailable || !HasRole("buyer")) return StatusCode(403);
+        if (!await db.OrderTables.AnyAsync(x => x.Id == id && x.BuyerId == CurrentUserId, ct)) return StatusCode(403);
+        return Ok(await returns.QuoteAsync(id, reasonCode, ct));
     }
 
     [HttpPost("seller/returns/{id:int}/approve")]

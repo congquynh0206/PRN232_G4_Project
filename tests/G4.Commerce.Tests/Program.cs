@@ -3,6 +3,12 @@ using G4.Contracts.Checkout;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
+if (args.Contains("--return-sql"))
+{
+    await ReturnPolicySqlChecks.RunAsync();
+    return;
+}
+
 if (args.Contains("--finance-sql"))
 {
     await FinancePolicySqlChecks.RunAsync();
@@ -45,6 +51,7 @@ Equal(2.50m, quote.Discount, "discount");
 Equal(5m, quote.Shipping, "shipping");
 Equal(27.50m, quote.Total, "total");
 await ReturnAutomationChecks.RunAsync();
+await ReturnPolicyChecks.RunAsync();
 await ShippingWeightChecks.RunAsync();
 await ShipmentClaimChecks.RunAsync();
 await PromotionManagementChecks.RunAsync();

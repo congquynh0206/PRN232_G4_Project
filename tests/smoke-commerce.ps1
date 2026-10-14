@@ -172,7 +172,8 @@ Invoke-Api 'POST' "shipper/shipments/$($autoOutbound.id)/claim" 'shipper' | Out-
 foreach ($status in @('PickedUp','InTransit','OutForDelivery','Delivered')) {
     Invoke-Api 'POST' "shipments/$($autoOutbound.id)/events" 'shipper' @{ status = $status; eventId = [guid]::NewGuid().ToString('N') } | Out-Null
 }
-$autoReturn = Invoke-Api 'POST' "orders/$($autoOrder.id)/returns" 'buyer' @{ reason = 'Ordinary automatic refund smoke' }
+$autoQuote = Invoke-Api 'GET' "orders/$($autoOrder.id)/returns/quote?reasonCode=NotAsDescribed" 'buyer'
+$autoReturn = Invoke-Api 'POST' "orders/$($autoOrder.id)/returns" 'buyer' @{ reasonCode = 'NotAsDescribed'; description = 'Ordinary automatic refund smoke'; key = [guid]::NewGuid().ToString(); pricingFingerprint = $autoQuote.pricingFingerprint }
 Invoke-Api 'POST' "seller/returns/$($autoReturn.id)/approve" 'seller' | Out-Null
 $autoDetail = Invoke-Api 'GET' "orders/$($autoOrder.id)"
 if ($autoDetail.settlement.status -ne 'OnHold') { throw 'Ordinary return did not hold seller funds' }

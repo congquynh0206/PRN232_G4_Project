@@ -29,6 +29,8 @@
     Failed: 'Thất bại',
     Verifying: 'Đang xác minh',
     Refunded: 'Đã hoàn tiền',
+    ReturnShippingCost: 'Phí vận chuyển trả hàng',
+    RefundCreditReleased: 'Hoàn phí được chuyển vào ví',
     PartiallyRefunded: 'Đã hoàn một phần',
     RefundPending: 'Đang hoàn tiền',
     RefundFailed: 'Hoàn tiền thất bại',
@@ -167,7 +169,7 @@
     const retry = ['ReceivedBySeller', 'RefundPending', 'RefundFailed'].includes(r.status)
       ? '<p class="small">Hệ thống đang xử lý hoàn tiền và sẽ tự thử lại nếu cổng thanh toán gặp lỗi.</p>'
       : '';
-    return `<section class="return-summary"><p>Trả hàng: ${esc(r.reason)} · ${esc(returnStatus(r.status))}</p>${deadline}${retry}</section>`;
+    return `<section class="return-summary"><p>Trả hàng: ${esc(r.reason)} · ${esc(returnStatus(r.status))}</p>${window.G4.Returns?.savedHtml(o) || ''}${deadline}${retry}</section>`;
   }
   function shipperShipmentCard(s) {
     const action =
