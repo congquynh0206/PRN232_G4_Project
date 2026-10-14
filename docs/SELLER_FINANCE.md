@@ -51,10 +51,10 @@ Buyer mở yêu cầu qua **Mở yêu cầu giải quyết** trong chi tiết đ
 
 Khóa giữ tiền theo order và hồ sơ tranh chấp giúp mở lại sau khi đóng mà không dùng lại khoản giữ đã giải quyết. Endpoint cũ `POST /api/orders/{orderId}/fund-hold` chuyển qua quy trình mới, nhận `reason` và `evidenceLinks`; không bỏ qua bằng chứng hoặc thương lượng.
 
-Admin chỉ quyết định hồ sơ đã chuyển lên do seller hết hạn hoặc buyer không đồng ý phương án. Endpoint tương thích `POST /api/orders/{orderId}/fund-hold/resolve` chỉ nhận JWT `admin` và bắt buộc `reason`:
+Admin chỉ quyết định hồ sơ đã chuyển lên do seller hết hạn hoặc buyer không đồng ý phương án. Endpoint tương thích `POST /api/orders/{orderId}/fund-hold/resolve` chỉ nhận JWT `admin`, dùng body phán quyết mới có trách nhiệm, kết quả, khoản hoàn, lý do, căn cứ, key và fingerprint; xem [ADMIN_DISPUTE_DECISIONS.md](ADMIN_DISPUTE_DECISIONS.md):
 
-- `releaseToSeller: true`: seller thắng, tiền từ `OnHold` trở lại `Available` nếu đã giao và hết hạn giữ; nếu chưa đủ điều kiện thì trở lại `Processing`.
-- `releaseToSeller: false`: buyer thắng, tiền tiếp tục nằm trong `OnHold` và API tự khởi tạo refund. Nếu cổng refund lỗi, settlement ở `RefundPending`, hồ sơ ở `ExecutingAgreement`; worker tự retry. Chỉ khi refund thành công, khoản hold của **đúng order đó** mới được trừ và ghi fee credit đúng một lần. Nếu seller thắng trước khi đơn đủ điều kiện mở khóa tiền, khoản hold trở lại `Processing` thay vì vào `Available` sớm.
+- `SellerWins`: seller thắng, tiền từ `OnHold` trở lại `Available` nếu đã giao và hết hạn giữ; nếu chưa đủ điều kiện thì trở lại `Processing`.
+- `FullRefund`/`PartialRefund`: tiền tiếp tục nằm trong `OnHold` và API khởi tạo refund đúng khoản đã chốt theo trách nhiệm. Nếu cổng refund lỗi, settlement ở `RefundPending`, hồ sơ ở `ExecutingAgreement`; worker tự retry. Chỉ khi refund thành công, hold của **đúng order đó** mới được trừ và ghi fee credit đúng một lần; hold còn lại theo lịch ban đầu. Nếu seller thắng trước khi đủ điều kiện mở khóa, tiền trở lại `Processing`.
 
 Nếu buyer không phản hồi phương án đúng hạn, yêu cầu tự đóng và khoản giữ được giải phóng theo điều kiện trên; không tự chấp nhận phương án seller. Thỏa thuận hoàn tiền hoặc trả hàng vẫn giữ hồ sơ mở đến khi hoàn tiền thành công.
 

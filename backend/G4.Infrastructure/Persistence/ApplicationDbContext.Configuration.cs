@@ -18,6 +18,7 @@ public partial class ApplicationDbContext
         ConfigurePromotions(modelBuilder);
         ConfigureDiagnostics(modelBuilder);
         ConfigureFinancePolicies(modelBuilder);
+        ConfigureDisputeDecisions(modelBuilder);
         ConfigureReturnPricing(modelBuilder);
         modelBuilder.Entity<Product>().Property(x => x.WeightKg).HasColumnType("decimal(10,3)");
         modelBuilder.Entity<OrderItem>().Property(x => x.UnitWeightKgSnapshot).HasColumnType("decimal(10,3)");

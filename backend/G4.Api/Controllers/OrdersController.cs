@@ -85,7 +85,7 @@ public sealed class OrdersController(
             r.PricingPolicyVersion, r.ReasonCode, r.Description, r.ShippingPayer, r.GoodsPaidSnapshot, r.OutboundShippingRetained,
             r.ReturnShippingFee, r.BuyerReturnShippingFee, r.BuyerRefundAmount, r.PlatformSubsidyReversal, r.ShippingCostChargedAt })
             .SingleOrDefaultAsync(ct);
-        var refunds = await db.Refunds.AsNoTracking().Where(r => r.OrderId == id).Select(r => new { r.Id, r.Amount, r.Status, r.Reason, r.CreatedAt, r.CompletedAt, r.ReturnRequestId })
+        var refunds = await db.Refunds.AsNoTracking().Where(r => r.OrderId == id).Select(r => new { r.Id, r.Amount, r.Status, r.Reason, r.CreatedAt, r.CompletedAt, r.ReturnRequestId, r.DisputeDecisionId })
             .ToListAsync(ct);
         var settlement = await db.SellerSettlements.AsNoTracking().Where(s => s.OrderId == id).Select(s => new { s.GrossAmount, s.PlatformFeeAmount, s.NetAmount, s.ProcessingAmount, s.RefundedAmount, s.FeeCreditAmount, s.Status, s.ReleaseAt, s.ReleasedAt, s.ShippingAdjustmentCost, s.HoldStartedAt, s.HoldSecondsSnapshot, s.SellerLevelSnapshot, s.HoldPolicyVersion, s.FeePercentSnapshot, s.ReturnShippingCost, s.ReturnShippingRecovery })
             .SingleOrDefaultAsync(ct);

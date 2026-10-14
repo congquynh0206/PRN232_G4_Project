@@ -67,11 +67,17 @@ public sealed class DisputesController(IDisputeService disputes, IHostEnvironmen
     }
 
     [HttpPost("disputes/{id:int}/resolution")]
-    public async Task<IActionResult> Resolution(int id, DisputeResolutionRequest request, CancellationToken ct)
+    public async Task<IActionResult> Resolution(int id, AdminDecisionInput request, CancellationToken ct)
     {
         if (!IsAvailable || !HasRole("admin"))
             return StatusCode(403);
-        await disputes.ResolveAsync(id, CurrentUserId, request, ct);
-        return Ok(new { saved = true });
+        return Ok(await disputes.ResolveDecisionAsync(id, CurrentUserId, request, ct));
+    }
+
+    [HttpPost("disputes/{id:int}/decision-preview")]
+    public async Task<IActionResult> DecisionPreview(int id, AdminDecisionPreviewInput request, CancellationToken ct)
+    {
+        if (!IsAvailable || !HasRole("admin")) return StatusCode(403);
+        return Ok(await disputes.PreviewDecisionAsync(id, CurrentUserId, request, ct));
     }
 }

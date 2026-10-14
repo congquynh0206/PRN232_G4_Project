@@ -16,6 +16,7 @@ public partial class ApplicationDbContext
         GuardDisputeHistory();
         GuardFinanceHistory();
         GuardReturnPriceSnapshots();
+        GuardDisputeDecisions();
         return base.SaveChanges(acceptAllChangesOnSuccess);
     }
 
@@ -24,6 +25,7 @@ public partial class ApplicationDbContext
         GuardDisputeHistory();
         GuardFinanceHistory();
         GuardReturnPriceSnapshots();
+        GuardDisputeDecisions();
         return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 }

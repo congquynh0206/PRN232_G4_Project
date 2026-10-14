@@ -34,7 +34,8 @@ public sealed record DisputeDetail(
     DisputeSummary Case,
     IReadOnlyList<DisputeEntryView> Entries,
     string? BuyerName = null,
-    string? SellerName = null
+    string? SellerName = null,
+    AdminDecisionView? Decision = null
 );
 public sealed record DisputePage(
     int Page,

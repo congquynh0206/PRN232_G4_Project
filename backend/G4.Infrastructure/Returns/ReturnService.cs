@@ -347,6 +347,8 @@ public sealed class ReturnService(
         }
 
         var order = await db.OrderTables.SingleAsync(o => o.Id == orderId, ct);
+        var decision = reason == "dispute" ? await db.DisputeDecisions.AsNoTracking().SingleOrDefaultAsync(x => x.OrderId == orderId
+            && x.Outcome != "SellerWins" && db.Disputes.Any(d => d.Id == x.DisputeId && d.IsOpen && d.Status == "ExecutingAgreement"), ct) : null;
         ReturnRequest? pricedReturn = null;
         if (reason == "return")
         {
@@ -378,7 +380,7 @@ public sealed class ReturnService(
         var promotionZeroPayment = paid == 0m && payment.Amount == 0m && payment.Method == "Promotion" && order.PricingSchemaVersion == 1 && order.TotalPrice == 0m;
         if (paid < 0 || paid == 0m && !promotionZeroPayment || alreadyRefunded > paid || paid > 0 && paid == alreadyRefunded || await db.Refunds.AnyAsync(r => r.OrderId == orderId && r.Status == "Succeeded" && r.Reason != "shipping-adjustment", ct) || promotionZeroPayment && await db.Refunds.AnyAsync(r => r.OrderId == orderId && r.Status == "Succeeded", ct))
             throw new InvalidOperationException("Refund would exceed captured amount");
-        var amount = pricedReturn != null && reason == "return" ? pricedReturn.BuyerRefundAmount : paid - alreadyRefunded;
+        var amount = decision?.BuyerRefund ?? (pricedReturn != null && reason == "return" ? pricedReturn.BuyerRefundAmount : paid - alreadyRefunded);
         if (amount < 0 || amount > paid - alreadyRefunded)
             throw new InvalidOperationException("Khoản hoàn vượt số tiền buyer còn có thể nhận.");
         if (pricedReturn != null && pricedReturn.ShippingCostChargedAt == null)
@@ -388,13 +390,21 @@ public sealed class ReturnService(
             OrderId = orderId,
             PaymentId = payment.Id,
             ReturnRequestId = pricedReturn?.Id ?? returnRequestId,
+            DisputeDecisionId = decision?.Id,
             Amount = amount,
             Currency = order.Currency,
             Reason = reason,
             IdempotencyKey = key,
             CreatedAt = DateTime.UtcNow
         };
-        if (existing == null && pricedReturn != null)
+        if (existing == null && decision != null)
+        {
+            refund.ReturnPolicyVersion = 1;
+            refund.SellerGrossRefundAmount = decision.SellerGrossRefund;
+            refund.PlatformSubsidyReversalAmount = decision.SubsidyReversal;
+            refund.BuyerReturnShippingRecovery = decision.BuyerShippingRecovery;
+        }
+        else if (existing == null && pricedReturn != null)
         {
             refund.ReturnPolicyVersion = 1;
             var reversed = -await db.FinancialTransactions.Where(x => x.OrderId == orderId && x.Type == "PlatformSubsidyReversal").SumAsync(x => x.Amount, ct);

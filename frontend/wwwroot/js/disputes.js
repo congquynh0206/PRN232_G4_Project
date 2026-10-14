@@ -24,6 +24,8 @@
     BuyerSilent: 'Đã đóng do người mua không phản hồi',
     SellerWins: 'Đã kết thúc, giữ nguyên đơn hàng',
     BuyerWins: 'Đã quyết định hoàn tiền cho người mua',
+    AdminFullRefund: 'Đã quyết định hoàn toàn bộ khoản được nhận',
+    AdminPartialRefund: 'Đã quyết định hoàn một phần',
     AgreedRefund: 'Đã hoàn tiền theo thỏa thuận',
     AgreedReturn: 'Đã trả hàng và hoàn tiền',
     AgreedKeepOrder: 'Hai bên thống nhất giữ nguyên đơn',
@@ -48,7 +50,7 @@
 
   function statusText(status, outcome) {
     if (status === 'Closed') return outcomes[outcome] || 'Đã giải quyết';
-    if (status === 'ExecutingAgreement' && outcome === 'BuyerWins')
+    if (status === 'ExecutingAgreement' && ['BuyerWins', 'AdminFullRefund', 'AdminPartialRefund'].includes(outcome))
       return 'Đang hoàn tiền theo quyết định';
     return (
       {
@@ -186,7 +188,7 @@
       seller = actorRole === 'seller';
     const recipient = buyer ? 'bạn' : 'người mua';
     const paid = order.payments.findLast((p) => p.status === 'Succeeded');
-    const refunds = order.refunds.filter((r) => r.status === 'Succeeded');
+    const refunds = order.refunds.filter((r) => r.status === 'Succeeded' && r.reason !== 'shipping-adjustment');
     const amount = refunds.reduce((sum, r) => sum + Number(r.amount || 0), 0);
     const completed = refunds
       .map((r) => r.completedAt)
@@ -221,7 +223,7 @@
     } else if (
       c.status === 'ExecutingAgreement' &&
       c.outcome === 'AgreedReturn' &&
-      !amount &&
+      !refunds.length &&
       !['ReceivedBySeller', 'RefundPending', 'RefundFailed'].includes(order.returnRequest?.status)
     ) {
       title = 'Đang trả hàng để hoàn tiền';
@@ -233,7 +235,7 @@
       next = buyer
         ? 'Theo dõi vận đơn trả hàng trong mục Đơn hàng. Tiền sẽ được hoàn sau khi xác nhận nhận hàng.'
         : 'Xem chi tiết đơn hàng để theo dõi và xác nhận hàng trả.';
-    } else if (amount > 0) {
+    } else if (refunds.length) {
       title = `Đã hoàn ${money(amount)} cho ${recipient}`;
       description = `Phương thức: ${label(paid?.method)}${completed ? ' · ' + caseDate(completed) : ''}`;
       next = c.isOpen
@@ -249,7 +251,7 @@
       description = `Hoàn tiền cho ${recipient} theo phương thức thanh toán ban đầu.`;
       next = 'Hệ thống đang xử lý và sẽ thử lại nếu gặp lỗi. Bạn không cần gửi lại yêu cầu.';
     } else if (
-      c.outcome === 'BuyerWins' ||
+      ['BuyerWins', 'AdminFullRefund', 'AdminPartialRefund'].includes(c.outcome) ||
       ['AgreedRefund', 'AgreedReturn', 'RefundCompleted'].includes(c.outcome)
     ) {
       title = 'Đã quyết định hoàn tiền';
@@ -294,8 +296,7 @@
       buttons.push(`<button type="button" class="primary" data-case-action="accept" data-case-id="${c.id}" ${canRespond ? '' : 'disabled'}>Chấp nhận phương án</button>
         <button type="button" data-case-action="reject" data-case-id="${c.id}" ${canRespond ? '' : 'disabled'}>Không đồng ý, nhờ admin xử lý</button>`);
     if (actorRole === 'admin' && c.status === 'Escalated')
-      buttons.push(`<button type="button" data-case-action="buyer-wins" data-case-id="${c.id}">Người mua thắng — hoàn tiền</button>
-        <button type="button" data-case-action="seller-wins" data-case-id="${c.id}">Người bán thắng — giải phóng tiền</button>`);
+      buttons.push(`<button type="button" class="primary" data-case-action="decision" data-case-id="${c.id}">Xem xét và đưa ra phán quyết</button>`);
     if (actorRole !== 'admin' && c.status === 'ExecutingAgreement' && c.outcome === 'AgreedReturn')
       buttons.push(
         `<button type="button" data-open-order="${c.orderId}">Xem đơn để theo dõi trả hàng</button>`,
@@ -370,7 +371,7 @@
       <div class="case-tabs" role="tablist" aria-label="Nội dung tranh chấp">${tabs.map(([key, text]) => `<button type="button" id="case-${c.id}-tab-${key}" role="tab" data-case-tab="${key}" aria-controls="case-${c.id}-panel-${key}" aria-selected="${selectedTab === key}" tabindex="${selectedTab === key ? 0 : -1}">${text}</button>`).join('')}</div>
       <section class="case-tab-panel" id="case-${c.id}-panel-summary" role="tabpanel" tabindex="0" aria-labelledby="case-${c.id}-tab-summary" ${selectedTab === 'summary' ? '' : 'hidden'}>
         <h3>${imported ? 'Nội dung yêu cầu' : 'Lý do yêu cầu giải quyết'}</h3><p class="case-description">${imported ? 'Chưa có nội dung yêu cầu.' : esc(c.description)}</p>
-        ${c.resolution ? `<section class="case-decision"><h3>${data.entries.some((e) => e.kind === 'Decision') ? 'Quyết định của admin' : 'Kết quả giải quyết'}</h3><p>${esc(c.resolution)}</p></section>` : ''}
+        ${data.decision ? decisionHtml(data.decision) : c.resolution ? `<section class="case-decision"><h3>${data.entries.some((e) => e.kind === 'Decision') ? 'Quyết định của admin' : 'Kết quả giải quyết'}</h3><p>${esc(c.resolution)}</p></section>` : ''}
         ${c.proposal ? `<${c.status === 'AwaitingBuyer' ? 'section' : 'details'} class="case-proposal-summary" ${expandedProposal && c.status !== 'AwaitingBuyer' ? 'open' : ''}>${c.status === 'AwaitingBuyer' ? '<h3>Phương án người bán đề nghị</h3>' : '<summary>Phương án người bán đã gửi</summary>'}<p>${esc(proposalCopy[c.proposal] || proposals[c.proposal] || c.proposal)}</p>${proposalEntry ? `<p class="case-description">${esc(proposalEntry.description)}</p>` : ''}</${c.status === 'AwaitingBuyer' ? 'section' : 'details'}>` : ''}${payment}
       </section>
       <section class="case-tab-panel" id="case-${c.id}-panel-history" role="tabpanel" tabindex="0" aria-labelledby="case-${c.id}-tab-history" ${selectedTab === 'history' ? '' : 'hidden'}>
@@ -379,7 +380,11 @@
       </section>
       <section class="case-tab-panel" id="case-${c.id}-panel-order" role="tabpanel" tabindex="0" aria-labelledby="case-${c.id}-tab-order" ${selectedTab === 'order' ? '' : 'hidden'}>
         <h3>Sản phẩm · Đơn #${c.orderId}</h3>${order.items.map((x) => `<div class="item">${productThumbnail(x.imageUrl, x.productTitleSnapshot)}<div class="item-info"><strong>${esc(x.productTitleSnapshot)}</strong><small>Số lượng: ${x.quantity}</small></div><b>${money(x.unitPrice * x.quantity)}</b></div>`).join('')}
-        <p class="case-order-total">Tổng đơn: <strong>${money(c.totalPrice)}</strong></p><h3>Địa chỉ nhận hàng</h3><p class="case-description">${esc(order.addressSnapshot)}</p><h3>Tiến trình vận chuyển</h3>${trackingHtml(order)}</section></div>`;
+        <p class="case-order-total">Tổng đơn: <strong>${money(c.totalPrice)}</strong></p>${G4.Returns?.savedHtml(order) || ''}<h3>Địa chỉ nhận hàng</h3><p class="case-description">${esc(order.addressSnapshot)}</p><h3>Tiến trình vận chuyển</h3>${trackingHtml(order)}</section></div>`;
+  }
+
+  function decisionHtml(d) {
+    return `<section class="decision-saved"><h3>Phán quyết của admin</h3><p>${esc(d.adminName)} · ${esc(caseDate(d.createdAt))}</p><p>${esc(d.reason)}</p><p>Kết luận trách nhiệm: <strong>${d.responsibility === 'Seller' ? 'Người bán' : 'Người mua'}</strong>${d.shippingPayer ? ` · Phí trả hàng theo kết luận: người ${d.shippingPayer === 'Seller' ? 'bán' : 'mua'}` : ''}</p><p>Căn cứ trong Trao đổi: ${d.evidenceEntryIds.map(x => '#' + x).join(', ')}</p><dl><div><dt>Khoản buyer nhận theo quyết định</dt><dd>${money(d.buyerRefund)}</dd></div><div><dt>Phí trả trừ vào khoản hoàn</dt><dd>${money(d.buyerShippingRecovery)}</dd></div><div><dt>Phí nền tảng credit cho seller</dt><dd>${money(d.feeCredit)}</dd></div><div><dt>Tài trợ coupon đảo riêng</dt><dd>${money(d.subsidyReversal)}</dd></div></dl><p>${d.outcome === 'SellerWins' ? 'Không hoàn thêm theo phán quyết này.' : d.refundStatus === 'Succeeded' ? `Đã hoàn thành công: <strong>${money(d.actualRefund)}</strong>` : 'Khoản hoàn chưa hoàn tất; hệ thống tiếp tục xử lý và retry khi cần.'}</p></section>`;
   }
 
   async function open(id, preserve = false) {
@@ -476,6 +481,10 @@
   async function action(button) {
     const id = Number(button.dataset.caseId),
       kind = button.dataset.caseAction;
+    if (kind === 'decision') return G4.DisputeDecisions.open(id, async () => {
+      await load(page, true);
+      await open(id, true);
+    });
     let input, path, body;
     if (kind === 'evidence' || kind === 'proposal') {
       const fields = evidenceFields();
@@ -523,20 +532,7 @@
       if (!input) return;
       path = 'response';
       body = { accept: kind === 'accept', description: input.description || 'Đồng ý phương án' };
-    } else {
-      input = await modal({
-        title: 'Quyết định tranh chấp',
-        description:
-          kind === 'buyer-wins'
-            ? 'Người mua thắng: hoàn tiền về phương thức thanh toán ban đầu.'
-            : 'Người bán thắng: giải phóng tiền theo lịch rút tiền hiện có.',
-        fields: [{ name: 'reason', label: 'Lý do quyết định', type: 'textarea', required: true }],
-        confirm: 'Lưu quyết định',
-      });
-      if (!input) return;
-      path = 'resolution';
-      body = { buyerWins: kind === 'buyer-wins', reason: input.reason };
-    }
+    } else return;
     busy = true;
     try {
       message('Đang lưu yêu cầu, vui lòng đợi trong giây lát…');
@@ -565,6 +561,7 @@
 
   function init(actorRole, afterOrderChange) {
     role = actorRole;
+    if (actorRole === 'admin') G4.DisputeDecisions?.init();
     onOrderChange = afterOrderChange;
     $('refresh-disputes').onclick = () => safe(() => load(1));
     $('dispute-filter').onchange = () => safe(() => load(1));
@@ -603,6 +600,7 @@
             loading ||
             document.hidden ||
             $('action-dialog').open ||
+            $('decision-dialog')?.open ||
             document.activeElement?.closest('.pagination')
           )
             return;

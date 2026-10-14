@@ -56,6 +56,8 @@ Tab **Tài chính người bán** hiển thị ví khả dụng, tiền đang x�
 
 Buyer và seller có tab **Tranh chấp** để thương lượng với mô tả và link bằng chứng bắt buộc, không sửa/xóa sau khi gửi. Admin chỉ xử lý hồ sơ đã chuyển lên. Development dùng **45 giây** cho phản hồi seller, phản hồi buyer và xác nhận hàng trả; worker chạy mỗi 5 giây. Xem quy tắc đầy đủ tại [DISPUTES.md](DISPUTES.md).
 
+Phán quyết admin có preview tài chính, chọn căn cứ, kết luận trách nhiệm và hoàn toàn bộ/một phần cần migration `20261014091619_AddAdminDisputeDecisions`. Xem [ADMIN_DISPUTE_DECISIONS.md](ADMIN_DISPUTE_DECISIONS.md); báo giá buyer đã xác nhận và các quyết định cũ giữ nguyên. Sau migration khởi động lại API/frontend.
+
 ## Tracking hai chiều
 
 Trong trang **Buyer** hoặc **Seller**, mở chi tiết đơn để xem các khối vận đơn:

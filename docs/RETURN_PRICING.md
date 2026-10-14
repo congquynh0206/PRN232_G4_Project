@@ -33,7 +33,7 @@ Refund lưu tiền buyer thực nhận, SellerGross bị đảo, phần tài tr�
 
 Khi return hoàn tất, phần hold còn lại chuyển về Processing theo lịch gốc hoặc Available nếu đủ điều kiện. Level 3 Instant nhận phần còn lại vào ví ngay; không tạo payout. Hold của order khác không bị sử dụng hoặc giải phóng.
 
-Yêu cầu đã tồn tại trước migration giữ `PricingPolicyVersion = 0`, tiếp tục chính sách cũ, không tính lại refund/thu postage hồi tố. Thỏa thuận ReturnRefund mới có đủ snapshot tuyến/khối lượng được ghi nhận là hoàn toàn bộ, seller chịu postage. Thỏa thuận trên đơn cũ thiếu snapshot giữ cách xử lý cũ. Với yêu cầu mới đã có báo giá, thỏa thuận trả hàng dùng báo giá đó; phán quyết admin buyer thắng hoàn toàn bộ có thể thay khoản hoàn thực tế và không giữ khoản deduction postage của buyer. Phán quyết hoàn một phần và tùy chọn admin đổi bên chịu phí vẫn chưa thuộc thay đổi này.
+Yêu cầu đã tồn tại trước migration giữ `PricingPolicyVersion = 0`, tiếp tục chính sách cũ, không tính lại refund/thu postage hồi tố. Thỏa thuận ReturnRefund mới có đủ snapshot tuyến/khối lượng được ghi nhận là hoàn toàn bộ, seller chịu postage. Thỏa thuận trên đơn cũ thiếu snapshot giữ cách xử lý cũ. Với yêu cầu mới đã có báo giá, thỏa thuận trả hàng dùng báo giá đó. Phán quyết admin mới có thể kết luận lại trách nhiệm và hoàn toàn bộ/một phần, lưu quyết định điều chỉnh riêng và giữ báo giá gốc; bên chịu phí tự suy ra từ trách nhiệm. Xem [ADMIN_DISPUTE_DECISIONS.md](ADMIN_DISPUTE_DECISIONS.md).
 
 ## API
 

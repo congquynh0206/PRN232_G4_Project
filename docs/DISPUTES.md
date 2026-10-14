@@ -10,7 +10,7 @@ SQL Server lưu hồ sơ `Dispute`, lịch sử `DisputeEntry`, khoản giữ ti
 4. Buyer chấp nhận thì hệ thống thực hiện phương án. Giữ nguyên đơn: đóng hồ sơ và giải phóng khoản giữ theo điều kiện tài chính. Hoàn tiền/trả hàng: hồ sơ tiếp tục mở đến khi hoàn tiền thành công. Lỗi cổng thanh toán vẫn giữ tiền và worker thử lại.
 5. Buyer không đồng ý thì nhập lý do và chuyển hồ sơ cho admin. Seller không gửi phương án đúng hạn cũng tự chuyển admin. Chỉ bổ sung bằng chứng không được xem là đã gửi phương án.
 6. Buyer không trả lời phương án đúng hạn: tự đóng với kết quả **Đã đóng do người mua không phản hồi**, giải phóng khoản giữ theo lịch tài chính. Không tự chấp nhận phương án, không tự hoàn tiền.
-7. Admin chỉ thấy hồ sơ đã chuyển lên, đọc lịch sử của cả hai bên và đưa quyết định kèm lý do. Buyer thắng: hoàn tiền; seller thắng: giải phóng khoản giữ. Kết quả còn lưu trong bộ lọc **Đã giải quyết**.
+7. Admin chỉ thấy hồ sơ đã chuyển lên, đọc lịch sử của cả hai bên, chọn căn cứ và kết luận trách nhiệm kèm lý do. Có thể hoàn toàn bộ khoản đủ điều kiện hoặc một phần sau preview tài chính; seller thắng thì giải phóng khoản giữ theo lịch. Quyết định được lưu riêng, không sửa báo giá buyer. Kết quả còn lưu trong bộ lọc **Đã giải quyết**.
 
 Bằng chứng/lịch sử chỉ được thêm mới. Không có API sửa/xóa; DbContext từ chối cập nhật/xóa `DisputeEntry`. Giao diện nhắc **Bằng chứng không thể sửa hoặc xóa sau khi gửi** trước khi xác nhận. Bổ sung bằng chứng không kéo dài thời hạn; seller không được gửi lại phương án để đặt lại hạn buyer.
 
@@ -46,9 +46,10 @@ Với thỏa thuận trả hàng, seller có thể xác nhận nhận hàng sớ
 | `POST /api/disputes/{id}/evidence` | Buyer/seller: `description`, `evidenceLinks` |
 | `POST /api/disputes/{id}/proposal` | Seller: `proposal` (`Refund`, `ReturnRefund`, `KeepOrder`), `description`, `evidenceLinks` |
 | `POST /api/disputes/{id}/response` | Buyer: `accept`, `description` (bắt buộc khi không đồng ý) |
-| `POST /api/disputes/{id}/resolution` | Admin: `buyerWins`, `reason` |
+| `POST /api/disputes/{id}/decision-preview` | Admin: dự kiến khoản hoàn theo kết luận trách nhiệm |
+| `POST /api/disputes/{id}/resolution` | Admin: `outcome`, `responsibility`, `refundAmount`, `reason`, `evidenceEntryIds`, `key`, `pricingFingerprint` |
 
-Endpoint cũ `fund-hold` vẫn tồn tại nhưng chuyển qua cùng quy trình: mở cần `reason` và `evidenceLinks`; giải quyết cần `releaseToSeller` và `reason`, chỉ khi hồ sơ đã chuyển admin. Không dùng endpoint cũ để bỏ qua thương lượng.
+Endpoint cũ `fund-hold` vẫn tồn tại nhưng chuyển qua cùng quy trình: mở cần `reason` và `evidenceLinks`; giải quyết nhận cùng body phán quyết mới, chỉ khi hồ sơ đã chuyển admin. Không dùng endpoint cũ để bỏ qua thương lượng, preview hoặc căn cứ. Phán quyết hoàn một phần và trách nhiệm/chi phí được mô tả tại [ADMIN_DISPUTE_DECISIONS.md](ADMIN_DISPUTE_DECISIONS.md).
 
 ## Giữ tiền và nâng cấp dữ liệu
 

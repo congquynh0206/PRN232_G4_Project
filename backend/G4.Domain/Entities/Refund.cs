@@ -5,6 +5,7 @@ public sealed class Refund
     public int OrderId { get; set; }
     public int PaymentId { get; set; }
     public int? ReturnRequestId { get; set; }
+    public int? DisputeDecisionId { get; set; }
     public decimal Amount { get; set; }
     public string Currency { get; set; } = "USD";
     public string Reason { get; set; } = "";

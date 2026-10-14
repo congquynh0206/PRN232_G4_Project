@@ -386,6 +386,120 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.ToTable("Dispute", (string)null);
                 });
 
+            modelBuilder.Entity("G4.Domain.Entities.DisputeDecision", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AdminId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("BuyerRefund")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("BuyerShippingRecovery")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<int>("DisputeId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("EvidenceEntryIdsJson")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<decimal>("FeeCredit")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("MaximumRefund")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("OrderId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("OutboundShippingRetained")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("PricingFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("RequestKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal?>("RequestedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Responsibility")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal>("ReturnShippingCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("SellerGrossRefund")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("SellerNetDebit")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ShippingPayer")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal>("SubsidyReversal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdminId");
+
+                    b.HasIndex("DisputeId")
+                        .IsUnique();
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("RequestKey")
+                        .IsUnique();
+
+                    b.ToTable("DisputeDecision", (string)null);
+                });
+
             modelBuilder.Entity("G4.Domain.Entities.DisputeEntry", b =>
                 {
                     b.Property<int>("Id")
@@ -1483,6 +1597,9 @@ namespace G4.Infrastructure.Persistence.Migrations
                         .HasMaxLength(3)
                         .HasColumnType("nvarchar(3)");
 
+                    b.Property<int?>("DisputeDecisionId")
+                        .HasColumnType("int");
+
                     b.Property<string>("IdempotencyKey")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
@@ -1521,6 +1638,8 @@ namespace G4.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(20)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DisputeDecisionId");
 
                     b.HasIndex("IdempotencyKey")
                         .IsUnique();
@@ -2237,6 +2356,27 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Navigation("RaisedByNavigation");
                 });
 
+            modelBuilder.Entity("G4.Domain.Entities.DisputeDecision", b =>
+                {
+                    b.HasOne("G4.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("AdminId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("G4.Domain.Entities.Dispute", null)
+                        .WithMany()
+                        .HasForeignKey("DisputeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("G4.Domain.Entities.OrderTable", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("G4.Domain.Entities.DisputeEntry", b =>
                 {
                     b.HasOne("G4.Domain.Entities.User", null)
@@ -2488,6 +2628,11 @@ namespace G4.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("G4.Domain.Entities.Refund", b =>
                 {
+                    b.HasOne("G4.Domain.Entities.DisputeDecision", null)
+                        .WithMany()
+                        .HasForeignKey("DisputeDecisionId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.HasOne("G4.Domain.Entities.OrderTable", null)
                         .WithMany()
                         .HasForeignKey("OrderId")

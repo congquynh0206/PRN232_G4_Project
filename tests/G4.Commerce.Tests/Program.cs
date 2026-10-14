@@ -9,6 +9,12 @@ if (args.Contains("--return-sql"))
     return;
 }
 
+if (args.Contains("--decision-sql"))
+{
+    await DisputeDecisionSqlChecks.RunAsync();
+    return;
+}
+
 if (args.Contains("--finance-sql"))
 {
     await FinancePolicySqlChecks.RunAsync();
@@ -52,6 +58,7 @@ Equal(5m, quote.Shipping, "shipping");
 Equal(27.50m, quote.Total, "total");
 await ReturnAutomationChecks.RunAsync();
 await ReturnPolicyChecks.RunAsync();
+await DisputeDecisionChecks.RunAsync();
 await ShippingWeightChecks.RunAsync();
 await ShipmentClaimChecks.RunAsync();
 await PromotionManagementChecks.RunAsync();

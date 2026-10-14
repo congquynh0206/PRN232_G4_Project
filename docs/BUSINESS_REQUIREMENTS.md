@@ -83,7 +83,7 @@ Buyer chỉ được yêu cầu **trả toàn bộ hàng của order** trong 7 n
 | Sai hàng, sai mô tả, hàng hỏng/thiếu do seller | Seller chịu | Toàn bộ số tiền buyer đã trả, gồm phí ship chiều đi; nền tảng hoàn phần coupon do mình tài trợ. |
 | Buyer đổi ý hoặc lý do không do seller | Buyer chịu | Giá hàng buyer đã trả sau giảm giá; phí ship chiều đi không hoàn, phí ship chiều về được trừ vào refund và phải hiển thị trước khi buyer xác nhận. |
 
-Phí chiều về dùng công thức mục 3.1 theo địa chỉ và khối lượng snapshot. Nếu khoản buyer phải chịu lớn hơn khoản có thể refund, yêu cầu cần được xử lý riêng trước khi tạo vận đơn; hệ thống không tạo refund âm. Admin có thể điều chỉnh bên chịu phí trong phán quyết tranh chấp và phải lưu lý do.
+Phí chiều về dùng công thức mục 3.1 theo địa chỉ và khối lượng snapshot. Nếu khoản buyer phải chịu lớn hơn khoản có thể refund, yêu cầu cần được xử lý riêng trước khi tạo vận đơn; hệ thống không tạo refund âm. Admin phân xử trách nhiệm dựa trên căn cứ trong tranh chấp; hệ thống suy ra bên chịu phí và lưu quyết định điều chỉnh riêng cùng lý do, không chọn bên chịu phí tùy ý hoặc sửa báo giá gốc.
 
 Seller **duyệt** yêu cầu: lập tức khóa phần tiền còn lại của order vào `OnHold`, tạo vận đơn chiều về `Return` có tracking riêng. Nếu tạo nhãn lỗi, retry dùng lại return request và không tạo hai vận đơn. Khi tracking chiều về là `Delivered`, bắt đầu hạn **48 giờ** để seller xác nhận; Development dùng **1 phút**.
 
@@ -172,7 +172,9 @@ Code hiện có đăng nhập/phân quyền, checkout, coupon phần trăm cơ b
 
 Đã bổ sung chia phí trả hàng theo lý do, không hoàn ship chiều đi khi buyer đổi ý, báo giá và snapshot buyer xác nhận, ledger postage/subsidy/fee credit và giải phóng phần hold còn lại; xem [RETURN_PRICING.md](RETURN_PRICING.md). Yêu cầu đã tồn tại giữ chính sách trước nâng cấp.
 
-Các phần trong tài liệu này **chưa được coi là đã triển khai đầy đủ** gồm: hoàn một phần do admin chọn và tùy chỉnh bên chịu phí trong phán quyết; tiêu chí level mở rộng; nợ xấu, thu nợ giả lập và blacklist. Khi phát triển, cần migration, API, giao diện và kiểm thử tương ứng; giữ dữ liệu SQL Server hiện có bằng migration thay vì chạy lại baseline.
+Đã bổ sung phán quyết admin dựa trên trách nhiệm, chọn căn cứ, preview khoản hoàn toàn bộ/một phần và phí, lưu quyết định riêng, refund/retry và giải phóng hold còn lại; xem [ADMIN_DISPUTE_DECISIONS.md](ADMIN_DISPUTE_DECISIONS.md). Bên chịu phí được suy ra từ kết luận, không tùy chọn độc lập. Báo giá trả hàng ban đầu được giữ nguyên.
+
+Các phần trong tài liệu này **chưa được coi là đã triển khai đầy đủ** gồm: admin chỉ định yêu cầu trả hàng mới; tiêu chí level mở rộng; nợ xấu, thu nợ giả lập và blacklist. Khi phát triển, cần migration, API, giao diện và kiểm thử tương ứng; giữ dữ liệu SQL Server hiện có bằng migration thay vì chạy lại baseline.
 
 ## 14. Các quy ước đề xuất để nhóm duyệt
 

@@ -103,13 +103,14 @@ public sealed class FinanceController(
     }
 
     [HttpPost("orders/{orderId:int}/fund-hold/resolve")]
-    public async Task<IActionResult> ResolveHold(int orderId, FundHoldResolutionRequest request, CancellationToken ct)
+    public async Task<IActionResult> ResolveHold(int orderId, AdminDecisionInput request, CancellationToken ct)
     {
         if (!IsAvailable || !HasRole("admin"))
             return StatusCode(403);
-        var id = await db.Disputes.Where(x => x.OrderId == orderId && x.WorkflowEnabled && x.IsOpen).Select(x => x.Id)
-            .SingleAsync(ct);
-        await disputes.ResolveAsync(id, CurrentUserId, new(!request.ReleaseToSeller, request.Reason), ct);
+        var savedCaseId = await db.DisputeDecisions.Where(x => x.OrderId == orderId && x.RequestKey == request.Key)
+            .Select(x => (int?)x.DisputeId).SingleOrDefaultAsync(ct);
+        var id = savedCaseId ?? await db.Disputes.Where(x => x.OrderId == orderId && x.WorkflowEnabled && x.IsOpen).Select(x => x.Id).SingleAsync(ct);
+        await disputes.ResolveDecisionAsync(id, CurrentUserId, request, ct);
         return Ok(new { orderId, saved = true });
     }
 

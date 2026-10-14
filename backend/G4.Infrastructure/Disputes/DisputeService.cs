@@ -6,7 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace G4.Infrastructure.Disputes;
-public sealed class DisputeService(
+public sealed partial class DisputeService(
     ApplicationDbContext db,
     ISellerFinanceService finance,
     IReturnService returns,
@@ -97,7 +97,7 @@ public sealed class DisputeService(
     )
     {
         var links = ValidateEvidence(request.Description, request.EvidenceLinks);
-        await AtomicAsync(async () =>
+        await AtomicCaseAsync(id, async () =>
         {
             var dispute = await OwnedAsync(id, actorId, role, ct);
             if (!dispute.IsOpen || dispute.Outcome is not null)
@@ -115,9 +115,10 @@ public sealed class DisputeService(
     {
         var links = ValidateEvidence(request.Description, request.EvidenceLinks);
         Dispute? result = null;
+        var returnOrderId = await db.ReturnRequests.AsNoTracking().Where(x => x.Id == returnId).Select(x => x.OrderId!.Value).SingleAsync(ct);
         await AtomicAsync(async () =>
         {
-            var orderId = await db.ReturnRequests.Where(x => x.Id == returnId).Select(x => x.OrderId!.Value).SingleAsync(ct);
+            var orderId = returnOrderId;
             var order = db.Database.IsSqlServer() ? await db.OrderTables.FromSqlInterpolated($"SELECT * FROM [OrderTable] WITH (UPDLOCK, HOLDLOCK) WHERE [id] = {orderId}")
                 .SingleAsync(ct) : await db.OrderTables.SingleAsync(x => x.Id == orderId, ct);
             if (order.SellerId != sellerId)
@@ -171,7 +172,7 @@ public sealed class DisputeService(
         var links = ValidateEvidence(request.Description, request.EvidenceLinks);
         if (request.Proposal is not ("Refund" or "ReturnRefund" or "KeepOrder"))
             throw new ArgumentException("Vui lòng chọn một phương án giải quyết hợp lệ.");
-        await AtomicAsync(async () =>
+        await AtomicCaseAsync(id, async () =>
         {
             var dispute = await OwnedAsync(id, sellerId, "seller", ct);
             if (dispute.Status != "AwaitingSeller" || Now >= dispute.SellerResponseDueAt)
@@ -194,7 +195,7 @@ public sealed class DisputeService(
         if (!request.Accept)
             ValidateDescription(request.Description);
         var executeAgreement = false;
-        await AtomicAsync(async () =>
+        await AtomicCaseAsync(id, async () =>
         {
             var dispute = await OwnedAsync(id, buyerId, "buyer", ct);
             if (dispute.Status != "AwaitingBuyer" || dispute.BuyerResponseDueAt is null || Now >= dispute.BuyerResponseDueAt)
@@ -242,7 +243,7 @@ public sealed class DisputeService(
         if (!await db.Users.AnyAsync(x => x.Id == adminId && x.Role == "admin", ct))
             throw new UnauthorizedAccessException("Chỉ admin được quyết định tranh chấp.");
         var executeAgreement = false;
-        await AtomicAsync(async () =>
+        await AtomicCaseAsync(id, async () =>
         {
             var dispute = await GetAsync(id, ct);
             if (dispute.Status != "Escalated")
@@ -315,7 +316,8 @@ public sealed class DisputeService(
         ))
             .ToList(),
             parties.FirstOrDefault(u => u.Id == summary.BuyerId)?.Name,
-            parties.FirstOrDefault(u => u.Id == summary.SellerId)?.Name
+            parties.FirstOrDefault(u => u.Id == summary.SellerId)?.Name,
+            await DecisionViewAsync(id, ct)
         );
     }
 
@@ -392,7 +394,7 @@ public sealed class DisputeService(
         try
         {
             var workToken = executionToken ?? ct;
-            await AtomicAsync(async () => await work(await GetAsync(id, workToken)), workToken);
+            await AtomicCaseAsync(id, async () => await work(await GetAsync(id, workToken)), workToken);
         }
         catch (Exception ex)when (!ct.IsCancellationRequested)
         {
@@ -575,7 +577,12 @@ public sealed class DisputeService(
         return dispute;
     }
 
-    private Task<Dispute> GetAsync(int id, CancellationToken ct) => db.Disputes.SingleAsync(x => x.Id == id && x.WorkflowEnabled, ct);
+    private async Task<Dispute> GetAsync(int id, CancellationToken ct)
+    {
+        var dispute = await db.Disputes.SingleAsync(x => x.Id == id && x.WorkflowEnabled, ct);
+        if (db.Database.IsRelational()) await db.Entry(dispute).ReloadAsync(ct);
+        return dispute;
+    }
     private async Task<int?> HoldCaseIdAsync(Dispute dispute, CancellationToken ct) => await db.FinancialTransactions.AnyAsync(x => x.EntryKey == $"order:{dispute.OrderId}:case:{dispute.Id}:hold", ct) ? dispute.Id : null;
     private static void ValidateDescription(string? description)
     {
@@ -597,7 +604,7 @@ public sealed class DisputeService(
     private async Task AtomicAsync(Func<Task> work, CancellationToken ct)
     {
         // Serialize transitions and money changes; row versions reject stale updates.
-        await using var transaction = db.Database.IsRelational() ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct) : null;
+        await using var transaction = db.Database.IsRelational() && db.Database.CurrentTransaction == null ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct) : null;
         await work();
         if (transaction is not null)
             await transaction.CommitAsync(ct);

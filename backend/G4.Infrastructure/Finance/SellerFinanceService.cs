@@ -412,7 +412,8 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
     private async Task ReleaseCompletedReturnRemainderAsync(SellerSettlement settlement, SellerAccount account, Refund refund, CancellationToken ct)
     {
         if (await db.Disputes.AnyAsync(d => d.OrderId == settlement.OrderId && d.WorkflowEnabled && d.IsOpen
-            && !(d.Status == "ExecutingAgreement" && d.Proposal == "ReturnRefund"), ct)) return;
+            && !(d.Status == "ExecutingAgreement" && (d.Proposal == "ReturnRefund"
+                || db.DisputeDecisions.Any(x => x.DisputeId == d.Id))), ct)) return;
         var held = await HeldAmountAsync(settlement.Id, ct);
         if (account.OnHoldBalance < held) throw new InvalidOperationException("Held seller balance is inconsistent");
         var ready = await CanReleaseAsync(settlement, ct);
