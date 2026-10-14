@@ -1,5 +1,14 @@
 
 services:
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: g4-mailhog
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+    networks:
+      - g4-net
+
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: g4-sql
@@ -21,10 +30,16 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=CloneEbayDB;User Id=sa;Password=G4@123456Strong!;TrustServerCertificate=True;
+      - Mail__Mode=Smtp
+      - Mail__Host=mailhog
+      - Mail__Port=1025
+      - Mail__EnableSsl=false
+      - Mail__From=g4@example.test
     ports:
       - "8080:8080"
     depends_on:
       - sqlserver
+      - mailhog
     networks:
       - g4-net
 

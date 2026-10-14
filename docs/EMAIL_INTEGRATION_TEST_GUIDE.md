@@ -1,11 +1,16 @@
 # Test email thông báo và nhật ký tích hợp
 
-Ngày 05/10/2026. Code và migration đã kiểm thử trên `G4_Email_Test_20261005`; migration vào `CloneEbayDB` là bước triển khai riêng cần người dùng duyệt. Các đơn QA không được tạo trong database chính.
+Cập nhật ngày 14/10/2026: Development dùng SMTP + MailHog. Tích hợp email trước đó được kiểm thử trên `G4_Email_Test_20261005`; bài test MailHog dùng outbox InMemory, không tạo đơn hoặc sửa database SQL.
 
 ## 1. Chuẩn bị chạy
 
+- Không cần terminal: bấm đúp `start-mailhog.cmd` trong thư mục gốc dự án. File này chạy script bên dưới và mở hộp thư tại `http://127.0.0.1:8025`. Có thể tạo shortcut trên Desktop bằng **Send to → Desktop (create shortcut)**. Nếu MailHog đã chạy, file chỉ mở hộp thư, không tạo thêm server. Hoặc mở Docker Desktop → Containers → Start container `mailhog` đã có sẵn trên máy.
 - Database cần migration `20261005062401_AddEmailIntegrationDiagnostics`, sau `AddPromotions`. SQL để duyệt: [email-integration-migration.sql](../database/email-integration-migration.sql). Dừng API, sao lưu database và kiểm tra dữ liệu trước/sau khi triển khai.
-- Chạy API và frontend theo [PROJECT_RUN.md](PROJECT_RUN.md). Development mặc định `Mail:Mode=Capture`: chỉ lưu nội dung trong app, không gửi thư ra ngoài.
+- Từ thư mục gốc, chạy `powershell -ExecutionPolicy Bypass -File scripts/start-mailhog.ps1`. Script tải MailHog Windows v1.0.1 từ GitHub chính thức vào `artifacts/mailhog` ở lần đầu, sau đó chạy nền; không cần Docker. File tải về và log không được commit. Những lần sau không cần tải lại; script tái sử dụng MailHog đang chạy.
+- Hoặc mở Docker Desktop và chạy `docker compose up -d --no-deps mailhog`. Chỉ service MailHog được khởi động, không thay đổi SQL Server hoặc dữ liệu dự án. Chọn một trong hai cách; không chạy hai server cùng cổng.
+- Nếu máy đã có MailHog từ dự án khác chiếm cổng `1025/8025`, dùng script trên để tái sử dụng; không tạo thêm container. Trên máy hiện tại, container có tên `mailhog` đã có sẵn và được tái sử dụng. Các lệnh `docker compose stop/start/logs mailhog` bên dưới dành cho service của dự án này; với container có sẵn, dùng `docker stop mailhog`, `docker start mailhog`, `docker logs mailhog` tương ứng.
+- Chạy API và frontend theo [PROJECT_RUN.md](PROJECT_RUN.md). Development mặc định `Mail:Mode=Smtp`, host `127.0.0.1`, port `1025`, không TLS hoặc tài khoản SMTP. Docker Compose dùng host `mailhog` cho API trong container.
+- Mở `http://localhost:8025` để xem email MailHog nhận. Cả bản Windows và Docker chỉ mở hai cổng `1025` và `8025` tại loopback.
 - Dùng tài khoản demo buyer/seller/shipper/admin, mật khẩu `G4@123456`. Các API mới dùng JWT và chỉ mở trong Development như các màn demo hiện có.
 
 ## 2. Test bằng giao diện
@@ -20,11 +25,15 @@ Ngày 05/10/2026. Code và migration đã kiểm thử trên `G4_Email_Test_2026
 | Đọc thư | Bấm **Xem nội dung**, mở **Xem mẫu email** | Nội dung text và HTML thực đã lưu; buyer/seller bấm **Xem đơn hàng** để mở chi tiết. Thư cũ thiếu HTML vẫn đọc text được. |
 | Bộ lọc | Lọc mã đơn, loại thông báo, trạng thái; bấm Xóa bộ lọc | Chỉ hiện kết quả phù hợp; không có dữ liệu thì hiện hướng dẫn rõ ràng. |
 
-Trong Capture, trạng thái **Đã lưu để xem — chưa gửi**, `CapturedAt` có giá trị, `SentAt` trống. Thư đã lưu không được tạo lại nội dung khi xem hoặc tải lại trang.
+Với MailHog, sau khoảng một chu kỳ worker (5 giây), trạng thái phải là **Đã gửi tới máy chủ email** (`Sent`), `SentAt` có giá trị, `CapturedAt` trống. MailHog phải có thư với đúng người nhận, mã đơn, số tiền, tiếng Việt và hai phần text/HTML. Kiểm tra cả tab email trong ứng dụng và hộp thư MailHog cho từng sự kiện trong bảng trên.
+
+Chỉ email mới hoặc email `Failed` được admin thử lại mới gửi tới MailHog. Các thư cũ đã `Captured` hoặc `Sent` không tự gửi lại sau khi đổi cấu hình. Thư đã lưu không được tạo lại nội dung khi xem hoặc tải lại trang.
 
 ## 3. SMTP và gửi lại khi lỗi
 
-Ví dụ chạy với SMTP/mail catcher **cục bộ đã có sẵn**:
+API đã có cấu hình SMTP trong `appsettings.Development.json`, nên không cần đặt biến môi trường khi chạy bằng Visual Studio. User Secrets và biến môi trường có thể ghi đè cấu hình này; nếu vẫn thấy `Captured`, kiểm tra `Mail:Mode` trong các nguồn đó rồi khởi động lại API.
+
+Nếu chạy API bằng terminal, có thể đặt rõ cấu hình:
 
 ```powershell
 $env:Mail__Mode='Smtp'
@@ -35,11 +44,23 @@ $env:Mail__From='g4@example.test'
 dotnet run --project backend/G4.Api --urls http://localhost:5251
 ```
 
-`Mail__Mode` phải đổi rõ ràng vì Development mặc định Capture; chỉ đặt Host không ghi đè Mode đã cấu hình. Username/Password nếu cần đặt qua User Secrets hoặc biến môi trường, không ghi vào source.
+MailHog cục bộ không cần Username/Password. Nếu trước đây đã đặt credentials SMTP trong User Secrets/biến môi trường, bỏ chúng khi dùng MailHog. Không cấu hình máy chủ gửi ra ngoài hoặc dùng nút Release của MailHog trong bài test này.
 
-Để thử lỗi kết nối, tắt mail catcher hoặc dùng cổng local chưa có dịch vụ, tạo **một đơn mới** rồi thanh toán. Email đang Pending sẽ được worker xử lý: lần 1, sau lỗi đợi 30 giây, lần 2, đợi thêm 2 phút, lần 3 rồi Failed. Thời gian thực tế có thể muộn hơn theo chu kỳ worker. Lỗi cấu hình/địa chỉ không hợp lệ dừng ngay để kiểm tra.
+Kiểm thử tự động với MailHog thật đang chạy:
 
-Bật lại mail catcher, đăng nhập **admin** → Email thông báo → lọc Failed → **Thử gửi lại**. Một đợt mới được mở, giữ tổng Attempts và lịch sử cũ. Buyer/seller không có quyền gửi lại. Thư Sent/Captured hoặc đang xử lý không được retry. Retry không sửa người nhận đã lưu; email thiếu/sai người nhận vẫn Failed.
+```powershell
+dotnet run --project tests/G4.Commerce.Tests -- --mailhog
+```
+
+Bài test đi qua `NotificationProcessor` và `SmtpEmailSender`, kiểm tra người nhận, Message-ID, nội dung UTF-8 text/HTML và trạng thái `Sent`. Sau đó dùng một cổng local đóng để thử ba lần thất bại, mở chu kỳ gửi lại và kiểm tra MailHog nhận thư thành công. Bài test không dừng MailHog, không xóa thư khác và không sửa SQL; hai thư QA được giữ lại để xem trên web.
+
+Ngày 14/10/2026 đã chạy bài test này thành công với MailHog Windows v1.0.1 thực tế và chạy lại thành công với container MailHog có sẵn sau khi Docker Desktop khởi động. Cuối cùng đã dừng riêng bản Windows vừa tạo và giữ container có sẵn để sử dụng. Build không có warning/error và toàn bộ commerce checks qua. Service Docker Compose mới được kiểm tra bằng `docker compose config --quiet`; không tạo thêm container trùng cổng.
+
+Để thử lỗi kết nối qua giao diện, tắt MailHog: bản Windows dùng `Get-Process -Name MailHog_windows_amd64 | Stop-Process`, bản Docker dùng `docker compose stop mailhog`. Tạo **một đơn mới** rồi thanh toán. Email đang Pending sẽ được worker xử lý: lần 1, sau lỗi đợi 30 giây, lần 2, đợi thêm 2 phút, lần 3 rồi Failed. Thời gian thực tế có thể muộn hơn theo chu kỳ worker. Lỗi cấu hình/địa chỉ không hợp lệ dừng ngay để kiểm tra.
+
+Bật lại bằng script `start-mailhog.ps1` (Windows) hoặc `docker compose start mailhog` (Docker), đăng nhập **admin** → Email thông báo → lọc Failed → **Thử gửi lại**. Một đợt mới được mở, giữ tổng Attempts và lịch sử cũ. Kiểm tra trạng thái `Sent` trong app và thư mới trong MailHog. Buyer/seller không có quyền gửi lại. Thư Sent/Captured hoặc đang xử lý không được retry. Retry không sửa người nhận đã lưu; email thiếu/sai người nhận vẫn Failed.
+
+MailHog dùng bộ nhớ mặc định: tắt/chạy lại tiến trình Windows hoặc restart/recreate container làm mất thư trong hộp thư thử nghiệm; lịch sử trong database ứng dụng vẫn còn. Log bản Windows nằm trong `artifacts/mailhog`; bản Docker xem bằng `docker compose logs mailhog`. Có thể quay lại Capture bằng User Secrets `Mail:Mode=Capture` hoặc biến môi trường `Mail__Mode=Capture`, rồi khởi động lại API; Capture chỉ lưu trong app và không cần MailHog.
 
 **Đã gửi tới máy chủ email** chỉ có nghĩa adapter SMTP báo gửi thành công, không chứng minh người nhận đã đọc hoặc thư vào Inbox. Timeout/mất kết nối có thể khiến kết quả chưa xác định. Message-ID ổn định hỗ trợ truy vết, không bảo đảm không có thư trùng sau crash.
 

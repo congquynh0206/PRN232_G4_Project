@@ -3,6 +3,12 @@ using G4.Contracts.Checkout;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
+if (args.Contains("--mailhog"))
+{
+    await MailHogChecks.RunAsync();
+    return;
+}
+
 if (args.Contains("--email-sql"))
 {
     await NotificationSqlChecks.RunAsync();

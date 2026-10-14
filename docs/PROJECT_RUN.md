@@ -18,8 +18,9 @@ Giỏ buyer hiện random từ đúng hai seller, lưu theo tài khoản và che
 
    Giao diện quản lý dùng `OrderTable.UpdatedAt` và quy trình tranh chấp mới cần migration `AddDisputeWorkflow`. Với cơ sở dữ liệu đã có, dừng API và chạy lại lệnh migration trên trước khi khởi động API mới. `AddOrderUpdatedAt` điền thời điểm ban đầu từ `OrderDate`; `AddDisputeWorkflow` thêm lịch sử bằng chứng và trạng thái thương lượng. SQL để duyệt: [dispute-workflow-migration.sql](../database/dispute-workflow-migration.sql).
 4. Chạy [database/seed-data.sql](../database/seed-data.sql) để thêm/cập nhật buyer, seller, shipper, admin, store, 5 sản phẩm, tồn kho, địa chỉ và coupon `G4SAVE10`. Script có thể chạy lại an toàn: không tạo bản ghi trùng và không đặt lại số lượng tồn kho đã bị đơn hàng trừ.
-5. Chạy API: `dotnet run --project backend/G4.Api --urls http://localhost:5251`.
-6. Chạy frontend ở cửa sổ khác: `dotnet run --project frontend --urls http://localhost:5131`.
+5. Chạy `powershell -ExecutionPolicy Bypass -File scripts/start-mailhog.ps1` để khởi động MailHog Windows (lần đầu tải bản v1.0.1 từ GitHub chính thức vào thư mục `artifacts/mailhog`, cần Internet). Nếu dùng Docker, mở Docker Desktop và chạy `docker compose up -d --no-deps mailhog` thay thế. Hộp thư thử nghiệm ở `http://localhost:8025`.
+6. Chạy API: `dotnet run --project backend/G4.Api --urls http://localhost:5251`.
+7. Chạy frontend ở cửa sổ khác: `dotnet run --project frontend --urls http://localhost:5131`.
 
 Với SQL Server cài trực tiếp và Windows Authentication, có thể chạy dữ liệu tham chiếu bằng:
 
@@ -36,7 +37,8 @@ Nếu đã có `CloneEbayDB` từ trước, kiểm tra các bảng nền có kh�
 3. Đặt `G4.Api` và `frontend` thành **Start**, chọn profile `http` cho cả hai. Các project Domain/Application/Contracts/Infrastructure để **None**.
 4. Mở **Manage User Secrets** của project `G4.Api` và đặt `ConnectionStrings:DefaultConnection`.
 5. Chạy [database/seed-data.sql](../database/seed-data.sql) trong SSMS nếu database chưa có dữ liệu tham chiếu.
-6. Nhấn Start. Giao diện mở tại `http://localhost:5131`, Swagger ở `http://localhost:5251/swagger`.
+6. Bấm đúp `start-mailhog.cmd` trong thư mục gốc dự án để bật MailHog và mở hộp thư, không cần gõ lệnh. Có thể tạo shortcut của file này trên Desktop. Nếu dùng MailHog Docker có sẵn, mở Docker Desktop → Containers → Start container `mailhog` thay thế. Chỉ cần bật một trong hai cách.
+7. Nhấn Start. Giao diện mở tại `http://localhost:5131`, Swagger ở `http://localhost:5251/swagger`; xem thư tại `http://localhost:8025`.
 
 Đăng nhập bằng một trong bốn email `buyer@example.test`, `seller@example.test`, `shipper@example.test`, `admin@example.test`; mật khẩu Development dùng chung là `G4@123456`.
 
@@ -46,7 +48,7 @@ Sau khi đổi cấu trúc, project startup backend là `backend/G4.Api/G4.Api.c
 
 Đặt `PayPal__ClientId` và `PayPal__ClientSecret` từ ứng dụng **Sandbox** của PayPal bằng biến môi trường hoặc .NET User Secrets của project `G4.Api`. `UserSecretsId` cũ được giữ nguyên nên secret đã lưu trên máy vẫn dùng được. Không ghi secret vào source. Tài khoản buyer sandbox dùng ở trang PayPal khi được chuyển hướng. Nếu chưa có credential, nút PayPal sẽ báo chưa cấu hình; các luồng thẻ và giao hàng vẫn chạy được.
 
-Credit Card ở đây chỉ là mô phỏng: `4111111111111111` + `12/30` thành công; `4000000000000002` + `12/30` bị từ chối; tháng/năm đã qua trả về hết hạn. Không nhập thẻ thật. Seller tạo vận đơn, xử lý hủy/trả hàng và hoàn tiền trên trang **Seller**; shipper phát các mốc tracking trên trang **Shipper**. Buyer/seller/admin có tab **Email thông báo**; seller/admin có **Nhật ký tích hợp**. Development mặc định `Mail__Mode=Capture` chỉ lưu thư trong app. Muốn gửi tới SMTP/mail catcher cục bộ phải đặt `Mail__Mode=Smtp`, `Mail__Host` và `Mail__Port`; xem [hướng dẫn test email/nhật ký](EMAIL_INTEGRATION_TEST_GUIDE.md).
+Credit Card ở đây chỉ là mô phỏng: `4111111111111111` + `12/30` thành công; `4000000000000002` + `12/30` bị từ chối; tháng/năm đã qua trả về hết hạn. Không nhập thẻ thật. Seller tạo vận đơn, xử lý hủy/trả hàng và hoàn tiền trên trang **Seller**; shipper phát các mốc tracking trên trang **Shipper**. Buyer/seller/admin có tab **Email thông báo**; seller/admin có **Nhật ký tích hợp**. Development mặc định gửi SMTP tới MailHog tại `127.0.0.1:1025`; khi chạy API bằng Docker Compose, host được đổi thành `mailhog`. Thư được giữ trong MailHog để test, không tự gửi tới Gmail. Có thể đặt `Mail__Mode=Capture` để chỉ lưu trong app khi không chạy MailHog; xem [hướng dẫn test email/nhật ký](EMAIL_INTEGRATION_TEST_GUIDE.md).
 
 Code email/nhật ký mới cần migration `20261005062401_AddEmailIntegrationDiagnostics` sau `AddPromotions`, duyệt SQL tại [email-integration-migration.sql](../database/email-integration-migration.sql). Đợt 05/10 đã kiểm thử trên database QA riêng; triển khai database chính phải được duyệt trước khi chạy migration. Đừng khởi động API phiên bản mới trên schema cũ.
 
