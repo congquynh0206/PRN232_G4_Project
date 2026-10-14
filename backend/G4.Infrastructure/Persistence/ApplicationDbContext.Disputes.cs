@@ -14,12 +14,14 @@ public partial class ApplicationDbContext
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         GuardDisputeHistory();
+        GuardFinanceHistory();
         return base.SaveChanges(acceptAllChangesOnSuccess);
     }
 
     public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
     {
         GuardDisputeHistory();
+        GuardFinanceHistory();
         return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 }

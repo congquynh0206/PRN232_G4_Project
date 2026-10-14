@@ -11,6 +11,7 @@
     else if (id === 'promotions') safe(() => G4.Promotions.load());
     else if (id === 'inbox') safe(() => G4.Notifications.load());
     else if (id === 'integration-logs') safe(() => G4.IntegrationLogs.load());
+    else if (id === 'platform-fees') safe(() => G4.PlatformFees.load());
   }
   document
     .querySelectorAll('.tabs button')
@@ -19,4 +20,5 @@
   G4.Promotions.init('admin');
   G4.Notifications.init('admin');
   G4.IntegrationLogs.init('admin');
+  G4.PlatformFees.init();
 })();

@@ -10,12 +10,14 @@
     <button data-tab="inbox">Email thông báo</button>
     <button data-tab="integration-logs">Nhật ký tích hợp</button>
     <button data-tab="promotions">Khuyến mãi</button>
+    <button data-tab="platform-fees">Phí nền tảng</button>
 </nav>
 <div id="message" class="message" role="status" aria-live="polite"></div>
 <partial name="_DisputesPanel" model="true" />
 
 <partial name="_NotificationsPanel" />
 <partial name="_IntegrationLogsPanel" />
+<partial name="_PlatformFeesPanel" />
 @section Scripts
 {
 <script src="~/js/common.js" asp-append-version="true"></script>
@@ -23,6 +25,7 @@
 <script src="~/js/integration-logs.js" asp-append-version="true"></script>
 <script src="~/js/promotions.js" asp-append-version="true"></script>
 <script src="~/js/disputes.js" asp-append-version="true"></script>
+<script src="~/js/platform-fees.js" asp-append-version="true"></script>
 <script src="~/js/admin.js" asp-append-version="true"></script>
 }
 <partial name="_PromotionsPanel" model="true" />

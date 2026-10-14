@@ -29,7 +29,7 @@ internal static class AddressChangeChecks
         db.Products.Add(new Product { Id = 1, SellerId = 2, Title = "Camera", Price = 100, WeightKg = 1.2m });
         db.Inventories.Add(new Inventory { Id = 1, ProductId = 1, Quantity = 10 });
         await db.SaveChangesAsync();
-        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Finance:AcceleratedHoldSeconds"] = "1" })
+        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Finance:Levels:1:HoldSeconds"] = "1" })
             .Build();
         var finance = new SellerFinanceService(db, config);
         var checkout = new CheckoutService(db, finance);

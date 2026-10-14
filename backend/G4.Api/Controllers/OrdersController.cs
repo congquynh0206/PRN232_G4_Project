@@ -85,7 +85,7 @@ public sealed class OrdersController(
             .SingleOrDefaultAsync(ct);
         var refunds = await db.Refunds.AsNoTracking().Where(r => r.OrderId == id).Select(r => new { r.Id, r.Amount, r.Status, r.Reason, r.CreatedAt, r.CompletedAt })
             .ToListAsync(ct);
-        var settlement = await db.SellerSettlements.AsNoTracking().Where(s => s.OrderId == id).Select(s => new { s.GrossAmount, s.PlatformFeeAmount, s.NetAmount, s.ProcessingAmount, s.RefundedAmount, s.FeeCreditAmount, s.Status, s.ReleaseAt, s.ReleasedAt, s.ShippingAdjustmentCost })
+        var settlement = await db.SellerSettlements.AsNoTracking().Where(s => s.OrderId == id).Select(s => new { s.GrossAmount, s.PlatformFeeAmount, s.NetAmount, s.ProcessingAmount, s.RefundedAmount, s.FeeCreditAmount, s.Status, s.ReleaseAt, s.ReleasedAt, s.ShippingAdjustmentCost, s.HoldStartedAt, s.HoldSecondsSnapshot, s.SellerLevelSnapshot, s.HoldPolicyVersion, s.FeePercentSnapshot })
             .SingleOrDefaultAsync(ct);
         var dispute = await db.Disputes.AsNoTracking().Where(d => d.OrderId == id && d.WorkflowEnabled).OrderByDescending(d => d.Id)
             .Select(d => new { d.Id, d.Status, d.IsOpen, d.Outcome })

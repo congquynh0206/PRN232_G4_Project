@@ -45,5 +45,14 @@ public sealed record SellerFinanceSummary(
     decimal Negative,
     SellerLevelProgress LevelProgress,
     IReadOnlyList<FinanceTransactionView> Transactions,
-    IReadOnlyList<PayoutView> Payouts
+    IReadOnlyList<PayoutView> Payouts,
+    int HoldSeconds = 0
 );
+
+public sealed record PlatformFeeChangeRequest(decimal FeePercent, decimal FixedFee, DateTimeOffset? EffectiveAt,
+    string Reason, string RequestKey, int ExpectedLatestPolicyId);
+public sealed record PlatformFeePolicyView(int Id, decimal FeePercent, decimal FixedFee,
+    decimal PreviousFeePercent, decimal PreviousFixedFee, DateTime EffectiveAt, DateTime CreatedAt,
+    int? ChangedById, string ChangedBy, string Reason);
+public sealed record PlatformFeeSettings(PlatformFeePolicyView Current, int LatestPolicyId,
+    int Page, int PageSize, int TotalCount, IReadOnlyList<PlatformFeePolicyView> Items);

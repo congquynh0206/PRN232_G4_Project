@@ -188,6 +188,9 @@ public sealed class ShipmentService(
         }
 
         await db.SaveChangesAsync(ct);
+        if (shipment.Direction == "Outbound" && status == "Delivered")
+            await new G4.Infrastructure.Finance.SellerFinanceService(db,
+                config ?? new ConfigurationBuilder().Build(), clock).StartDeliveryHoldAsync(orderId, ct);
         if (transaction is not null)
             await transaction.CommitAsync(ct);
         return true;

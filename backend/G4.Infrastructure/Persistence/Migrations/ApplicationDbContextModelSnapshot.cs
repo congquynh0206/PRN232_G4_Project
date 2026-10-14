@@ -1088,6 +1088,76 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.ToTable("Payment", (string)null);
                 });
 
+            modelBuilder.Entity("G4.Domain.Entities.PlatformFeePolicy", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("ChangedById")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("EffectiveAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("FeePercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal>("FixedFee")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("PreviousFeePercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal>("PreviousFixedFee")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("RequestKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChangedById");
+
+                    b.HasIndex("EffectiveAt")
+                        .IsUnique();
+
+                    b.HasIndex("RequestKey")
+                        .IsUnique();
+
+                    b.ToTable("PlatformFeePolicy", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            CreatedAt = new DateTime(2000, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            EffectiveAt = new DateTime(2000, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            FeePercent = 12m,
+                            FixedFee = 0.30m,
+                            PreviousFeePercent = 12m,
+                            PreviousFixedFee = 0.30m,
+                            Reason = "Mức phí mặc định ban đầu",
+                            RequestKey = "initial-platform-fee"
+                        });
+                });
+
             modelBuilder.Entity("G4.Domain.Entities.Product", b =>
                 {
                     b.Property<int>("Id")
@@ -1677,11 +1747,27 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<decimal>("FeeCreditAmount")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal?>("FeePercentSnapshot")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<int?>("FeePolicyId")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("FixedFeeAmount")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("GrossAmount")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("HoldPolicyVersion")
+                        .HasColumnType("int");
+
+                    b.Property<int>("HoldSecondsSnapshot")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("HoldStartedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<decimal>("NetAmount")
                         .HasColumnType("decimal(18,2)");
@@ -1701,7 +1787,7 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<decimal>("RefundedAmount")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<DateTime>("ReleaseAt")
+                    b.Property<DateTime?>("ReleaseAt")
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("ReleasedAt")
@@ -1713,6 +1799,9 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<int>("SellerId")
                         .HasColumnType("int");
 
+                    b.Property<int>("SellerLevelSnapshot")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("ShippingAdjustmentCost")
                         .HasColumnType("decimal(18,2)");
 
@@ -1722,6 +1811,8 @@ namespace G4.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(30)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("FeePolicyId");
 
                     b.HasIndex("OrderId")
                         .IsUnique();
@@ -2199,6 +2290,14 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("G4.Domain.Entities.PlatformFeePolicy", b =>
+                {
+                    b.HasOne("G4.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ChangedById")
+                        .OnDelete(DeleteBehavior.NoAction);
+                });
+
             modelBuilder.Entity("G4.Domain.Entities.Product", b =>
                 {
                     b.HasOne("G4.Domain.Entities.Category", "Category")
@@ -2363,6 +2462,11 @@ namespace G4.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("G4.Domain.Entities.SellerSettlement", b =>
                 {
+                    b.HasOne("G4.Domain.Entities.PlatformFeePolicy", null)
+                        .WithMany()
+                        .HasForeignKey("FeePolicyId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.HasOne("G4.Domain.Entities.OrderTable", null)
                         .WithMany()
                         .HasForeignKey("OrderId")

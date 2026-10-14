@@ -37,6 +37,7 @@ API còn kiểm tra quyền sở hữu dữ liệu: buyer chỉ truy cập order
 - `GET /api/disputes/page`: danh sách phân trang theo quyền; admin chỉ thấy hồ sơ đã chuyển lên.
 - `GET /api/disputes/{id}` và các thao tác: xem [DISPUTES.md](DISPUTES.md).
 - `GET /api/admin/fund-holds`: endpoint tương thích, chỉ liệt kê khoản giữ thuộc hồ sơ đã chuyển admin.
+- `GET/POST /api/admin/platform-fees`: chỉ admin đọc/cập nhật mức phí có thời điểm hiệu lực và lịch sử; buyer/seller/shipper nhận 403.
 - `POST /api/orders/{id}/fund-hold/resolve`: endpoint tương thích, vẫn kiểm tra hồ sơ đã chuyển admin và lý do quyết định.
 
 Các controller API dùng fallback policy yêu cầu đăng nhập. Carrier simulator vẫn dùng `X-Carrier-Key` riêng và được phép gọi ẩn danh vì đây là tích hợp machine-to-machine cục bộ.

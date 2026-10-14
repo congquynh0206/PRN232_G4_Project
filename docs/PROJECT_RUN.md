@@ -52,7 +52,7 @@ Credit Card ở đây chỉ là mô phỏng: `4111111111111111` + `12/30` thành
 
 Code email/nhật ký mới cần migration `20261005062401_AddEmailIntegrationDiagnostics` sau `AddPromotions`, duyệt SQL tại [email-integration-migration.sql](../database/email-integration-migration.sql). Đợt 05/10 đã kiểm thử trên database QA riêng; triển khai database chính phải được duyệt trước khi chạy migration. Đừng khởi động API phiên bản mới trên schema cũ.
 
-Tab **Tài chính người bán** hiển thị phí nền tảng, số dư đang xử lý/có thể rút/đang giữ/số dư âm, cấp người bán và lịch sử rút tiền. Development mở khóa tiền sau 30 giây nhưng chỉ khi đơn đã giao; cấu hình thật dùng 21/7/0 ngày theo cấp. Worker cũng tự tạo đối soát cho payment/refund cũ sau khi nâng database.
+Tab **Tài chính người bán** hiển thị ví khả dụng, tiền đang xử lý/đang giữ/số dư âm, level và lịch sử rút tiền. Level 1/2 bắt đầu giữ từ giao thành công: Development 30/15 giây, môi trường khác 21/7 ngày. Level 3 Instant tự cộng Net sau phí/bù nợ vào ví khi payment thành công, không cần payout. Payout chỉ dùng để rút ra ngân hàng giả lập. Admin có tab **Phí nền tảng** để đặt mức phí, lịch hiệu lực và xem lịch sử; mặc định 12% SellerGross + 0,30 USD. Cần migration `20261014051607_AddPlatformFeePoliciesAndDeliveryHolds`; xem [SELLER_FINANCE.md](SELLER_FINANCE.md). Settlement cũ giữ lịch và phí trước nâng cấp. Worker cũng tự tạo đối soát cho payment/refund cũ sau khi nâng database.
 
 Buyer và seller có tab **Tranh chấp** để thương lượng với mô tả và link bằng chứng bắt buộc, không sửa/xóa sau khi gửi. Admin chỉ xử lý hồ sơ đã chuyển lên. Development dùng **45 giây** cho phản hồi seller, phản hồi buyer và xác nhận hàng trả; worker chạy mỗi 5 giây. Xem quy tắc đầy đủ tại [DISPUTES.md](DISPUTES.md).
 

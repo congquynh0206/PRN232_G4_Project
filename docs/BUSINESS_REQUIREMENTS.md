@@ -52,7 +52,7 @@ Seller chỉ tạo/sửa/bật/tắt promotion do mình tài trợ. Admin toàn 
 
 **Quy tắc kết hợp cho G4_Project:** tối đa một coupon trên một đơn (buyer chọn một mã seller hoặc một mã admin); coupon có thể đi cùng sale event và shipping discount; coupon không đi cùng volume pricing hoặc order discount. Nếu nhiều chương trình cùng nhóm đủ điều kiện, chọn phương án có lợi nhất cho buyer. Không để tổng giảm vượt khoản tiền đủ điều kiện hoặc làm tổng thanh toán âm. Đây là quy tắc lấy cảm hứng từ [eBay Discounts Manager](https://www.ebay.com/help/seller-hub-promotions/selling-tools/promotions-manager?id=4094), được cố định cho mô phỏng này.
 
-**Đối soát:** giảm giá do seller tài trợ làm giảm doanh thu seller; coupon toàn sàn do nền tảng tài trợ không được trừ vào doanh thu seller. Hệ thống lưu nguồn tài trợ và phần giảm trên từng order item để refund toàn bộ/một phần đúng nguồn. `BuyerPayable = giá hàng sau giảm của seller + phí ship buyer phải trả - coupon nền tảng`. `SellerGross = BuyerPayable + phần coupon nền tảng tài trợ`; platform fee tính trên `SellerGross`. Ví dụ hàng 100 USD, coupon seller 10 USD, ship 5 USD, coupon nền tảng 5 USD: buyer trả 90 USD, SellerGross là 95 USD, platform fee 10% + 0,30 USD là 9,80 USD, Net seller là 85,20 USD; nền tảng ghi riêng khoản tài trợ 5 USD.
+**Đối soát:** giảm giá do seller tài trợ làm giảm doanh thu seller; coupon toàn sàn do nền tảng tài trợ không được trừ vào doanh thu seller. Hệ thống lưu nguồn tài trợ và phần giảm trên từng order item để refund toàn bộ/một phần đúng nguồn. `BuyerPayable = giá hàng sau giảm của seller + phí ship buyer phải trả - coupon nền tảng`. `SellerGross = BuyerPayable + phần coupon nền tảng tài trợ`; platform fee tính trên `SellerGross`. Ví dụ hàng 100 USD, coupon seller 10 USD, ship 5 USD, coupon nền tảng 5 USD: buyer trả 90 USD, SellerGross là 95 USD, platform fee 12% + 0,30 USD là 11,70 USD, Net seller là 83,30 USD; nền tảng ghi riêng khoản tài trợ 5 USD.
 
 ## 5. Thanh toán
 
@@ -110,17 +110,17 @@ Admin xem order, payment, tracking hai chiều, lịch sử trao đổi và bằ
 
 ## 9. Phí nền tảng, seller balance và payout
 
-Phí nền tảng cho bản này là **10% SellerGross + 0,30 USD/đơn**, có giới hạn không vượt SellerGross. Admin được thay đổi cấu hình cho **đơn phát sinh sau thời điểm hiệu lực**; đơn đã thanh toán giữ fee snapshot. Mọi thay đổi cấu hình có người sửa, thời điểm, giá trị cũ/mới. Số tiền sau phí (`Net`) đi vào `Processing`.
+Phí nền tảng mặc định là **12% SellerGross + 0,30 USD/đơn**, có giới hạn không vượt SellerGross. Admin đặt mức phí có hiệu lực ngay hoặc trong tương lai; settlement chọn mức phí có hiệu lực tại thời điểm payment được ghi nhận thành công (`PaidAt`), kể cả khi đối soát được chạy muộn hơn. Đơn đã có settlement giữ fee snapshot. Mọi thay đổi cấu hình lưu người sửa, thời điểm lưu, giá trị cũ/mới, thời điểm hiệu lực và lý do; lịch sử chỉ thêm mới. Net của Level 1/2 vào `Processing`; Level 3 tự vào ví `Available` ngay khi thanh toán thành công, sau khi bù nợ âm nếu có.
 
 | Khoản | Ý nghĩa |
 | --- | --- |
 | `Processing` | Net đã ghi nhận nhưng chưa đủ điều kiện rút. |
 | `OnHold` | Tiền của order bị khóa do return/dispute. |
-| `Available` | Tiền có thể yêu cầu payout. |
+| `Available` | Số dư ví khả dụng trong hệ thống; có thể yêu cầu payout ra ngân hàng giả lập. |
 | `Negative` | Nghĩa vụ seller phải bù sau refund/chargeback/chi phí khi số dư không đủ. |
 | `PaidOut` | Tổng đã chi trong báo cáo/lịch sử, **không phải** số dư ví còn tiêu được. |
 
-Chỉ chuyển `Processing → Available` khi đơn đã giao thành công (hoặc đã `Closed` phù hợp) **và** hết thời gian giữ của level. Return/dispute đang mở chặn việc mở khóa. Seller chỉ payout từ `Available` khi `Negative = 0` và tài khoản không bị đình chỉ/khóa. Payout giả lập đi `Created → InProgress → FundsSent → Completed`; ngân hàng ảo từ chối thì `Returned` và cộng lại `Available` đúng một lần. Lưu payout key, số tiền, mã tham chiếu ảo và tài khoản nhận đã che số.
+Level 1/2 chuyển `Processing → Available` khi đã giao thành công và hết thời gian giữ, tính từ `DeliveredAt` của vận đơn chiều đi; trước Delivered chưa có hạn mở khóa. Return/dispute đang mở chặn việc mở khóa. Level 3 tự ghi Net vào `Available` ngay trong giao dịch ghi nhận thanh toán thành công, không chờ giao và không cần payout để nhận tiền vào ví. Payout là thao tác riêng chuyển tiền ra ngân hàng giả lập; chỉ thực hiện từ `Available` khi `Negative = 0` và tài khoản không bị đình chỉ/khóa. Payout đi `Created → InProgress → FundsSent → Completed`; ngân hàng ảo từ chối thì `Returned` và cộng lại `Available` đúng một lần. Lưu payout key, số tiền, mã tham chiếu ảo và tài khoản nhận đã che số.
 
 Ledger chỉ thêm mới; mọi payment, discount subsidy, fee, hold, refund, fee credit, debt recovery và payout có khóa idempotency. Seller xem được số dư và lịch sử nhưng không tự sửa ledger.
 
@@ -128,15 +128,15 @@ Ledger chỉ thêm mới; mọi payment, discount subsidy, fee, hold, refund, fe
 
 Level do **hệ thống tự đánh giá**, Admin xem kết quả và lý do; không nhập level tùy ý. Doanh số là `SellerGross` của payment thành công theo **tháng UTC**; tháng mới về 0. Kiểm tra hạn mức trước khi gọi cổng thanh toán và kiểm tra lại khi ghi nhận thành công. Payment đã thành công ở cổng nhưng vượt hạn mức do cạnh tranh phải được đối soát và xử lý hoàn tiền, không bỏ lửng.
 
-| Level | Hạn mức/tháng | Giữ tiền sau khi giao | Development | Điều kiện lên cấp đề xuất |
+| Level | Hạn mức/tháng | Khi Net vào ví | Development | Điều kiện lên cấp đề xuất |
 | --- | ---: | ---: | ---: | --- |
-| 1 – New | 5.000 USD | 21 ngày | 30 giây | Mặc định. |
-| 2 – Verified | 10.000 USD | 7 ngày | 15 giây | ≥20 đơn hoàn tất; feedback tốt ≥90%; giao đúng hạn ≥90%; hoạt động ≥30 ngày; không có nợ âm. |
-| 3 – Trusted | 1.000.000 USD | 0 ngày | 0 giây | ≥100 đơn hoàn tất; feedback tốt ≥97%; giao đúng hạn ≥95%; hoạt động ≥90 ngày; không có nợ âm. |
+| 1 – New | 5.000 USD | 21 ngày sau giao thành công | 30 giây sau Delivered | Mặc định. |
+| 2 – Verified | 10.000 USD | 7 ngày sau giao thành công | 15 giây sau Delivered | ≥20 đơn hoàn tất; feedback tốt ≥90%; giao đúng hạn ≥90%; hoạt động ≥30 ngày; không có nợ âm. |
+| 3 – Trusted / Instant | 1.000.000 USD | Ngay khi thanh toán thành công | 0 giây, không chờ Delivered | ≥100 đơn hoàn tất; feedback tốt ≥97%; giao đúng hạn ≥95%; hoạt động ≥90 ngày; không có nợ âm. |
 
 Tỷ lệ hủy/trả/tranh chấp được hiển thị trong đánh giá và là điều kiện giữ cấp: Level 2 lần lượt không quá 5%/10%/2%; Level 3 không quá 2%/5%/1% trên các order đã thanh toán trong 90 ngày gần nhất. Nếu mẫu dưới 20 order trong cửa sổ 90 ngày, giữ cấp hiện tại trừ khi có nợ hoặc tài khoản bị hạn chế. Số đơn hoàn tất tính cộng dồn, feedback và đúng hạn dùng các order có dữ liệu tương ứng; không coi thiếu feedback là đánh giá xấu. Worker đánh giá định kỳ và seller có nút yêu cầu đánh giá lại; thay đổi level/hold chỉ áp dụng cho settlement mới, không đổi lịch tiền của order cũ.
 
-**Instant Payout ở Level 3** nghĩa là Net chuyển sang `Available` ngay sau khi **giao thành công**, không cần chờ thêm ngày; seller vẫn phải gửi yêu cầu payout hoặc dùng tiến trình payout giả lập. Tiền không được rút ngay lúc buyer vừa thanh toán.
+**Instant ở Level 3** nghĩa là Net sau phí và bù nợ tự vào số dư ví `Available` ngay khi payment thành công; không tạo `SellerPayout` và không ghi khoản nhận vào ví là `PaidOut`. Return/dispute/refund phát sinh sau đó vẫn khóa hoặc thu hồi tiền theo nghiệp vụ. Đây là quy ước mô phỏng đã được xác nhận ngày 14/10/2026, không phải cam kết eBay thật xử lý thanh toán tức thời.
 
 ## 11. Nợ âm, cảnh báo nợ xấu và blacklist
 
@@ -159,7 +159,7 @@ Các kịch bản tối thiểu để nghiệm thu:
 3. Seller tạo vận đơn; một shipper nhận; tracking giao thành công và giao thất bại/chuyển hoàn đều đúng thứ tự.
 4. Return được duyệt khóa tiền, có tracking chiều về; seller xác nhận thì tự refund; không phản hồi 48 giờ thì worker tự refund một lần.
 5. Seller từ chối return; buyer mở dispute trong 3 ngày; Admin xử lý thắng/thua/hoàn một phần, tiền OnHold và fee credit khớp refund.
-6. Level 3 chỉ rút sau `Delivered`; Level 1/2 chờ đúng thời gian, Development dùng 30/15 giây. Payout `Returned` trả tiền lại một lần.
+6. Level 3 tự nhận Net vào ví khi payment thành công, không cần payout. Level 1/2 chờ đúng thời gian tính từ Delivered; Development dùng 30/15 giây. Payout `Returned` trả tiền lại một lần. Mức phí admin theo thời điểm hiệu lực và fee snapshot của đơn cũ được giữ nguyên.
 7. Refund gây `Negative`, khóa payout, doanh thu mới bù nợ; quá 7 ngày bật cảnh báo, đình chỉ; trả hết nợ gỡ đình chỉ hoặc Admin write-off và blacklist.
 
 ## 13. Khoảng cách với code hiện tại
@@ -168,7 +168,9 @@ Code hiện có đăng nhập/phân quyền, checkout, coupon phần trăm cơ b
 
 Đã bổ sung promotion seller/Admin và nguồn tài trợ, giỏ lưu theo buyer/checkout hai seller, và đổi địa chỉ đơn một lần với mức seller chịu, hoàn ship giả lập, shipper xác nhận địa chỉ mới; xem [MULTI_SELLER_CART.md](MULTI_SELLER_CART.md) và [ORDER_ADDRESS_CHANGES.md](ORDER_ADDRESS_CHANGES.md).
 
-Các phần trong tài liệu này **chưa được coi là đã triển khai đầy đủ** gồm: chia phí ship trả theo lý do và hạn chế hoàn phí chiều đi; hoàn một phần do admin chọn; mức fee mới; tiêu chí level mở rộng; nợ xấu, thu nợ giả lập và blacklist. Khi phát triển, cần migration, API, giao diện và kiểm thử tương ứng; giữ dữ liệu SQL Server hiện có bằng migration thay vì chạy lại baseline.
+Đã chuẩn hóa phí mặc định 12% + 0,30 USD, cấu hình phí admin có thời điểm hiệu lực và lịch sử, hold Level 1/2 từ Delivered, và Instant Level 3 tự vào ví từ payment thành công. Settlement đã tồn tại trước migration giữ nguyên phí và lịch mở khóa cũ; chính sách mới áp dụng cho settlement tạo sau nâng cấp. Xem [SELLER_FINANCE.md](SELLER_FINANCE.md).
+
+Các phần trong tài liệu này **chưa được coi là đã triển khai đầy đủ** gồm: chia phí ship trả theo lý do và hạn chế hoàn phí chiều đi; hoàn một phần do admin chọn; tiêu chí level mở rộng; nợ xấu, thu nợ giả lập và blacklist. Khi phát triển, cần migration, API, giao diện và kiểm thử tương ứng; giữ dữ liệu SQL Server hiện có bằng migration thay vì chạy lại baseline.
 
 ## 14. Các quy ước đề xuất để nhóm duyệt
 

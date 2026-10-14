@@ -1,0 +1,42 @@
+#platform-fees .finance-block + .finance-block {
+  margin-top: 16px;
+}
+#platform-fee-fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+#platform-fee-fields input,
+#platform-fee-fields select,
+#platform-fee-fields textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+}
+#platform-fee-fields textarea {
+  border: 1px solid #ced8e5;
+  border-radius: 8px;
+  padding: 12px;
+  resize: vertical;
+  min-height: 100px;
+}
+#platform-fee-fields > label,
+#platform-fee-schedule {
+  margin-top: 16px;
+}
+#platform-fee-history .finance-entry {
+  padding: 16px 0;
+  border-bottom: 1px solid #e2e8f0;
+  overflow-wrap: anywhere;
+}
+#platform-fee-history .finance-entry p {
+  margin: 6px 0;
+}
+#platform-fee-error {
+  color: #9b1c1c;
+  margin-bottom: 16px;
+}
+#platform-fee-fields:disabled {
+  opacity: .7;
+}

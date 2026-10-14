@@ -316,7 +316,7 @@
     const f = await api('seller/finance');
     const cards = [
       ['Đang xử lý', f.processing],
-      ['Có thể rút', f.available],
+      ['Ví khả dụng', f.available],
       ['Đang giữ', f.onHold],
       ['Số dư âm', f.negative],
     ];
@@ -327,8 +327,9 @@
       )
       .join('');
     const p = f.levelProgress;
+    const hold = f.holdSeconds < 86400 ? `${f.holdSeconds} giây` : `${f.holdSeconds / 86400} ngày`;
     $('finance-level').innerHTML =
-      `<p><strong>Cấp ${f.level}${f.level >= 3 ? ' · Rút tiền ngay sau khi giao thành công' : ''}</strong></p><p>Giới hạn doanh số: ${money(f.monthlySalesLimit)}/tháng · Giữ tiền thêm ${f.holdDays} ngày</p><p>Doanh số tháng này: ${money(f.monthlySalesAmount)}</p><p class="small">${p.completedOrders}/${p.requiredOrders} đơn hoàn tất · Đánh giá tốt ${p.positiveFeedbackRate}%/${p.requiredFeedbackRate}% · Giao đúng hạn ${p.onTimeDeliveryRate}%/${p.requiredOnTimeRate}%</p>`;
+      `<p><strong>Cấp ${f.level}${f.level >= 3 ? ' · Instant' : ''}</strong></p><p>${f.level >= 3 ? 'Tiền sau phí tự vào ví khi thanh toán thành công, không cần yêu cầu payout.' : `Tiền vào ví sau ${hold} kể từ giao thành công.`}</p><p>Giới hạn doanh số: ${money(f.monthlySalesLimit)}/tháng</p><p>Doanh số tháng này: ${money(f.monthlySalesAmount)}</p><p class="small">${p.completedOrders}/${p.requiredOrders} đơn hoàn tất · Đánh giá tốt ${p.positiveFeedbackRate}%/${p.requiredFeedbackRate}% · Giao đúng hạn ${p.onTimeDeliveryRate}%/${p.requiredOnTimeRate}%</p>`;
     await Promise.all([loadTransactions(), loadPayouts()]);
   }
   document.querySelectorAll('[data-order-filter]').forEach(

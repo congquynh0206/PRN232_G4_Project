@@ -3,6 +3,12 @@ using G4.Contracts.Checkout;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
+if (args.Contains("--finance-sql"))
+{
+    await FinancePolicySqlChecks.RunAsync();
+    return;
+}
+
 if (args.Contains("--mailhog"))
 {
     await MailHogChecks.RunAsync();
@@ -47,6 +53,7 @@ await PromotionCheckoutChecks.RunAsync();
 await BuyerCartChecks.RunAsync();
 await AddressChangeChecks.RunAsync();
 await PromotionFinanceChecks.RunAsync();
+await FinancePolicyChecks.RunAsync();
 NotificationProcessingChecks.CheckRetryRules();
 await NotificationTemplateChecks.RunAsync();
 await NotificationProcessorBehaviorChecks.RunAsync();
@@ -462,9 +469,10 @@ var financePayment = new Payment
     Status = "Succeeded",
     PaidAt = DateTime.UtcNow
 };
-financeDb.AddRange(financeSeller, financeBuyer, financeOrder, financePayment);
+financeDb.AddRange(financeSeller, financeBuyer, financeOrder, financePayment,
+    new ShippingInfo { OrderId = financeOrder.Id, Direction = "Outbound", Status = "Delivered", DeliveredAt = DateTime.UtcNow });
 await financeDb.SaveChangesAsync();
-var financeConfig = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Finance:PlatformFeePercent"] = "12", ["Finance:FixedOrderFee"] = "0.30", ["Finance:AcceleratedHoldSeconds"] = "1" })
+var financeConfig = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Finance:PlatformFeePercent"] = "12", ["Finance:FixedOrderFee"] = "0.30", ["Finance:Levels:1:HoldSeconds"] = "1" })
     .Build();
 var financeService = new SellerFinanceService(financeDb, financeConfig);
 var settlement = await financeService.RecordSuccessfulPaymentAsync(financeOrder.Id, financePayment.Id);
@@ -584,6 +592,7 @@ foreach (var id in new[]
 {
     disputeDb.OrderTables.Add(new OrderTable { Id = id, BuyerId = disputeBuyer.Id, SellerId = disputeSeller.Id, Status = "Delivered", OrderDate = DateTime.UtcNow, TotalPrice = 100m, Currency = "USD" });
     disputeDb.Payments.Add(new Payment { Id = id, OrderId = id, UserId = disputeBuyer.Id, Amount = 100m, Method = "Card", Status = "Succeeded", PaidAt = DateTime.UtcNow });
+    disputeDb.ShippingInfos.Add(new ShippingInfo { OrderId = id, Direction = "Outbound", Status = "Delivered", DeliveredAt = DateTime.UtcNow });
 }
 
 await disputeDb.SaveChangesAsync();

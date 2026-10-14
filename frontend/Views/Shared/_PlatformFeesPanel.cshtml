@@ -1,0 +1,45 @@
+<section id="platform-fees" class="panel tab-panel">
+    <div class="section-head">
+        <div>
+            <span class="eyebrow">Quản trị viên</span>
+            <h1>Phí nền tảng</h1>
+            <p>Mức phí được chốt khi thanh toán thành công. Đơn đã có phí không bị tính lại.</p>
+        </div>
+        <button type="button" id="refresh-platform-fees">Làm mới</button>
+    </div>
+    <div id="platform-fee-current" class="finance-block" aria-live="polite"></div>
+    <form id="platform-fee-form" class="finance-block">
+        <h2>Thiết lập mức phí mới</h2>
+        <div id="platform-fee-error" role="alert" tabindex="-1" hidden></div>
+        <fieldset id="platform-fee-fields">
+            <div class="finance-columns">
+                <div>
+                    <label for="platform-fee-percent">Phí theo phần trăm (%)</label>
+                    <input id="platform-fee-percent" type="number" min="0" max="100" step="0.01" required />
+                </div>
+                <div>
+                    <label for="platform-fee-fixed">Phí cố định mỗi đơn (USD)</label>
+                    <input id="platform-fee-fixed" type="number" min="0" max="10000" step="0.01" required />
+                </div>
+            </div>
+            <label for="platform-fee-timing">Thời điểm áp dụng</label>
+            <select id="platform-fee-timing">
+                <option value="now">Ngay khi lưu thành công</option>
+                <option value="scheduled">Đặt lịch hiệu lực</option>
+            </select>
+            <div id="platform-fee-schedule" hidden>
+                <label for="platform-fee-effective">Thời điểm hiệu lực (giờ địa phương)</label>
+                <input id="platform-fee-effective" type="datetime-local" step="1" />
+            </div>
+            <label for="platform-fee-reason">Lý do thay đổi</label>
+            <textarea id="platform-fee-reason" maxlength="1000" rows="3" required></textarea>
+            <p class="small">Phí tối đa bằng doanh thu người bán trước phí. Mức đã lưu chỉ có thể thay thế bằng một cấu hình mới; lịch sử được giữ lại.</p>
+            <button type="submit" class="primary" id="save-platform-fee">Lưu mức phí</button>
+        </fieldset>
+    </form>
+    <div class="finance-block">
+        <h2>Lịch sử cấu hình</h2>
+        <div id="platform-fee-history" class="finance-list" aria-busy="false"></div>
+        <div id="platform-fee-pagination" class="pagination"></div>
+    </div>
+</section>

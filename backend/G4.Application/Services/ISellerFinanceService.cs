@@ -22,6 +22,7 @@ public interface ISellerFinanceService
     );
     Task<int> BackfillAsync(CancellationToken ct = default);
     Task<int> ReleaseDueFundsAsync(CancellationToken ct = default);
+    Task StartDeliveryHoldAsync(int orderId, CancellationToken ct = default);
     Task<int> AdvancePayoutsAsync(CancellationToken ct = default);
     Task<SellerPayout> RequestPayoutAsync(
         int sellerId,

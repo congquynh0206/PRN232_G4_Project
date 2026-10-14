@@ -16,7 +16,13 @@ public sealed class SellerSettlement
     public decimal FeeCreditAmount { get; set; }
     public string Currency { get; set; } = "USD";
     public string Status { get; set; } = "Processing";
-    public DateTime ReleaseAt { get; set; }
+    public DateTime? ReleaseAt { get; set; }
+    public int HoldPolicyVersion { get; set; }
+    public int SellerLevelSnapshot { get; set; }
+    public int HoldSecondsSnapshot { get; set; }
+    public DateTime? HoldStartedAt { get; set; }
+    public decimal? FeePercentSnapshot { get; set; }
+    public int? FeePolicyId { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? ReleasedAt { get; set; }
 }

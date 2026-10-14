@@ -4,13 +4,15 @@ Gói tài chính mô phỏng cách marketplace thu tiền buyer, trừ phí, gi�
 
 ## Luồng tiền
 
-1. Buyer thanh toán thành công. Hệ thống ghi **Gross** là toàn bộ tiền buyer đã trả.
-2. Hệ thống thu **Platform Fee = 12% Gross + 0,30 USD/đơn**. Các mức này chỉnh được trong `Finance` của `appsettings.json`.
-3. Phần còn lại là **Net** và vào `Processing`. Seller chưa rút được khoản này.
-4. Khi đơn đã `Delivered` hoặc `Closed` và hết thời gian giữ, worker chuyển Net từ `Processing` sang `Available`.
+1. Buyer thanh toán thành công. **SellerGross** bằng tiền buyer trả cộng phần coupon nền tảng tài trợ; giảm giá seller đã được trừ khỏi giá hàng.
+2. Mức phí mặc định **12% SellerGross + 0,30 USD/đơn**, không vượt SellerGross. Admin thay đổi trong tab **Phí nền tảng**, có hiệu lực ngay hoặc theo lịch. Settlement chọn mức theo `Payment.PaidAt` và lưu `FeePercentSnapshot`, `FixedFeeAmount`, `PlatformFeeAmount`, `FeePolicyId`; refund vẫn dùng phí gốc.
+3. Phần còn lại là **Net**, dùng bù Negative trước. Level 1/2 giữ phần dư trong `Processing`; Level 3 tự cộng phần dư vào **ví Available ngay khi thanh toán thành công**, không cần Delivered hoặc tạo payout.
+4. Level 1/2 tính thời gian giữ từ `DeliveredAt` chiều đi. Worker chỉ chuyển tiền vào ví khi hết hạn và không có return/dispute đang mở; giao chiều trả không bắt đầu hoặc đặt lại lịch này.
 5. Seller chỉ payout từ `Available`. Payout lần lượt đi qua `Created → InProgress → FundsSent → Completed`. Nếu giả lập ngân hàng từ chối, payout thành `Returned` và tiền được cộng lại vào `Available`.
 
-Trong Development, `Finance:AcceleratedHoldSeconds = 30` giúp trình diễn mà không phải chờ nhiều ngày. Môi trường khác không đặt khóa này và dùng đúng số ngày theo level.
+Development dùng `Finance:Levels:1:HoldSeconds = 30`, `Finance:Levels:2:HoldSeconds = 15`; Level 3 luôn 0 giây từ payment thành công. Môi trường khác bỏ các khóa HoldSeconds của Level 1/2 và dùng 21/7 ngày từ giao thành công. Level và thời gian giữ được snapshot lúc tạo settlement, không đọc lại level khi mở khóa. Trước Delivered, Level 1/2 có `ReleaseAt = null`.
+
+**Ví và payout:** Available là tiền nằm trong ví hệ thống. Payout chuyển từ ví ra ngân hàng giả lập và vẫn là tính năng riêng. Nhận tiền Instant vào ví không tạo SellerPayout hoặc PaidOut. Tiền Instant vẫn được giữ khi return/dispute và được thu hồi khi refund.
 
 ## Các số dư
 
@@ -27,9 +29,9 @@ Trong Development, `Finance:AcceleratedHoldSeconds = 30` giúp trình diễn mà
 
 | Level | Doanh số tối đa/tháng | Giữ tiền | Điều kiện lên cấp |
 | --- | ---: | ---: | --- |
-| 1 | 5.000 USD | 21 ngày | Mặc định |
-| 2 | 10.000 USD | 7 ngày | 20 đơn hoàn tất, feedback dương ≥ 90%, giao đúng hạn ≥ 90% |
-| 3 (`Instant`) | 1.000.000 USD | 0 ngày | 100 đơn hoàn tất, feedback dương ≥ 97%, giao đúng hạn ≥ 95% |
+| 1 | 5.000 USD | 21 ngày từ Delivered; demo 30 giây | Mặc định |
+| 2 | 10.000 USD | 7 ngày từ Delivered; demo 15 giây | 20 đơn hoàn tất, feedback dương ≥ 90%, giao đúng hạn ≥ 90% |
+| 3 (`Instant`) | 1.000.000 USD | 0 giây từ payment thành công, tự vào ví | 100 đơn hoàn tất, feedback dương ≥ 97%, giao đúng hạn ≥ 95% |
 
 Doanh số được tính theo tháng UTC và tự về 0 khi sang tháng. Backend kiểm tra giới hạn trước khi gọi cổng thanh toán và kiểm tra lại lúc ghi nhận thanh toán. Nút **Đánh giá lại cấp** trên tab **Seller Finance** tính level từ dữ liệu đơn, feedback và lần giao hàng hiện có.
 
@@ -68,4 +70,30 @@ Worker `CommerceMaintenanceWorker` chạy định kỳ để backfill các payme
 
 Migration `AddSellerFinance` tạo bốn bảng `SellerAccount`, `SellerSettlement`, `FinancialTransaction`, `SellerPayout`. File SQL để duyệt hoặc chạy thủ công là [seller-finance-migration.sql](../database/seller-finance-migration.sql). Không thêm các bảng này trực tiếp vào `baseline.sql`, vì baseline là schema gốc và migration chịu trách nhiệm nâng database hiện có.
 
-Các khóa cấu hình nằm ở `Finance` trong `backend/G4.Api/appsettings.json`; Development chỉ ghi đè thời gian giữ bằng `backend/G4.Api/appsettings.Development.json`.
+Hạn mức/ngày giữ mặc định nằm ở `Finance:Levels` trong `backend/G4.Api/appsettings.json`; Development ghi đè HoldSeconds trong `appsettings.Development.json`. Phí do bảng `PlatformFeePolicy` quản lý, không còn chỉnh bằng appsettings.
+
+## Cấu hình phí admin và migration ngày 14/10/2026
+
+- `GET /api/admin/platform-fees?page=1&pageSize=10`: mức hiện tại và lịch sử phân trang.
+- `POST /api/admin/platform-fees`: `feePercent`, `fixedFee`, `effectiveAt` (UTC hoặc null để áp dụng khi lưu), `reason`, `requestKey`, `expectedLatestPolicyId`.
+- Chỉ JWT admin được truy cập. Phần trăm 0–100 và phí cố định 0–10.000 USD, tối đa 2 chữ số thập phân; không đặt lịch về quá khứ. Retry cùng requestKey dùng lại bản ghi; phiên cũ nhận 409 và phải tải lại.
+- Lịch sử lưu giá trị cũ/mới, người sửa, ngày lưu, ngày hiệu lực và lý do; không có API sửa/xóa và DbContext chặn sửa/xóa. Giá trị cũ là mức tại thời điểm hiệu lực được chọn khi tạo cấu hình. Cấu hình đặt lịch xuất hiện với nhãn Chờ hiệu lực.
+- Migration `20261014051607_AddPlatformFeePoliciesAndDeliveryHolds` bổ sung bảng phí và các snapshot vào SellerSettlement, cho phép ReleaseAt null. **Giữ nguyên phí, lịch và tiền của settlement đã tồn tại** (`HoldPolicyVersion = 0`); settlement mới dùng phiên bản 1. Không chạy lại baseline hoặc reset dữ liệu.
+
+```powershell
+dotnet ef database update --project backend/G4.Infrastructure --startup-project backend/G4.Api
+```
+
+SQL để duyệt/chạy thủ công: [platform-fees-delivery-holds-migration.sql](../database/platform-fees-delivery-holds-migration.sql). Dừng API cũ trước khi cập nhật schema và khởi động lại API/frontend mới.
+
+Kiểm thử: build Release; commerce checks (bao gồm FinancePolicyChecks); Node `tests/platform-fees-ui.test.cjs`; SQL QA riêng qua `--finance-sql`. Các tiêu chí level mở rộng và nợ xấu/blacklist vẫn chưa thuộc thay đổi này.
+
+SQL QA tạo/khởi tạo baseline **chỉ** trên database được guard theo tên `G4_Finance_Test_20261014`, sau đó chạy migration. Đặt `G4_FINANCE_SQL_TEST_CONNECTION` trỏ tới database này rồi chạy:
+
+```powershell
+dotnet tests/G4.Commerce.Tests/bin/Release/net8.0/G4.Commerce.Tests.dll --finance-sql
+```
+
+Ngày 14/10/2026 đã kiểm tra SQL QA: cùng payment retry đồng thời chỉ có một settlement/release; hai đơn cùng seller không mất cập nhật; lưu phí đồng thời chống trùng và phát hiện phiên cũ; worker khôi phục lịch từ DeliveredAt và không mở khóa sớm. API QA xác minh admin GET 200, buyer/seller/shipper GET/POST 403. Trình duyệt kiểm tra lưu phí, lịch sử, lỗi lịch quá khứ có focus, và form desktop/mobile 390px không tràn ngang.
+
+Đã áp dụng migration trên database local `CloneEbayDB` sau backup COPY_ONLY tại `artifacts/finance-policy/CloneEbayDB-before-finance-20261014.bak`. Sáu settlement cũ giữ nguyên tổng Gross 1.322,50 USD, phí 160,50 USD và Net 1.162,00 USD; giữ nguyên lịch cũ. Các database khác vẫn cần chạy migration. Khởi động lại API/frontend để dùng code mới.

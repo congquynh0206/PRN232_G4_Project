@@ -3,10 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
 namespace G4.Infrastructure.Finance;
-public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration configuration) : ISellerFinanceService
+public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration configuration, TimeProvider? clock = null) : ISellerFinanceService
 {
-    private decimal FeePercent => configuration.GetValue("Finance:PlatformFeePercent", 12m);
-    private decimal FixedFee => configuration.GetValue("Finance:FixedOrderFee", 0.30m);
+    private DateTime Now => (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime;
 
     public async Task ValidateMonthlyLimitAsync(int orderId, CancellationToken ct = default)
     {
@@ -41,13 +40,17 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         if (payment.Status != "Succeeded" || payment.OrderId != orderId)
             throw new InvalidOperationException("Only the order's successful payment can be settled");
         var gross = SnapshotGross(order, payment.Amount ?? order.TotalPrice ?? 0m);
-        var fee = gross == 0m && order.PricingSchemaVersion == 1 ? new FeeBreakdown(0m, 0m, 0m, 0m) : SellerFinanceRules.CalculateFees(gross, FeePercent, FixedFee);
+        var paidAt = payment.PaidAt ?? Now;
+        var policy = await new PlatformFeeService(db, clock).PolicyAtAsync(paidAt, ct);
+        var feePercent = policy?.FeePercent ?? 12m;
+        var fixedFee = policy?.FixedFee ?? .30m;
+        var fee = gross == 0m && order.PricingSchemaVersion == 1 ? new FeeBreakdown(0m, 0m, 0m, 0m) : SellerFinanceRules.CalculateFees(gross, feePercent, fixedFee);
         var account = await GetOrCreateAccountAsync(sellerId, ct);
         await LockAccountAsync(account, ct);
         ResetMonth(account);
         if (account.MonthlySalesAmount + gross > account.MonthlySalesLimit)
             throw new InvalidOperationException($"Seller level {account.Level} monthly sales limit exceeded");
-        var now = DateTime.UtcNow;
+        var now = Now;
         var settlement = new SellerSettlement
         {
             SellerAccountId = account.Id,
@@ -62,8 +65,15 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
             Currency = order.Currency,
             Status = "Processing",
             CreatedAt = now,
-            ReleaseAt = ResolveReleaseAt(now, account.HoldDays)
+            HoldPolicyVersion = 1,
+            SellerLevelSnapshot = account.Level,
+            HoldSecondsSnapshot = HoldSeconds(account.Level, account.HoldDays),
+            HoldStartedAt = account.Level == 3 ? paidAt : null,
+            ReleaseAt = account.Level == 3 ? paidAt : null,
+            FeePercentSnapshot = feePercent,
+            FeePolicyId = policy?.Id
         };
+        await InitializeDeliveryScheduleAsync(settlement, ct);
         db.SellerSettlements.Add(settlement);
         await db.SaveChangesAsync(ct);
         var recovered = Math.Min(account.NegativeBalance, settlement.ProcessingAmount);
@@ -99,7 +109,7 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
             "Processing",
             -fee.TotalFee,
             $"order:{orderId}:fee",
-            $"Platform fee {FeePercent:0.##}% + {fee.FixedFee:0.00}"
+            $"Platform fee {feePercent:0.##}% + {fee.FixedFee:0.00}"
         );
         if (recovered > 0)
             AddEntry(
@@ -111,6 +121,8 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
                 $"order:{orderId}:debt-recovery",
                 "Previous negative balance recovered from sale proceeds"
             );
+        if (settlement.SellerLevelSnapshot == 3)
+            ReleaseToWallet(settlement, account, "Instant seller proceeds credited after confirmed payment");
         await db.SaveChangesAsync(ct);
         if (transaction is not null)
             await transaction.CommitAsync(ct);
@@ -203,7 +215,7 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         settlement.FeeCreditAmount += feeCredit;
         if (refund.Reason != "shipping-adjustment")
             settlement.Status = settlement.RefundedAmount >= settlement.GrossAmount ? "Refunded" : "PartiallyRefunded";
-        account.UpdatedAt = DateTime.UtcNow;
+        account.UpdatedAt = Now;
         AddEntry(
             account,
             settlement,
@@ -297,8 +309,10 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         settlement.ProcessingAmount -= debit;
         account.ProcessingBalance -= debit;
         settlement.ShippingAdjustmentCost += amount;
-        account.NegativeBalance += amount - debit;
-        account.UpdatedAt = DateTime.UtcNow;
+        var fromAvailable = settlement.ReleasedAt != null ? Math.Min(account.AvailableBalance, amount - debit) : 0m;
+        account.AvailableBalance -= fromAvailable;
+        account.NegativeBalance += amount - debit - fromAvailable;
+        account.UpdatedAt = Now;
         AddEntry(
             account,
             settlement,
@@ -308,13 +322,16 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
             key,
             "Seller paid additional shipping after address change"
         );
-        if (amount > debit)
+        if (fromAvailable > 0)
+            AddEntry(account, settlement, "ShippingAdjustmentCost", "Available", -fromAvailable,
+                key + ":available", "Seller wallet paid additional shipping after address change");
+        if (amount > debit + fromAvailable)
             AddEntry(
                 account,
                 settlement,
                 "NegativeBalance",
                 "Negative",
-                -(amount - debit),
+                -(amount - debit - fromAvailable),
                 key + ":negative",
                 "Shipping adjustment exceeded seller proceeds"
             );
@@ -330,7 +347,12 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         int? disputeId = null
     )
     {
+        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction == null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
+        await LockOrderAsync(orderId, ct);
         var settlement = await db.SellerSettlements.SingleAsync(x => x.OrderId == orderId, ct);
+        await AccountGateAsync(settlement.SellerId, ct);
+        await db.Entry(settlement).ReloadAsync(ct);
         var key = disputeId is null ? $"order:{orderId}:hold" : $"order:{orderId}:case:{disputeId}:hold";
         if (await db.FinancialTransactions.AnyAsync(x => x.EntryKey == key, ct))
             return;
@@ -339,6 +361,7 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         if (settlement.Status is not ("Processing" or "Available"))
             throw new InvalidOperationException("Order funds cannot be placed on hold");
         var account = await db.SellerAccounts.SingleAsync(x => x.Id == settlement.SellerAccountId, ct);
+        await LockAccountAsync(account, ct);
         var holdable = settlement.ProcessingAmount;
         if (holdable > 0)
         {
@@ -352,13 +375,14 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
             if (settlement.ReleasedAt is not null)
                 account.AvailableBalance -= holdable;
             account.OnHoldBalance += holdable;
-            account.UpdatedAt = DateTime.UtcNow;
+            account.UpdatedAt = Now;
         }
 
         settlement.Status = "OnHold";
-        (await db.OrderTables.SingleAsync(x => x.Id == orderId, ct)).UpdatedAt = DateTime.UtcNow;
+        (await db.OrderTables.SingleAsync(x => x.Id == orderId, ct)).UpdatedAt = Now;
         AddEntry(account, settlement, "FundHold", "OnHold", holdable, key, reason);
         await db.SaveChangesAsync(ct);
+        if (tx != null) await tx.CommitAsync(ct);
     }
 
     public async Task ResolveHoldAsync(
@@ -368,7 +392,13 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         int? disputeId = null
     )
     {
+        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction == null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
+        await LockOrderAsync(orderId, ct);
         var settlement = await db.SellerSettlements.SingleAsync(x => x.OrderId == orderId, ct);
+        await AccountGateAsync(settlement.SellerId, ct);
+        await db.Entry(settlement).ReloadAsync(ct);
+        await InitializeDeliveryScheduleAsync(settlement, ct);
         var prefix = disputeId is null ? $"order:{orderId}:hold" : $"order:{orderId}:case:{disputeId}:hold";
         var key = $"{prefix}:{(releaseToSeller ? "seller" : "buyer")}";
         if (await db.FinancialTransactions.AnyAsync(x => x.EntryKey == key, ct))
@@ -376,18 +406,18 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         if (settlement.Status != "OnHold")
             throw new InvalidOperationException("Order funds are not on hold");
         var account = await db.SellerAccounts.SingleAsync(x => x.Id == settlement.SellerAccountId, ct);
+        await LockAccountAsync(account, ct);
         var held = await HeldAmountAsync(settlement.Id, ct);
         if (account.OnHoldBalance < held)
             throw new InvalidOperationException("Held seller balance is inconsistent");
         if (releaseToSeller)
         {
             account.OnHoldBalance -= held;
-            var orderStatus = await db.OrderTables.Where(x => x.Id == orderId).Select(x => x.Status).SingleAsync(ct);
-            if (settlement.ReleaseAt <= DateTime.UtcNow && orderStatus is ("Delivered" or "Closed"))
+            if (await CanReleaseAsync(settlement, ct))
             {
                 account.AvailableBalance += held;
                 settlement.Status = "Available";
-                settlement.ReleasedAt ??= DateTime.UtcNow;
+                settlement.ReleasedAt ??= Now;
                 AddEntry(account, settlement, "HoldReleased", "Available", held, key, "Dispute resolved for seller");
             }
             else
@@ -420,9 +450,10 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
             );
         }
 
-        account.UpdatedAt = DateTime.UtcNow;
+        account.UpdatedAt = Now;
         (await db.OrderTables.SingleAsync(x => x.Id == orderId, ct)).UpdatedAt = account.UpdatedAt;
         await db.SaveChangesAsync(ct);
+        if (tx != null) await tx.CommitAsync(ct);
     }
 
     public async Task<int> BackfillAsync(CancellationToken ct = default)
@@ -456,7 +487,12 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
 
     public async Task<int> ReleaseDueFundsAsync(CancellationToken ct = default)
     {
-        var due = await db.SellerSettlements.Where(x => x.Status == "Processing" && x.ReleaseAt <= DateTime.UtcNow && x.ProcessingAmount > 0 && db.OrderTables.Any(o => o.Id == x.OrderId && (o.Status == "Delivered" || o.Status == "Closed")) && !db.ReturnRequests.Any(r => r.OrderId == x.OrderId && r.Status != "Rejected" && r.Status != "Refunded" && r.Status != "Closed") && !db.Disputes.Any(d => d.OrderId == x.OrderId && d.WorkflowEnabled && d.IsOpen))
+        var now = Now;
+        var due = await db.SellerSettlements.Where(x => x.Status == "Processing" &&
+            (x.ReleaseAt <= now || x.ReleaseAt == null && db.ShippingInfos.Any(s => s.OrderId == x.OrderId && s.Direction == "Outbound" && s.DeliveredAt != null)) &&
+            !db.ReturnRequests.Any(r => r.OrderId == x.OrderId && r.Status != "Rejected" && r.Status != "Refunded" && r.Status != "Closed") &&
+            !db.Disputes.Any(d => d.OrderId == x.OrderId && d.WorkflowEnabled && d.IsOpen))
+            .OrderBy(x => x.Id)
             .Select(x => new { x.Id, x.OrderId })
             .Take(100)
             .ToListAsync(ct);
@@ -468,30 +504,22 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
                 await db.OrderTables.FromSqlInterpolated($"SELECT * FROM [OrderTable] WITH (UPDLOCK, HOLDLOCK) WHERE [id] = {candidate.OrderId}")
                     .SingleAsync(ct);
             var settlement = await db.SellerSettlements.SingleAsync(x => x.Id == candidate.Id, ct);
+            await AccountGateAsync(settlement.SellerId, ct);
             await db.Entry(settlement).ReloadAsync(ct);
-            if (settlement.Status != "Processing" || settlement.ReleaseAt > DateTime.UtcNow || settlement.ProcessingAmount <= 0 || !await db.OrderTables.AnyAsync(o => o.Id == candidate.OrderId && (o.Status == "Delivered" || o.Status == "Closed"), ct) || await db.ReturnRequests.AnyAsync(
+            await InitializeDeliveryScheduleAsync(settlement, ct);
+            // Persist a recovered schedule even while its hold period is still running.
+            await db.SaveChangesAsync(ct);
+            if (settlement.Status != "Processing" || !await CanReleaseAsync(settlement, ct) || await db.ReturnRequests.AnyAsync(
                 r => r.OrderId == candidate.OrderId && r.Status != "Rejected" && r.Status != "Refunded" && r.Status != "Closed",
                 ct
             ) || await db.Disputes.AnyAsync(d => d.OrderId == candidate.OrderId && d.WorkflowEnabled && d.IsOpen, ct))
+            {
+                if (transaction != null) await transaction.CommitAsync(ct);
                 continue;
+            }
             var account = await db.SellerAccounts.SingleAsync(x => x.Id == settlement.SellerAccountId, ct);
-            await db.Entry(account).ReloadAsync(ct);
-            var amount = settlement.ProcessingAmount;
-            account.ProcessingBalance -= amount;
-            account.AvailableBalance += amount;
-            account.UpdatedAt = DateTime.UtcNow;
-            settlement.ProcessingAmount = 0;
-            settlement.Status = "Available";
-            settlement.ReleasedAt = DateTime.UtcNow;
-            AddEntry(
-                account,
-                settlement,
-                "FundsReleased",
-                "Available",
-                amount,
-                $"order:{settlement.OrderId}:released",
-                "Hold period completed after delivery"
-            );
+            await LockAccountAsync(account, ct);
+            ReleaseToWallet(settlement, account, "Hold period completed after delivery");
             await db.SaveChangesAsync(ct);
             if (transaction is not null)
                 await transaction.CommitAsync(ct);
@@ -526,7 +554,7 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
             throw new InvalidOperationException("Negative balance must be recovered before payout");
         if (account.AvailableBalance < amount)
             throw new InvalidOperationException("Available balance is insufficient");
-        var now = DateTime.UtcNow;
+        var now = Now;
         account.AvailableBalance -= amount;
         account.UpdatedAt = now;
         var payout = new SellerPayout
@@ -565,7 +593,7 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         foreach (var payout in payouts)
         {
             var account = await db.SellerAccounts.SingleAsync(x => x.Id == payout.SellerAccountId, ct);
-            payout.UpdatedAt = DateTime.UtcNow;
+            payout.UpdatedAt = Now;
             if (payout.Status == "Created")
                 payout.Status = "InProgress";
             else if (payout.Status == "InProgress")
@@ -576,9 +604,9 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
             else if (payout.SimulateFailure)
             {
                 payout.Status = "Returned";
-                payout.CompletedAt = DateTime.UtcNow;
+                payout.CompletedAt = Now;
                 account.AvailableBalance += payout.Amount;
-                account.UpdatedAt = DateTime.UtcNow;
+                account.UpdatedAt = Now;
                 AddEntry(
                     account,
                     null,
@@ -593,7 +621,7 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
             else
             {
                 payout.Status = "Completed";
-                payout.CompletedAt = DateTime.UtcNow;
+                payout.CompletedAt = Now;
             }
         }
 
@@ -615,7 +643,7 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         var metrics = await GetMetricsAsync(sellerId, ct);
         var newLevel = metrics.CompletedOrders >= Level3Orders && metrics.PositiveFeedbackRate >= Level3Feedback && metrics.OnTimeDeliveryRate >= Level3OnTime ? 3 : metrics.CompletedOrders >= Level2Orders && metrics.PositiveFeedbackRate >= Level2Feedback && metrics.OnTimeDeliveryRate >= Level2OnTime ? 2 : 1;
         ApplyLevel(account, newLevel);
-        account.UpdatedAt = DateTime.UtcNow;
+        account.UpdatedAt = Now;
         await db.SaveChangesAsync(ct);
         return await BuildSummaryAsync(account, ct);
     }
@@ -668,7 +696,8 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
             target.Item4
         ),
             transactions,
-            payouts
+            payouts,
+            HoldSeconds(account.Level, account.HoldDays)
         );
     }
 
@@ -681,7 +710,7 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         {
             SellerId = sellerId,
             SalesMonth = MonthStart(),
-            UpdatedAt = DateTime.UtcNow
+            UpdatedAt = Now
         };
         ApplyLevel(account, 1);
         db.SellerAccounts.Add(account);
@@ -713,13 +742,56 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
             return;
         account.SalesMonth = month;
         account.MonthlySalesAmount = 0m;
-        account.UpdatedAt = DateTime.UtcNow;
+        account.UpdatedAt = Now;
     }
 
-    private DateTime ResolveReleaseAt(DateTime now, int holdDays)
+    private int HoldSeconds(int level, int holdDays)
     {
-        var seconds = configuration.GetValue<int?>("Finance:AcceleratedHoldSeconds");
-        return seconds is> 0 ? now.AddSeconds(seconds.Value) : now.AddDays(holdDays);
+        if (level == 3) return 0;
+        var seconds = configuration.GetValue<int?>($"Finance:Levels:{level}:HoldSeconds");
+        if (seconds is < 0) throw new InvalidOperationException("Hold seconds cannot be negative");
+        return seconds ?? checked(holdDays * 86400);
+    }
+
+    public async Task StartDeliveryHoldAsync(int orderId, CancellationToken ct = default)
+    {
+        // Called inside the tracking transaction; a worker can recover this from DeliveredAt too.
+        var settlement = await db.SellerSettlements.SingleOrDefaultAsync(x => x.OrderId == orderId, ct);
+        if (settlement == null) return;
+        await InitializeDeliveryScheduleAsync(settlement, ct);
+        await db.SaveChangesAsync(ct);
+    }
+
+    private async Task InitializeDeliveryScheduleAsync(SellerSettlement settlement, CancellationToken ct)
+    {
+        if (settlement.HoldPolicyVersion != 1 || settlement.SellerLevelSnapshot == 3 || settlement.HoldStartedAt != null)
+            return;
+        var deliveredAt = await db.ShippingInfos.Where(s => s.OrderId == settlement.OrderId && s.Direction == "Outbound" && s.DeliveredAt != null)
+            .Select(s => s.DeliveredAt).SingleOrDefaultAsync(ct);
+        if (deliveredAt == null) return;
+        settlement.HoldStartedAt = deliveredAt;
+        settlement.ReleaseAt = deliveredAt.Value.AddSeconds(settlement.HoldSecondsSnapshot);
+    }
+
+    private async Task<bool> CanReleaseAsync(SellerSettlement settlement, CancellationToken ct)
+    {
+        if (settlement.ReleaseAt == null || settlement.ReleaseAt > Now) return false;
+        if (settlement.HoldPolicyVersion == 1 && settlement.SellerLevelSnapshot == 3) return true;
+        return await db.OrderTables.AnyAsync(o => o.Id == settlement.OrderId && (o.Status == "Delivered" || o.Status == "Closed"), ct)
+            && (settlement.HoldPolicyVersion == 0 || settlement.HoldStartedAt != null);
+    }
+
+    private void ReleaseToWallet(SellerSettlement settlement, SellerAccount account, string description)
+    {
+        var amount = settlement.ProcessingAmount;
+        account.ProcessingBalance -= amount;
+        account.AvailableBalance += amount;
+        account.UpdatedAt = Now;
+        settlement.ProcessingAmount = 0;
+        settlement.Status = "Available";
+        settlement.ReleasedAt = Now;
+        AddEntry(account, settlement, "FundsReleased", "Available", amount,
+            $"order:{settlement.OrderId}:released", description);
     }
 
     private async Task<(int CompletedOrders, decimal PositiveFeedbackRate, decimal OnTimeDeliveryRate)> GetMetricsAsync(int sellerId, CancellationToken ct)
@@ -746,10 +818,10 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         int? payoutId = null
     )
     {
-        db.FinancialTransactions.Add(new FinancialTransaction { SellerAccountId = account.Id, OrderId = settlement?.OrderId, SettlementId = settlement?.Id, RefundId = refundId, PayoutId = payoutId, Type = type, Bucket = bucket, Amount = decimal.Round(amount, 2), EntryKey = key, Description = description, CreatedAt = DateTime.UtcNow });
+        db.FinancialTransactions.Add(new FinancialTransaction { SellerAccountId = account.Id, OrderId = settlement?.OrderId, SettlementId = settlement?.Id, RefundId = refundId, PayoutId = payoutId, Type = type, Bucket = bucket, Amount = decimal.Round(amount, 2), EntryKey = key, Description = description, CreatedAt = Now });
     }
 
-    private static DateTime MonthStart() => new(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+    private DateTime MonthStart() => new(Now.Year, Now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
     private static decimal Money(decimal amount) => decimal.Round(amount, 2, MidpointRounding.AwayFromZero);
     private static decimal SnapshotGross(OrderTable order, decimal buyerPaid)
     {
