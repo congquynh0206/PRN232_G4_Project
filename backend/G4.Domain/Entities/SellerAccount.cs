@@ -11,6 +11,10 @@ public sealed class SellerAccount
     public decimal AvailableBalance { get; set; }
     public decimal OnHoldBalance { get; set; }
     public decimal NegativeBalance { get; set; }
+    public int DebtCycleNumber { get; set; }
+    public DateTime? DebtStartedAt { get; set; }
+    public DateTime? DebtDueAt { get; set; }
+    public bool DebtSuspended { get; set; }
     public decimal MonthlySalesAmount { get; set; }
     public DateTime SalesMonth { get; set; }
     public DateTime UpdatedAt { get; set; }

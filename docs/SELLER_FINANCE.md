@@ -99,3 +99,6 @@ dotnet tests/G4.Commerce.Tests/bin/Release/net8.0/G4.Commerce.Tests.dll --financ
 Ngày 14/10/2026 đã kiểm tra SQL QA: cùng payment retry đồng thời chỉ có một settlement/release; hai đơn cùng seller không mất cập nhật; lưu phí đồng thời chống trùng và phát hiện phiên cũ; worker khôi phục lịch từ DeliveredAt và không mở khóa sớm. API QA xác minh admin GET 200, buyer/seller/shipper GET/POST 403. Trình duyệt kiểm tra lưu phí, lịch sử, lỗi lịch quá khứ có focus, và form desktop/mobile 390px không tràn ngang.
 
 Đã áp dụng migration trên database local `CloneEbayDB` sau backup COPY_ONLY tại `artifacts/finance-policy/CloneEbayDB-before-finance-20261014.bak`. Sáu settlement cũ giữ nguyên tổng Gross 1.322,50 USD, phí 160,50 USD và Net 1.162,00 USD; giữ nguyên lịch cũ. Các database khác vẫn cần chạy migration. Khởi động lại API/frontend để dùng code mới.
+## Quản lý nợ và trả nợ
+
+Kỳ nợ liên tục, trả nợ ngân hàng giả lập, đình chỉ do quá hạn và dashboard admin được mô tả tại [SELLER_DEBT.md](SELLER_DEBT.md). Cần migration `20261014102533_AddSellerDebtManagement` trước khi chạy API mới.

@@ -4,9 +4,9 @@
 <section id="@panelId" class="panel tab-panel diagnostics-panel">
     <div class="section-head">
         <div>
-            <span class="eyebrow">Thông báo đơn hàng</span>
+            <span class="eyebrow">Thông báo</span>
             <h1>Email thông báo</h1>
-            <p>Xem nội dung và kết quả xử lý email liên quan đến đơn hàng.</p>
+            <p>Xem nội dung và kết quả xử lý email liên quan đến đơn hàng và khoản nợ người bán.</p>
         </div>
         <button type="button" id="refresh-notifications">Làm mới</button>
     </div>
@@ -23,6 +23,16 @@
                 <option value="Delivered">Giao thành công</option>
                 <option value="DeliveryFailed">Giao chưa thành công</option>
                 <option value="Refunded">Hoàn tiền thành công</option>
+                @if (User.IsInRole("seller") || User.IsInRole("admin"))
+                {
+                    <option value="DebtStarted">Phát sinh nợ</option>
+                    <option value="DebtWarning">Nợ sắp đến hạn</option>
+                    <option value="DebtOverdue">Đình chỉ do nợ quá hạn</option>
+                    <option value="DebtRepaymentSucceeded">Trả nợ thành công</option>
+                    <option value="DebtRepaymentFailed">Trả nợ bị từ chối</option>
+                    <option value="DebtCleared">Đã hết nợ</option>
+                    <option value="DebtRestored">Gỡ đình chỉ do nợ</option>
+                }
             </select></label>
         <label>Trạng thái<select name="status">
                 <option value="">Tất cả</option>

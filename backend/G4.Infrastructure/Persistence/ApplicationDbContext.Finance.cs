@@ -37,6 +37,9 @@ public partial class ApplicationDbContext
 
     private void GuardFinanceHistory()
     {
+        if (ChangeTracker.Entries<SellerDebtRepayment>().Any(e => e.State is EntityState.Modified or EntityState.Deleted)
+            || ChangeTracker.Entries<SellerDebtEvent>().Any(e => e.State is EntityState.Modified or EntityState.Deleted))
+            throw new InvalidOperationException("Biên nhận và lịch sử nợ không thể sửa hoặc xóa.");
         if (ChangeTracker.Entries<PlatformFeePolicy>().Any(e => e.State is EntityState.Modified or EntityState.Deleted))
             throw new InvalidOperationException("Lịch sử cấu hình phí không thể sửa hoặc xóa. Hãy tạo mức phí mới.");
     }

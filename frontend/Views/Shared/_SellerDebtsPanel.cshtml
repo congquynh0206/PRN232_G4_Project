@@ -1,0 +1,22 @@
+<section id="seller-debts" class="panel tab-panel diagnostics-panel">
+    <div class="section-head">
+        <div><span class="eyebrow">Tài chính</span><h1>Khoản nợ người bán</h1><p>Theo dõi nợ, thời hạn và lịch sử trả nợ của seller.</p></div>
+        <button type="button" id="refresh-seller-debts">Làm mới</button>
+    </div>
+    <form id="admin-debt-filters" class="diagnostics-filters">
+        <label>Trạng thái<select id="admin-debt-state"><option value="debt">Đang nợ</option><option value="overdue">Quá hạn</option><option value="all">Tất cả</option></select></label>
+        <label>Mã seller<input id="admin-debt-seller" type="number" min="1" step="1" /></label>
+        <button type="submit" class="primary">Lọc danh sách</button>
+    </form>
+    <p id="admin-debt-count" role="status" aria-live="polite"></p>
+    <div id="admin-debt-list" aria-busy="false"></div>
+    <div id="admin-debt-pagination" class="pagination"></div>
+    <div id="admin-debt-detail" class="finance-block" hidden>
+        <h2 id="admin-debt-title">Chi tiết khoản nợ</h2>
+        <div id="admin-debt-summary"></div>
+        <label for="admin-debt-history-kind">Loại lịch sử</label>
+        <select id="admin-debt-history-kind"><option value="repayments">Biên nhận trả nợ</option><option value="events">Cảnh báo và hạn chế</option><option value="cycles">Các kỳ nợ</option><option value="transactions">Sổ cái tài chính</option></select>
+        <div id="admin-debt-history" aria-busy="false"></div>
+        <div id="admin-debt-history-pagination" class="pagination"></div>
+    </div>
+</section>

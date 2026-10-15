@@ -46,7 +46,8 @@ public sealed class DiagnosticsQueryService(ApplicationDbContext db)
     public async Task<DiagnosticsPage<EmailNotificationView>> NotificationsAsync(int actorId, string role, NotificationQuery options, CancellationToken ct)
     {
         ValidatePage(options.Page, options.PageSize, options.OrderId);
-        ValidateFilter(options.EventType, ["PaymentSucceeded", "Delivered", "DeliveryFailed", "Refunded"]);
+        ValidateFilter(options.EventType, ["PaymentSucceeded", "Delivered", "DeliveryFailed", "Refunded",
+            "DebtStarted", "DebtWarning", "DebtOverdue", "DebtCleared", "DebtRestored", "DebtRepaymentSucceeded", "DebtRepaymentFailed"]);
         ValidateFilter(options.Status, ["Pending", "Processing", "Sent", "Captured", "Failed"]);
         var query = VisibleNotifications(actorId, role);
         if (options.OrderId != null)
@@ -121,7 +122,7 @@ public sealed class DiagnosticsQueryService(ApplicationDbContext db)
         if (role == "buyer")
             return query.Where(x => db.OrderTables.Any(o => o.Id == x.OrderId && o.BuyerId == actorId));
         if (role == "seller")
-            return query.Where(x => db.OrderTables.Any(o => o.Id == x.OrderId && o.SellerId == actorId));
+            return query.Where(x => x.SellerId == actorId || db.OrderTables.Any(o => o.Id == x.OrderId && o.SellerId == actorId));
         return query;
     }
 

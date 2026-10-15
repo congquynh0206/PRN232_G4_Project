@@ -21,7 +21,10 @@ public sealed class CheckoutService(
     {
         if (count is < 1 or > 5)
             throw new ArgumentOutOfRangeException(nameof(count));
+        var now = DateTime.UtcNow;
         var products = await db.Products.AsNoTracking().Where(p => p.SellerId != null && p.IsAuction != true && p.Price != null && p.WeightKg > 0 && db.Addresses.Any(a => a.UserId == p.SellerId && a.IsDefault == true))
+            .Where(p => !db.SellerAccounts.Any(a => a.SellerId == p.SellerId &&
+                (a.Status != "Active" || a.NegativeBalance > 0 && a.DebtDueAt <= now)))
             .Join(db.Inventories.Where(i => i.Quantity > 0), p => p.Id, i => i.ProductId, (p, i) => p)
             .ToListAsync(ct);
         var bySeller = products.GroupBy(p => p.SellerId).FirstOrDefault(g => g.Count() >= count);
@@ -72,6 +75,9 @@ public sealed class CheckoutService(
             }
 
             var(quote, address, products, coupon) = await ValidateAndQuoteAsync(buyerId, request, ct, true);
+            // Keep the finance gate until the new order commits so a debt update cannot race checkout.
+            await (finance ?? new G4.Infrastructure.Finance.SellerFinanceService(db, config ?? new ConfigurationBuilder().Build()))
+                .ValidateNewSaleAsync(products[0].SellerId!.Value, ct);
             if (request.ExpectedTotal.HasValue && request.ExpectedTotal != quote.Total || request.PricingFingerprint != null && request.PricingFingerprint != quote.PricingFingerprint)
                 throw new InvalidOperationException("Giá hoặc khuyến mãi đã thay đổi. Hãy tính lại trước khi đặt hàng.");
             var pickup = await PickupAsync(products[0].SellerId!.Value, ct);

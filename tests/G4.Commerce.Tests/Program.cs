@@ -3,6 +3,12 @@ using G4.Contracts.Checkout;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
+if (args.Contains("--debt-sql"))
+{
+    await SellerDebtSqlChecks.RunAsync();
+    return;
+}
+
 if (args.Contains("--return-sql"))
 {
     await ReturnPolicySqlChecks.RunAsync();
@@ -68,6 +74,7 @@ await BuyerCartChecks.RunAsync();
 await AddressChangeChecks.RunAsync();
 await PromotionFinanceChecks.RunAsync();
 await FinancePolicyChecks.RunAsync();
+await SellerDebtChecks.RunAsync();
 NotificationProcessingChecks.CheckRetryRules();
 await NotificationTemplateChecks.RunAsync();
 await NotificationProcessorBehaviorChecks.RunAsync();

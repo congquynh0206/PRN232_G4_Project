@@ -2,7 +2,9 @@ namespace G4.Domain.Entities;
 public sealed class NotificationOutbox
 {
     public int Id { get; set; }
-    public int OrderId { get; set; }
+    public int? OrderId { get; set; }
+    public int? SellerId { get; set; }
+    public string? EventKey { get; set; }
     public string EventType { get; set; } = "";
     public string Recipient { get; set; } = "";
     public string Subject { get; set; } = "";

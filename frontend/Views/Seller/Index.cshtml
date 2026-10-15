@@ -71,6 +71,35 @@
         <button id="refresh-finance">Làm mới</button>
     </div>
     <div id="finance-balances" class="finance-grid"></div>
+    <div class="finance-block">
+        <h2>Khoản nợ người bán</h2>
+        <div id="seller-debt-summary" role="status" aria-live="polite"></div>
+        <p class="small">Trả nợ bằng ngân hàng giả lập chỉ giảm số nợ. Không cộng tiền vào ví và không thu thêm phí nền tảng.</p>
+        <form id="debt-repayment-form">
+            <fieldset id="debt-repayment-fields">
+                <label for="debt-repayment-amount">Số tiền trả nợ (USD)</label>
+                <input id="debt-repayment-amount" type="number" min="0.01" step="0.01" required aria-describedby="debt-repayment-error" />
+                <label class="check-row"><input id="debt-repayment-failure" type="checkbox" />Giả lập ngân hàng từ chối</label>
+                <div class="actions">
+                    <button type="button" id="debt-repayment-all">Điền toàn bộ số nợ</button>
+                    <button type="submit" id="debt-repayment-submit" class="primary">Trả nợ</button>
+                </div>
+            </fieldset>
+            <p id="debt-repayment-error" class="diagnostic-error" role="alert" tabindex="-1"></p>
+            <p id="debt-repayment-result" role="status" aria-live="polite"></p>
+        </form>
+    </div>
+    <div class="finance-block">
+        <h2>Lịch sử khoản nợ</h2>
+        <label for="seller-debt-history-kind">Loại lịch sử</label>
+        <select id="seller-debt-history-kind">
+            <option value="repayments">Biên nhận trả nợ</option>
+            <option value="events">Cảnh báo và hạn chế</option>
+            <option value="cycles">Các kỳ nợ</option>
+        </select>
+        <div id="seller-debt-history" aria-busy="false"></div>
+        <div id="seller-debt-pagination" class="pagination"></div>
+    </div>
     <div class="finance-columns">
         <div class="finance-block">
             <h2>Cấp người bán</h2>
@@ -186,6 +215,7 @@
 <script src="~/js/promotions.js" asp-append-version="true"></script>
 <script src="~/js/disputes.js" asp-append-version="true"></script>
 <script src="~/js/seller-shipping.js" asp-append-version="true"></script>
+<script src="~/js/seller-debt.js" asp-append-version="true"></script>
 <script src="~/js/seller.js" asp-append-version="true"></script>
 }
 <partial name="_PromotionsPanel" model="false" />

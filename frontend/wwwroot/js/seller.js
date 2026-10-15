@@ -239,6 +239,7 @@
     Sale: 'Doanh thu đơn hàng',
     PlatformFee: 'Phí nền tảng',
     DebtRecovery: 'Thu hồi số dư âm',
+    DebtRepayment: 'Trả nợ qua ngân hàng',
     HoldCorrection: 'Điều chỉnh tiền giữ',
     Refund: 'Hoàn tiền cho người mua',
     FeeCredit: 'Hoàn lại phí nền tảng',
@@ -269,6 +270,7 @@
     Sale: 'Ghi nhận tiền bán hàng',
     PlatformFee: 'Đã trừ phí nền tảng',
     DebtRecovery: 'Bù khoản nợ từ giao dịch trước',
+    DebtRepayment: 'Ngân hàng xác nhận khoản trả nợ',
     HoldCorrection: 'Điều chỉnh khoản tiền đang giữ',
     Refund: 'Đã hoàn tiền cho người mua',
     FeeCredit: 'Hoàn lại một phần phí nền tảng',
@@ -286,6 +288,7 @@
         : 'Tiền được giữ để xử lý tranh chấp';
     return transactionDescriptions[x.type] || 'Số dư đã thay đổi';
   }
+  const financeDate = (value) => date(typeof value === 'string' && !/(Z|[+-]\d{2}:\d{2})$/i.test(value) ? value + 'Z' : value);
   async function loadTransactions(page = transactionPage) {
     const result = await api(`seller/finance/transactions/page?page=${page}&pageSize=10`);
     transactionPage = result.page;
@@ -293,7 +296,7 @@
       ? result.items
           .map(
             (x) =>
-              `<article class="finance-row"><div><strong>${esc(transactionLabels[x.type] || 'Giao dịch tài chính')}${x.orderId ? ` · đơn #${x.orderId}` : ''}</strong><small>${esc(financeDescription(x))} · ${date(x.createdAt)}</small><small>Khoản tiền: ${esc(bucketLabels[x.bucket] || 'Số dư tài chính')}</small></div><b class="${Number(x.amount) < 0 ? 'negative' : 'positive'}">${Number(x.amount) > 0 ? '+' : ''}${money(x.amount)}</b></article>`,
+              `<article class="finance-row"><div><strong>${esc(transactionLabels[x.type] || 'Giao dịch tài chính')}${x.orderId ? ` · đơn #${x.orderId}` : ''}</strong><small>${esc(financeDescription(x))} · ${financeDate(x.createdAt)}</small><small>Khoản tiền: ${esc(bucketLabels[x.bucket] || 'Số dư tài chính')}</small></div><b class="${Number(x.amount) < 0 ? 'negative' : 'positive'}">${Number(x.amount) > 0 ? '+' : ''}${money(x.amount)}</b></article>`,
           )
           .join('')
       : '<p class="empty-note">Chưa có giao dịch tài chính.</p>';
@@ -306,7 +309,7 @@
       ? result.items
           .map(
             (x) =>
-              `<article class="finance-row"><div><strong>Lần rút tiền #${x.id} · ${esc(payoutLabels[x.status] || label(x.status))}</strong><small>${date(x.createdAt)} · ${esc(x.bankReferenceId || x.destinationMasked || 'Chưa có mã ngân hàng')}</small></div><b>${money(x.amount)}</b></article>`,
+              `<article class="finance-row"><div><strong>Lần rút tiền #${x.id} · ${esc(payoutLabels[x.status] || label(x.status))}</strong><small>${financeDate(x.createdAt)} · ${esc(x.bankReferenceId || x.destinationMasked || 'Chưa có mã ngân hàng')}</small></div><b>${money(x.amount)}</b></article>`,
           )
           .join('')
       : '<p class="empty-note">Chưa có lần rút tiền.</p>';
@@ -330,7 +333,7 @@
     const hold = f.holdSeconds < 86400 ? `${f.holdSeconds} giây` : `${f.holdSeconds / 86400} ngày`;
     $('finance-level').innerHTML =
       `<p><strong>Cấp ${f.level}${f.level >= 3 ? ' · Instant' : ''}</strong></p><p>${f.level >= 3 ? 'Tiền sau phí tự vào ví khi thanh toán thành công, không cần yêu cầu payout.' : `Tiền vào ví sau ${hold} kể từ giao thành công.`}</p><p>Giới hạn doanh số: ${money(f.monthlySalesLimit)}/tháng</p><p>Doanh số tháng này: ${money(f.monthlySalesAmount)}</p><p class="small">${p.completedOrders}/${p.requiredOrders} đơn hoàn tất · Đánh giá tốt ${p.positiveFeedbackRate}%/${p.requiredFeedbackRate}% · Giao đúng hạn ${p.onTimeDeliveryRate}%/${p.requiredOnTimeRate}%</p>`;
-    await Promise.all([loadTransactions(), loadPayouts()]);
+    await Promise.all([loadTransactions(), loadPayouts(), G4.SellerDebt.loadSeller()]);
   }
   document.querySelectorAll('[data-order-filter]').forEach(
     (b) =>
@@ -366,6 +369,7 @@
       message('Đã ghi nhận yêu cầu rút tiền. Bạn có thể theo dõi trạng thái bên dưới.', true);
     });
   G4.Disputes.init('seller', () => loadOrders(orderPage, true));
+  G4.SellerDebt.init('seller', loadFinance);
   document.body.addEventListener('click', (e) => {
     const open = e.target.closest('[data-open-order]');
     if (open) return safe(() => showOrder(Number(open.dataset.openOrder)));

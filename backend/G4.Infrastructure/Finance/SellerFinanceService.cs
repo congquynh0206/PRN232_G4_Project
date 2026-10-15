@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
 namespace G4.Infrastructure.Finance;
-public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration configuration, TimeProvider? clock = null) : ISellerFinanceService
+public sealed partial class SellerFinanceService(ApplicationDbContext db, IConfiguration configuration, TimeProvider? clock = null) : ISellerFinanceService
 {
     private DateTime Now => (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime;
 
@@ -19,6 +19,8 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         ResetMonth(account);
         if (account.Status != "Active")
             throw new InvalidOperationException("Seller account is restricted");
+        if (IsDebtOverdue(account) && order.OrderDate >= account.DebtDueAt)
+            throw new InvalidOperationException("Seller has overdue debt and cannot receive new orders");
         if (account.MonthlySalesAmount + SnapshotGross(order, order.TotalPrice ?? 0m) > account.MonthlySalesLimit)
             throw new InvalidOperationException($"Seller level {account.Level} monthly sales limit would be exceeded");
         await db.SaveChangesAsync(ct);
@@ -123,6 +125,7 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
             );
         if (settlement.SellerLevelSnapshot == 3)
             ReleaseToWallet(settlement, account, "Instant seller proceeds credited after confirmed payment");
+        await SyncDebtAsync(account, ct);
         await db.SaveChangesAsync(ct);
         if (transaction is not null)
             await transaction.CommitAsync(ct);
@@ -307,6 +310,7 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
             "Refund applied to seller account",
             refundId
         );
+        await SyncDebtAsync(account, ct);
         await db.SaveChangesAsync(ct);
         if (refund.ReturnPolicyVersion == 1)
             await ReleaseCompletedReturnRemainderAsync(settlement, account, refund, ct);
@@ -364,6 +368,7 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
                 key + ":negative",
                 "Shipping adjustment exceeded seller proceeds"
             );
+        await SyncDebtAsync(account, ct);
         await db.SaveChangesAsync(ct);
         if (transaction != null)
             await transaction.CommitAsync(ct);
@@ -405,6 +410,7 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
                 "Held order funds used for return postage");
         if (debt > 0)
             AddEntry(account, settlement, "NegativeBalance", "Negative", -debt, key + ":negative", "Return postage exceeded seller funds");
+        await SyncDebtAsync(account, ct);
         await db.SaveChangesAsync(ct);
         if (tx != null) await tx.CommitAsync(ct);
     }
@@ -440,6 +446,8 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
             AddEntry(account, settlement, "HoldReleased", ready ? "Available" : "Processing", held,
                 $"refund:{refund.Id}:return-remainder", "Completed return released remaining seller funds", refund.Id);
         account.UpdatedAt = Now;
+        RecoverAvailableDebt(account, $"refund:{refund.Id}:remainder-debt");
+        await SyncDebtAsync(account, ct);
         await db.SaveChangesAsync(ct);
     }
 
@@ -555,6 +563,8 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
 
         account.UpdatedAt = Now;
         (await db.OrderTables.SingleAsync(x => x.Id == orderId, ct)).UpdatedAt = account.UpdatedAt;
+        if (releaseToSeller) RecoverAvailableDebt(account, key + ":debt");
+        await SyncDebtAsync(account, ct);
         await db.SaveChangesAsync(ct);
         if (tx != null) await tx.CommitAsync(ct);
     }
@@ -623,6 +633,7 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
             var account = await db.SellerAccounts.SingleAsync(x => x.Id == settlement.SellerAccountId, ct);
             await LockAccountAsync(account, ct);
             ReleaseToWallet(settlement, account, "Hold period completed after delivery");
+            await SyncDebtAsync(account, ct);
             await db.SaveChangesAsync(ct);
             if (transaction is not null)
                 await transaction.CommitAsync(ct);
@@ -640,19 +651,27 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         CancellationToken ct = default
     )
     {
-        if (amount <= 0)
+        if (amount <= 0 || Money(amount) != amount)
             throw new ArgumentOutOfRangeException(nameof(amount));
         if (string.IsNullOrWhiteSpace(key) || key.Length > 100)
             throw new ArgumentException("Payout key is required", nameof(key));
+        // The seller gate serializes balances; ReadCommitted avoids shared key-range
+        // locks on absent request keys blocking unrelated sellers' inserts.
+        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction == null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.ReadCommitted, ct) : null;
+        await AccountGateAsync(sellerId, ct);
         var account = await GetOrCreateAccountAsync(sellerId, ct);
         var existing = await db.SellerPayouts.SingleOrDefaultAsync(x => x.IdempotencyKey == key, ct);
         if (existing is not null)
         {
             if (existing.SellerAccountId != account.Id || existing.Amount != decimal.Round(amount, 2) || existing.SimulateFailure != simulateFailure)
                 throw new InvalidOperationException("Payout key belongs to a different request");
+            if (tx != null) await tx.CommitAsync(ct);
             return existing;
         }
 
+        await LockAccountAsync(account, ct);
+        if (account.Status != "Active") throw new InvalidOperationException("Seller account is restricted");
         if (account.NegativeBalance > 0)
             throw new InvalidOperationException("Negative balance must be recovered before payout");
         if (account.AvailableBalance < amount)
@@ -685,17 +704,30 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
             payoutId: payout.Id
         );
         await db.SaveChangesAsync(ct);
+        if (tx != null) await tx.CommitAsync(ct);
         return payout;
     }
 
     public async Task<int> AdvancePayoutsAsync(CancellationToken ct = default)
     {
-        var payouts = await db.SellerPayouts.Where(x => x.Status != "Completed" && x.Status != "Returned").OrderBy(x => x.Id)
+        var payouts = await db.SellerPayouts.AsNoTracking().Where(x => x.Status != "Completed" && x.Status != "Returned").OrderBy(x => x.Id)
             .Take(50)
+            .Select(x => new { x.Id, SellerId = db.SellerAccounts.Where(a => a.Id == x.SellerAccountId).Select(a => a.SellerId).Single() })
             .ToListAsync(ct);
-        foreach (var payout in payouts)
+        foreach (var candidate in payouts)
         {
+            await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction == null
+                ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
+            await AccountGateAsync(candidate.SellerId, ct);
+            var payout = await db.SellerPayouts.SingleAsync(x => x.Id == candidate.Id, ct);
+            await db.Entry(payout).ReloadAsync(ct);
+            if (payout.Status is "Completed" or "Returned")
+            {
+                if (tx != null) await tx.CommitAsync(ct);
+                continue;
+            }
             var account = await db.SellerAccounts.SingleAsync(x => x.Id == payout.SellerAccountId, ct);
+            await LockAccountAsync(account, ct);
             payout.UpdatedAt = Now;
             if (payout.Status == "Created")
                 payout.Status = "InProgress";
@@ -720,12 +752,16 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
                     "Bank rejected payout; funds restored",
                     payoutId: payout.Id
                 );
+                RecoverAvailableDebt(account, $"payout:{payout.Id}:returned-debt");
             }
             else
             {
                 payout.Status = "Completed";
                 payout.CompletedAt = Now;
             }
+            await SyncDebtAsync(account, ct);
+            await db.SaveChangesAsync(ct);
+            if (tx != null) await tx.CommitAsync(ct);
         }
 
         await db.SaveChangesAsync(ct);
@@ -734,21 +770,33 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
 
     public async Task<SellerFinanceSummary> GetSummaryAsync(int sellerId, CancellationToken ct = default)
     {
+        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction == null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
+        await AccountGateAsync(sellerId, ct);
         var account = await GetOrCreateAccountAsync(sellerId, ct);
+        await LockAccountAsync(account, ct);
         ResetMonth(account);
         await db.SaveChangesAsync(ct);
-        return await BuildSummaryAsync(account, ct);
+        var result = await BuildSummaryAsync(account, ct);
+        if (tx != null) await tx.CommitAsync(ct);
+        return result;
     }
 
     public async Task<SellerFinanceSummary> EvaluateLevelAsync(int sellerId, CancellationToken ct = default)
     {
+        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction == null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
+        await AccountGateAsync(sellerId, ct);
         var account = await GetOrCreateAccountAsync(sellerId, ct);
+        await LockAccountAsync(account, ct);
         var metrics = await GetMetricsAsync(sellerId, ct);
         var newLevel = metrics.CompletedOrders >= Level3Orders && metrics.PositiveFeedbackRate >= Level3Feedback && metrics.OnTimeDeliveryRate >= Level3OnTime ? 3 : metrics.CompletedOrders >= Level2Orders && metrics.PositiveFeedbackRate >= Level2Feedback && metrics.OnTimeDeliveryRate >= Level2OnTime ? 2 : 1;
         ApplyLevel(account, newLevel);
         account.UpdatedAt = Now;
         await db.SaveChangesAsync(ct);
-        return await BuildSummaryAsync(account, ct);
+        var result = await BuildSummaryAsync(account, ct);
+        if (tx != null) await tx.CommitAsync(ct);
+        return result;
     }
 
     private async Task<SellerFinanceSummary> BuildSummaryAsync(SellerAccount account, CancellationToken ct)
@@ -895,6 +943,7 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
         settlement.ReleasedAt = Now;
         AddEntry(account, settlement, "FundsReleased", "Available", amount,
             $"order:{settlement.OrderId}:released", description);
+        RecoverAvailableDebt(account, $"order:{settlement.OrderId}:released-debt");
     }
 
     private async Task<(int CompletedOrders, decimal PositiveFeedbackRate, decimal OnTimeDeliveryRate)> GetMetricsAsync(int sellerId, CancellationToken ct)
@@ -949,6 +998,7 @@ public sealed class SellerFinanceService(ApplicationDbContext db, IConfiguration
             await db.SellerAccounts.FromSqlInterpolated($"SELECT * FROM [SellerAccount] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {account.Id}")
                 .SingleAsync(ct);
         await db.Entry(account).ReloadAsync(ct);
+        await SyncDebtAsync(account, ct);
     }
 
     private async Task AccountGateAsync(int sellerId, CancellationToken ct)

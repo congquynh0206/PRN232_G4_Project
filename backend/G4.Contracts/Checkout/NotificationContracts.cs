@@ -9,7 +9,7 @@ public sealed record NotificationQuery(
 public sealed record DiagnosticsPage<T>(int Page, int PageSize, int TotalCount, IReadOnlyList<T> Items);
 public sealed record EmailNotificationView(
     int Id,
-    int OrderId,
+    int? OrderId,
     string EventType,
     string Recipient,
     string? From,

@@ -823,6 +823,10 @@ namespace G4.Infrastructure.Persistence.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(1);
 
+                    b.Property<string>("EventKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<string>("EventType")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -849,7 +853,7 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("NextAttemptAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("OrderId")
+                    b.Property<int?>("OrderId")
                         .HasColumnType("int");
 
                     b.Property<Guid?>("ProcessingToken")
@@ -862,6 +866,9 @@ namespace G4.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<int?>("SellerId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("SentAt")
                         .HasColumnType("datetime2");
@@ -877,8 +884,15 @@ namespace G4.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("EventKey")
+                        .IsUnique()
+                        .HasFilter("[EventKey] IS NOT NULL");
+
+                    b.HasIndex("SellerId");
+
                     b.HasIndex("OrderId", "EventType")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[OrderId] IS NOT NULL");
 
                     b.HasIndex("Status", "NextAttemptAt");
 
@@ -1829,6 +1843,18 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<decimal>("AvailableBalance")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<int>("DebtCycleNumber")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("DebtDueAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DebtStartedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("DebtSuspended")
+                        .HasColumnType("bit");
+
                     b.Property<int>("HoldDays")
                         .HasColumnType("int");
 
@@ -1869,7 +1895,159 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.HasIndex("SellerId")
                         .IsUnique();
 
+                    b.HasIndex("NegativeBalance", "DebtDueAt");
+
                     b.ToTable("SellerAccount", (string)null);
+                });
+
+            modelBuilder.Entity("G4.Domain.Entities.SellerDebtCycle", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("ClosedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("DueAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Number")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("OpeningBalance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("SellerAccountId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("SuspendedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("WarnedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("WarningAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SellerAccountId", "Number")
+                        .IsUnique();
+
+                    b.ToTable("SellerDebtCycle", (string)null);
+                });
+
+            modelBuilder.Entity("G4.Domain.Entities.SellerDebtEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Balance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("CycleNumber")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("EntryKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<int>("SellerAccountId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EntryKey")
+                        .IsUnique();
+
+                    b.HasIndex("SellerAccountId", "Id");
+
+                    b.ToTable("SellerDebtEvent", (string)null);
+                });
+
+            modelBuilder.Entity("G4.Domain.Entities.SellerDebtRepayment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("BankReferenceId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<int>("CycleNumber")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("ExpectedDebt")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("RemainingDebt")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("RequestKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("SellerAccountId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("SimulateFailure")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SellerAccountId", "RequestKey")
+                        .IsUnique();
+
+                    b.ToTable("SellerDebtRepayment", (string)null);
                 });
 
             modelBuilder.Entity("G4.Domain.Entities.SellerPayout", b =>
@@ -2457,6 +2635,14 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Navigation("Sender");
                 });
 
+            modelBuilder.Entity("G4.Domain.Entities.NotificationOutbox", b =>
+                {
+                    b.HasOne("G4.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("SellerId")
+                        .OnDelete(DeleteBehavior.NoAction);
+                });
+
             modelBuilder.Entity("G4.Domain.Entities.OrderItem", b =>
                 {
                     b.HasOne("G4.Domain.Entities.OrderTable", "Order")
@@ -2685,6 +2871,33 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.HasOne("G4.Domain.Entities.User", null)
                         .WithMany()
                         .HasForeignKey("SellerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("G4.Domain.Entities.SellerDebtCycle", b =>
+                {
+                    b.HasOne("G4.Domain.Entities.SellerAccount", null)
+                        .WithMany()
+                        .HasForeignKey("SellerAccountId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("G4.Domain.Entities.SellerDebtEvent", b =>
+                {
+                    b.HasOne("G4.Domain.Entities.SellerAccount", null)
+                        .WithMany()
+                        .HasForeignKey("SellerAccountId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("G4.Domain.Entities.SellerDebtRepayment", b =>
+                {
+                    b.HasOne("G4.Domain.Entities.SellerAccount", null)
+                        .WithMany()
+                        .HasForeignKey("SellerAccountId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
                 });

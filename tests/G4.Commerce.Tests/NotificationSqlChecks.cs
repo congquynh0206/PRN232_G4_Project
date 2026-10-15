@@ -31,7 +31,7 @@ public static class NotificationSqlChecks
         {
             if (await reset.OrderTables.AnyAsync(x => fixtureOrders.Contains(x.Id)))
                 throw new Exception("SQL fixture IDs overlap actual orders");
-            await reset.NotificationOutbox.Where(x => fixtureOrders.Contains(x.OrderId)).ExecuteDeleteAsync();
+            await reset.NotificationOutbox.Where(x => x.OrderId != null && fixtureOrders.Contains(x.OrderId.Value)).ExecuteDeleteAsync();
             await reset.IntegrationLogs.Where(x => x.OrderId != null && fixtureOrders.Contains(x.OrderId.Value))
                 .ExecuteDeleteAsync();
         }

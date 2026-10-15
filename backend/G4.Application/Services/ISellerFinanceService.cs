@@ -4,6 +4,10 @@ using G4.Domain.Entities;
 namespace G4.Application.Services;
 public interface ISellerFinanceService
 {
+    Task ValidateNewSaleAsync(int sellerId, CancellationToken ct = default);
+    Task<int> MaintainDebtsAsync(CancellationToken ct = default);
+    Task<SellerDebtSummary> GetDebtAsync(int sellerId, CancellationToken ct = default);
+    Task<DebtRepaymentView> RepayDebtAsync(int sellerId, DebtRepaymentRequest request, CancellationToken ct = default);
     Task ValidateMonthlyLimitAsync(int orderId, CancellationToken ct = default);
     Task<SellerSettlement> RecordSuccessfulPaymentAsync(int orderId, int paymentId, CancellationToken ct = default);
     Task ApplyRefundAsync(int orderId, int refundId, CancellationToken ct = default);

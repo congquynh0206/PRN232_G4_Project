@@ -12,6 +12,8 @@ Giỏ buyer hiện random từ đúng hai seller, lưu theo tài khoản và che
 
 ## Chạy với SQL Server
 
+Quản lý nợ seller cần migration `20261014102533_AddSellerDebtManagement`. Development dùng hạn trả 60 giây và cảnh báo trước 15 giây; môi trường khác mặc định 7 ngày. Seller trả nợ tại tab Tài chính; admin có tab Khoản nợ seller. Xem [SELLER_DEBT.md](SELLER_DEBT.md).
+
 1. Tạo một database **trống** bằng [database/baseline.sql](../database/baseline.sql) trong SSMS hoặc `sqlcmd`. Script này chứa `CREATE DATABASE CloneEbayDB`; **không chạy lại** trên database đã có bảng/dữ liệu.
 2. Cấu hình `ConnectionStrings__DefaultConnection` trong môi trường theo SQL Server của bạn. Mẫu cấu hình trong `backend/G4.Api/appsettings.json` dùng SQL Server Docker qua cổng `14333`; SQL Server cài trực tiếp thường có server/cổng khác.
 3. Từ thư mục gốc chạy `dotnet ef database update --project backend/G4.Infrastructure --startup-project backend/G4.Api`. Migration cũ `InitialCreate` không tạo bảng; bảng nền phải đến từ bước 1. Các migration tiếp theo thêm checkout, giao hàng và tài chính seller. Có thể xem [database/checkout-shipping-migration.sql](../database/checkout-shipping-migration.sql) và [database/seller-finance-migration.sql](../database/seller-finance-migration.sql) nếu muốn duyệt SQL trước.

@@ -1,0 +1,23 @@
+#debt-repayment-fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+#debt-repayment-form .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+#debt-repayment-error:empty,
+#debt-repayment-result:empty { display: none; }
+#seller-debt-history,
+#admin-debt-history,
+#admin-debt-list,
+#debt-repayment-result { overflow-wrap: anywhere; }
+#admin-debt-detail { scroll-margin-top: 88px; }
+#seller-debts [hidden] { display: none; }
+#seller-debts button,
+#debt-repayment-form button { min-height: 44px; }
+#seller-debts .finance-row > div,
+#seller-debt-history .finance-row > div { min-width: 0; }
