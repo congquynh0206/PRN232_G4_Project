@@ -27,11 +27,12 @@ public sealed class SellerDebtController(ApplicationDbContext db, ISellerFinance
         [FromQuery] int page = 1, [FromQuery] int pageSize = 10, CancellationToken ct = default)
     {
         if (!IsAvailable || !HasRole("admin")) return StatusCode(403);
-        if (state is not ("all" or "debt" or "overdue")) return BadRequest(new { error = "Bộ lọc nợ chưa hợp lệ." });
+        if (state is not ("all" or "debt" or "overdue" or "blocked")) return BadRequest(new { error = "Bộ lọc nợ chưa hợp lệ." });
         await finance.MaintainDebtsAsync(ct);
         var now = clock.GetUtcNow().UtcDateTime;
         var query = db.SellerAccounts.AsNoTracking();
-        if (state != "all") query = query.Where(a => a.NegativeBalance > 0);
+        if (state is "debt" or "overdue") query = query.Where(a => a.NegativeBalance > 0);
+        if (state == "blocked") query = query.Where(a => a.PermanentSalesBlockedAt != null);
         if (state == "overdue") query = query.Where(a => a.DebtDueAt <= now);
         if (sellerId != null) query = query.Where(a => a.SellerId == sellerId);
         pageSize = Math.Clamp(pageSize, 1, 50);
@@ -39,7 +40,7 @@ public sealed class SellerDebtController(ApplicationDbContext db, ISellerFinance
         page = Math.Clamp(page, 1, Math.Max(1, (totalCount + pageSize - 1) / pageSize));
         var items = await query.OrderBy(a => a.DebtDueAt).ThenBy(a => a.Id).Skip((page - 1) * pageSize).Take(pageSize)
             .Select(a => new { a.SellerId, a.Status, a.NegativeBalance, a.DebtCycleNumber, a.DebtStartedAt, a.DebtDueAt,
-                a.DebtSuspended, overdue = a.NegativeBalance > 0 && a.DebtDueAt <= now,
+                a.DebtSuspended, a.PermanentSalesBlockedAt, overdue = a.NegativeBalance > 0 && a.DebtDueAt <= now,
                 email = db.Users.Where(u => u.Id == a.SellerId).Select(u => u.Email).FirstOrDefault() }).ToListAsync(ct);
         return Ok(new { page, pageSize, totalCount, items });
     }

@@ -9,9 +9,16 @@ public sealed class ReturnsController(
     ApplicationDbContext db,
     IReturnService returns,
     IDisputeService disputes,
+    CarrierAvailabilityState carrierState,
     IHostEnvironment environment
 ) : ApiControllerBase(environment)
 {
+    [HttpGet("seller/returns/page")]
+    public async Task<IActionResult> ListReturns(string filter = "approval", int page = 1, int pageSize = 10, CancellationToken ct = default)
+    {
+        if (!IsAvailable || !HasRole("seller")) return StatusCode(403);
+        return Ok(await G4.Infrastructure.Orders.SellerReturnList.ReadAsync(db, CurrentUserId, filter, page, pageSize, ct));
+    }
     [HttpPost("orders/{id:int}/returns")]
     public async Task<IActionResult> RequestReturn(int id, ReturnRequestInput request, CancellationToken ct)
     {
@@ -39,7 +46,8 @@ public sealed class ReturnsController(
         if (!await SellerOwnsReturnAsync(id, ct))
             return StatusCode(403);
         var result = await returns.ApproveAsync(id, ct);
-        return Ok(new { result.Id, result.Status });
+        var shipmentStatus = await db.ShippingInfos.Where(s => s.OrderId == result.OrderId && s.Direction == "Return").Select(s => s.Status).SingleOrDefaultAsync(ct);
+        return Ok(new { result.Id, result.Status, shipmentStatus });
     }
 
     [HttpPost("seller/returns/{id:int}/ship")]
@@ -50,7 +58,28 @@ public sealed class ReturnsController(
         if (!await SellerOwnsReturnAsync(id, ct))
             return StatusCode(403);
         var result = await returns.RetryShipmentAsync(id, ct);
-        return Ok(new { result.Id, result.Status });
+        var shipmentStatus = await db.ShippingInfos.Where(s => s.OrderId == result.OrderId && s.Direction == "Return").Select(s => s.Status).SingleOrDefaultAsync(ct);
+        return Ok(new { result.Id, result.Status, shipmentStatus });
+    }
+
+    [HttpPost("seller/returns/{id:int}/approve/simulate-failure")]
+    public async Task<IActionResult> ApproveWithCarrierFailure(int id, CancellationToken ct)
+    {
+        if (!IsAvailable || !HasRole("seller")) return StatusCode(403);
+        if (!await SellerOwnsReturnAsync(id, ct)) return StatusCode(403);
+        var orderId = (await db.ReturnRequests.AsNoTracking().SingleAsync(r => r.Id == id, ct)).OrderId!.Value;
+        await using var tx = await G4.Infrastructure.Promotions.PromotionLifecycle.LockOrderAsync(db, orderId, ct);
+        if (await db.ShippingInfos.AnyAsync(s => s.OrderId == orderId && s.Direction == "Return" && s.TrackingNumber != null, ct))
+            throw new InvalidOperationException("Đã có vận đơn trả hợp lệ.");
+        carrierState.FailNext($"ship-{orderId}-return", 3);
+        try
+        {
+            var result = await returns.ApproveAsync(id, ct);
+            if (tx != null) await tx.CommitAsync(ct);
+            var shipmentStatus = await db.ShippingInfos.Where(s => s.OrderId == orderId && s.Direction == "Return").Select(s => s.Status).SingleOrDefaultAsync(ct);
+            return Ok(new { result.Id, result.Status, shipmentStatus });
+        }
+        finally { carrierState.FailNext($"ship-{orderId}-return", 0); }
     }
 
     [HttpPost("seller/returns/{id:int}/reject")]

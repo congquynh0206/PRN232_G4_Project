@@ -96,8 +96,15 @@ public sealed class OrdersController(
             .Select(x => new { x.PromotionId, x.Name, x.Type, x.FundingSource, x.Code, x.Version, x.Amount })
             .ToListAsync(ct);
         var outbound = shipments.FirstOrDefault(x => x.Direction == "Outbound");
+        var savedFeedback = await db.SellerOrderFeedbacks.AsNoTracking().SingleOrDefaultAsync(x => x.OrderId == id, ct);
+        var sellerFeedback = savedFeedback == null ? null : G4.Infrastructure.Finance.SellerFeedbackService.View(savedFeedback);
+        var canReviewSeller = HasRole("buyer") && order.BuyerId == CurrentUserId && order.SellerId != CurrentUserId
+            && order.SellerId != null && savedFeedback == null && (order.Status is "Delivered" or "Closed") && payments.Any(x => x.Status == "Succeeded");
+        var payPalCheckoutId = await db.Payments.Where(p => p.OrderId == id && p.PayPalCheckoutId != null
+            && db.PayPalCheckouts.Any(c => c.Id == p.PayPalCheckoutId && (c.Status == "Creating" || c.Status == "Pending" || c.Status == "Verifying")))
+            .OrderByDescending(p => p.Id).Select(p => p.PayPalCheckoutId).FirstOrDefaultAsync(ct);
         var canRequestAddressChange = (order.Status is "Paid" or "Preparing" or "Shipping") && order.AddressChangeCount == 0 && !addressChanges.Any(x => x.Status == "Pending") && dispute?.IsOpen != true && returnRequest == null && (outbound == null || outbound.DeliveryAttempts == 0 && (outbound.Status is "NotCreated" or "ShipmentCreationFailed" or "LabelCreated" or "PickedUp" or "InTransit"));
-        return Ok(new { order.Id, order.Status, order.OrderDate, order.UpdatedAt, order.PaymentExpiresAt, order.AddressSnapshot, order.AddressChangeCount, addressChanges, canRequestAddressChange, order.CancelDecisionReason, order.Subtotal, order.DiscountAmount, order.ShippingFee, order.TotalPrice, order.Currency, order.CouponCode, order.TotalWeightKg, order.PickupAddressSnapshot, shippingBase = order.PricingSchemaVersion == 1 ? order.ShippingBase : order.ShippingFee, order.ShippingDiscount, order.SellerGoodsDiscount, order.PlatformSubsidy, sellerGross = order.PricingSchemaVersion == 1 ? order.SellerGrossSnapshot : order.TotalPrice, promotions, items, payments, shipments, events, returnRequest, refunds, settlement, dispute });
+        return Ok(new { order.Id, order.Status, order.OrderDate, order.UpdatedAt, order.PaymentExpiresAt, order.AddressSnapshot, order.AddressChangeCount, addressChanges, canRequestAddressChange, order.CancelDecisionReason, order.Subtotal, order.DiscountAmount, order.ShippingFee, order.TotalPrice, order.Currency, order.CouponCode, order.TotalWeightKg, order.PickupAddressSnapshot, shippingBase = order.PricingSchemaVersion == 1 ? order.ShippingBase : order.ShippingFee, order.ShippingDiscount, order.SellerGoodsDiscount, order.PlatformSubsidy, sellerGross = order.PricingSchemaVersion == 1 ? order.SellerGrossSnapshot : order.TotalPrice, promotions, items, payments, shipments, events, returnRequest, refunds, settlement, dispute, sellerFeedback, canReviewSeller, payPalCheckoutId });
     }
 
     [HttpPost("orders/{id:int}/cancel")]
