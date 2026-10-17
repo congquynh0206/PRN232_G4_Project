@@ -34,6 +34,8 @@ Tài liệu ghi lại quyết định trực tiếp của người dùng cho đ�
 
 ### S2. Tổng hợp và trả lời feedback theo sản phẩm
 
+**Trạng thái:** Đã triển khai và kiểm thử trên database QA riêng; database chính chưa áp dụng migration. Xem [PRODUCT_FEEDBACK.md](PRODUCT_FEEDBACK.md) để chạy và demo.
+
 - Một khu vực riêng để seller xem feedback của khách hàng, nhóm theo từng sản phẩm của seller.
 - Hiển thị ảnh/tên sản phẩm, điểm trung bình, số đánh giá, số phản hồi chưa trả lời và danh sách rating/bình luận của khách.
 - Có tìm kiếm sản phẩm, lọc số sao, trạng thái đã/chưa trả lời, thời gian và phân trang.

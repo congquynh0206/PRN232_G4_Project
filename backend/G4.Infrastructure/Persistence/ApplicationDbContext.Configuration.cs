@@ -21,6 +21,7 @@ public partial class ApplicationDbContext
         ConfigureSellerDebt(modelBuilder);
         ConfigureSellerRegistration(modelBuilder);
         ConfigureSellerLevels(modelBuilder);
+        ConfigureProductFeedback(modelBuilder);
         ConfigureRealtime(modelBuilder);
         ConfigurePayPalCart(modelBuilder);
         ConfigureDisputeDecisions(modelBuilder);

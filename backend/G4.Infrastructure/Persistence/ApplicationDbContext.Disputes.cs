@@ -17,6 +17,7 @@ public partial class ApplicationDbContext
         GuardFinanceHistory();
         GuardSellerRegistrationHistory();
         GuardSellerLevelHistory();
+        GuardProductFeedback();
         GuardReturnPriceSnapshots();
         GuardDisputeDecisions();
         CaptureCommerceChanges();
@@ -29,6 +30,7 @@ public partial class ApplicationDbContext
         GuardFinanceHistory();
         GuardSellerRegistrationHistory();
         GuardSellerLevelHistory();
+        GuardProductFeedback();
         GuardReturnPriceSnapshots();
         GuardDisputeDecisions();
         CaptureCommerceChanges();

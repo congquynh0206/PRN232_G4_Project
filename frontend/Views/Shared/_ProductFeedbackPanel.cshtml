@@ -1,0 +1,21 @@
+<section id="product-feedback" class="panel tab-panel">
+    <div class="section-head"><div><span class="eyebrow">Chăm sóc khách hàng</span><h1>Đánh giá sản phẩm</h1><p>Xem góp ý theo sản phẩm và trả lời khách hàng tại một nơi.</p></div><button type="button" id="product-feedback-refresh">Làm mới</button></div>
+    <form id="product-feedback-filter">
+        <fieldset id="product-feedback-filters" class="product-feedback-filters">
+            <legend class="sr-only">Lọc đánh giá sản phẩm</legend>
+            <label>Tên hoặc mã sản phẩm<input id="product-feedback-search" maxlength="100" placeholder="Ví dụ: Headphones hoặc #12" /></label>
+            <label>Số sao<select id="product-feedback-rating"><option value="">Tất cả số sao</option><option value="5">5 sao</option><option value="4">4 sao</option><option value="3">3 sao</option><option value="2">2 sao</option><option value="1">1 sao</option></select></label>
+            <label>Phản hồi<select id="product-feedback-reply"><option value="all">Tất cả</option><option value="unanswered">Chưa trả lời</option><option value="answered">Đã trả lời</option></select></label>
+            <label>Từ ngày<input id="product-feedback-from" type="date" /></label>
+            <label>Đến ngày<input id="product-feedback-to" type="date" /></label>
+            <div class="actions"><button type="submit" class="primary">Áp dụng</button><button type="button" id="product-feedback-reset">Xóa bộ lọc</button></div>
+        </fieldset>
+    </form>
+    <p class="small">Lọc theo ngày gửi đánh giá, theo giờ địa phương. Số tổng áp dụng cho toàn bộ kết quả phù hợp.</p>
+    <p id="product-feedback-error" role="alert" tabindex="-1"></p>
+    <div id="product-feedback-summary" class="product-feedback-stats" aria-live="polite"></div>
+    <div class="product-feedback-columns">
+        <div class="product-feedback-products"><h2>Sản phẩm có đánh giá</h2><p id="product-feedback-product-status" role="status"></p><div id="product-feedback-products" aria-busy="false"></div><div id="product-feedback-product-pages" class="pagination"></div></div>
+        <div class="product-feedback-reviews"><h2 id="product-feedback-review-title">Chọn sản phẩm để xem</h2><p id="product-feedback-review-status" role="status"></p><div id="product-feedback-reviews" aria-busy="false"></div><div id="product-feedback-review-pages" class="pagination"></div></div>
+    </div>
+</section>

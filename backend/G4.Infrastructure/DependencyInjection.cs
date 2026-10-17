@@ -39,6 +39,7 @@ public static class DependencyInjection
         services.AddScoped<IPayPalCartPaymentService, PayPalCartPaymentService>();
         services.AddScoped<ISellerFinanceService, SellerFinanceService>();
         services.AddScoped<ISellerFeedbackService, SellerFeedbackService>();
+        services.AddScoped<IProductFeedbackService, ProductFeedbackService>();
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IDisputeService, DisputeService>();
         services.AddScoped<IRefundGateway, RefundGateway>();

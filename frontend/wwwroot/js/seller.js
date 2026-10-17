@@ -42,6 +42,7 @@
     else if (id === 'seller-identity') safe(() => G4.SellerIdentity.load());
     else if (id === 'seller-levels') safe(() => G4.SellerLevels.load());
     else if (id === 'seller-returns') safe(() => G4.SellerReturns.load());
+    else if (id === 'product-feedback') safe(() => G4.ProductFeedback.load());
     else safe(loadFinance);
   }
   async function loadOrders(page = orderPage, incremental = false) {
@@ -381,6 +382,7 @@
   G4.SellerIdentity.init();
   G4.SellerLevels.init('seller');
   G4.SellerReturns.init();
+  G4.ProductFeedback.init();
   safe(() => G4.SellerReturns.load());
   document.body.addEventListener('click', (e) => {
     const open = e.target.closest('[data-open-order]');

@@ -104,3 +104,7 @@ Tab **Cấp seller** dùng đánh giá đơn mua thực tế, dữ liệu giao �
 
 
 PayPal checkout hiện thanh toán cả giỏ bằng một lần xác nhận, lưu capture riêng từng đơn. Seller có tab Trả hàng / Hoàn tiền; các role nhận cập nhật qua SignalR và modal đã thu gọn. Cần migration `20261015161703_AddPayPalCartAndRealtime`, khởi động lại API/frontend và tải lại trang. Xem [COMMERCE_REFRESH.md](COMMERCE_REFRESH.md) cho cấu hình URL/CORS local, HTTPS, Docker và kịch bản kiểm thử.
+
+## Feedback sản phẩm
+
+Seller có tab **Đánh giá sản phẩm** để tổng hợp, lọc và trả lời đánh giá theo từng sản phẩm. Buyer mở **Đánh giá sản phẩm & phản hồi** trong chi tiết đơn đã trả tiền; được gửi sau Delivered/Closed và xem phản hồi từ shop. Chức năng dùng Review riêng, không thay đổi seller level. Cần migration **20261017042643_AddProductFeedbackReplies**; xem [PRODUCT_FEEDBACK.md](PRODUCT_FEEDBACK.md). Đợt này chỉ nâng database QA riêng, chưa nâng database chính.

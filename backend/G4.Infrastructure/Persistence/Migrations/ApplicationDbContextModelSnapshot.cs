@@ -1460,6 +1460,44 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.ToTable("Product", (string)null);
                 });
 
+            modelBuilder.Entity("G4.Domain.Entities.ProductReviewReply", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RequestKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("ReviewId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SellerId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReviewId")
+                        .IsUnique();
+
+                    b.HasIndex("SellerId", "RequestKey")
+                        .IsUnique();
+
+                    b.ToTable("ProductReviewReply", (string)null);
+                });
+
             modelBuilder.Entity("G4.Domain.Entities.Promotion", b =>
                 {
                     b.Property<int>("Id")
@@ -1929,6 +1967,9 @@ namespace G4.Infrastructure.Persistence.Migrations
                         .HasColumnType("datetime")
                         .HasColumnName("createdAt");
 
+                    b.Property<int?>("OrderId")
+                        .HasColumnType("int");
+
                     b.Property<int?>("ProductId")
                         .HasColumnType("int")
                         .HasColumnName("productId");
@@ -1937,6 +1978,10 @@ namespace G4.Infrastructure.Persistence.Migrations
                         .HasColumnType("int")
                         .HasColumnName("rating");
 
+                    b.Property<string>("RequestKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<int?>("ReviewerId")
                         .HasColumnType("int")
                         .HasColumnName("reviewerId");
@@ -1944,9 +1989,15 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("PK__Review__3213E83FA4A98B36");
 
-                    b.HasIndex("ProductId");
+                    b.HasIndex("OrderId", "ProductId")
+                        .IsUnique()
+                        .HasFilter("[OrderId] IS NOT NULL");
 
-                    b.HasIndex("ReviewerId");
+                    b.HasIndex("ProductId", "CreatedAt");
+
+                    b.HasIndex("ReviewerId", "RequestKey")
+                        .IsUnique()
+                        .HasFilter("[RequestKey] IS NOT NULL");
 
                     b.ToTable("Review", (string)null);
                 });
@@ -3250,6 +3301,21 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Navigation("Seller");
                 });
 
+            modelBuilder.Entity("G4.Domain.Entities.ProductReviewReply", b =>
+                {
+                    b.HasOne("G4.Domain.Entities.Review", null)
+                        .WithMany()
+                        .HasForeignKey("ReviewId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("G4.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("SellerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("G4.Domain.Entities.Promotion", b =>
                 {
                     b.HasOne("G4.Domain.Entities.User", null)
@@ -3367,6 +3433,11 @@ namespace G4.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("G4.Domain.Entities.Review", b =>
                 {
+                    b.HasOne("G4.Domain.Entities.OrderTable", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.HasOne("G4.Domain.Entities.Product", "Product")
                         .WithMany("Reviews")
                         .HasForeignKey("ProductId")

@@ -29,6 +29,7 @@ public partial class ApplicationDbContext
                 SellerDebtEvent x => new CommerceChange { Topic = "finance", SellerAccountId = x.SellerAccountId },
                 SellerLevelEvaluation x => new CommerceChange { Topic = "levels", SellerId = x.SellerId },
                 SellerOrderFeedback x => new CommerceChange { Topic = "levels", SellerId = x.SellerId, BuyerId = x.BuyerId },
+                Review x => new CommerceChange { Topic = "product-feedback", OrderId = x.OrderId, BuyerId = x.ReviewerId, SellerId = x.Product?.SellerId },
                 NotificationOutbox x => new CommerceChange { Topic = "notifications", OrderId = x.OrderId, SellerId = x.SellerId },
                 AddressChangeRequest x => new CommerceChange { Topic = "orders", OrderId = x.OrderId },
                 _ => null };
