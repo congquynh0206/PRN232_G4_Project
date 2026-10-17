@@ -4,8 +4,8 @@ public sealed record FundHoldRequest(string Reason, string[] EvidenceLinks);
 public sealed record FundHoldResolutionRequest(bool ReleaseToSeller, string Reason);
 public sealed record SellerLevelProgress(
     int CompletedOrders,
-    decimal PositiveFeedbackRate,
-    decimal OnTimeDeliveryRate,
+    decimal? PositiveFeedbackRate,
+    decimal? OnTimeDeliveryRate,
     int NextLevel,
     int RequiredOrders,
     decimal RequiredFeedbackRate,

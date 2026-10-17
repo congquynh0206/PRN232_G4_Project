@@ -6,6 +6,9 @@ public interface ISellerFinanceService
 {
     Task ValidateNewSaleAsync(int sellerId, CancellationToken ct = default);
     Task<int> MaintainDebtsAsync(CancellationToken ct = default);
+    Task<int> MaintainWriteOffsAsync(CancellationToken ct = default);
+    Task<int> MaintainLevelsAsync(CancellationToken ct = default);
+    Task<SellerLevelDetails> GetLevelDetailsAsync(int sellerId, CancellationToken ct = default);
     Task<SellerDebtSummary> GetDebtAsync(int sellerId, CancellationToken ct = default);
     Task<DebtRepaymentView> RepayDebtAsync(int sellerId, DebtRepaymentRequest request, CancellationToken ct = default);
     Task ValidateMonthlyLimitAsync(int orderId, CancellationToken ct = default);

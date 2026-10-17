@@ -11,4 +11,8 @@ public sealed class SellerDebtCycle
     public DateTime? WarnedAt { get; set; }
     public DateTime? SuspendedAt { get; set; }
     public DateTime? ClosedAt { get; set; }
+    public DateTime? WriteOffEligibleAt { get; set; }
+    public int RecoveryGraceSeconds { get; set; }
+    public DateTime? LastRecoveryAt { get; set; }
+    public decimal LastObservedBalance { get; set; }
 }

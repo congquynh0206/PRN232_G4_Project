@@ -36,6 +36,24 @@ public sealed class ShippingController(
         return Ok();
     }
 
+    [HttpPost("seller/orders/{id:int}/ship/simulate-failure")]
+    public async Task<IActionResult> SimulateOutboundFailure(int id, CancellationToken ct)
+    {
+        if (!IsAvailable || !HasRole("seller")) return StatusCode(403);
+        await using var tx = await G4.Infrastructure.Promotions.PromotionLifecycle.LockOrderAsync(db, id, ct);
+        if (!await db.OrderTables.AnyAsync(o => o.Id == id && o.SellerId == CurrentUserId, ct)) return StatusCode(403);
+        if (await db.ShippingInfos.AnyAsync(s => s.OrderId == id && s.Direction == "Outbound" && s.TrackingNumber != null, ct))
+            throw new InvalidOperationException("Đã có vận đơn hợp lệ; không thể giả lập lỗi tạo lại nhãn.");
+        carrierState.FailNext($"ship-{id}-outbound", 3);
+        try
+        {
+            var shipment = await shipping.CreateOutboundAsync(id, ct);
+            if (tx != null) await tx.CommitAsync(ct);
+            return Ok(new { shipment.Id, shipment.Status, shipment.TrackingNumber });
+        }
+        finally { carrierState.FailNext($"ship-{id}-outbound", 0); }
+    }
+
     [HttpPost("shipments/{id:int}/events")]
     public async Task<IActionResult> AddEvent(int id, ShippingEventRequest request, CancellationToken ct)
     {

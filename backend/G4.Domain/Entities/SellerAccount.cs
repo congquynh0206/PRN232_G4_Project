@@ -15,6 +15,11 @@ public sealed class SellerAccount
     public DateTime? DebtStartedAt { get; set; }
     public DateTime? DebtDueAt { get; set; }
     public bool DebtSuspended { get; set; }
+    public DateTime? PermanentSalesBlockedAt { get; set; }
+    public long? CurrentIdentityId { get; set; }
+    public int IdentityVersion { get; set; }
+    public DateTime? LevelActivityStartedAt { get; set; }
+    public DateTime? LastLevelEvaluatedAt { get; set; }
     public decimal MonthlySalesAmount { get; set; }
     public DateTime SalesMonth { get; set; }
     public DateTime UpdatedAt { get; set; }
