@@ -3,6 +3,33 @@ using G4.Contracts.Checkout;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
+if (args.Contains("--paypal-cart")) { await PayPalCartChecks.RunAsync(); return; }
+if (args.Contains("--commerce-refresh-sql")) { await CommerceRefreshSqlChecks.RunAsync(); return; }
+
+if (args.Contains("--levels-sql"))
+{
+    await SellerLevelSqlChecks.RunAsync();
+    return;
+}
+
+if (args.Contains("--levels"))
+{
+    await SellerLevelChecks.RunAsync();
+    return;
+}
+
+if (args.Contains("--registration-sql"))
+{
+    await SellerRegistrationSqlChecks.RunAsync();
+    return;
+}
+
+if (args.Contains("--registration"))
+{
+    await SellerRegistrationChecks.RunAsync();
+    return;
+}
+
 if (args.Contains("--debt-sql"))
 {
     await SellerDebtSqlChecks.RunAsync();
@@ -75,6 +102,9 @@ await AddressChangeChecks.RunAsync();
 await PromotionFinanceChecks.RunAsync();
 await FinancePolicyChecks.RunAsync();
 await SellerDebtChecks.RunAsync();
+await SellerRegistrationChecks.RunAsync();
+await SellerLevelChecks.RunAsync();
+await PayPalCartChecks.RunAsync();
 NotificationProcessingChecks.CheckRetryRules();
 await NotificationTemplateChecks.RunAsync();
 await NotificationProcessorBehaviorChecks.RunAsync();

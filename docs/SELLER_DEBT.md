@@ -1,5 +1,7 @@
 # Quản lý nợ người bán
 
+Write-off/khóa bán vĩnh viễn do worker tự đánh giá và kiểm tra blacklist khi đăng ký seller được mô tả tại [SELLER_REGISTRATION_WRITE_OFF.md](SELLER_REGISTRATION_WRITE_OFF.md). Trả hết nợ chỉ gỡ đình chỉ tạm do nợ; giữ khóa bán vĩnh viễn nếu đã có quyết định.
+
 `NegativeBalance` là số tiền nợ dương, bằng USD, tối đa 2 chữ số thập phân. Ví khả dụng, tiền đang xử lý và tiền đang giữ được theo dõi riêng. Trả nợ ngân hàng không cộng tiền vào ví, không ghi doanh thu và không thu phí nền tảng.
 
 ## Kỳ nợ và thời hạn

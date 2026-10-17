@@ -241,24 +241,16 @@
       try {
         state.attempt ??= request(true);
         orders = await api('cart/checkout', 'POST', state.attempt);
+        const checkoutKey = state.attempt.checkoutKey;
         accept(await api('cart'));
         tab('orders', false);
         await loadOrders(1);
         const pending = orders.filter((x) => x.status === 'AwaitingPayment');
         if (method === 'paypal' && pending.length) {
-          message(
-            `Đã tạo ${orders.length} đơn. PayPal thanh toán từng đơn; tiếp tục các đơn còn lại trong Đơn của tôi.`,
-            true,
-          );
+          message(`Đã tạo ${orders.length} đơn. PayPal sẽ xác nhận thanh toán cả giỏ trong một lượt.`, true);
           $('paypal-loading').classList.remove('hidden');
-          const result = await api(`orders/${pending[0].id}/pay/paypal`, 'POST', {
-            key: crypto.randomUUID(),
-          });
-          if (result.approvalUrl) {
-            location.assign(result.approvalUrl);
-            return;
-          }
-          throw new Error('Chưa có đường dẫn PayPal. Thanh toán lại từ Đơn của tôi.');
+          await G4.PayPalCart.begin(checkoutKey);
+          return;
         }
         const results = [];
         for (const order of pending) {

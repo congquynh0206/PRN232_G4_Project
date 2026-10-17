@@ -68,6 +68,10 @@ async function harness(handler, method = 'card') {
     location: { assign: (url) => redirects.push(url) },
     document: { querySelectorAll: controls, querySelector: () => ({ value: method }) },
   };
+  G4.PayPalCart = { begin: async (checkoutKey) => {
+    const result = await G4.api('buyer/paypal-checkouts', 'POST', { checkoutKey, key: 'cart-payment-key' });
+    if (result.approvalUrl) context.location.assign(result.approvalUrl);
+  } };
   vm.runInNewContext(fs.readFileSync('frontend/wwwroot/js/buyer-cart.js', 'utf8'), context);
   await G4.BuyerCart.init({ tab: noop, loadOrders: async () => {}, showOrder: async () => {} });
   return { element, messages, redirects, calls, controls };
@@ -237,7 +241,7 @@ test('card payments report partial failure and leave unpaid order visible', asyn
   assert.match(h.element('cart').innerHTML, /Giỏ đang trống/);
 });
 
-test('PayPal redirects for first pending order and explains remaining orders', async () => {
+test('PayPal starts one checkout for the whole cart and preserves the original checkout batch key', async () => {
   let checkedOut = false;
   const h = await harness(async (route) => {
     if (route === 'cart') return checkedOut ? { version: 'v2', items: [] } : cart;
@@ -249,11 +253,13 @@ test('PayPal redirects for first pending order and explains remaining orders', a
         { id: 12, status: 'AwaitingPayment' },
       ];
     }
-    if (route === 'orders/11/pay/paypal')
+    if (route === 'buyer/paypal-checkouts')
       return { approvalUrl: 'https://www.sandbox.paypal.com/checkoutnow?token=TEST' };
   }, 'paypal');
   await h.element('pay').onclick();
   assert.equal(h.redirects.length, 1);
-  assert.match(h.messages.at(-1).value, /từng đơn/);
-  assert.equal(h.calls.filter((x) => x.route.endsWith('/pay/paypal')).length, 1);
+  assert.match(h.messages.at(-1).value, /cả giỏ/);
+  const call = h.calls.find(x => x.route === 'buyer/paypal-checkouts');
+  assert.equal(call.body.checkoutKey, h.calls.find(x => x.route === 'cart/checkout').body.checkoutKey);
+  assert.equal(h.calls.filter((x) => x.route.endsWith('/pay/paypal')).length, 0);
 });

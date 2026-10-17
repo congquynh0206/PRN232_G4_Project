@@ -592,28 +592,14 @@
     });
     safe(() => load());
     setInterval(updateCountdowns, 1000);
-    setInterval(
-      () =>
-        safe(async () => {
-          if (
-            busy ||
-            loading ||
-            document.hidden ||
-            $('action-dialog').open ||
-            $('decision-dialog')?.open ||
-            document.activeElement?.closest('.pagination')
-          )
-            return;
-          await load(page, true);
-          if (
-            activeId &&
-            $('detail-dialog').open &&
-            document.querySelector(`[data-dispute-detail="${activeId}"]`)
-          )
-            await open(activeId, true);
-        }),
-      4000,
-    );
+    const refresh = async () => {
+      if (busy || loading || document.hidden || $('action-dialog').open || $('decision-dialog')?.open
+          || document.querySelector('dialog[open]:not(#detail-dialog)') || document.activeElement?.closest('.pagination')) return false;
+      await load(page, true);
+      if (activeId && $('detail-dialog').open && document.querySelector(`[data-dispute-detail="${activeId}"]`)) await open(activeId, true);
+    };
+    G4.Realtime?.subscribe(['disputes', 'returns', 'orders'], refresh);
+    setInterval(() => { if (!G4.Realtime?.connected) safe(refresh); }, 10000);
   }
 
   G4.Disputes = { init, load, open, openNew, statusText, parseLinks, countdown, renderDetail };

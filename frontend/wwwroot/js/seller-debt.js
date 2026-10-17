@@ -6,13 +6,16 @@
     DebtStarted: 'Phát sinh nợ', DebtWarning: 'Sắp đến hạn', DebtOverdue: 'Đình chỉ do nợ quá hạn',
     DebtCleared: 'Đã hết nợ', DebtRestored: 'Gỡ đình chỉ do nợ',
     DebtRepaymentSucceeded: 'Trả nợ thành công', DebtRepaymentFailed: 'Trả nợ bị từ chối',
+    DebtWriteOff: 'Nợ khó thu và khóa bán vĩnh viễn', WriteOffRecovery: 'Thu hồi nợ sau write-off',
   };
   const stamp = (v) => date(typeof v === 'string' && !/(Z|[+-]\d{2}:\d{2})$/i.test(v) ? v + 'Z' : v);
   const age = (seconds) => seconds >= 86400 ? `${Math.floor(seconds / 86400)} ngày ${Math.floor(seconds % 86400 / 3600)} giờ`
     : seconds >= 3600 ? `${Math.floor(seconds / 3600)} giờ ${Math.floor(seconds % 3600 / 60)} phút` : `${Math.floor(seconds)} giây`;
   function summaryHtml(d, admin = false) {
-    const status = !Number(d.balance) ? 'Không còn nợ' : d.overdue ? 'Quá hạn · đình chỉ bán hàng do nợ' : 'Đang nợ · vẫn được bán trước hạn';
+    const status = d.permanentSalesBlockedAt ? 'Khóa bán vĩnh viễn' : !Number(d.balance) ? 'Không còn nợ' : d.overdue ? 'Quá hạn · đình chỉ bán hàng do nợ' : 'Đang nợ · vẫn được bán trước hạn';
     return `<p><strong>${esc(status)}</strong></p><p>Số nợ: <strong class="negative">${money(d.balance)}</strong></p>`
+      + (d.permanentSalesBlockedAt ? `<p>Khóa bán từ: ${stamp(d.permanentSalesBlockedAt)}. Trả hết nợ không tự gỡ quyết định này; vẫn được trả nợ và xử lý đơn cũ.</p>` : '')
+      + (d.earliestWriteOffAt && !d.permanentSalesBlockedAt ? `<p class="diagnostic-error">Có thể bị khóa bán vĩnh viễn và đưa định danh vào blacklist sớm nhất từ ${stamp(d.earliestWriteOffAt)} nếu vẫn còn nợ và không có khoản thu hồi mới. Mốc này lùi lại khi có khoản thu hồi; hạn trả ban đầu giữ nguyên.</p>` : '')
       + (d.startedAt ? `<p>Kỳ #${Number(d.cycleNumber)} · Bắt đầu: ${stamp(d.startedAt)} · Tuổi nợ: ${age(d.ageSeconds)}</p><p>Hạn trả: ${stamp(d.dueAt)}</p><p class="small">Trả một phần hoặc phát sinh thêm nợ không đổi hạn của kỳ này. Còn nợ thì chưa thể rút tiền.</p>` : '')
       + (d.overdue ? `<p>${admin ? 'Seller' : 'Bạn'} vẫn đăng nhập, trả nợ, giao hàng và xử lý return/dispute của đơn hiện có.</p>` : '')
       + (d.accountStatus !== 'Active' ? `<p>Hạn chế tài khoản khác: ${esc(d.accountStatus)}. Trả hết nợ chỉ gỡ hạn chế do nợ.</p>` : '');
@@ -23,13 +26,13 @@
       if (kind === 'repayments') return `<article class="finance-row"><div><strong>Biên nhận #${Number(x.id)} · ${x.status === 'Succeeded' ? 'Thành công' : 'Ngân hàng từ chối'}</strong><small>Kỳ #${Number(x.cycleNumber)} · ${stamp(x.createdAt)}</small><small>${esc(x.bankReferenceId)} · Nợ còn lại lúc ghi nhận: ${money(x.remainingDebt)}</small></div><b>${money(x.amount)}</b></article>`;
       if (kind === 'events') return `<article class="finance-row"><div><strong>${esc(events[x.eventType] || x.eventType)}</strong><small>Kỳ #${Number(x.cycleNumber)} · ${stamp(x.createdAt)}</small><p>${esc(x.description)}</p></div><b>Nợ: ${money(x.balance)}</b></article>`;
       if (kind === 'cycles') return `<article class="finance-row"><div><strong>Kỳ #${Number(x.number)} · ${x.closedAt ? 'Đã kết thúc' : 'Đang mở'}</strong><small>Bắt đầu: ${stamp(x.startedAt)} · Hạn: ${stamp(x.dueAt)}</small><small>Cảnh báo: ${stamp(x.warnedAt)} · Đình chỉ: ${stamp(x.suspendedAt)} · Kết thúc: ${stamp(x.closedAt)}</small></div><b>Nợ ban đầu: ${money(x.openingBalance)}</b></article>`;
-      const types = { DebtRepayment: 'Trả nợ qua ngân hàng', DebtRecovery: 'Bù nợ', Sale: 'Doanh thu', PlatformFee: 'Phí nền tảng',
+      const types = { DebtWriteOff: 'Ghi nhận nợ khó thu (không đổi số dư)', DebtRepayment: 'Trả nợ qua ngân hàng', DebtRecovery: 'Bù nợ', Sale: 'Doanh thu', PlatformFee: 'Phí nền tảng',
         Payout: 'Rút tiền', PayoutReturned: 'Ngân hàng trả lại tiền rút', NegativeBalance: 'Phát sinh nợ', Refund: 'Hoàn tiền',
         FundsReleased: 'Giải phóng tiền vào ví', FundHold: 'Giữ tiền', HoldReleased: 'Giải phóng tiền giữ',
         HoldReserved: 'Giữ tiền chờ hoàn', FundHoldConsumed: 'Sử dụng tiền giữ', FeeCredit: 'Hoàn phí',
         PlatformSubsidy: 'Tài trợ khuyến mãi', PlatformSubsidyReversal: 'Thu hồi tài trợ khuyến mãi',
         ReturnShippingCost: 'Phí trả hàng', ShippingAdjustmentCost: 'Phí đổi địa chỉ', RefundCreditReleased: 'Hoàn phí vào ví' };
-      const buckets = { Negative: 'Số dư âm', Available: 'Ví khả dụng', Processing: 'Đang xử lý', OnHold: 'Đang giữ', SellerBalance: 'Số dư seller' };
+      const buckets = { Audit: 'Nhật ký quyết định', Negative: 'Số dư âm', Available: 'Ví khả dụng', Processing: 'Đang xử lý', OnHold: 'Đang giữ', SellerBalance: 'Số dư seller' };
       return `<article class="finance-row"><div><strong>${esc(types[x.type] || x.type)}${x.orderId ? ` · Đơn #${Number(x.orderId)}` : ''}</strong><small>${stamp(x.createdAt)} · ${esc(buckets[x.bucket] || x.bucket)}</small><p>${esc(x.description)}</p></div><b>${money(x.amount)}</b></article>`;
     }).join('');
   }
@@ -75,7 +78,7 @@
     $('debt-repayment-amount').max = String(debt.balance);
     // Keep retry valid even when the first request has already cleared the debt.
     if (pending) $('debt-repayment-amount').max = String(pending.expectedDebt);
-    $('request-payout').disabled = Number(debt.balance) > 0 || debt.accountStatus !== 'Active';
+    $('request-payout').disabled = Number(debt.balance) > 0 || debt.accountStatus !== 'Active' || !!debt.permanentSalesBlockedAt;
     lockForm();
     await history();
   }
@@ -116,6 +119,9 @@
     $('admin-debt-detail').hidden = false;
     $('admin-debt-title').textContent = `Seller #${id}`;
     $('admin-debt-summary').innerHTML = summaryHtml(d, true);
+    const identities = await api(`admin/seller-identities/${id}`);
+    if (selectedSeller !== id) return;
+    $('admin-debt-identities').innerHTML = identities.items.length ? identities.items.map((x) => `<p>${esc(x.maskedValue)} · ${x.current ? 'Hiện tại' : 'Lịch sử'} · ${stamp(x.verifiedAt)}</p>`).join('') : '<p class="empty-note">Chưa có định danh đã xác minh.</p>';
     await history(true);
     if (focus && selectedSeller === id) {
       $('admin-debt-title').setAttribute('tabindex', '-1');
@@ -133,7 +139,7 @@
       if (ticket !== adminSequence) return;
       adminPage = result.page;
       $('admin-debt-count').textContent = `${result.totalCount} seller · Trang ${result.page}`;
-      root.innerHTML = result.items.length ? result.items.map((x) => `<article class="finance-row"><div><strong>Seller #${Number(x.sellerId)} · ${esc(x.email)}</strong><small>${x.overdue ? 'Quá hạn · đình chỉ do nợ' : Number(x.negativeBalance) ? 'Đang nợ' : 'Không còn nợ'} · Trạng thái khác: ${esc(x.status)}</small><small>Bắt đầu: ${stamp(x.debtStartedAt)} · Hạn trả: ${stamp(x.debtDueAt)}</small><button type="button" data-debt-seller="${Number(x.sellerId)}">Xem lịch sử seller #${Number(x.sellerId)}</button></div><b>${money(x.negativeBalance)}</b></article>`).join('') : '<p class="empty-note">Không có seller phù hợp.</p>';
+      root.innerHTML = result.items.length ? result.items.map((x) => `<article class="finance-row"><div><strong>Seller #${Number(x.sellerId)} · ${esc(x.email)}</strong><small>${x.permanentSalesBlockedAt ? 'Khóa bán vĩnh viễn' : x.overdue ? 'Quá hạn · đình chỉ do nợ' : Number(x.negativeBalance) ? 'Đang nợ' : 'Không còn nợ'} · Trạng thái khác: ${esc(x.status)}</small><small>Bắt đầu: ${stamp(x.debtStartedAt)} · Hạn trả: ${stamp(x.debtDueAt)}</small><button type="button" data-debt-seller="${Number(x.sellerId)}">Xem lịch sử seller #${Number(x.sellerId)}</button></div><b>${money(x.negativeBalance)}</b></article>`).join('') : '<p class="empty-note">Không có seller phù hợp.</p>';
       root.querySelectorAll('[data-debt-seller]').forEach((button) => {
         button.onclick = () => safe(() => openSeller(Number(button.dataset.debtSeller), true));
       });

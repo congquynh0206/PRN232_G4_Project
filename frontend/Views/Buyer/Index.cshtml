@@ -141,6 +141,7 @@
     </div>
 </section>
 <section id="orders" class="panel tab-panel">
+    <div id="paypal-cart-result" class="finance-block" hidden aria-live="polite"></div>
     <div class="section-head">
         <div>
             <span class="eyebrow">Người mua</span>
@@ -187,14 +188,19 @@
 <partial name="_DisputesPanel" model="false" />
 <partial name="_NotificationsPanel" />
 <partial name="_ReturnRequestDialog" />
+<partial name="_SellerFeedbackDialog" />
 @section Scripts
 {
 <script src="~/js/common.js" asp-append-version="true"></script>
+<script src="~/lib/signalr/signalr.min.js" asp-append-version="true"></script>
+<script src="~/js/realtime.js" asp-append-version="true"></script>
 <script src="~/js/address-changes.js" asp-append-version="true"></script>
 <script src="~/js/returns.js" asp-append-version="true"></script>
 <script src="~/js/notifications.js" asp-append-version="true"></script>
 <script src="~/js/promotions.js" asp-append-version="true"></script>
 <script src="~/js/disputes.js" asp-append-version="true"></script>
 <script src="~/js/buyer-cart.js" asp-append-version="true"></script>
+<script src="~/js/paypal-cart.js" asp-append-version="true"></script>
+<script src="~/js/seller-feedback.js" asp-append-version="true"></script>
 <script src="~/js/buyer.js" asp-append-version="true"></script>
 }

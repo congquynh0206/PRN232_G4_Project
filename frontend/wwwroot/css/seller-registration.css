@@ -1,0 +1,25 @@
+.registration-page { margin: 0; background: var(--page-bg, #f7f8fc); color: var(--text-main, #202234); }
+.registration-shell { width: min(900px, calc(100% - 32px)); margin: 24px auto 56px; }
+.registration-head, .registration-actions, .registration-samples { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.registration-head { justify-content: space-between; margin-bottom: 36px; }
+.registration-intro h1 { font-size: clamp(28px, 4vw, 40px); margin: 8px 0; }
+.registration-intro p { line-height: 1.6; }
+.registration-note { background: #eeebff; border: 1px solid #d8d1f5; border-radius: 12px; padding: 16px; margin: 20px 0; }
+.registration-note p { margin: 6px 0 0; line-height: 1.6; }
+.registration-samples { margin-bottom: 20px; }
+#seller-registration-form { padding: 28px; border: 1px solid #e1e4ee; border-radius: 18px; background: #fff; box-shadow: 0 8px 30px #242b4710; }
+#registration-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+#registration-fields legend { font-size: 20px; font-weight: 700; margin-bottom: 18px; }
+#registration-fields h2 { font-size: 20px; margin-top: 28px; }
+.registration-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.registration-grid label { display: grid; gap: 8px; font-weight: 600; min-width: 0; }
+.registration-grid input, .registration-grid select { width: 100%; min-height: 46px; box-sizing: border-box; }
+.registration-wide { grid-column: 1 / -1; }
+.registration-page [hidden] { display: none !important; }
+.registration-error { color: #9f1c32; overflow-wrap: anywhere; }
+.registration-error:empty { display: none; }
+.registration-success { background: #e9f7ef; border: 1px solid #a4d8b8; border-radius: 12px; padding: 16px; line-height: 1.6; overflow-wrap: anywhere; }
+.registration-actions { margin-top: 20px; }
+.registration-page button { min-height: 44px; cursor: pointer; }
+.registration-page button:disabled { cursor: default; }
+@media (max-width: 600px) { .registration-grid { grid-template-columns: minmax(0, 1fr); } #seller-registration-form { padding: 20px; } .registration-head { align-items: flex-start; } }

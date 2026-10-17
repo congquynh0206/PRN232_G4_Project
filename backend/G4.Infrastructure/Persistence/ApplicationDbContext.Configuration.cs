@@ -19,6 +19,10 @@ public partial class ApplicationDbContext
         ConfigureDiagnostics(modelBuilder);
         ConfigureFinancePolicies(modelBuilder);
         ConfigureSellerDebt(modelBuilder);
+        ConfigureSellerRegistration(modelBuilder);
+        ConfigureSellerLevels(modelBuilder);
+        ConfigureRealtime(modelBuilder);
+        ConfigurePayPalCart(modelBuilder);
         ConfigureDisputeDecisions(modelBuilder);
         ConfigureReturnPricing(modelBuilder);
         modelBuilder.Entity<Product>().Property(x => x.WeightKg).HasColumnType("decimal(10,3)");

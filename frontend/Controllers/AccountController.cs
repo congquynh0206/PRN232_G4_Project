@@ -8,8 +8,37 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace frontend.Controllers;
 [AllowAnonymous]
-public sealed class AccountController(IHttpClientFactory factory, IConfiguration configuration) : Controller
+public sealed class AccountController(IHttpClientFactory factory, IConfiguration configuration, IHostEnvironment environment) : Controller
 {
+    [HttpGet]
+    public IActionResult RegisterSeller() => environment.IsDevelopment() ? View() : NotFound();
+
+    [HttpGet]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public async Task<IActionResult> RegistrationSamples(CancellationToken ct)
+    {
+        if (!environment.IsDevelopment()) return NotFound();
+        using var reply = await factory.CreateClient().GetAsync(BackendUrl("api/auth/seller-registration-samples"), ct);
+        return new ContentResult { StatusCode = (int)reply.StatusCode, ContentType = "application/json", Content = await reply.Content.ReadAsStringAsync(ct) };
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RegisterSeller([FromBody] JsonElement input, CancellationToken ct)
+    {
+        if (!environment.IsDevelopment()) return NotFound();
+        try
+        {
+            using var reply = await factory.CreateClient().PostAsync(BackendUrl("api/auth/register-seller"),
+                new StringContent(input.GetRawText(), Encoding.UTF8, "application/json"), ct);
+            return new ContentResult { StatusCode = (int)reply.StatusCode, ContentType = "application/json", Content = await reply.Content.ReadAsStringAsync(ct) };
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested)
+        {
+            return StatusCode(503, new { error = "Chưa xác định được kết quả đăng ký. Hãy kiểm tra kết nối rồi gửi lại đúng thông tin." });
+        }
+    }
+
     [HttpGet]
     public IActionResult Login(string? returnUrl = null)
     {

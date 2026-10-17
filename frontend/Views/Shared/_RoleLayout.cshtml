@@ -29,6 +29,7 @@
         <link rel="stylesheet" href="~/css/ui-refresh.css" asp-append-version="true" />
         <link rel="stylesheet" href="~/css/diagnostics.css" asp-append-version="true" />
         <link rel="stylesheet" href="~/css/seller-debt.css" asp-append-version="true" />
+        <link rel="stylesheet" href="~/css/seller-levels.css" asp-append-version="true" />
         <link rel="stylesheet" href="~/css/address-changes.css" asp-append-version="true" />
         <link rel="stylesheet" href="~/css/returns.css" asp-append-version="true" />
         <link rel="stylesheet" href="~/css/dispute-decisions.css" asp-append-version="true" />
@@ -40,6 +41,7 @@
         {
             <link rel="stylesheet" href="~/css/vnpost.css" asp-append-version="true" />
         }
+        <link rel="stylesheet" href="~/css/dialogs.css" asp-append-version="true" />
     </head>
     <body class="@(role == "shipper" ? "vnpost-workspace" : "")">
         <header class="topbar role-topbar">
@@ -71,6 +73,7 @@
             </div>
         </header>
         <div class="role-banner">
+            <small id="realtime-status" role="status" aria-live="polite">Đang kết nối cập nhật trực tiếp…</small>
             @if (role == "shipper")
             {
                 <span>VNPost · Quản lý vận đơn</span>

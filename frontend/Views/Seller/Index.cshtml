@@ -5,7 +5,10 @@
 <nav class="tabs role-tabs">
     <button data-tab="orders" class="active">Đơn hàng</button>
     <button data-tab="finance">Tài chính</button>
+    <button data-tab="seller-returns">Trả hàng / Hoàn tiền <span id="seller-return-count"></span></button>
+    <button data-tab="seller-levels">Cấp seller</button>
     <button data-tab="shipping-settings">Thiết lập giao hàng</button>
+    <button data-tab="seller-identity">Định danh</button>
     <button data-tab="promotions">Khuyến mãi</button>
     <button data-tab="notifications">Email thông báo</button>
     <button data-tab="integration-logs">Nhật ký tích hợp</button>
@@ -204,10 +207,15 @@
     </div>
 </section>
 <partial name="_NotificationsPanel" />
+<partial name="_SellerIdentityPanel" />
+<partial name="_SellerReturnsPanel" />
+<partial name="_SellerLevelsPanel" model="false" />
 <partial name="_IntegrationLogsPanel" />
 @section Scripts
 {
 <script src="~/js/common.js" asp-append-version="true"></script>
+<script src="~/lib/signalr/signalr.min.js" asp-append-version="true"></script>
+<script src="~/js/realtime.js" asp-append-version="true"></script>
 <script src="~/js/address-changes.js" asp-append-version="true"></script>
 <script src="~/js/returns.js" asp-append-version="true"></script>
 <script src="~/js/notifications.js" asp-append-version="true"></script>
@@ -216,6 +224,9 @@
 <script src="~/js/disputes.js" asp-append-version="true"></script>
 <script src="~/js/seller-shipping.js" asp-append-version="true"></script>
 <script src="~/js/seller-debt.js" asp-append-version="true"></script>
+<script src="~/js/seller-identity.js" asp-append-version="true"></script>
+<script src="~/js/seller-levels.js" asp-append-version="true"></script>
+<script src="~/js/seller-returns.js" asp-append-version="true"></script>
 <script src="~/js/seller.js" asp-append-version="true"></script>
 }
 <partial name="_PromotionsPanel" model="false" />

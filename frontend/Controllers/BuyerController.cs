@@ -9,6 +9,18 @@ public sealed class BuyerController(IHttpClientFactory factory, IConfiguration c
 {
     public IActionResult Index() => View();
     [HttpGet]
+    public async Task<IActionResult> PayPalCartReturn(long checkoutId, string? token, CancellationToken ct)
+    {
+        if (checkoutId <= 0 || string.IsNullOrWhiteSpace(token)) return RedirectToAction(nameof(Index));
+        using var request = new HttpRequestMessage(HttpMethod.Post, BackendUrl($"api/buyer/paypal-checkouts/{checkoutId}/capture"));
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", User.FindFirstValue("access_token"));
+        request.Content = System.Net.Http.Json.JsonContent.Create(new { providerOrderId = token });
+        using var response = await factory.CreateClient().SendAsync(request, ct);
+        return RedirectToAction(nameof(Index), new { paypalCheckoutId = checkoutId, paymentResult = response.IsSuccessStatusCode ? "checked" : "error" });
+    }
+    [HttpGet]
+    public IActionResult PayPalCartCancel(long checkoutId) => RedirectToAction(nameof(Index), new { paypalCheckoutId = checkoutId, paymentResult = "cancelled" });
+    [HttpGet]
     public async Task<IActionResult> PayPalReturn(int orderId, string? token, CancellationToken ct)
     {
         if (orderId <= 0 || string.IsNullOrWhiteSpace(token))

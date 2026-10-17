@@ -2,6 +2,8 @@
 
 **Trạng thái:** Bản nghiệp vụ để nhóm đọc và duyệt. Tài liệu mô tả hành vi đích, không khẳng định mọi chức năng đã có trong code.
 
+**Phạm vi bổ sung đã chốt ngày 17/10/2026:** xem [APPROVED_SCOPE_2026-10-17.md](APPROVED_SCOPE_2026-10-17.md). Tài liệu đó ghi quyết định trực tiếp của người dùng về bảy nhóm chức năng cần bổ sung và các phần giữ nguyên, bao gồm admin yêu cầu trả hàng trước khi tiếp tục phán quyết và bổ sung thông báo/email còn thiếu; được ưu tiên khi xác định phạm vi đợt này nếu khác với đề xuất cũ bên dưới.
+
 ## 1. Mục tiêu và phạm vi
 
 Hệ thống mô phỏng một marketplace với một đơn hàng thuộc **một seller**: buyer chọn hàng → checkout → thanh toán → seller giao cho shipper → giao thành công hoặc chuyển hoàn → trả hàng/tranh chấp/refund → seller nhận tiền và yêu cầu payout. SQL Server là nguồn dữ liệu chính. PayPal chỉ dùng Sandbox, Credit Card và ngân hàng payout chỉ được giả lập; không dùng tiền, thẻ hoặc tài khoản ngân hàng thật.
@@ -15,7 +17,7 @@ Hệ thống có bốn vai trò `buyer`, `seller`, `shipper`, `admin`. API kiể
 | Buyer | Random giỏ hàng, sửa số lượng/địa chỉ, xem báo giá, dùng promotion, thanh toán, theo dõi đơn và tracking, yêu cầu hủy/đổi địa chỉ/trả hàng, mở tranh chấp và theo dõi refund. |
 | Seller | Chuẩn bị đơn, tạo vận đơn, cấu hình mức chịu thêm phí đổi địa chỉ, xử lý hủy/trả hàng, phản hồi tranh chấp, tạo promotion của shop, xem tài chính, trả nợ giả lập và yêu cầu payout. |
 | Shipper | Nhận vận đơn từ danh sách chờ, xem địa chỉ lấy/giao, cập nhật tracking và xác nhận xử lý địa chỉ đã được duyệt. Chỉ shipper đã nhận vận đơn được cập nhật vận đơn đó. |
-| Admin | Cấu hình phí nền tảng và promotion toàn sàn, xem hồ sơ tranh chấp/bằng chứng, phán quyết và giám sát nợ xấu; xử lý khóa vĩnh viễn/blacklist sau khi kiểm tra. Admin có thể xem nhật ký nhưng không trực tiếp sửa số dư hay mốc tracking. |
+| Admin | Cấu hình phí nền tảng và promotion toàn sàn, xem hồ sơ tranh chấp/bằng chứng, phán quyết và giám sát nợ xấu; theo dõi quyết định write-off, khóa bán vĩnh viễn và blacklist do worker tự đánh giá theo tiêu chí. Admin có thể xem nhật ký nhưng không trực tiếp sửa số dư hay mốc tracking. |
 
 ## 3. Giỏ hàng, checkout và đơn hàng
 
@@ -134,7 +136,7 @@ Level do **hệ thống tự đánh giá**, Admin xem kết quả và lý do; kh
 | 2 – Verified | 10.000 USD | 7 ngày sau giao thành công | 15 giây sau Delivered | ≥20 đơn hoàn tất; feedback tốt ≥90%; giao đúng hạn ≥90%; hoạt động ≥30 ngày; không có nợ âm. |
 | 3 – Trusted / Instant | 1.000.000 USD | Ngay khi thanh toán thành công | 0 giây, không chờ Delivered | ≥100 đơn hoàn tất; feedback tốt ≥97%; giao đúng hạn ≥95%; hoạt động ≥90 ngày; không có nợ âm. |
 
-Tỷ lệ hủy/trả/tranh chấp được hiển thị trong đánh giá và là điều kiện giữ cấp: Level 2 lần lượt không quá 5%/10%/2%; Level 3 không quá 2%/5%/1% trên các order đã thanh toán trong 90 ngày gần nhất. Nếu mẫu dưới 20 order trong cửa sổ 90 ngày, giữ cấp hiện tại trừ khi có nợ hoặc tài khoản bị hạn chế. Số đơn hoàn tất tính cộng dồn, feedback và đúng hạn dùng các order có dữ liệu tương ứng; không coi thiếu feedback là đánh giá xấu. Worker đánh giá định kỳ và seller có nút yêu cầu đánh giá lại; thay đổi level/hold chỉ áp dụng cho settlement mới, không đổi lịch tiền của order cũ.
+Tỷ lệ hủy/trả/tranh chấp được hiển thị trong đánh giá và là điều kiện giữ cấp: Level 2 lần lượt không quá 5%/10%/2%; Level 3 không quá 2%/5%/1% trên các order đã thanh toán trong 90 ngày gần nhất. Nếu mẫu dưới 20 order trong cửa sổ 90 ngày, giữ cấp hiện tại trừ khi có nợ hoặc tài khoản bị hạn chế. Số đơn hoàn tất tính cộng dồn theo đơn đã thanh toán có trạng thái Delivered/Closed hoặc bằng chứng giao thành công chiều đi; feedback và đúng hạn dùng các order trong cửa sổ có dữ liệu tương ứng; không coi thiếu feedback là đánh giá xấu. Worker đánh giá định kỳ và seller có nút yêu cầu đánh giá lại; thay đổi level/hold chỉ áp dụng cho settlement mới, không đổi lịch tiền của order cũ.
 
 **Instant ở Level 3** nghĩa là Net sau phí và bù nợ tự vào số dư ví `Available` ngay khi payment thành công; không tạo `SellerPayout` và không ghi khoản nhận vào ví là `PaidOut`. Return/dispute/refund phát sinh sau đó vẫn khóa hoặc thu hồi tiền theo nghiệp vụ. Đây là quy ước mô phỏng đã được xác nhận ngày 14/10/2026, không phải cam kết eBay thật xử lý thanh toán tức thời.
 
@@ -144,9 +146,9 @@ Refund/chargeback/chi phí vượt tiền còn giữ của seller tạo `Negativ
 
 Nếu `Negative` liên tục trên 0 quá **7 ngày** (Development: **1 phút**), worker bật `IsWarningBadDebt` và đình chỉ **đăng bán/nhận order mới**. Order và return đã tồn tại vẫn tiếp tục được xử lý để tránh bỏ mặc buyer. Nếu seller trả hết nợ trước khi Admin khóa vĩnh viễn, hệ thống gỡ cảnh báo/đình chỉ và lưu lịch sử các lần cảnh báo. Thời điểm bắt đầu nợ liên tục được lưu riêng; trả hết rồi âm lại bắt đầu một kỳ mới.
 
-Admin xem dashboard seller bị cảnh báo, số nợ, tuổi nợ và ledger. Sau khi kiểm tra, Admin có thể đánh dấu **write-off**: ghi khoản nợ không còn kỳ vọng thu hồi trong báo cáo, khóa seller vĩnh viễn và đưa thông tin định danh đã xác minh vào blacklist. Write-off không xóa ledger, lịch sử nợ hoặc số tiền gốc phục vụ kiểm toán; hệ thống lưu người quyết định, lý do và thời điểm. Đây là thao tác riêng với đình chỉ tự động.
+Admin xem dashboard seller bị cảnh báo, số nợ, tuổi nợ và ledger. Worker tự ghi **write-off** khi nợ liên tục ít nhất 30 ngày, đã quá hạn và không có khoản thu hồi trong 7 ngày gần nhất; Development dùng 300 giây và 60 giây. Chính sách chốt theo kỳ nợ, có cấu hình. Ngay trước quyết định, worker khóa và đọc lại số nợ; đã trả hết thì không xử lý. Quyết định giữ nguyên nợ/ledger, khóa bán vĩnh viễn và đưa định danh đã xác minh vào blacklist, lưu tiêu chí, actor hệ thống và thời điểm. Admin theo dõi kết quả, không cần bấm write-off thủ công. Trả hết sau quyết định chỉ cập nhật khoản thu hồi, không tự gỡ khóa bán vĩnh viễn. Đây là bước riêng sau đình chỉ do nợ quá hạn.
 
-Để blacklist hoạt động, onboarding seller phải thu thập và xác minh **CCCD/Passport** hoặc **số tài khoản ngân hàng nhận payout**. Không thu thập số thẻ thanh toán của buyer làm định danh seller. Chuẩn hóa dữ liệu rồi lưu giá trị đối chiếu bằng HMAC với khóa nằm ngoài database; giao diện chỉ hiển thị phần đã che. Seller tạo mới hoặc cập nhật định danh trùng blacklist bị từ chối bằng thông báo chung và HTTP 403; không tiết lộ định danh nào trùng. Admin không được sửa/xóa trực tiếp bản ghi blacklist, chỉ dùng quy trình quyết định có audit.
+Đăng ký seller Development nhập tài khoản, shop và **CCCD/Passport** hoặc **tài khoản ngân hàng nhận payout** giả lập. Chuẩn hóa và xác minh định dạng, kiểm tra blacklist trước khi tạo tài khoản; hợp lệ thì tạo seller/shop/ví cấp 1, Active, số dư 0, không chờ admin duyệt. Trùng blacklist bị từ chối trước khi tạo tài khoản, không phải tạo tài khoản mới rồi ban. Màn hình có mẫu hợp lệ/không hợp lệ/trùng blacklist; không dùng dữ liệu thật. Không thu thập số thẻ thanh toán của buyer làm định danh seller. Chuẩn hóa dữ liệu rồi lưu giá trị đối chiếu bằng HMAC với khóa nằm ngoài database; giao diện chỉ hiển thị phần đã che. Seller tạo mới hoặc cập nhật định danh trùng blacklist bị từ chối bằng thông báo chung và HTTP 403; không tiết lộ định danh nào trùng. Admin không được sửa/xóa trực tiếp bản ghi blacklist, chỉ dùng quy trình quyết định có audit.
 
 ## 12. Thông báo, nhật ký và tiêu chí hoàn thành
 
@@ -160,7 +162,7 @@ Các kịch bản tối thiểu để nghiệm thu:
 4. Return được duyệt khóa tiền, có tracking chiều về; seller xác nhận thì tự refund; không phản hồi 48 giờ thì worker tự refund một lần.
 5. Seller từ chối return; buyer mở dispute trong 3 ngày; Admin xử lý thắng/thua/hoàn một phần, tiền OnHold và fee credit khớp refund.
 6. Level 3 tự nhận Net vào ví khi payment thành công, không cần payout. Level 1/2 chờ đúng thời gian tính từ Delivered; Development dùng 30/15 giây. Payout `Returned` trả tiền lại một lần. Mức phí admin theo thời điểm hiệu lực và fee snapshot của đơn cũ được giữ nguyên.
-7. Refund gây `Negative`, khóa payout, doanh thu mới bù nợ; quá 7 ngày bật cảnh báo, đình chỉ; trả hết nợ gỡ đình chỉ hoặc Admin write-off và blacklist.
+7. Refund gây `Negative`, khóa payout, doanh thu mới bù nợ; quá 7 ngày bật cảnh báo, đình chỉ; trả hết nợ gỡ đình chỉ hoặc worker tự write-off và blacklist khi đủ tiêu chí.
 
 ## 13. Khoảng cách với code hiện tại
 
@@ -174,8 +176,15 @@ Code hiện có đăng nhập/phân quyền, checkout, coupon phần trăm cơ b
 
 Đã bổ sung phán quyết admin dựa trên trách nhiệm, chọn căn cứ, preview khoản hoàn toàn bộ/một phần và phí, lưu quyết định riêng, refund/retry và giải phóng hold còn lại; xem [ADMIN_DISPUTE_DECISIONS.md](ADMIN_DISPUTE_DECISIONS.md). Bên chịu phí được suy ra từ kết luận, không tùy chọn độc lập. Báo giá trả hàng ban đầu được giữ nguyên.
 
-Các phần trong tài liệu này **chưa được coi là đã triển khai đầy đủ** gồm: admin chỉ định yêu cầu trả hàng mới; tiêu chí level mở rộng; nợ xấu, thu nợ giả lập và blacklist. Khi phát triển, cần migration, API, giao diện và kiểm thử tương ứng; giữ dữ liệu SQL Server hiện có bằng migration thay vì chạy lại baseline.
+Đã bổ sung kỳ nợ, trả nợ giả lập, đình chỉ/khôi phục do nợ, đăng ký seller/xác minh giả lập, write-off/blacklist tự động và báo cáo thu hồi; xem [SELLER_DEBT.md](SELLER_DEBT.md) và [SELLER_REGISTRATION_WRITE_OFF.md](SELLER_REGISTRATION_WRITE_OFF.md).
+
+Đã bổ sung buyer đánh giá seller theo đơn, cấp seller tự xét định kỳ với các tiêu chí mở rộng, lịch sử có snapshot, admin chỉ xem và màn mô phỏng Development; xem [SELLER_LEVELS.md](SELLER_LEVELS.md).
+
+Phần trong tài liệu này **chưa được coi là đã triển khai đầy đủ**: admin chỉ định yêu cầu trả hàng mới. Khi phát triển, cần migration, API, giao diện và kiểm thử tương ứng; giữ dữ liệu SQL Server hiện có bằng migration thay vì chạy lại baseline.
 
 ## 14. Các quy ước đề xuất để nhóm duyệt
 
 Những điểm sau được điền thành quy tắc cụ thể để tài liệu có thể dùng làm đầu vào triển khai, nhưng **chưa phải lựa chọn trực tiếp của người yêu cầu**: ngưỡng tuổi tài khoản và tỷ lệ hủy/trả/tranh chấp của từng level; cách chia phí ship chiều về theo nhóm lý do; hoàn chênh lệch khi đổi sang địa chỉ có phí ship thấp hơn; một order chỉ dùng một coupon; và việc buyer đổi ý không được hoàn phí ship chiều đi. Nhóm có thể sửa các quy tắc này trước khi bắt đầu migration hoặc code tương ứng.
+
+
+Đã bổ sung thanh toán PayPal cả giỏ một lần xác nhận với capture/refund riêng từng đơn, inbox trả hàng seller, mô phỏng lỗi tạo nhãn cả hai chiều, SignalR theo quyền và modal gọn; xem [COMMERCE_REFRESH.md](COMMERCE_REFRESH.md).

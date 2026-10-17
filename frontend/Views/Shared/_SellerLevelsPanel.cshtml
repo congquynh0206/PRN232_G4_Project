@@ -1,0 +1,41 @@
+@model bool
+<section id="seller-levels" class="panel tab-panel">
+    <div class="section-head"><div><span class="eyebrow">Hiệu quả bán hàng</span><h1>Cấp seller tự động</h1><p>Cấp được xét từ dữ liệu đơn hàng. Giao dịch cũ giữ thời gian giữ tiền đã chốt.</p></div><button type="button" id="refresh-seller-levels">Làm mới</button></div>
+    @if (Model)
+    {
+        <form id="seller-level-filter" class="level-filter"><label for="level-seller-id">Mã seller<input id="level-seller-id" type="number" min="1" /></label><label for="level-filter-tier">Cấp<select id="level-filter-tier"><option value="">Tất cả</option><option value="1">Cấp 1</option><option value="2">Cấp 2</option><option value="3">Cấp 3 · Instant</option></select></label><button type="submit">Lọc</button></form>
+        <div id="seller-level-list"></div><div id="seller-level-pagination" class="pagination"></div>
+    }
+    else
+    {
+        <button type="button" id="evaluate-seller-level" class="primary">Đánh giá lại cấp của tôi</button>
+    }
+    <p id="seller-level-status" role="status" aria-live="polite"></p>
+    <div id="seller-level-detail" aria-busy="false"></div>
+    <environment include="Development">
+        <details class="finance-block level-simulator"><summary>Thử các tình huống xét cấp · Development</summary>
+            <p>Mô phỏng dùng cùng bộ quy tắc với worker. Kết quả thử không thay đổi cấp, đơn hàng hoặc số dư của tài khoản.</p>
+            <label for="level-scenario">Tình huống mẫu</label><select id="level-scenario"><option value="level2">Đủ điều kiện cấp 2</option><option value="level3">Đủ điều kiện cấp 3</option><option value="demote">Tỷ lệ hủy cao, bị hạ cấp</option><option value="sample">Chưa đủ mẫu, giữ cấp</option><option value="debt">Đang nợ, về cấp 1</option><option value="missing">Thiếu phản hồi và hạn giao</option></select>
+            <form id="level-simulation-form">
+                <fieldset id="level-simulation-fields" class="level-input-grid">
+                    <label for="sim-current">Cấp hiện tại<select id="sim-current"><option>1</option><option>2</option><option>3</option></select></label>
+                    <label for="sim-completed">Đơn hoàn tất cộng dồn<input id="sim-completed" type="number" min="0" required /></label>
+                    <label for="sim-paid">Đơn thanh toán trong kỳ<input id="sim-paid" type="number" min="0" required /></label>
+                    <label for="sim-feedback-count">Số đánh giá<input id="sim-feedback-count" type="number" min="0" required /></label>
+                    <label for="sim-feedback">Phản hồi tích cực (%)<input id="sim-feedback" type="number" min="0" max="100" step="any" required /></label>
+                    <label for="sim-delivery-count">Số đơn có hạn giao<input id="sim-delivery-count" type="number" min="0" required /></label>
+                    <label for="sim-delivery">Giao đúng hạn (%)<input id="sim-delivery" type="number" min="0" max="100" step="any" required /></label>
+                    <label for="sim-age">Ngày hoạt động<input id="sim-age" type="number" min="0" required /></label>
+                    <label for="sim-cancel">Hủy đơn (%)<input id="sim-cancel" type="number" min="0" max="100" step="any" required /></label>
+                    <label for="sim-return">Trả hàng (%)<input id="sim-return" type="number" min="0" max="100" step="any" required /></label>
+                    <label for="sim-dispute">Tranh chấp (%)<input id="sim-dispute" type="number" min="0" max="100" step="any" required /></label>
+                    <label for="sim-debt">Nợ âm (USD)<input id="sim-debt" type="number" min="0" step="0.01" required /></label>
+                    <label for="sim-restricted" class="check-line"><input id="sim-restricted" type="checkbox" /> Đang bị hạn chế</label>
+                </fieldset>
+                <button id="level-simulate" type="submit">Chạy mô phỏng</button>
+                <p id="level-simulation-error" role="alert" tabindex="-1"></p>
+                <div id="level-simulation-result" role="status" aria-live="polite"></div>
+            </form>
+        </details>
+    </environment>
+</section>

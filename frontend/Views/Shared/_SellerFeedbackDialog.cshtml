@@ -1,0 +1,12 @@
+<dialog id="seller-feedback-dialog" class="action-dialog" aria-labelledby="seller-feedback-title">
+    <form id="seller-feedback-form">
+        <h2 id="seller-feedback-title">Đánh giá seller</h2>
+        <p id="seller-feedback-context"></p><p class="small">Mỗi đơn được đánh giá một lần. Từ 4 sao được tính là phản hồi tích cực.</p>
+        <fieldset id="seller-feedback-fields">
+            <label for="seller-feedback-rating">Mức độ hài lòng</label><select id="seller-feedback-rating" required><option value="">Chọn số sao</option><option value="5">5 sao · Rất hài lòng</option><option value="4">4 sao · Hài lòng</option><option value="3">3 sao · Bình thường</option><option value="2">2 sao · Chưa hài lòng</option><option value="1">1 sao · Rất không hài lòng</option></select>
+            <label for="seller-feedback-comment">Nhận xét (không bắt buộc)</label><textarea id="seller-feedback-comment" maxlength="2000" rows="4"></textarea>
+        </fieldset>
+        <p id="seller-feedback-error" role="alert" tabindex="-1"></p>
+        <div class="actions"><button type="button" id="seller-feedback-close">Đóng</button><button type="submit" id="seller-feedback-submit" class="primary">Gửi đánh giá</button></div>
+    </form>
+</dialog>

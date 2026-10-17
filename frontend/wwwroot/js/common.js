@@ -315,6 +315,7 @@
     if (!items.length) host.innerHTML = emptyHtml;
   }
   function openDetail(html, preserveScroll = false) {
+    if (preserveScroll && document.querySelector('dialog[open]:not(#detail-dialog)')) return;
     const dialog = $('detail-dialog');
     const scroll = preserveScroll ? dialog.scrollTop : 0;
     $('detail-content').innerHTML = html;

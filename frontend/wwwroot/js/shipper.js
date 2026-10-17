@@ -318,9 +318,14 @@
     safe(() => load(1));
   };
   safe(load);
+  G4.Realtime?.subscribe(['shipments', 'orders'], async () => {
+    await load();
+    if (active && $('detail-dialog').open && !busy.has(active.shipmentId)) await detail(active.orderId, active.shipmentId, true);
+  });
   setInterval(() => {
     if (
       document.visibilityState === 'visible' &&
+      !G4.Realtime?.connected &&
       active &&
       $('detail-dialog').open &&
       !$('action-dialog').open &&

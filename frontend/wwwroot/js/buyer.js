@@ -95,7 +95,9 @@
   }
   function actions(o) {
     const buttons = [];
-    if (o.status === 'AwaitingPayment')
+    if (o.status === 'AwaitingPayment' && o.payPalCheckoutId)
+      buttons.push(`<button data-action="resume-paypal-cart" data-id="${o.payPalCheckoutId}">Xem thanh toán PayPal cả giỏ</button>`);
+    if (o.status === 'AwaitingPayment' && !o.payPalCheckoutId)
       buttons.push(
         `<button data-action="cancel" data-id="${o.id}">Hủy đơn</button><button data-action="retry-card" data-id="${o.id}">Thanh toán bằng thẻ thử</button><button data-action="retry-paypal" data-id="${o.id}">Thanh toán PayPal</button>`,
       );
@@ -126,13 +128,15 @@
       )
       .join('');
     openDetail(
-      `<div class="detail" data-order-detail="${o.id}"><h2>Đơn mua hàng #${o.id}</h2><p class="small">Tạo: ${date(o.orderDate)} · Cập nhật: ${date(o.updatedAt || o.orderDate)}</p><p class="small">${esc(o.addressSnapshot)} · Khối lượng: ${o.totalWeightKg == null ? 'Chưa có dữ liệu' : Number(o.totalWeightKg) + ' kg'}</p>${status}${G4.AddressChanges.summaryHtml(o, 'buyer')}${G4.disputeBadge(o.dispute)}<h3>Sản phẩm</h3>${lines}${G4.Promotions.breakdownHtml(o)}<div class="promotion-order-totals"><p>Phí vận chuyển: <strong>${money(o.shippingFee ?? o.shipping)}</strong></p><p>Tổng thanh toán: <strong>${money(o.totalPrice)}</strong></p></div><h3>Tiến trình vận chuyển</h3>${trackingHtml(o)}<h3>Thao tác</h3><div class="actions">${actions(o)}</div>${G4.returnSummary(o)}${o.refunds.length ? `<div class="refund-summary">${o.refunds.map((r) => `<p>${r.reason === 'shipping-adjustment' ? 'Hoàn chênh lệch ship giả lập' : 'Hoàn'} ${money(r.amount)} · ${esc(label(r.status))}</p>`).join('')}</div>` : ''}</div>`,
+      `<div class="detail" data-order-detail="${o.id}"><h2>Đơn mua hàng #${o.id}</h2><p class="small">Tạo: ${date(o.orderDate)} · Cập nhật: ${date(o.updatedAt || o.orderDate)}</p><p class="small">${esc(o.addressSnapshot)} · Khối lượng: ${o.totalWeightKg == null ? 'Chưa có dữ liệu' : Number(o.totalWeightKg) + ' kg'}</p>${status}${G4.AddressChanges.summaryHtml(o, 'buyer')}${G4.disputeBadge(o.dispute)}<h3>Sản phẩm</h3>${lines}${G4.Promotions.breakdownHtml(o)}<div class="promotion-order-totals"><p>Phí vận chuyển: <strong>${money(o.shippingFee ?? o.shipping)}</strong></p><p>Tổng thanh toán: <strong>${money(o.totalPrice)}</strong></p></div><h3>Tiến trình vận chuyển</h3>${trackingHtml(o)}<h3>Thao tác</h3><div class="actions">${actions(o)}</div>${G4.SellerFeedback.html(o)}${G4.returnSummary(o)}${o.refunds.length ? `<div class="refund-summary">${o.refunds.map((r) => `<p>${r.reason === 'shipping-adjustment' ? 'Hoàn chênh lệch ship giả lập' : 'Hoàn'} ${money(r.amount)} · ${esc(label(r.status))}</p>`).join('')}</div>` : ''}</div>`,
       preserveScroll,
     );
   }
   async function action(b) {
     const id = Number(b.dataset.id),
       kind = b.dataset.action;
+    if (kind === 'resume-paypal-cart') { G4.closeDetail(); return G4.PayPalCart.show(id); }
+    if (kind === 'review-seller') return G4.SellerFeedback.open(id, () => showOrder(id));
     if (kind === 'hold') return G4.Disputes.openNew(id);
     if (kind === 'return') return G4.Returns.open(id, async () => {
       await loadOrders(state.page, id);
@@ -202,12 +206,20 @@
   });
   G4.Notifications.init('buyer');
   G4.Returns.init();
+  G4.SellerFeedback.init();
+  G4.PayPalCart.init(async () => loadOrders(state.page));
+  G4.Realtime?.subscribe(['orders', 'returns', 'shipments', 'disputes', 'notifications'], async () => {
+    if (document.querySelector('.tab-panel.active')?.id === 'orders') await loadOrders(state.page);
+    if (document.querySelector('.tab-panel.active')?.id === 'notifications') await G4.Notifications.load();
+    if ($('detail-dialog')?.open && document.querySelector('#detail-content [data-order-detail]')) await showOrder(detailOrderId, true);
+  });
   G4.Disputes.init('buyer', async (id) => {
     await loadOrders(state.page, id);
   });
   setInterval(() => {
     if (
       document.visibilityState === 'visible' &&
+      !G4.Realtime?.connected &&
       $('detail-dialog')?.open &&
       document.querySelector('#detail-content [data-order-detail]')?.dataset.orderDetail ===
         String(detailOrderId)
@@ -216,6 +228,7 @@
   }, 5000);
   safe(async () => {
     const p = new URLSearchParams(location.search);
+    if (p.has('paypalCheckoutId')) tab('orders');
     if (p.has('orderId')) {
       tab('orders');
       await showOrder(Number(p.get('orderId')));

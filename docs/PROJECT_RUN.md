@@ -12,6 +12,8 @@ Giỏ buyer hiện random từ đúng hai seller, lưu theo tài khoản và che
 
 ## Chạy với SQL Server
 
+Đăng ký seller thử nghiệm và write-off/blacklist tự động cần migration `20261015041522_AddSellerRegistrationAndAutomaticWriteOff`. Sau khi nâng cấp, trang đăng nhập có liên kết đăng ký seller; admin có tab Nợ khó thu / Blacklist. Khóa HMAC Development tự giữ trong `backend/G4.Api/.local-security/`, cần giữ nguyên cùng database. Xem [SELLER_REGISTRATION_WRITE_OFF.md](SELLER_REGISTRATION_WRITE_OFF.md).
+
 Quản lý nợ seller cần migration `20261014102533_AddSellerDebtManagement`. Development dùng hạn trả 60 giây và cảnh báo trước 15 giây; môi trường khác mặc định 7 ngày. Seller trả nợ tại tab Tài chính; admin có tab Khoản nợ seller. Xem [SELLER_DEBT.md](SELLER_DEBT.md).
 
 1. Tạo một database **trống** bằng [database/baseline.sql](../database/baseline.sql) trong SSMS hoặc `sqlcmd`. Script này chứa `CREATE DATABASE CloneEbayDB`; **không chạy lại** trên database đã có bảng/dữ liệu.
@@ -96,3 +98,9 @@ node --test tests/*.test.cjs
 
 Kiểm thử console còn xác nhận tính phí, idempotency settlement/payout, fund hold, payout, refund tạo số dư âm và giao dịch mới tự bù nợ.
 
+
+
+Tab **Cấp seller** dùng đánh giá đơn mua thực tế, dữ liệu giao đúng hạn và tỷ lệ hủy/trả/tranh chấp; worker tự xét mỗi giờ, Development 15 giây. Buyer có nút **Đánh giá seller** trong đơn Delivered/Closed đã thanh toán; seller yêu cầu xét lại và admin xem lịch sử. Màn mô phỏng Development có sáu tình huống và không ghi dữ liệu tài chính. Cần migration `20261015102627_AddSellerLevelsAndOrderFeedback` trước khi chạy API mới; xem [SELLER_LEVELS.md](SELLER_LEVELS.md). Migration chỉ được kiểm thử trên DB QA riêng, không tự áp dụng lên CloneEbayDB.
+
+
+PayPal checkout hiện thanh toán cả giỏ bằng một lần xác nhận, lưu capture riêng từng đơn. Seller có tab Trả hàng / Hoàn tiền; các role nhận cập nhật qua SignalR và modal đã thu gọn. Cần migration `20261015161703_AddPayPalCartAndRealtime`, khởi động lại API/frontend và tải lại trang. Xem [COMMERCE_REFRESH.md](COMMERCE_REFRESH.md) cho cấu hình URL/CORS local, HTTPS, Docker và kịch bản kiểm thử.

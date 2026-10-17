@@ -12,6 +12,8 @@
     <button data-tab="promotions">Khuyến mãi</button>
     <button data-tab="platform-fees">Phí nền tảng</button>
     <button data-tab="seller-debts">Khoản nợ seller</button>
+    <button data-tab="seller-risk">Nợ khó thu / Blacklist</button>
+    <button data-tab="seller-levels">Cấp seller</button>
 </nav>
 <div id="message" class="message" role="status" aria-live="polite"></div>
 <partial name="_DisputesPanel" model="true" />
@@ -20,10 +22,14 @@
 <partial name="_IntegrationLogsPanel" />
 <partial name="_PlatformFeesPanel" />
 <partial name="_SellerDebtsPanel" />
+<partial name="_SellerRiskPanel" />
+<partial name="_SellerLevelsPanel" model="true" />
 <partial name="_DisputeDecisionDialog" />
 @section Scripts
 {
 <script src="~/js/common.js" asp-append-version="true"></script>
+<script src="~/lib/signalr/signalr.min.js" asp-append-version="true"></script>
+<script src="~/js/realtime.js" asp-append-version="true"></script>
 <script src="~/js/returns.js" asp-append-version="true"></script>
 <script src="~/js/notifications.js" asp-append-version="true"></script>
 <script src="~/js/integration-logs.js" asp-append-version="true"></script>
@@ -32,6 +38,8 @@
 <script src="~/js/dispute-decisions.js" asp-append-version="true"></script>
 <script src="~/js/platform-fees.js" asp-append-version="true"></script>
 <script src="~/js/seller-debt.js" asp-append-version="true"></script>
+<script src="~/js/seller-risk.js" asp-append-version="true"></script>
+<script src="~/js/seller-levels.js" asp-append-version="true"></script>
 <script src="~/js/admin.js" asp-append-version="true"></script>
 }
 <partial name="_PromotionsPanel" model="true" />

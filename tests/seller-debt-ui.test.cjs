@@ -20,6 +20,13 @@ function load(api) {
 }
 const debt = { sellerId: 2, balance: 40, cycleNumber: 1, startedAt: '2026-10-14T10:00:00', dueAt: '2026-10-14T10:01:00',
   ageSeconds: 60, overdue: true, suspended: true, accountStatus: 'Active' };
+test('seller sees earliest permanent restriction date; clearing debt after permanent block keeps the restriction explicit', () => {
+  const { ui } = load();
+  assert.match(ui.summaryHtml({ ...debt, earliestWriteOffAt: '2026-10-14T10:05:00' }), /sớm nhất từ 2026-10-14T10:05:00Z/);
+  const blocked = ui.summaryHtml({ ...debt, balance: 0, permanentSalesBlockedAt: '2026-10-14T10:05:00' });
+  assert.match(blocked, /Khóa bán vĩnh viễn/); assert.match(blocked, /Trả hết nợ không tự gỡ/);
+  assert.doesNotMatch(blocked, /Không còn nợ<\/strong>/);
+});
 test('overdue state explains permitted existing work; history escapes bank and audit text', () => {
   const { ui } = load();
   assert.match(ui.summaryHtml(debt), /đình chỉ bán hàng/); assert.match(ui.summaryHtml(debt), /return\/dispute/);

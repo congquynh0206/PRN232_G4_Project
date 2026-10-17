@@ -9,7 +9,8 @@ public sealed class PayPalPaymentService(
     ApplicationDbContext db,
     IPayPalGateway paypal,
     IConfiguration config,
-    ISellerFinanceService? finance = null
+    ISellerFinanceService? finance = null,
+    IPayPalCartPaymentService? carts = null
 ) : IPayPalPaymentService
 {
     public async Task<PayPalCreated> StartAsync(int orderId, string key, CancellationToken ct = default)
@@ -21,6 +22,8 @@ public sealed class PayPalPaymentService(
         var order = await db.OrderTables.SingleAsync(o => o.Id == orderId, ct);
         if (db.Database.IsRelational())
             await db.Entry(order).ReloadAsync(ct);
+        if (await db.Payments.AnyAsync(x => x.OrderId == orderId && x.PayPalCheckoutId != null && x.Status == "Pending", ct))
+            throw new InvalidOperationException("Đơn nằm trong lượt PayPal cả giỏ. Mở kết quả thanh toán cả giỏ để tiếp tục hoặc hủy lượt đó trước.");
         if (await db.Payments.AnyAsync(x => x.OrderId == orderId && x.Status == "Verifying", ct))
             throw new InvalidOperationException("PayPal đang xác minh thanh toán. Hãy chờ trước khi tạo lần thanh toán khác.");
         if (order.Status != "AwaitingPayment" || order.PaymentExpiresAt <= DateTime.UtcNow)
@@ -65,6 +68,12 @@ public sealed class PayPalPaymentService(
 
     public async Task<Payment> CaptureAsync(int orderId, string providerOrderId, CancellationToken ct = default)
     {
+        var cartPayment = await db.Payments.AsNoTracking().SingleOrDefaultAsync(x => x.OrderId == orderId && x.ProviderOrderId == providerOrderId && x.PayPalCheckoutId != null, ct);
+        if (cartPayment != null) {
+            if (carts == null) throw new InvalidOperationException("Cart PayPal service unavailable");
+            await carts.CaptureAsync(cartPayment.UserId!.Value, cartPayment.PayPalCheckoutId!.Value, providerOrderId, ct);
+            return await db.Payments.SingleAsync(x => x.Id == cartPayment.Id, ct);
+        }
         using var diagnostic = IntegrationContext.ForOrder(orderId);
         // Hold usage while a capture is in flight or its result is unknown.
         await using (var tx = await PromotionLifecycle.LockOrderAsync(db, orderId, ct))
@@ -136,6 +145,11 @@ public sealed class PayPalPaymentService(
         var payment = await db.Payments.Where(p => p.OrderId == orderId && p.Method == "PayPal").OrderByDescending(p => p.Status == "Verifying")
             .ThenByDescending(p => p.Id)
             .FirstAsync(ct);
+        if (payment.PayPalCheckoutId != null) {
+            if (carts == null) throw new InvalidOperationException("Cart PayPal service unavailable");
+            await carts.ReconcileAsync(payment.UserId!.Value, payment.PayPalCheckoutId.Value, ct);
+            return payment;
+        }
         if (payment.Status == "Succeeded")
         {
             await PromotionLifecycle.ConsumeAsync(db, orderId, ct);

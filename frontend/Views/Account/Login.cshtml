@@ -35,6 +35,10 @@
                     <input id="password" name="password" type="password" required />
                     <button class="primary wide" type="submit">Đăng nhập</button>
                 </form>
+                @if (Context.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment())
+                {
+                    <p><a asp-action="RegisterSeller">Đăng ký người bán thử nghiệm</a></p>
+                }
                 <div class="demo-accounts">
                     <strong>Tài khoản phát triển</strong>
                     <code>buyer@example.test</code>

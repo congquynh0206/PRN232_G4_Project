@@ -1,0 +1,54 @@
+@{
+    Layout = null;
+}
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Đăng ký người bán - Sàn G4</title>
+    <link rel="stylesheet" href="~/css/checkout.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/roles.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/ui-refresh.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/seller-registration.css" asp-append-version="true" />
+</head>
+<body class="registration-page">
+<main class="registration-shell">
+    <header class="registration-head"><a class="brand" asp-controller="Account" asp-action="Login">Sàn G4</a><a asp-action="Login">Đã có tài khoản? Đăng nhập</a></header>
+    <div class="registration-intro"><span class="eyebrow">Người bán mới</span><h1>Đăng ký người bán</h1>
+        <p>Tạo tài khoản, shop và ví cấp 1. Định danh được kiểm tra trước khi tài khoản được tạo.</p></div>
+    <aside class="registration-note"><strong>Môi trường thử nghiệm Development</strong><p>Xác minh được mô phỏng. Dùng dữ liệu mẫu, không nhập thông tin định danh hoặc ngân hàng thật.</p></aside>
+    <div class="registration-samples"><span>Điền nhanh tình huống kiểm thử:</span>
+        <button type="button" data-registration-sample="valid">Seller mới hợp lệ</button>
+        <button type="button" data-registration-sample="invalid">Định danh không hợp lệ</button>
+        <button type="button" data-registration-sample="blacklisted">Trùng blacklist</button>
+    </div>
+    <form id="seller-registration-form" action="@Url.Action("RegisterSeller")" method="post" aria-busy="false">
+        @Html.AntiForgeryToken()
+        <fieldset id="registration-fields">
+            <legend>Thông tin tài khoản và shop</legend>
+            <div class="registration-grid">
+                <label for="registration-username">Tên người dùng<input id="registration-username" autocomplete="username" required minlength="2" maxlength="100" /></label>
+                <label for="registration-shop">Tên shop<input id="registration-shop" autocomplete="organization" required minlength="2" maxlength="100" /></label>
+                <label class="registration-wide" for="registration-email">Email<input id="registration-email" type="email" autocomplete="email" required maxlength="100" /></label>
+                <label for="registration-password">Mật khẩu<input id="registration-password" type="password" autocomplete="new-password" required minlength="8" maxlength="128" aria-describedby="registration-password-help" /></label>
+                <label for="registration-confirm">Xác nhận mật khẩu<input id="registration-confirm" type="password" autocomplete="new-password" required minlength="8" maxlength="128" /></label>
+            </div>
+            <p id="registration-password-help" class="small">Từ 8 đến 128 ký tự, gồm chữ và số.</p>
+            <h2>Định danh để xác minh giả lập</h2>
+            <div class="registration-grid">
+                <label for="registration-kind">Loại định danh<select id="registration-kind"><option value="CCCD">CCCD</option><option value="PASSPORT">Passport</option><option value="BANK">Tài khoản nhận payout</option></select></label>
+                <label id="registration-bank-label" for="registration-bank" hidden>Mã ngân hàng<input id="registration-bank" maxlength="12" autocomplete="off" /></label>
+                <label class="registration-wide" for="registration-identity">Giá trị định danh<input id="registration-identity" required maxlength="100" autocomplete="off" aria-describedby="registration-identity-help" /></label>
+            </div>
+            <p id="registration-identity-help" class="small">CCCD: 12 chữ số, giữ nguyên số 0 đầu. Chỉ dùng dữ liệu giả lập.</p>
+        </fieldset>
+        <p id="registration-error" class="registration-error" role="alert" tabindex="-1"></p>
+        <div id="registration-success" class="registration-success" role="status" aria-live="polite" hidden></div>
+        <div class="registration-actions"><button type="submit" id="registration-submit" class="primary">Đăng ký người bán</button><a asp-action="Login">Về trang đăng nhập</a></div>
+        <p class="small">Định danh hợp lệ, không bị chặn: tài khoản hoạt động ngay với số dư 0. Trùng blacklist: từ chối trước khi tạo tài khoản.</p>
+    </form>
+</main>
+<script src="~/js/seller-registration.js" asp-append-version="true"></script>
+</body>
+</html>

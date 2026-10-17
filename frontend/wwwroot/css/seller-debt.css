@@ -4,6 +4,12 @@
   margin: 0;
   min-width: 0;
 }
+#seller-identity-fields { border: 0; margin: 0; padding: 0; min-width: 0; }
+#seller-identity [hidden] { display: none; }
+#seller-identity input, #seller-identity select { max-width: 100%; min-height: 44px; }
+#seller-identity-error:empty, #seller-identity-result:empty { display: none; }
+#seller-risk .finance-row > div { min-width: 0; overflow-wrap: anywhere; }
+#seller-risk .finance-block { margin-top: 16px; }
 #debt-repayment-form .actions {
   display: flex;
   flex-wrap: wrap;

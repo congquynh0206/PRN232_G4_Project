@@ -198,11 +198,19 @@ public sealed class ShipmentService(
 
     public async Task<ShippingInfo> ClaimAsync(int shippingInfoId, int shipperId, CancellationToken ct = default)
     {
+        await using var transaction = db.Database.IsRelational() && db.Database.CurrentTransaction == null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.ReadCommitted, ct) : null;
         if (!await db.Users.AnyAsync(u => u.Id == shipperId && u.Role == "shipper", ct))
             throw new UnauthorizedAccessException("Chỉ tài khoản shipper được nhận vận đơn.");
         var query = ShipperShipmentList.Claimable(db).Where(s => s.Id == shippingInfoId);
         if (db.Database.IsRelational())
-            await query.ExecuteUpdateAsync(set => set.SetProperty(s => s.ShipperId, shipperId).SetProperty(s => s.ClaimedAt, Now), ct);
+        {
+            var changed = await query.ExecuteUpdateAsync(set => set.SetProperty(s => s.ShipperId, shipperId).SetProperty(s => s.ClaimedAt, Now), ct);
+            if (changed > 0) {
+                db.CommerceChanges.Add(new CommerceChange { Topic = "shipments", ShippingInfoId = shippingInfoId, ShipperId = shipperId, CreatedAt = Now });
+                await db.SaveChangesAsync(ct);
+            }
+        }
         else
         {
             var pending = await query.SingleOrDefaultAsync(ct);
@@ -217,6 +225,7 @@ public sealed class ShipmentService(
         var shipment = await db.ShippingInfos.AsNoTracking().SingleOrDefaultAsync(s => s.Id == shippingInfoId, ct) ?? throw new KeyNotFoundException("Không tìm thấy vận đơn.");
         if (shipment.ShipperId != shipperId)
             throw new InvalidOperationException("Vận đơn đã được shipper khác nhận hoặc không còn chờ nhận.");
+        if (transaction != null) await transaction.CommitAsync(ct);
         return shipment;
     }
 
