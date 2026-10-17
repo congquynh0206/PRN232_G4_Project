@@ -11,11 +11,44 @@ public sealed class PayPalSandboxGateway(
     HttpClient http,
     IConfiguration configuration,
     IIntegrationLogWriter? logs = null
-) : IPayPalGateway
+) : IPayPalGateway, IPayPalBatchGateway
 {
     private readonly string clientId = configuration["PayPal:ClientId"] ?? "";
     private readonly string clientSecret = configuration["PayPal:ClientSecret"] ?? "";
     private readonly string baseUrl = configuration["PayPal:BaseUrl"] ?? "https://api-m.sandbox.paypal.com";
+    public Task<PayPalCreated> CreateBatchAsync(IReadOnlyList<PayPalPurchaseUnit> units, string requestId, string returnUrl, string cancelUrl, CancellationToken ct)
+    {
+        if (units.Count is < 1 or > 10 || units.Any(x => x.Amount <= 0) || units.Select(x => x.ReferenceId).Distinct().Count() != units.Count)
+            throw new ArgumentException("PayPal cart purchase units are invalid");
+        var body = new { intent = "CAPTURE", purchase_units = units.Select(x => new {
+            reference_id = x.ReferenceId, custom_id = x.ReferenceId,
+            description = "G4 " + x.ReferenceId,
+            amount = new { currency_code = x.Currency, value = x.Amount.ToString("F2", CultureInfo.InvariantCulture) } }),
+            payment_source = new { paypal = new { experience_context = new { return_url = returnUrl, cancel_url = cancelUrl, user_action = "PAY_NOW" } } } };
+        return SendAsync(HttpMethod.Post, "/v2/checkout/orders", "CreateCartOrder", requestId, body, ParseCreated, x => x.Id, ct);
+    }
+    public Task<PayPalBatchCaptured> CaptureBatchAsync(string providerOrderId, string requestId, CancellationToken ct) =>
+        SendAsync(HttpMethod.Post, $"/v2/checkout/orders/{Uri.EscapeDataString(providerOrderId)}/capture", "CaptureCart", requestId, new { }, ParseBatchCapture, x => x.ProviderOrderId, ct);
+    public Task<PayPalBatchCaptured> GetBatchAsync(string providerOrderId, CancellationToken ct) =>
+        SendAsync(HttpMethod.Get, $"/v2/checkout/orders/{Uri.EscapeDataString(providerOrderId)}", "QueryCartOrder", null, null, ParseBatchCapture, x => x.ProviderOrderId, ct);
+
+    public static PayPalBatchCaptured ParseBatchCapture(JsonElement root)
+    {
+        var id = root.GetProperty("id").GetString() ?? throw new HttpRequestException("Missing PayPal order ID");
+        var status = root.GetProperty("status").GetString() ?? "UNKNOWN";
+        var result = new List<PayPalUnitCapture>();
+        if (root.TryGetProperty("purchase_units", out var units)) foreach (var unit in units.EnumerateArray()) {
+            var reference = unit.TryGetProperty("reference_id", out var r) ? r.GetString() ?? "" : "";
+            if (!unit.TryGetProperty("payments", out var payments) || !payments.TryGetProperty("captures", out var captures)) continue;
+            foreach (var capture in captures.EnumerateArray()) {
+                var money = capture.GetProperty("amount");
+                result.Add(new(reference, capture.GetProperty("status").GetString() ?? "UNKNOWN",
+                    capture.TryGetProperty("id", out var captureId) ? captureId.GetString() : null,
+                    decimal.Parse(money.GetProperty("value").GetString()!, CultureInfo.InvariantCulture), money.GetProperty("currency_code").GetString() ?? ""));
+            }
+        }
+        return new(id, status, result);
+    }
     public Task<PayPalCreated> CreateAsync(
         decimal amount,
         string currency,

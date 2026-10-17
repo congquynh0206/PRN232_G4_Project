@@ -119,7 +119,7 @@ public sealed class BuyerCartService(ApplicationDbContext db, ICheckoutService c
         var now = DateTime.UtcNow;
         var products = await db.Products.AsNoTracking().Where(x => x.SellerId != null && x.Price != null && x.IsAuction != true && x.WeightKg > 0 && db.Addresses.Any(a => a.UserId == x.SellerId && a.IsDefault == true) && db.Inventories.Any(i => i.ProductId == x.Id && i.Quantity > 0))
             .Where(p => !db.SellerAccounts.Any(a => a.SellerId == p.SellerId &&
-                (a.Status != "Active" || a.NegativeBalance > 0 && a.DebtDueAt <= now)))
+                (a.Status != "Active" || a.PermanentSalesBlockedAt != null || a.NegativeBalance > 0 && a.DebtDueAt <= now)))
             .ToListAsync(ct);
         var sellers = products.GroupBy(x => x.SellerId!.Value).OrderBy(_ => Random.Shared.Next()).ToArray();
         var pairs = (

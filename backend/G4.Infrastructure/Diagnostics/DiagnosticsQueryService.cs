@@ -47,7 +47,7 @@ public sealed class DiagnosticsQueryService(ApplicationDbContext db)
     {
         ValidatePage(options.Page, options.PageSize, options.OrderId);
         ValidateFilter(options.EventType, ["PaymentSucceeded", "Delivered", "DeliveryFailed", "Refunded",
-            "DebtStarted", "DebtWarning", "DebtOverdue", "DebtCleared", "DebtRestored", "DebtRepaymentSucceeded", "DebtRepaymentFailed"]);
+            "DebtStarted", "DebtWarning", "DebtOverdue", "DebtCleared", "DebtRestored", "DebtRepaymentSucceeded", "DebtRepaymentFailed", "DebtWriteOff", "WriteOffRecovery"]);
         ValidateFilter(options.Status, ["Pending", "Processing", "Sent", "Captured", "Failed"]);
         var query = VisibleNotifications(actorId, role);
         if (options.OrderId != null)

@@ -19,7 +19,7 @@ public sealed class CommerceMaintenanceWorker(IServiceScopeFactory scopes, ILogg
             {
                 await using var scope = scopes.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var verifyingOrderIds = await db.Payments.Where(p => p.Method == "PayPal" && p.Status == "Verifying").Select(p => p.OrderId)
+                var verifyingOrderIds = await db.Payments.Where(p => p.Method == "PayPal" && p.Status == "Verifying" && p.PayPalCheckoutId == null).Select(p => p.OrderId)
                     .Distinct()
                     .OrderBy(x => x)
                     .Take(20)
@@ -40,6 +40,7 @@ public sealed class CommerceMaintenanceWorker(IServiceScopeFactory scopes, ILogg
                 }
 
                 var checkout = scope.ServiceProvider.GetRequiredService<ICheckoutService>();
+                await scope.ServiceProvider.GetRequiredService<IPayPalCartPaymentService>().MaintainAsync(stoppingToken);
                 await checkout.ExpirePendingAsync(stoppingToken);
                 await checkout.CloseDeliveredOutsideReturnWindowAsync(stoppingToken);
                 var finance = scope.ServiceProvider.GetRequiredService<ISellerFinanceService>();
@@ -67,6 +68,8 @@ public sealed class CommerceMaintenanceWorker(IServiceScopeFactory scopes, ILogg
 
                 await finance.ReleaseDueFundsAsync(stoppingToken);
                 await finance.AdvancePayoutsAsync(stoppingToken);
+                await finance.MaintainWriteOffsAsync(stoppingToken);
+                await finance.MaintainLevelsAsync(stoppingToken);
                 await scope.ServiceProvider.GetRequiredService<NotificationProcessor>().ProcessDueAsync(20, stoppingToken);
                 await db.SaveChangesAsync(stoppingToken);
             }

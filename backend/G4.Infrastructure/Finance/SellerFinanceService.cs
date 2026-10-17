@@ -19,9 +19,13 @@ public sealed partial class SellerFinanceService(ApplicationDbContext db, IConfi
         ResetMonth(account);
         if (account.Status != "Active")
             throw new InvalidOperationException("Seller account is restricted");
+        if (account.PermanentSalesBlockedAt != null && order.OrderDate >= account.PermanentSalesBlockedAt)
+            throw new InvalidOperationException("Seller is permanently restricted from new sales");
         if (IsDebtOverdue(account) && order.OrderDate >= account.DebtDueAt)
             throw new InvalidOperationException("Seller has overdue debt and cannot receive new orders");
-        if (account.MonthlySalesAmount + SnapshotGross(order, order.TotalPrice ?? 0m) > account.MonthlySalesLimit)
+        var reserved = await db.Payments.Where(p => p.OrderId != orderId && p.Status == "Verifying" && p.CaptureReservedAt >= MonthStart()
+            && db.OrderTables.Any(o => o.Id == p.OrderId && o.SellerId == sellerId)).SumAsync(p => p.ReservedSellerGross ?? 0m, ct);
+        if (account.MonthlySalesAmount + reserved + SnapshotGross(order, order.TotalPrice ?? 0m) > account.MonthlySalesLimit)
             throw new InvalidOperationException($"Seller level {account.Level} monthly sales limit would be exceeded");
         await db.SaveChangesAsync(ct);
         if (transaction is not null)
@@ -50,7 +54,8 @@ public sealed partial class SellerFinanceService(ApplicationDbContext db, IConfi
         var account = await GetOrCreateAccountAsync(sellerId, ct);
         await LockAccountAsync(account, ct);
         ResetMonth(account);
-        if (account.MonthlySalesAmount + gross > account.MonthlySalesLimit)
+        var authorizedReservation = payment.PayPalCheckoutId != null && payment.CaptureReservedAt != null && payment.ReservedSellerGross == gross;
+        if (!authorizedReservation && account.MonthlySalesAmount + gross > account.MonthlySalesLimit)
             throw new InvalidOperationException($"Seller level {account.Level} monthly sales limit exceeded");
         var now = Now;
         var settlement = new SellerSettlement
@@ -672,10 +677,13 @@ public sealed partial class SellerFinanceService(ApplicationDbContext db, IConfi
 
         await LockAccountAsync(account, ct);
         if (account.Status != "Active") throw new InvalidOperationException("Seller account is restricted");
+        if (account.PermanentSalesBlockedAt != null) throw new InvalidOperationException("Tài khoản bị khóa bán vĩnh viễn, không thể tạo payout mới.");
         if (account.NegativeBalance > 0)
             throw new InvalidOperationException("Negative balance must be recovered before payout");
         if (account.AvailableBalance < amount)
             throw new InvalidOperationException("Available balance is insufficient");
+        var bankIdentity = await db.SellerIdentities.AsNoTracking().Where(x => x.SellerId == sellerId && x.Kind == "BANK")
+            .OrderByDescending(x => x.Id).Select(x => x.MaskedValue).FirstOrDefaultAsync(ct);
         var now = Now;
         account.AvailableBalance -= amount;
         account.UpdatedAt = now;
@@ -684,6 +692,7 @@ public sealed partial class SellerFinanceService(ApplicationDbContext db, IConfi
             SellerAccountId = account.Id,
             Amount = decimal.Round(amount, 2),
             IdempotencyKey = key,
+            DestinationMasked = bankIdentity == null ? "****1234" : bankIdentity.Split(" · ")[0] + " · ****" + bankIdentity[^4..],
             SimulateFailure = simulateFailure,
             Status = account.Level >= 3 && !simulateFailure ? "Completed" : "Created",
             CreatedAt = now,
@@ -777,31 +786,28 @@ public sealed partial class SellerFinanceService(ApplicationDbContext db, IConfi
         await LockAccountAsync(account, ct);
         ResetMonth(account);
         await db.SaveChangesAsync(ct);
-        var result = await BuildSummaryAsync(account, ct);
-        if (tx != null) await tx.CommitAsync(ct);
-        return result;
+        if (tx != null) { await tx.CommitAsync(ct); await tx.DisposeAsync(); }
+        return await BuildSummaryAsync(account, ct);
     }
 
     public async Task<SellerFinanceSummary> EvaluateLevelAsync(int sellerId, CancellationToken ct = default)
     {
+        var observed = await db.SellerAccounts.AsNoTracking().SingleOrDefaultAsync(x => x.SellerId == sellerId, ct) ?? new SellerAccount { SellerId = sellerId };
+        var policy = SellerLevelRules.Policy(configuration);
+        var metrics = await ReadLevelMetricsAsync(observed, policy, ct);
         await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction == null
             ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
         await AccountGateAsync(sellerId, ct);
         var account = await GetOrCreateAccountAsync(sellerId, ct);
         await LockAccountAsync(account, ct);
-        var metrics = await GetMetricsAsync(sellerId, ct);
-        var newLevel = metrics.CompletedOrders >= Level3Orders && metrics.PositiveFeedbackRate >= Level3Feedback && metrics.OnTimeDeliveryRate >= Level3OnTime ? 3 : metrics.CompletedOrders >= Level2Orders && metrics.PositiveFeedbackRate >= Level2Feedback && metrics.OnTimeDeliveryRate >= Level2OnTime ? 2 : 1;
-        ApplyLevel(account, newLevel);
-        account.UpdatedAt = Now;
-        await db.SaveChangesAsync(ct);
-        var result = await BuildSummaryAsync(account, ct);
-        if (tx != null) await tx.CommitAsync(ct);
-        return result;
+        await EvaluateAndSaveLevelAsync(account, metrics, policy, "SellerRequest", ct);
+        if (tx != null) { await tx.CommitAsync(ct); await tx.DisposeAsync(); }
+        return await BuildSummaryAsync(account, ct);
     }
 
     private async Task<SellerFinanceSummary> BuildSummaryAsync(SellerAccount account, CancellationToken ct)
     {
-        var metrics = await GetMetricsAsync(account.SellerId, ct);
+        var metrics = await ReadLevelMetricsAsync(account, SellerLevelRules.Policy(configuration), ct);
         var target = account.Level switch
         {
             1 => (2, Level2Orders, Level2Feedback, Level2OnTime),
@@ -944,18 +950,6 @@ public sealed partial class SellerFinanceService(ApplicationDbContext db, IConfi
         AddEntry(account, settlement, "FundsReleased", "Available", amount,
             $"order:{settlement.OrderId}:released", description);
         RecoverAvailableDebt(account, $"order:{settlement.OrderId}:released-debt");
-    }
-
-    private async Task<(int CompletedOrders, decimal PositiveFeedbackRate, decimal OnTimeDeliveryRate)> GetMetricsAsync(int sellerId, CancellationToken ct)
-    {
-        var completedOrders = await db.OrderTables.CountAsync(x => x.SellerId == sellerId && (x.Status == "Delivered" || x.Status == "Closed"), ct);
-        var feedback = await db.Feedbacks.AsNoTracking().Where(x => x.SellerId == sellerId).Select(x => x.PositiveRate)
-            .FirstOrDefaultAsync(ct) ?? 0m;
-        var delivered = await db.ShippingInfos.AsNoTracking().Where(x => x.Direction == "Outbound" && x.Status == "Delivered" && db.OrderTables.Any(o => o.Id == x.OrderId && o.SellerId == sellerId))
-            .Select(x => x.DeliveryAttempts)
-            .ToListAsync(ct);
-        var onTime = delivered.Count == 0 ? 0m : decimal.Round(delivered.Count(x => x <= 1) * 100m / delivered.Count, 2);
-        return (completedOrders, feedback, onTime);
     }
 
     private void AddEntry(

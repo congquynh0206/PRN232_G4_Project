@@ -24,7 +24,7 @@ public sealed class CheckoutService(
         var now = DateTime.UtcNow;
         var products = await db.Products.AsNoTracking().Where(p => p.SellerId != null && p.IsAuction != true && p.Price != null && p.WeightKg > 0 && db.Addresses.Any(a => a.UserId == p.SellerId && a.IsDefault == true))
             .Where(p => !db.SellerAccounts.Any(a => a.SellerId == p.SellerId &&
-                (a.Status != "Active" || a.NegativeBalance > 0 && a.DebtDueAt <= now)))
+                (a.Status != "Active" || a.PermanentSalesBlockedAt != null || a.NegativeBalance > 0 && a.DebtDueAt <= now)))
             .Join(db.Inventories.Where(i => i.Quantity > 0), p => p.Id, i => i.ProductId, (p, i) => p)
             .ToListAsync(ct);
         var bySeller = products.GroupBy(p => p.SellerId).FirstOrDefault(g => g.Count() >= count);
@@ -221,7 +221,7 @@ public sealed class CheckoutService(
         if (db.Database.IsRelational())
             await db.Entry(order).ReloadAsync(ct);
         ValidateAwaitingPayment(order);
-        if (await db.Payments.AnyAsync(x => x.OrderId == orderId && x.Method == "PayPal" && x.Status == "Verifying", ct))
+        if (await db.Payments.AnyAsync(x => x.OrderId == orderId && x.Method == "PayPal" && (x.Status == "Verifying" || x.PayPalCheckoutId != null && x.Status == "Pending"), ct))
             throw new InvalidOperationException("PayPal đang xác minh thanh toán. Hãy chờ kết quả.");
         if (finance is not null)
             await finance.ValidateMonthlyLimitAsync(orderId, ct);

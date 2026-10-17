@@ -41,6 +41,8 @@ public sealed partial class SellerFinanceService
             cycle = db.SellerDebtCycles.Local.FirstOrDefault(x => x.SellerAccountId == account.Id && x.Number == account.DebtCycleNumber)
                 ?? await db.SellerDebtCycles.SingleAsync(x => x.SellerAccountId == account.Id && x.Number == account.DebtCycleNumber, ct);
 
+        await ObserveDebtRecoveryAsync(account, cycle, ct);
+
         if (account.NegativeBalance == 0)
         {
             var wasSuspended = account.DebtSuspended;
@@ -48,10 +50,13 @@ public sealed partial class SellerFinanceService
             account.DebtStartedAt = null;
             account.DebtDueAt = null;
             account.DebtSuspended = false;
-            await DebtEventAsync(account, "DebtCleared", wasSuspended
+            await DebtEventAsync(account, "DebtCleared", account.PermanentSalesBlockedAt != null
+                ? "Đã trả hết nợ; quyết định khóa bán vĩnh viễn vẫn giữ nguyên."
+                : wasSuspended
                 ? "Đã trả hết nợ và gỡ đình chỉ do nợ. Các hạn chế khác vẫn theo quyết định hiện có."
                 : "Đã trả hết nợ và kết thúc kỳ nợ.", ct, notify: !wasSuspended);
-            if (wasSuspended) await DebtEventAsync(account, "DebtRestored", "Đã gỡ hạn chế bán hàng do nợ.", ct);
+            if (wasSuspended && account.PermanentSalesBlockedAt == null)
+                await DebtEventAsync(account, "DebtRestored", "Đã gỡ hạn chế bán hàng do nợ.", ct);
         }
         else if (Now >= cycle.DueAt)
         {
@@ -88,6 +93,8 @@ public sealed partial class SellerFinanceService
             "DebtRepaymentFailed" => "Ngân hàng từ chối trả nợ",
             "DebtCleared" => "Đã trả hết khoản nợ",
             "DebtRestored" => "Đã gỡ đình chỉ bán hàng do nợ",
+            "DebtWriteOff" => "Ghi nhận nợ khó thu và khóa bán vĩnh viễn",
+            "WriteOffRecovery" => "Thu hồi nợ sau quyết định nợ khó thu",
             _ => "Cập nhật khoản nợ người bán"
         };
         db.NotificationOutbox.Add(new NotificationOutbox { SellerId = account.SellerId, EventKey = key, EventType = type,
@@ -96,9 +103,17 @@ public sealed partial class SellerFinanceService
             Status = valid ? "Pending" : "Failed", LastErrorCode = valid ? null : "RecipientInvalid", CreatedAt = Now });
     }
 
-    private SellerDebtSummary DebtView(SellerAccount a) => new(a.SellerId, a.NegativeBalance, a.DebtCycleNumber,
-        a.DebtStartedAt, a.DebtDueAt, a.DebtStartedAt is { } start ? Math.Max(0, (long)(Now - start).TotalSeconds) : 0,
-        IsDebtOverdue(a), a.DebtSuspended, a.Status);
+    private SellerDebtSummary DebtView(SellerAccount a)
+    {
+        var cycle = db.SellerDebtCycles.Local.FirstOrDefault(c => c.SellerAccountId == a.Id && c.Number == a.DebtCycleNumber);
+        DateTime? earliest = null;
+        if (configuration.GetValue("Finance:WriteOff:Enabled", true) && a.NegativeBalance > 0 && a.PermanentSalesBlockedAt == null
+            && cycle?.WriteOffEligibleAt is { } eligible && cycle.LastRecoveryAt is { } recovery)
+            earliest = new[] { eligible, cycle.DueAt, recovery.AddSeconds(cycle.RecoveryGraceSeconds) }.Max();
+        return new(a.SellerId, a.NegativeBalance, a.DebtCycleNumber,
+            a.DebtStartedAt, a.DebtDueAt, a.DebtStartedAt is { } start ? Math.Max(0, (long)(Now - start).TotalSeconds) : 0,
+            IsDebtOverdue(a), a.DebtSuspended, a.Status, a.PermanentSalesBlockedAt, earliest, cycle?.RecoveryGraceSeconds ?? 0);
+    }
 
     public async Task<SellerDebtSummary> GetDebtAsync(int sellerId, CancellationToken ct = default)
     {
@@ -115,6 +130,7 @@ public sealed partial class SellerFinanceService
     public async Task ValidateNewSaleAsync(int sellerId, CancellationToken ct = default)
     {
         var debt = await GetDebtAsync(sellerId, ct);
+        if (debt.PermanentSalesBlockedAt != null) throw new InvalidOperationException("Tài khoản đã bị khóa bán vĩnh viễn; vẫn được trả nợ và xử lý đơn cũ.");
         if (debt.AccountStatus != "Active") throw new InvalidOperationException("Seller account is restricted");
         if (debt.Overdue) throw new InvalidOperationException("Seller has overdue debt and cannot receive new orders or publish products");
     }
