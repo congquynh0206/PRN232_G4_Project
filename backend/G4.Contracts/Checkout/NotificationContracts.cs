@@ -24,7 +24,8 @@ public sealed record EmailNotificationView(
     DateTime? SentAt,
     DateTime? CapturedAt,
     string? LastErrorCode,
-    string? LastErrorSummary
+    string? LastErrorSummary,
+    int? PayoutId = null
 );
 public sealed record EmailNotificationDetail(
     EmailNotificationView Summary,

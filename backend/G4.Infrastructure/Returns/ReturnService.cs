@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using G4.Infrastructure.Diagnostics;
 using G4.Contracts.Checkout;
+using G4.Infrastructure.Notifications;
+using G4.Infrastructure.Promotions;
 
 namespace G4.Infrastructure.Returns;
 public sealed class ReturnService(
@@ -56,6 +58,8 @@ public sealed class ReturnService(
         };
         db.ReturnRequests.Add(request);
         order.UpdatedAt = Now;
+        await db.SaveChangesAsync(ct);
+        await new BusinessNotificationService(db, config, clock).ReturnAsync(request, "ReturnRequested", ct);
         await db.SaveChangesAsync(ct);
         if (tx != null) await tx.CommitAsync(ct);
         return request;
@@ -114,6 +118,8 @@ public sealed class ReturnService(
         db.ReturnRequests.Add(request);
         order.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
+        await new BusinessNotificationService(db, config, clock).ReturnAsync(request, "ReturnRequested", ct);
+        await db.SaveChangesAsync(ct);
         if (transaction is not null)
             await transaction.CommitAsync(ct);
         return request;
@@ -142,6 +148,7 @@ public sealed class ReturnService(
         request.Status = "Approved";
         request.DecidedAt = DateTime.UtcNow;
         (await db.OrderTables.SingleAsync(o => o.Id == request.OrderId, ct)).UpdatedAt = DateTime.UtcNow;
+        await new BusinessNotificationService(db, config, clock).ReturnAsync(request, "ReturnApproved", ct);
         await db.SaveChangesAsync(ct);
         if (transaction is not null)
         {
@@ -194,6 +201,7 @@ public sealed class ReturnService(
         request.DecisionReason = reason;
         request.DecidedAt = DateTime.UtcNow;
         (await db.OrderTables.SingleAsync(o => o.Id == request.OrderId, ct)).UpdatedAt = DateTime.UtcNow;
+        await new BusinessNotificationService(db, config, clock).ReturnAsync(request, "ReturnRejected", ct);
         await db.SaveChangesAsync(ct);
         if (tx != null) await tx.CommitAsync(ct);
         return request;
@@ -271,13 +279,19 @@ public sealed class ReturnService(
 
     public async Task<OrderTable> RequestCancelAsync(int orderId, CancellationToken ct = default)
     {
+        await using var tx = await PromotionLifecycle.LockOrderAsync(db, orderId, ct);
         var order = await db.OrderTables.SingleAsync(o => o.Id == orderId, ct);
+        if (db.Database.IsRelational()) await db.Entry(order).ReloadAsync(ct);
+        if (order.Status is "CancelRequested" or "Cancelled") { if (tx != null) await tx.CommitAsync(ct); return order; }
         var previousStatus = order.Status;
         order.Status = OrderState.Next(order.Status!, "RequestCancel");
         order.UpdatedAt = DateTime.UtcNow;
         order.CancelPreviousStatus = previousStatus;
         order.CancelDecisionReason = null;
+        order.CancelRequestNumber++;
+        await new BusinessNotificationService(db, config, clock).CancellationAsync(order, false, ct);
         await db.SaveChangesAsync(ct);
+        if (tx != null) await tx.CommitAsync(ct);
         return order;
     }
 
@@ -288,7 +302,9 @@ public sealed class ReturnService(
         CancellationToken ct = default
     )
     {
+        await using var tx = await PromotionLifecycle.LockOrderAsync(db, orderId, ct);
         var order = await db.OrderTables.SingleAsync(o => o.Id == orderId, ct);
+        if (db.Database.IsRelational()) await db.Entry(order).ReloadAsync(ct);
         if (!approve && string.IsNullOrWhiteSpace(reason))
             throw new ArgumentException("Cancellation rejection reason required");
         var nextStatus = OrderState.Next(order.Status!, approve ? "AcceptCancel" : "RejectCancel");
@@ -299,6 +315,7 @@ public sealed class ReturnService(
         await db.SaveChangesAsync(ct);
         if (approve)
             await RefundAsync(orderId, "cancel", null, ct);
+        if (tx != null) await tx.CommitAsync(ct);
         return order;
     }
 

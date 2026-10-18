@@ -209,8 +209,11 @@ public sealed class PayPalPaymentService(
                 );
             }
         }
-        else if (capture.Status is "VOIDED" or "DECLINED")
+        else if (capture.Status is "VOIDED" or "DECLINED" or "DENIED" or "FAILED")
+        {
             payment.Status = "Failed";
+            await new G4.Infrastructure.Notifications.BusinessNotificationService(db, config).PaymentFailedAsync(order, payment, ct);
+        }
         else
             payment.Status = "Verifying";
         payment.UpdatedAt = DateTime.UtcNow;

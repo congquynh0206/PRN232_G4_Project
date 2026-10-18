@@ -13,6 +13,9 @@ public partial class ApplicationDbContext
             e.Property(x => x.Cycle).HasDefaultValue(1);
             e.Property(x => x.LastErrorCode).HasMaxLength(64);
             e.Property(x => x.LastErrorSummary).HasMaxLength(300);
+            e.HasIndex(x => new { x.RecipientUserId, x.CreatedAt });
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.RecipientUserId).OnDelete(DeleteBehavior.NoAction);
+            e.HasOne<SellerPayout>().WithMany().HasForeignKey(x => x.PayoutId).OnDelete(DeleteBehavior.NoAction);
             e.HasIndex(x => new { x.Status, x.NextAttemptAt });
             e.HasIndex(x => new { x.Status, x.ProcessingUntil });
         });

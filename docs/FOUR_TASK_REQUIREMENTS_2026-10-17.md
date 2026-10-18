@@ -1,5 +1,7 @@
 # Yêu cầu chi tiết bốn task ưu tiên
 
+**Hiệu lực sau cập nhật 18/10/2026:** giữ các yêu cầu chi tiết B2/B1/A1/S1 dưới đây; nghiệp vụ mới/khác biệt ưu tiên [BUSINESS_REQUIREMENTS.md](BUSINESS_REQUIREMENTS.md) phiên bản 2.0. [IMPLEMENTATION_BACKLOG.md](IMPLEMENTATION_BACKLOG.md) theo dõi toàn bộ task bổ sung, phụ thuộc và khoảng cách với source; không hiểu “bốn task” là loại bỏ các phần đã chốt ngày 18/10.
+
 Ngày mô tả: 17/10/2026. Tài liệu chi tiết hóa B2, B1, A1 và S1 trong [phạm vi đã chốt](APPROVED_SCOPE_2026-10-17.md), theo thứ tự triển khai đề xuất. Đây là yêu cầu chức năng và tiêu chí nghiệm thu, chưa phải chức năng đã triển khai. Các lựa chọn giao diện và mặc định được cụ thể hóa để triển khai, không mở rộng phạm vi sang quản lý sản phẩm, chat hoặc COD. Ba task S2, A2 và N1 vẫn nằm trong backlog đã duyệt.
 
 ## 1. B2 — Buyer xem lịch sử thanh toán và refund

@@ -903,6 +903,9 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<int?>("OrderId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("PayoutId")
+                        .HasColumnType("int");
+
                     b.Property<Guid?>("ProcessingToken")
                         .HasColumnType("uniqueidentifier");
 
@@ -913,6 +916,9 @@ namespace G4.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<int?>("RecipientUserId")
+                        .HasColumnType("int");
 
                     b.Property<int?>("SellerId")
                         .HasColumnType("int");
@@ -935,11 +941,15 @@ namespace G4.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasFilter("[EventKey] IS NOT NULL");
 
+                    b.HasIndex("PayoutId");
+
                     b.HasIndex("SellerId");
 
                     b.HasIndex("OrderId", "EventType")
                         .IsUnique()
-                        .HasFilter("[OrderId] IS NOT NULL");
+                        .HasFilter("[EventKey] IS NULL AND [OrderId] IS NOT NULL");
+
+                    b.HasIndex("RecipientUserId", "CreatedAt");
 
                     b.HasIndex("Status", "NextAttemptAt");
 
@@ -1082,6 +1092,9 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<string>("CancelPreviousStatus")
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("CancelRequestNumber")
+                        .HasColumnType("int");
 
                     b.Property<string>("CheckoutKey")
                         .HasMaxLength(100)
@@ -3184,6 +3197,16 @@ namespace G4.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("G4.Domain.Entities.NotificationOutbox", b =>
                 {
+                    b.HasOne("G4.Domain.Entities.SellerPayout", null)
+                        .WithMany()
+                        .HasForeignKey("PayoutId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("G4.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("RecipientUserId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.HasOne("G4.Domain.Entities.User", null)
                         .WithMany()
                         .HasForeignKey("SellerId")

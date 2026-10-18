@@ -263,6 +263,12 @@ public sealed class CheckoutService(
             );
         }
 
+        if (outcome != "Succeeded")
+        {
+            await db.SaveChangesAsync(ct); // Assign the attempt ID inside the current order transaction.
+            await new BusinessNotificationService(db, config).PaymentFailedAsync(order, payment, ct);
+        }
+
         order.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
         if (outcome == "Succeeded" && finance is not null)
@@ -317,12 +323,14 @@ public sealed class CheckoutService(
         var order = await db.OrderTables.Include(o => o.OrderItems).SingleAsync(o => o.Id == orderId, ct);
         if (db.Database.IsRelational())
             await db.Entry(order).ReloadAsync(ct);
+        if (order.Status == "Cancelled") { if (tx != null) await tx.CommitAsync(ct); return order; }
         if (await db.Payments.AnyAsync(x => x.OrderId == orderId && x.Method == "PayPal" && x.Status == "Verifying", ct))
             throw new InvalidOperationException("PayPal đang xác minh thanh toán. Hãy chờ trước khi hủy.");
         order.Status = OrderState.Next(order.Status!, "Cancel");
         order.UpdatedAt = DateTime.UtcNow;
         await RestoreStockAsync(order, ct);
         await PromotionLifecycle.ReleaseAsync(db, orderId, ct);
+        await new BusinessNotificationService(db, config).CancellationAsync(order, true, ct);
         await db.SaveChangesAsync(ct);
         if (tx != null)
             await tx.CommitAsync(ct);

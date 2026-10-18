@@ -1,8 +1,10 @@
 # Đặc tả nghiệp vụ G4_Project
 
-**Trạng thái:** Bản nghiệp vụ để nhóm đọc và duyệt. Tài liệu mô tả hành vi đích, không khẳng định mọi chức năng đã có trong code.
+**Phiên bản 2.0 — cập nhật ngày 18/10/2026.** Đây là đặc tả nghiệp vụ mục tiêu dùng để code và nghiệm thu, đã cập nhật theo các xác nhận của người dùng và các đề xuất được đồng ý trong báo cáo phiên bản 2.0. Không phải xác nhận mọi chức năng đã triển khai.
 
-**Phạm vi bổ sung đã chốt ngày 17/10/2026:** xem [APPROVED_SCOPE_2026-10-17.md](APPROVED_SCOPE_2026-10-17.md). Tài liệu đó ghi quyết định trực tiếp của người dùng về bảy nhóm chức năng cần bổ sung và các phần giữ nguyên, bao gồm admin yêu cầu trả hàng trước khi tiếp tục phán quyết và bổ sung thông báo/email còn thiếu; được ưu tiên khi xác định phạm vi đợt này nếu khác với đề xuất cũ bên dưới.
+**Thứ tự áp dụng:** yêu cầu mới nhất của người dùng → tài liệu này → tiêu chí/hiện trạng trong [IMPLEMENTATION_BACKLOG.md](IMPLEMENTATION_BACKLOG.md) → các hướng dẫn module. [Phạm vi 17/10](APPROVED_SCOPE_2026-10-17.md) và [bốn task ưu tiên](FOUR_TASK_REQUIREMENTS_2026-10-17.md) tiếp tục áp dụng cho B1/B2/S1/S2/A1/A2/N1, trừ phần đã được đặc tả 18/10 này thay thế. Mã nguồn cũ là bằng chứng hiện trạng, không tự thay đổi quy tắc đã chốt.
+
+Đọc [README.md](README.md) để tìm tài liệu. Trạng thái triển khai phải được cập nhật ở backlog sau khi code và kiểm thử; viết đặc tả hoặc tạo báo cáo Word không tự hoàn thành một task. Các mặc định mới phục vụ mô phỏng dưới đây phải được cấu hình/snapshot khi triển khai, không được nhận là khóa cấu hình/API đã tồn tại.
 
 ## 1. Mục tiêu và phạm vi
 
@@ -14,10 +16,10 @@ Hệ thống có bốn vai trò `buyer`, `seller`, `shipper`, `admin`. API kiể
 
 | Vai trò | Nghiệp vụ chính |
 | --- | --- |
-| Buyer | Random giỏ hàng, sửa số lượng/địa chỉ, xem báo giá, dùng promotion, thanh toán, theo dõi đơn và tracking, yêu cầu hủy/đổi địa chỉ/trả hàng, mở tranh chấp và theo dõi refund. |
-| Seller | Chuẩn bị đơn, tạo vận đơn, cấu hình mức chịu thêm phí đổi địa chỉ, xử lý hủy/trả hàng, phản hồi tranh chấp, tạo promotion của shop, xem tài chính, trả nợ giả lập và yêu cầu payout. |
-| Shipper | Nhận vận đơn từ danh sách chờ, xem địa chỉ lấy/giao, cập nhật tracking và xác nhận xử lý địa chỉ đã được duyệt. Chỉ shipper đã nhận vận đơn được cập nhật vận đơn đó. |
-| Admin | Cấu hình phí nền tảng và promotion toàn sàn, xem hồ sơ tranh chấp/bằng chứng, phán quyết và giám sát nợ xấu; theo dõi quyết định write-off, khóa bán vĩnh viễn và blacklist do worker tự đánh giá theo tiêu chí. Admin có thể xem nhật ký nhưng không trực tiếp sửa số dư hay mốc tracking. |
+| Buyer | Random giỏ, quản lý địa chỉ/mặc định, xem báo giá và policy free returns trước mua, dùng promotion, thanh toán, lịch sử payment/refund, theo dõi tracking, yêu cầu hủy/đổi địa chỉ/return, báo chưa nhận hàng và mở dispute, đánh giá sau giao. |
+| Seller | Chuẩn bị đơn, tạo nhãn, cấu hình cap đổi địa chỉ và policy free returns mặt hàng, xử lý hủy/return/dispute, promotion shop, báo cáo tài chính, trả lời review sản phẩm, theo dõi cấp/nợ và yêu cầu payout giả lập. |
+| Shipper | Nhận vận đơn nguyên tử, tracking/giao lại, xem địa chỉ lấy/giao và chấp thuận khả năng giao địa chỉ mới nếu đã nhận vận đơn. Chỉ shipper được giao vận đơn được thao tác. |
+| Admin | Policy phí, hạn mức riêng seller, promotion theo quyền, tra cứu order/payment/refund, phán quyết và yêu cầu trả hàng trước phán quyết, theo dõi cấp/nợ/write-off/blacklist. Không sửa tay số dư/payment/tracking hoặc tùy ý nhập seller level. |
 
 ## 3. Giỏ hàng, checkout và đơn hàng
 
@@ -26,6 +28,9 @@ Hệ thống có bốn vai trò `buyer`, `seller`, `shipper`, `admin`. API kiể
 3. Khi tạo đơn, hệ thống lưu snapshot sản phẩm, giá, khối lượng, địa chỉ, promotion, phí ship và tổng tiền; trừ tồn kho trong giao dịch. Một batch checkout key chỉ tạo một nhóm đơn, mỗi seller có một đơn. Lỗi tạo bất kỳ đơn nào rollback toàn bộ nhóm; retry đúng request trả về nhóm đơn đã tạo. Giỏ được xóa sau khi tạo nhóm thành công. Thanh toán theo từng đơn; đơn chưa trả tiền nằm trong Đơn của tôi và chờ tối đa 15 phút.
 4. Đơn chưa trả tiền có thể hủy ngay. Đơn đã trả tiền nhưng chưa bàn giao shipper cần seller duyệt yêu cầu hủy; khi duyệt phải refund. Sau khi shipper nhận hàng, không hủy trực tiếp: xử lý qua giao hàng thất bại/chuyển hoàn hoặc trả hàng sau khi đã giao.
 5. Nếu hết 15 phút mà chưa thanh toán, đơn thành `Expired` và tồn kho được trả lại đúng một lần. Trường hợp PayPal còn đang xác minh phải đối soát trước khi hết hạn/hủy để tránh vừa thu tiền vừa nhả hàng.
+
+6. B1 phải đủ thêm/sửa/xóa/đặt mặc định và kiểm tra quyền địa chỉ. Địa chỉ đang chọn bị sửa/thay/xóa làm mất hiệu lực báo giá; phải lấy báo giá mới trước đặt hàng. Sổ địa chỉ không sửa snapshot đơn cũ. Giỏ tối đa 5 sản phẩm, số lượng mỗi dòng 1–5.
+7. Công bố free returns từng mặt hàng ngay trong giỏ random và checkout; snapshot policy/phiên bản và khối lượng từng dòng khi mua. Sau mua, seller đổi policy không thay quyền lợi đơn cũ. Một kiện mỗi chiều và return toàn bộ order trong phạm vi chính; không bổ sung catalog hoặc CRUD sản phẩm/tồn kho toàn diện.
 
 ### 3.1. Phí vận chuyển chiều đi
 
@@ -36,7 +41,7 @@ Khối lượng đơn bằng tổng `khối lượng sản phẩm × số lượ
 | Nội vùng Hà Nội | `2,00 + max(0, w - 1) × 0,50` USD | 2,10 USD |
 | Khác vùng | `5,00 + max(0, w - 1) × 1,00` USD | 5,20 USD |
 
-Áp dụng phí cơ bản cho mọi đơn từ 0 đến 1 kg; làm tròn kết quả cuối cùng đến 0,01 USD. Phân vùng dựa trên địa chỉ lấy hàng của seller và địa chỉ giao hàng đã lưu trong order. Seller phải khai báo khối lượng sản phẩm; sản phẩm thiếu khối lượng không được checkout cho đến khi bổ sung.
+Áp dụng phí cơ bản cho mọi đơn lớn hơn 0 đến 1 kg; làm tròn kết quả cuối cùng đến 0,01 USD. Chỉ dùng mức nội Hà Nội khi cả nơi lấy và nơi giao ở Hà Nội, Việt Nam. Seller phải khai báo khối lượng sản phẩm; thiếu khối lượng không được checkout. Không dùng `ceil(kg)`.
 
 ## 4. Promotions
 
@@ -48,7 +53,7 @@ Promotions giảm giá cho buyer, tách khỏi **Promoted Listings** (quảng c�
 | Volume pricing | Seller đặt các bậc giảm theo số lượng của cùng một sản phẩm. |
 | Order discount | Seller giảm theo tổng giá trị/số lượng hàng đủ điều kiện trong đơn; có thể là phần trăm hoặc số tiền cố định. |
 | Coupon | Seller hoặc admin phát mã; buyer nhập tại checkout. Có ngày hiệu lực, sản phẩm/shop áp dụng, đơn tối thiểu, mức giảm, trần giảm, tổng lượt dùng, lượt dùng mỗi buyer và ngân sách. |
-| Shipping discount | Seller miễn/giảm phí ship cho đơn đủ điều kiện; khoản seller tài trợ không vượt phí ship tính theo công thức ở mục 3.1. |
+| Shipping discount / free shipping | Miễn/giảm phí giao chiều đi cho mặt hàng/giỏ đủ điều kiện; dùng loại `Shipping` và cờ `FreeShipping` hiện có, không tạo cơ chế miễn ship song song. Giữ rõ nguồn tài trợ, điều kiện, thời gian, trần giảm, ngân sách và lượt dùng. |
 
 Seller chỉ tạo/sửa/bật/tắt promotion do mình tài trợ. Admin toàn quyền quản lý coupon do nền tảng tài trợ; với chương trình seller, admin chỉ xem, đình chỉ hoặc gỡ đình chỉ kèm lý do. Gỡ đình chỉ không tự bật chương trình: seller phải chủ động kích hoạt lại. Seller không được tự gỡ đình chỉ, kể cả qua API hoặc form chỉnh sửa. Chương trình đã áp dụng cho đơn đã thanh toán không bị thay đổi hồi tố. Coupon chỉ tính là đã sử dụng khi payment thành công; retry và callback trùng không được dùng thêm lượt. Hủy hoặc hết hạn đơn chưa trả tiền giải phóng lượt đã giữ. Refund sau khi trả tiền không tự trả lại lượt coupon.
 
@@ -56,52 +61,71 @@ Seller chỉ tạo/sửa/bật/tắt promotion do mình tài trợ. Admin toàn 
 
 **Đối soát:** giảm giá do seller tài trợ làm giảm doanh thu seller; coupon toàn sàn do nền tảng tài trợ không được trừ vào doanh thu seller. Hệ thống lưu nguồn tài trợ và phần giảm trên từng order item để refund toàn bộ/một phần đúng nguồn. `BuyerPayable = giá hàng sau giảm của seller + phí ship buyer phải trả - coupon nền tảng`. `SellerGross = BuyerPayable + phần coupon nền tảng tài trợ`; platform fee tính trên `SellerGross`. Ví dụ hàng 100 USD, coupon seller 10 USD, ship 5 USD, coupon nền tảng 5 USD: buyer trả 90 USD, SellerGross là 95 USD, platform fee 12% + 0,30 USD là 11,70 USD, Net seller là 83,30 USD; nền tảng ghi riêng khoản tài trợ 5 USD.
 
+**Free shipping khác free returns:** free shipping giảm phí chiều đi buyer trả; free returns là cam kết chịu phí chiều trả theo mặt hàng. Mã miễn ship không tự bật free returns. Chi phí carrier, phần buyer trả và phần seller/platform tài trợ phải tách riêng; carrier không giao miễn phí chỉ vì checkout buyer thấy 0 USD.
+
 ## 5. Thanh toán
 
-Buyer chọn PayPal Sandbox hoặc Credit Card giả lập. Thẻ giả lập hỗ trợ thành công, bị từ chối và hết hạn. Khi thanh toán thất bại, đơn vẫn chờ thanh toán trong thời hạn còn lại và buyer có thể thử lại bằng payment key mới. Cùng payment key không được tạo hai khoản thu; webhook/callback/reconcile lặp lại cũng không được ghi settlement, giảm tồn kho hay gửi thông báo hai lần.
+Buyer chọn PayPal Sandbox hoặc Credit Card giả lập; không lưu PAN/CVV thật. Thẻ giả lập hỗ trợ thành công, bị từ chối và hết hạn. Khi thất bại đã xác định, đơn vẫn chờ trong thời hạn còn lại và buyer thử lại bằng payment key mới. Cùng key không tạo hai khoản thu; capture/reconcile lặp không ghi settlement, trừ tồn hay gửi thông báo hai lần. Timeout/chưa rõ kết quả là `Verifying`, không coi là thất bại chắc chắn hoặc thu lại ngay.
 
 Payment thành công chốt giá order, ghi mã giao dịch và chuyển đơn sang trạng thái đã thanh toán. Nếu payment từ cổng ngoài đã thành công nhưng ghi settlement nội bộ lỗi, worker phải đối soát và hoàn tất ledger theo khóa duy nhất.
+
+**Tích hợp đã chọn:** capture API + reconcile là luồng chính demo local. PayPal cả giỏ một lần approve, capture/refund theo từng order; một số order có thể thành công trong khi order khác failed/verifying. Xác minh provider order/capture/reference ID, amount/currency phía server. Mỗi lần thử lưu `Payment`, không bắt buộc tạo bộ bảng PaymentIntent/Attempt/Event mới.
+
+**Webhook tùy chọn:** PayPal chủ động gửi sự kiện đến endpoint HTTPS; chưa bắt buộc cho đợt code này. Nếu bổ sung, xác minh chữ ký, chống trùng event ID, xử lý chung với capture/reconcile và giữ đối soát dự phòng. Không mô tả endpoint webhook/chữ ký như đã có hoặc dùng thông báo trình duyệt làm bằng chứng thu tiền.
+
+**Lịch sử buyer B2:** đủ các lần thử và refund, số tiền/tiền tệ, trạng thái, thời gian, tham chiếu, lý do/lỗi, lọc/phân trang. Chỉ Succeeded cộng vào tổng thu/hoàn; tổng vòng đời order không bị cắt theo trang hoặc bộ lọc thời gian. Hoàn ship giả lập có nhãn riêng. Chi tiết xem [bốn task ưu tiên](FOUR_TASK_REQUIREMENTS_2026-10-17.md).
 
 ## 6. Giao hàng và đổi địa chỉ
 
 Seller chuẩn bị đơn, tạo vận đơn chiều đi `Outbound`, bàn giao cho shipper. Shipper chủ động nhận một vận đơn từ danh sách chờ; việc nhận phải nguyên tử để không có hai shipper cùng được giao. Timeline hợp lệ: `LabelCreated → PickedUp → InTransit → OutForDelivery → Delivered`.
 
-Nếu giao thất bại, shipper ghi `DeliveryFailed` cùng lý do và số lần giao. Có thể thử giao lại bằng mốc `OutForDelivery`; nếu không giao được, đi `ReturningToSender → ReturnedToSeller`. Đây là vận đơn chiều đi bị chuyển hoàn, khác với return do buyer đã nhận rồi yêu cầu trả. Buyer và seller xem timeline riêng theo từng chiều; không trộn các sự kiện.
+Nếu giao thất bại: `OutForDelivery → DeliveryFailed → ReattemptScheduled → OutForDelivery`. Lịch giao lại lưu thời gian dự kiến và lý do; chỉ tăng `DeliveryAttempts` khi thật sự bắt đầu OutForDelivery, không tăng khi lên lịch. Mặc định tối đa hai lượt/vận đơn. Không thể/hết lượt giao lại thì `DeliveryFailed → ReturningToSender → ReturnedToSeller`; các mốc cần sự kiện thực tế, không tự coi là seller đã nhận hàng chỉ vì hết lượt.
+
+Hai chiều dùng cùng bộ trạng thái và `ShippingInfo.Direction = Outbound/Return`, tracking và timeline riêng; không thêm `ReturnPickedUp/ReturnDelivered` thành bộ trạng thái khác. `Return` Delivered là hàng về seller, không ghi thêm giao thành công cho buyer. Mỗi `ShippingEvent` phải có actor, thời điểm UTC, event ID chống trùng, location/note và vận đơn liên quan.
 
 Buyer được **đổi địa chỉ thành công tối đa một lần**, trước `OutForDelivery`. Yêu cầu phải có lý do, địa chỉ cũ và mới. Seller cấu hình trước mức tăng phí ship tối đa mình sẵn sàng chịu cho một lần đổi địa chỉ. Server tính lại phí theo địa chỉ mới và khối lượng snapshot:
 
 - Nếu phí mới tăng **không quá** hạn mức seller chịu, seller có thể duyệt; buyer không trả thêm, khoản tăng được ghi là chi phí của seller.
 - Nếu phí mới tăng **vượt** hạn mức, hệ thống **từ chối đổi địa chỉ**, giữ nguyên địa chỉ và vận đơn cũ.
-- Nếu phí mới giảm, buyer được hoàn phần chênh lệch bằng refund giả lập; thao tác idempotent và được ghi sổ.
+- Nếu phí giảm, chỉ hoàn phần ship buyer thực sự còn được hưởng sau promotion/refund trước đó, không vượt phần ship đã trả và captured còn lại. Buyer trả ship 0 USD không tự được hoàn chi phí carrier tiết kiệm; điều chỉnh nội bộ giả lập có nhãn riêng, idempotent và ledger.
 
-Shipper chỉ xác nhận và dùng địa chỉ mới sau khi yêu cầu đã được seller duyệt. Yêu cầu bị từ chối không tính là một lần đổi thành công. Không sửa trực tiếp địa chỉ mặc định trong hồ sơ buyer để thay đổi một order cũ.
+**Thứ tự xác nhận mới:** buyer gửi địa chỉ/lý do và xác nhận báo giá → seller chấp thuận → nếu đã có shipper nhận vận đơn, shipper chấp thuận khả năng giao → mới áp dụng địa chỉ. Nếu chưa có shipper, seller là bên duyệt cuối; shipper nhận sau dùng địa chỉ đã có hiệu lực. Không bắt đơn chờ một shipper chưa được gán.
+
+Trong lúc chờ, địa chỉ cũ còn hiệu lực; chặn bắt đầu giao tới buyer khi yêu cầu còn chờ xác nhận. Có deadline chờ cấu hình được; hết hạn hoặc bị từ chối giữ địa chỉ cũ và không tiêu thụ lượt đổi thành công. Chỉ một yêu cầu đang chờ/đơn. Ngay trước áp dụng đọc lại trạng thái, shipper, cap/báo giá; thay đổi quan trọng phải xác nhận lại. Cập nhật địa chỉ/chi phí/refund/bộ đếm atomic, có lịch sử và chống trùng. Không tự sửa đơn cũ theo sổ địa chỉ. Đây là ngoại lệ mô phỏng, không phải quy trình eBay tiêu chuẩn.
 
 ## 7. Trả hàng và refund
 
-Buyer chỉ được yêu cầu **trả toàn bộ hàng của order** trong 7 ngày kể từ `Delivered` chiều đi; Development rút cửa sổ này xuống 1 phút. Một order chỉ có một luồng return đang hoạt động. Buyer chọn lý do và có thể gửi mô tả/bằng chứng.
+Buyer chỉ được yêu cầu **trả toàn bộ hàng của order** trong 7 ngày kể từ `Delivered` chiều đi; **Development: 5 phút**. Đây là thời gian mở yêu cầu, khác deadline kiểm tra hàng trả và phản đối từ chối. Một luồng return đang hoạt động/đơn; hồ sơ bị từ chối đi theo quyền phản đối, không mở hồ sơ trùng để né hạn. Buyer chọn lý do và xác nhận báo giá trước gửi.
 
 | Lý do | Phí ship chiều về | Khoản refund mặc định khi return hợp lệ |
 | --- | --- | --- |
 | Sai hàng, sai mô tả, hàng hỏng/thiếu do seller | Seller chịu | Toàn bộ số tiền buyer đã trả, gồm phí ship chiều đi; nền tảng hoàn phần coupon do mình tài trợ. |
-| Buyer đổi ý hoặc lý do không do seller | Buyer chịu | Giá hàng buyer đã trả sau giảm giá; phí ship chiều đi không hoàn, phí ship chiều về được trừ vào refund và phải hiển thị trước khi buyer xác nhận. |
+| Buyer đổi ý, mặt hàng không free returns | Buyer chịu phần tương ứng | Giá hàng buyer đã trả sau giảm giá; không hoàn ship đi, trừ phần ship trả buyer chịu đã báo trước. |
+| Buyer đổi ý, mặt hàng có free returns | Seller chịu phần tương ứng | Không trừ phần phí trả đã miễn khỏi refund; free returns không tự hoàn phí giao chiều đi. |
+
+**Policy free returns:** công bố trước mua và snapshot theo từng order item. Sửa policy sau đó không đổi quyền đơn cũ. Với một nhãn cho đơn trộn free/non-free, phân phí nhãn theo khối lượng snapshot từng dòng; seller chịu phần free, buyer chịu phần còn lại khi đổi ý. Làm tròn/phân phần lẻ xác định để tổng đúng phí nhãn. Lỗi seller vẫn xử lý theo trách nhiệm, không bắt buyer chịu vì sản phẩm không free returns.
+
+Ví dụ không giảm giá: hàng 100 USD, buyer trả ship đi 5 USD, nhãn trả 5 USD. Đổi ý không free returns: buyer nhận 95 USD; đổi ý toàn bộ free returns: 100 USD và seller chịu nhãn trả; lỗi seller hoàn toàn bộ: 105 USD và seller chịu nhãn trả. Đây là tiền buyer nhận, không phải net seller cuối cùng.
 
 Phí chiều về dùng công thức mục 3.1 theo địa chỉ và khối lượng snapshot. Nếu khoản buyer phải chịu lớn hơn khoản có thể refund, yêu cầu cần được xử lý riêng trước khi tạo vận đơn; hệ thống không tạo refund âm. Admin phân xử trách nhiệm dựa trên căn cứ trong tranh chấp; hệ thống suy ra bên chịu phí và lưu quyết định điều chỉnh riêng cùng lý do, không chọn bên chịu phí tùy ý hoặc sửa báo giá gốc.
 
-Seller **duyệt** yêu cầu: lập tức khóa phần tiền còn lại của order vào `OnHold`, tạo vận đơn chiều về `Return` có tracking riêng. Nếu tạo nhãn lỗi, retry dùng lại return request và không tạo hai vận đơn. Khi tracking chiều về là `Delivered`, bắt đầu hạn **48 giờ** để seller xác nhận; Development dùng **1 phút**.
+Seller **duyệt** yêu cầu: khóa phần có thể giữ của order vào `OnHold`, tạo vận đơn chiều về `Return` có tracking riêng. Nếu nhãn lỗi, retry dùng lại request/key, không tạo hai vận đơn hoặc thu phí hai lần. Khi chiều trả `Delivered`, bắt đầu hạn **48 giờ** để seller xác nhận; **Development: 45 giây**, không phải cửa sổ buyer mở return.
 
 - Seller xác nhận hàng đúng và đã nhận: hệ thống tự thực hiện refund theo quy tắc trên; seller không phải bấm refund thêm lần nữa.
 - Seller thấy hàng hỏng/tráo/thiếu: mở tranh chấp và nộp bằng chứng trong hạn xác nhận; khoản hold tiếp tục bị khóa.
 - Seller không phản hồi trong hạn: worker tự refund cho buyer, dùng idempotency key; nếu gateway lỗi, giữ tiền và retry, không đánh dấu hoàn tất giả.
 
-Seller **từ chối** yêu cầu: bắt buộc ghi lý do. Buyer có thể mở tranh chấp trong 3 ngày từ lúc bị từ chối; nếu buyer chấp nhận hoặc hết 3 ngày không phản hồi, luồng return đóng và tiền đi tiếp theo lịch mở khóa bình thường. Rejection tự nó không tạo vận đơn chiều về hoặc refund.
+Seller **từ chối**: bắt buộc lý do, lưu `RejectedAt` và deadline phản đối **3 ngày từ RejectedAt [DEMO: 45 giây, cấu hình riêng]**. Buyer chấp nhận hoặc im lặng hết hạn thì worker đóng một lần và giải phóng theo điều kiện tài chính; rejection không tự tạo nhãn/refund. Phản đối đúng hạn mở dispute và chặn tự đóng/release liên quan, kể cả đã qua Delivered + 7 ngày/5 phút. Không dùng `Disputes:BuyerResponseSeconds` của một phương án thương lượng thay cho deadline từ chối return.
 
 Refund toàn bộ hoặc một phần chỉ được thực hiện trên số tiền còn lại buyer đã trả, không vượt số đó và không trùng khi retry. Fee credit của platform fee phân bổ theo tỷ lệ phần giá trị seller bị hoàn. Phần coupon nền tảng được hoàn/điều chỉnh riêng, không biến thành nợ seller. Refund do giao thất bại/chuyển hoàn được xử lý khi seller đã nhận lại hàng hoặc theo phán quyết Admin.
 
+Refund Pending/Failed chưa phải đã hoàn. Thẻ dùng gateway giả lập; refund PayPal chính gọi Sandbox theo capture; hoàn ship đổi địa chỉ là điều chỉnh giả lập nội bộ kể cả payment gốc PayPal. Return không tự nhập lại hàng hỏng vào tồn bán được; phải căn cứ tình trạng thực tế.
+
 ## 8. Tranh chấp
 
-Buyer có thể mở dispute vì chưa nhận hàng, sai mô tả, hàng hỏng/thiếu hoặc giao dịch không nhận diện. Seller có thể phản hồi tranh chấp về tình trạng hàng trả. Một order chỉ có một dispute đang mở; mở lặp không khóa tiền nhiều lần. Tiền chưa payout của order được chuyển vào `OnHold`; nếu đã payout, phần thiếu trở thành nghĩa vụ của seller theo mục 10.
+Phân biệt return dispute, Item Not Received và dispute tình trạng hàng trả; một order chỉ một dispute đang mở, không có các quyết định refund xung đột. Mở lại/retry không giữ tiền hai lần. Hold chỉ giữ phần có thể giữ của order từ Processing/Available, không tự khóa cả ví hoặc tạo Negative ngay chỉ vì thiếu hold; refund/chi phí thực tế thiếu nguồn bù mới tạo nợ. Payment dispute/chargeback từ ngân hàng là mở rộng, không nằm trong luồng chính đã chốt.
 
-Buyer và seller nhập mô tả bằng chữ và URL bằng chứng ảnh/video. Chỉ chấp nhận URL `https://`, lưu URL và người gửi/thời điểm; hệ thống không upload hoặc tự tải nội dung từ URL. Giao diện mở liên kết an toàn và không hiển thị nội dung không tin cậy như HTML.
+Mô tả và URL bằng chứng HTTP/HTTPS hợp lệ, giới hạn số lượng/độ dài, không chứa username/password. Lưu actor/thời điểm; lịch sử chỉ thêm; không upload/tự tải URL hoặc khẳng định nội dung đã được xác thực. UI encode và mở link an toàn. Các bước thương lượng/bổ sung bằng chứng giữ kiểm tra hiện có; riêng buyer mở INR chỉ cần mô tả, không bắt URL/ảnh chứng minh “không nhận”.
 
 Admin xem order, payment, tracking hai chiều, lịch sử trao đổi và bằng chứng, sau đó chọn một trong các kết quả:
 
@@ -109,6 +133,16 @@ Admin xem order, payment, tracking hai chiều, lịch sử trao đổi và bằ
 2. **Buyer thắng:** hệ thống khởi tạo refund tự động; chỉ sau khi gateway báo thành công mới trừ hold và đóng dispute. Gateway lỗi thì giữ `RefundPending` và retry.
 3. **Hoàn một phần:** Admin nhập số tiền không vượt phần buyer còn có thể được hoàn, ghi lý do; phần tương ứng được refund, hold còn lại được giải phóng theo trạng thái của order.
 4. **Cần trả hàng:** Admin chỉ định buyer gửi trả, tạo tracking chiều về, rồi phán quyết khi có kết quả. Quyết định phải ghi thời điểm và Admin thực hiện.
+
+Nhánh admin yêu cầu trả hàng không phải kết quả cuối, không tự đóng dispute hoặc refund. Liên kết/dùng lại return phù hợp, chống trùng nhãn/phí, giữ hold; hiển thị nhãn lỗi/đang trả/đã về/giao trả thất bại để admin tiếp tục phán quyết. Dừng auto-refund return thường khi hồ sơ đang chờ admin, không để worker hoàn tiền trước kết luận.
+
+### 8.1. Item Not Received
+
+- Đơn đã thanh toán, quá ngày giao dự kiến, buyer chưa nhận: được mở INR, **không yêu cầu order Delivered**. Ngày giao dự kiến phải được snapshot/hiển thị, không đoán từ ngày tạo hồ sơ.
+- Thời hạn mở tính từ ngày giao dự kiến, độc lập return: mặc định mô phỏng **30 ngày [DEMO: 5 phút]**. Đây là mặc định đặc tả được cụ thể hóa trong báo cáo 2.0, chưa phải cấu hình/code hiện có.
+- Buyer nhập mô tả; seller cung cấp tracking/bằng chứng hoặc đề xuất giải quyết trong hạn. Quá hạn/chưa thống nhất chuyển admin; không tự refund ngay khi mở.
+- Tracking Delivered nhưng buyer phủ nhận nhận hàng vẫn cho gửi hồ sơ đủ điều kiện để xét bằng chứng. Không yêu cầu vận đơn trả khi buyer không có hàng để trả.
+- Hàng đến muộn phải cập nhật hồ sơ và buyer xác nhận/admin xem xét; không tự đóng hồ sơ chỉ từ event carrier hoặc tự thu tiền lại sau refund.
 
 ## 9. Phí nền tảng, seller balance và payout
 
@@ -122,15 +156,23 @@ Phí nền tảng mặc định là **12% SellerGross + 0,30 USD/đơn**, có gi
 | `Negative` | Nghĩa vụ seller phải bù sau refund/chargeback/chi phí khi số dư không đủ. |
 | `PaidOut` | Tổng đã chi trong báo cáo/lịch sử, **không phải** số dư ví còn tiêu được. |
 
-Level 1/2 chuyển `Processing → Available` khi đã giao thành công và hết thời gian giữ, tính từ `DeliveredAt` của vận đơn chiều đi; trước Delivered chưa có hạn mở khóa. Return/dispute đang mở chặn việc mở khóa. Level 3 tự ghi Net vào `Available` ngay trong giao dịch ghi nhận thanh toán thành công, không chờ giao và không cần payout để nhận tiền vào ví. Payout là thao tác riêng chuyển tiền ra ngân hàng giả lập; chỉ thực hiện từ `Available` khi `Negative = 0` và tài khoản không bị đình chỉ/khóa. Payout đi `Created → InProgress → FundsSent → Completed`; ngân hàng ảo từ chối thì `Returned` và cộng lại `Available` đúng một lần. Lưu payout key, số tiền, mã tham chiếu ảo và tài khoản nhận đã che số.
+Level 1/2 chuyển `Processing → Available` khi đã Delivered chiều đi và hết hold snapshot; trước Delivered chưa có hạn mở khóa. Return/dispute cản trở release. Không dùng Delivered HOẶC hết timer, điều kiện nào đến trước. Level 3 tự ghi net sau phí/bù nợ vào Available ngay khi payment thành công; không chờ giao và không tạo payout tự động.
 
-Ledger chỉ thêm mới; mọi payment, discount subsidy, fee, hold, refund, fee credit, debt recovery và payout có khóa idempotency. Seller xem được số dư và lịch sử nhưng không tự sửa ledger.
+Cửa sổ return demo 5 phút dài hơn hold 30/15 giây là chủ ý: buyer vẫn được return trong hạn sau release/payout; giữ/thu hồi phần còn có thể dùng, thiếu nguồn bù thực tế thì ghi nợ. Available không đồng nghĩa hết quyền return hoặc chắc chắn được rút; payout kiểm tra riêng `Negative = 0` và trạng thái hạn chế.
+
+**Payout chung mọi level:** seller yêu cầu rút thủ công, trừ Available và tạo payout/ledger atomic. Worker/ngân hàng ảo chuyển `Created → InProgress → FundsSent → Completed`; `FundsSent` chưa phải ngân hàng xác nhận hoàn tất. Lỗi ngân hàng đi `FundsSent → Returned`, hoàn hệ thống đúng một lần rồi bù nợ nếu có. Bỏ nhánh Level 3 tạo Completed tức thời trong code cũ. Đích ngân hàng giả lập được che; không tích hợp tiền production.
+
+Ví dụ Available 87,70 USD, rút 50 USD: còn 37,70 USD, đang chuyển 50 USD. Completed tăng lịch sử đã chi 50; Returned trả hệ thống 50 trước các khoản bù nợ/điều chỉnh phát sinh. Tổng đang payout tính từ SellerPayout chưa kết thúc; chưa bắt buộc thêm trường balance `PayoutPending`. Lưu payout ID/key, amount/currency, đích che, bank reference, actor và lịch sử chuyển bước. Payout theo lịch là tùy chọn nâng cao.
+
+**Ledger nghiệp vụ:** mọi payment, subsidy, fee, hold, release, refund, fee credit, debt recovery và payout có khóa duy nhất/tham chiếu. Số dư và ledger lưu cùng transaction; không sửa/xóa dòng cũ, sửa sai bằng bút toán điều chỉnh có lý do. Chuyển bucket truy được nguồn/đích: release 87,70 ghi Processing −87,70 và Available +87,70, cùng nghiệp vụ. Kiểm tra đối soát số dư/lịch sử và xử lý đồng thời; không gọi mọi dòng hiện có là kế toán kép. Kế toán kép đầy đủ là hướng nâng cao, không viết lại toàn bộ tài chính chỉ để đổi tên mô hình.
 
 ## 10. Seller level và hạn mức
 
-Level do **hệ thống tự đánh giá**, Admin xem kết quả và lý do; không nhập level tùy ý. Doanh số là `SellerGross` của payment thành công theo **tháng UTC**; tháng mới về 0. Kiểm tra hạn mức trước khi gọi cổng thanh toán và kiểm tra lại khi ghi nhận thành công. Payment đã thành công ở cổng nhưng vượt hạn mức do cạnh tranh phải được đối soát và xử lý hoàn tiền, không bỏ lửng.
+Level do **hệ thống tự đánh giá**, Admin xem kết quả/lý do; không nhập level tùy ý. Doanh số là `SellerGross` của payment thành công theo **tháng UTC**; tháng mới về 0. Kiểm tra hạn mức trước gọi cổng và khi ghi nhận thành công; tôn trọng reservation capture hợp lệ để không bỏ lửng payment đã thu.
 
-| Level | Hạn mức/tháng | Khi Net vào ví | Development | Điều kiện lên cấp đề xuất |
+**Admin cấu hình hạn mức riêng seller:** mức theo level là mặc định; override có số tiền dương, actor, lý do, thời điểm lưu/hiệu lực từ hiện tại hoặc tương lai và lịch sử chỉ thêm. Có thể kết thúc override để về mức level; đổi level không tự xóa override còn hiệu lực. Hạ mức dưới doanh số đã đạt không sửa/hủy payment hoặc settlement cũ; chặn giao dịch mới, tính cả capture đang giữ hạn mức. Kiểm tra lại dưới khóa; chỉ admin được thay, không cập nhật bằng client/seller. Snapshot/lịch sử phải giải thích được mức có hiệu lực tại lần kiểm tra. Chi tiết triển khai chọn API/schema phù hợp, không coi là endpoint đã tồn tại.
+
+| Level | Hạn mức mặc định/tháng | Khi Net vào ví | Development | Điều kiện lên cấp |
 | --- | ---: | ---: | ---: | --- |
 | 1 – New | 5.000 USD | 21 ngày sau giao thành công | 30 giây sau Delivered | Mặc định. |
 | 2 – Verified | 10.000 USD | 7 ngày sau giao thành công | 15 giây sau Delivered | ≥20 đơn hoàn tất; feedback tốt ≥90%; giao đúng hạn ≥90%; hoạt động ≥30 ngày; không có nợ âm. |
@@ -142,11 +184,13 @@ Tỷ lệ hủy/trả/tranh chấp được hiển thị trong đánh giá và l
 
 ## 11. Nợ âm, cảnh báo nợ xấu và blacklist
 
-Refund/chargeback/chi phí vượt tiền còn giữ của seller tạo `Negative`. Khi `Negative > 0`, khóa payout nhưng seller vẫn được đăng bán/nhận order trong giai đoạn đầu. Khi order mới hoàn tất, Net của order được dùng bù `Negative` trước; phần dư mới vào `Available` theo điều kiện hold của order. Seller cũng có thể thanh toán nợ bằng **giao dịch giả lập riêng**, có receipt và idempotency key; không dùng thẻ hay ngân hàng thật.
+Refund/chi phí thực tế vượt nguồn tiền có thể dùng tạo `Negative`. Khi `Negative > 0`, khóa payout nhưng seller vẫn được bán/nhận đơn trước quá hạn. Net của **payment mới thành công** bù nợ trước khi phần dư vào Processing/Available; không chờ order giao xong hoặc cấn từ đơn chưa thu tiền. Tiền release/payout Returned cũng có thể bù nợ. Seller trả nợ bằng giao dịch giả lập riêng, có receipt/idempotency; không dùng thẻ/ngân hàng thật. Chargeback là mở rộng nếu sau này tích hợp.
 
-Nếu `Negative` liên tục trên 0 quá **7 ngày** (Development: **1 phút**), worker bật `IsWarningBadDebt` và đình chỉ **đăng bán/nhận order mới**. Order và return đã tồn tại vẫn tiếp tục được xử lý để tránh bỏ mặc buyer. Nếu seller trả hết nợ trước khi Admin khóa vĩnh viễn, hệ thống gỡ cảnh báo/đình chỉ và lưu lịch sử các lần cảnh báo. Thời điểm bắt đầu nợ liên tục được lưu riêng; trả hết rồi âm lại bắt đầu một kỳ mới.
+Nếu `Negative` liên tục trên 0 quá **7 ngày** (Development: **60 giây**, cảnh báo trước hạn 15 giây), worker ghi cảnh báo nợ/đình chỉ đăng bán và nhận đơn mới theo chu kỳ nợ hiện có. Order/return/dispute cũ vẫn xử lý. Trả hết trước khi **worker khóa bán vĩnh viễn** thì gỡ đình chỉ do nợ; hạn chế khác giữ riêng. Lưu thời điểm bắt đầu nợ liên tục; trả hết rồi âm lại bắt đầu kỳ mới. Không bắt buộc tạo trường `IsWarningBadDebt` trùng với các cờ/lịch sử hiện có.
 
 Admin xem dashboard seller bị cảnh báo, số nợ, tuổi nợ và ledger. Worker tự ghi **write-off** khi nợ liên tục ít nhất 30 ngày, đã quá hạn và không có khoản thu hồi trong 7 ngày gần nhất; Development dùng 300 giây và 60 giây. Chính sách chốt theo kỳ nợ, có cấu hình. Ngay trước quyết định, worker khóa và đọc lại số nợ; đã trả hết thì không xử lý. Quyết định giữ nguyên nợ/ledger, khóa bán vĩnh viễn và đưa định danh đã xác minh vào blacklist, lưu tiêu chí, actor hệ thống và thời điểm. Admin theo dõi kết quả, không cần bấm write-off thủ công. Trả hết sau quyết định chỉ cập nhật khoản thu hồi, không tự gỡ khóa bán vĩnh viễn. Đây là bước riêng sau đình chỉ do nợ quá hạn.
+
+Write-off là quy tắc rủi ro do nợ trong mô phỏng, không tự kết luận gian lận, không xóa nghĩa vụ hoặc lịch sử. Appeal/gỡ blacklist là mở rộng riêng, không ngầm thêm vào luồng bắt buộc.
 
 Đăng ký seller Development nhập tài khoản, shop và **CCCD/Passport** hoặc **tài khoản ngân hàng nhận payout** giả lập. Chuẩn hóa và xác minh định dạng, kiểm tra blacklist trước khi tạo tài khoản; hợp lệ thì tạo seller/shop/ví cấp 1, Active, số dư 0, không chờ admin duyệt. Trùng blacklist bị từ chối trước khi tạo tài khoản, không phải tạo tài khoản mới rồi ban. Màn hình có mẫu hợp lệ/không hợp lệ/trùng blacklist; không dùng dữ liệu thật. Không thu thập số thẻ thanh toán của buyer làm định danh seller. Chuẩn hóa dữ liệu rồi lưu giá trị đối chiếu bằng HMAC với khóa nằm ngoài database; giao diện chỉ hiển thị phần đã che. Seller tạo mới hoặc cập nhật định danh trùng blacklist bị từ chối bằng thông báo chung và HTTP 403; không tiết lộ định danh nào trùng. Admin không được sửa/xóa trực tiếp bản ghi blacklist, chỉ dùng quy trình quyết định có audit.
 
@@ -164,27 +208,38 @@ Các kịch bản tối thiểu để nghiệm thu:
 6. Level 3 tự nhận Net vào ví khi payment thành công, không cần payout. Level 1/2 chờ đúng thời gian tính từ Delivered; Development dùng 30/15 giây. Payout `Returned` trả tiền lại một lần. Mức phí admin theo thời điểm hiệu lực và fee snapshot của đơn cũ được giữ nguyên.
 7. Refund gây `Negative`, khóa payout, doanh thu mới bù nợ; quá 7 ngày bật cảnh báo, đình chỉ; trả hết nợ gỡ đình chỉ hoặc worker tự write-off và blacklist khi đủ tiêu chí.
 
-## 13. Khoảng cách với code hiện tại
+### 12.1. Bảng thời hạn làm căn cứ triển khai
 
-Code hiện có đăng nhập/phân quyền, checkout, coupon phần trăm cơ bản, thanh toán, tracking hai chiều, seller balance/level/payout và workflow tranh chấp có bằng chứng, thương lượng, deadline và chuyển admin. Đã bổ sung khối lượng/ship theo kg, địa chỉ lấy hàng, shipper tự nhận từng vận đơn và return tự refund sau hạn kể từ chiều trả giao tới seller; xem [RETURNS_AND_SHIPPING.md](RETURNS_AND_SHIPPING.md).
+| Nghiệp vụ và mốc bắt đầu | Mặc định mô phỏng | Development mục tiêu |
+| --- | --- | --- |
+| Chờ thanh toán từ tạo đơn | 15 phút | 15 phút; đối soát Verifying trước kết luận |
+| Buyer mở return từ Delivered chiều đi | 7 ngày | **300 giây** |
+| Seller kiểm tra từ Delivered chiều trả | 48 giờ | **45 giây** |
+| Buyer phản đối từ RejectedAt | 3 ngày | **45 giây**, cấu hình riêng |
+| Seller/buyer trả lời phương án dispute | Theo chính sách hồ sơ hiện có | 45 giây mỗi lượt |
+| Buyer mở INR từ ngày giao dự kiến | 30 ngày | **300 giây**, cửa sổ riêng |
+| Hold Level 1/2 từ Delivered chiều đi | 21/7 ngày | 30/15 giây |
+| Nợ quá hạn từ bắt đầu nợ liên tục | 7 ngày | 60 giây, cảnh báo trước 15 giây |
+| Write-off / không có thu hồi | 30 ngày / 7 ngày | 300 / 60 giây |
 
-Đã bổ sung promotion seller/Admin và nguồn tài trợ, giỏ lưu theo buyer/checkout hai seller, và đổi địa chỉ đơn một lần với mức seller chịu, hoàn ship giả lập, shipper xác nhận địa chỉ mới; xem [MULTI_SELLER_CART.md](MULTI_SELLER_CART.md) và [ORDER_ADDRESS_CHANGES.md](ORDER_ADDRESS_CHANGES.md).
+Deadline chốt theo hồ sơ; timer chỉ là lúc đủ điều kiện, không bảo đảm worker hoàn tất đúng giây đó. Cấu hình return window mới phải dùng chung trong báo giá, tạo request, điều kiện dispute liên quan, đóng order và UI. Không thay `Returns:ReceiptSeconds` thành 300 để giả lập cửa sổ mở return. Hồ sơ từ chối dùng deadline riêng; INR không bị ràng buộc Delivered + return window. Tên khóa cho các cấu hình chưa có được chọn khi triển khai và ghi lại ở hướng dẫn chạy.
 
-Đã chuẩn hóa phí mặc định 12% + 0,30 USD, cấu hình phí admin có thời điểm hiệu lực và lịch sử, hold Level 1/2 từ Delivered, và Instant Level 3 tự vào ví từ payment thành công. Settlement đã tồn tại trước migration giữ nguyên phí và lịch mở khóa cũ; chính sách mới áp dụng cho settlement tạo sau nâng cấp. Xem [SELLER_FINANCE.md](SELLER_FINANCE.md).
+## 13. Hiện trạng và tiêu chí triển khai
 
-Đã bổ sung chia phí trả hàng theo lý do, không hoàn ship chiều đi khi buyer đổi ý, báo giá và snapshot buyer xác nhận, ledger postage/subsidy/fee credit và giải phóng phần hold còn lại; xem [RETURN_PRICING.md](RETURN_PRICING.md). Yêu cầu đã tồn tại giữ chính sách trước nâng cấp.
+[IMPLEMENTATION_BACKLOG.md](IMPLEMENTATION_BACKLOG.md) là nơi theo dõi mã task, hiện trạng đã đối chiếu ngày 18/10, điểm code liên quan, phụ thuộc và tiêu chí nghiệm thu. Không dùng câu “đã bổ sung” của tài liệu module cũ để đánh dấu các thay đổi 18/10 là hoàn thành.
 
-Đã bổ sung phán quyết admin dựa trên trách nhiệm, chọn căn cứ, preview khoản hoàn toàn bộ/một phần và phí, lưu quyết định riêng, refund/retry và giải phóng hold còn lại; xem [ADMIN_DISPUTE_DECISIONS.md](ADMIN_DISPUTE_DECISIONS.md). Bên chịu phí được suy ra từ kết luận, không tùy chọn độc lập. Báo giá trả hàng ban đầu được giữ nguyên.
+Nền tảng có source: auth/phân quyền, cart/checkout hai seller và PayPal cả giỏ, promotion/funding, ship theo kg lẻ/tracking hai chiều, return/refund/dispute, policy phí/hold/finance, nợ/định danh/write-off tự động, xét cấp, feedback, email/log/SignalR. Điều này không xác nhận migration của database đang chạy; S2/N1 có ghi nhận QA riêng và database chính chưa nâng tại thời điểm tài liệu module được viết.
 
-Đã bổ sung kỳ nợ, trả nợ giả lập, đình chỉ/khôi phục do nợ, đăng ký seller/xác minh giả lập, write-off/blacklist tự động và báo cáo thu hồi; xem [SELLER_DEBT.md](SELLER_DEBT.md) và [SELLER_REGISTRATION_WRITE_OFF.md](SELLER_REGISTRATION_WRITE_OFF.md).
+Khoảng cách phải xử lý: B1/B2/S1/A1/A2; xác nhận địa chỉ trước áp dụng; ReattemptScheduled/actor; cửa sổ return demo; đóng return sau từ chối; INR; free returns theo item; admin override hạn mức; payout chung mọi cấp; bảo vệ/đối soát ledger. Free shipping đã có loại/cờ, cần tái sử dụng và kiểm tra tích hợp, không coi là thiếu hoàn toàn.
 
-Đã bổ sung buyer đánh giá seller theo đơn, cấp seller tự xét định kỳ với các tiêu chí mở rộng, lịch sử có snapshot, admin chỉ xem và màn mô phỏng Development; xem [SELLER_LEVELS.md](SELLER_LEVELS.md).
+Khi code: migration giữ dữ liệu và snapshot cũ, kiểm tra quyền phía server, tiền/deadline/đồng thời/retry/rollback và UI theo phạm vi. Ghi rõ test đã chạy, môi trường QA và migration đã/chưa áp dụng. Không tự đổi dữ liệu chính, seed lại baseline hoặc coi tài liệu là bằng chứng test đã pass.
 
-Phần trong tài liệu này **chưa được coi là đã triển khai đầy đủ**: admin chỉ định yêu cầu trả hàng mới. Khi phát triển, cần migration, API, giao diện và kiểm thử tương ứng; giữ dữ liệu SQL Server hiện có bằng migration thay vì chạy lại baseline.
+## 14. Phạm vi và căn cứ quyết định
 
-## 14. Các quy ước đề xuất để nhóm duyệt
+- Phạm vi chính: một seller/order, cart tối đa hai seller, một kiện mỗi chiều, return toàn bộ; USD, Sandbox/thẻ/ngân hàng giả lập, bốn vai trò. Giữ các quy tắc kết hợp promotion và xét cấp đang có trừ khi có quyết định mới.
+- Được bổ sung policy free returns theo mặt hàng để công bố/snapshot tại checkout; không mở rộng thành catalog/CRUD sản phẩm hoặc tồn kho đầy đủ của nhóm khác. Không thêm chat, COD hay quản trị người dùng toàn diện.
+- Tùy chọn, không tự đưa vào kế hoạch bắt buộc: webhook, kế toán kép đầy đủ, payout theo lịch/ngân hàng thật, chargeback, appeal blacklist, order nhiều seller hoặc tách nhiều kiện.
+- Các mặc định mô phỏng cụ thể hóa trong báo cáo 2.0 (deadline phản đối demo 45 giây, INR 30 ngày/5 phút, phân phí return hỗn hợp theo khối lượng) dùng làm đầu vào triển khai; không nhận là policy eBay hoặc hiện trạng code. Giá trị snapshot/lịch sử cũ được giữ và nâng cấp có chính sách tương thích.
+- Tài liệu này là bản nguồn Markdown được duy trì trong repo, không phụ thuộc file trong Downloads hay báo cáo nằm trong thư mục artifacts bị ignore. Quyết định mới được cập nhật vào đây và backlog trước khi đồng bộ hướng dẫn module.
 
-Những điểm sau được điền thành quy tắc cụ thể để tài liệu có thể dùng làm đầu vào triển khai, nhưng **chưa phải lựa chọn trực tiếp của người yêu cầu**: ngưỡng tuổi tài khoản và tỷ lệ hủy/trả/tranh chấp của từng level; cách chia phí ship chiều về theo nhóm lý do; hoàn chênh lệch khi đổi sang địa chỉ có phí ship thấp hơn; một order chỉ dùng một coupon; và việc buyer đổi ý không được hoàn phí ship chiều đi. Nhóm có thể sửa các quy tắc này trước khi bắt đầu migration hoặc code tương ứng.
-
-
-Đã bổ sung thanh toán PayPal cả giỏ một lần xác nhận với capture/refund riêng từng đơn, inbox trả hàng seller, mô phỏng lỗi tạo nhãn cả hai chiều, SignalR theo quyền và modal gọn; xem [COMMERCE_REFRESH.md](COMMERCE_REFRESH.md).
+Nguồn tham khảo đã đối chiếu trong phiên làm việc 18/10/2026: [đổi địa chỉ trên eBay](https://www.ebay.com/help/selling/shipping-items/changing-shipping-details-purchase?id=4028), [phí trả hàng](https://www.ebay.com/help/buying/returns-refunds/start-return/return-postage?id=4066), [Item Not Received](https://www.ebay.com/help/buying/resolving-buying-problems/item-not-received?id=4042), [PayPal webhooks](https://developer.paypal.com/api/webhooks/overview/), [payout eBay](https://www.ebay.com/help/selling/getting-paid/getting-paid-items-sold?id=4814). Đây là nguồn so sánh khái niệm, không thay thế chính sách mô phỏng đã chốt.

@@ -1,5 +1,7 @@
 # Trả hàng tự hoàn tiền, phí ship theo kg và shipper nhận vận đơn
 
+**Căn cứ mới 18/10/2026:** [đặc tả §6–8](BUSINESS_REQUIREMENTS.md) và [SH1/RT1/RT2/INR1/FR1](IMPLEMENTATION_BACKLOG.md). Phần dưới mô tả source và test trước nâng cấp. Mục tiêu: return 7 ngày/Development 300 giây từ chiều đi Delivered; receipt 48 giờ/45 giây từ chiều trả Delivered; phản đối từ chối/INR là deadline riêng. Thêm ReattemptScheduled và actor sự kiện, giữ chung state theo Direction; free returns theo policy item. Các bổ sung này chưa chạy được chỉ bằng thay cấu hình receipt.
+
 ## Chuẩn bị
 
 Áp dụng migration bổ sung `20261003151225_AddReturnWeightAndShipmentClaims` trên database hiện có:

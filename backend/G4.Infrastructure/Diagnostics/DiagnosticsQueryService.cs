@@ -22,7 +22,8 @@ public sealed class DiagnosticsQueryService(ApplicationDbContext db)
         x.SentAt,
         x.CapturedAt,
         x.LastErrorCode,
-        x.LastErrorSummary
+        x.LastErrorSummary,
+        x.PayoutId
     );
     private static readonly Expression<Func<IntegrationLog, IntegrationLogView>> LogView = x => new(
         x.Id,
@@ -47,6 +48,7 @@ public sealed class DiagnosticsQueryService(ApplicationDbContext db)
     {
         ValidatePage(options.Page, options.PageSize, options.OrderId);
         ValidateFilter(options.EventType, ["PaymentSucceeded", "Delivered", "DeliveryFailed", "Refunded",
+            "PaymentFailed", "OrderCancelled", "CancellationRequested", "ReturnRequested", "ReturnApproved", "ReturnRejected", "PayoutCompleted", "PayoutReturned",
             "DebtStarted", "DebtWarning", "DebtOverdue", "DebtCleared", "DebtRestored", "DebtRepaymentSucceeded", "DebtRepaymentFailed", "DebtWriteOff", "WriteOffRecovery"]);
         ValidateFilter(options.Status, ["Pending", "Processing", "Sent", "Captured", "Failed"]);
         var query = VisibleNotifications(actorId, role);
@@ -120,9 +122,9 @@ public sealed class DiagnosticsQueryService(ApplicationDbContext db)
             throw new UnauthorizedAccessException("Tài khoản không có quyền xem email.");
         var query = db.NotificationOutbox.AsNoTracking();
         if (role == "buyer")
-            return query.Where(x => db.OrderTables.Any(o => o.Id == x.OrderId && o.BuyerId == actorId));
+            return query.Where(x => x.RecipientUserId == actorId || x.RecipientUserId == null && db.OrderTables.Any(o => o.Id == x.OrderId && o.BuyerId == actorId));
         if (role == "seller")
-            return query.Where(x => x.SellerId == actorId || db.OrderTables.Any(o => o.Id == x.OrderId && o.SellerId == actorId));
+            return query.Where(x => x.RecipientUserId == actorId || x.RecipientUserId == null && (x.SellerId == actorId || db.OrderTables.Any(o => o.Id == x.OrderId && o.SellerId == actorId)));
         return query;
     }
 

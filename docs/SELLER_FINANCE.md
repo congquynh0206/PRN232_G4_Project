@@ -1,5 +1,7 @@
 # Nghiệp vụ tài chính người bán
 
+**Căn cứ mới 18/10/2026:** [đặc tả §9–10](BUSINESS_REQUIREMENTS.md) và [LIM1/PAY1/LED1](IMPLEMENTATION_BACKLOG.md). Phí 12% + 0,30 USD, kg lẻ, hold từ Delivered và Instant vào ví giữ nguyên. Cần thêm hạn mức riêng do admin đặt, payout đủ bước cho mọi level và bảo vệ/đối soát ledger. Source hiện còn Level 3 tạo payout Completed tức thời; mô tả tiến trình chung bên dưới là mục tiêu, không chứng minh shortcut đã bỏ. Không nhận ledger hiện có là kế toán kép đầy đủ.
+
 Gói tài chính mô phỏng cách marketplace thu tiền buyer, trừ phí, giữ tiền trước khi cho seller rút và xử lý trường hợp seller không còn đủ tiền để hoàn lại. Tất cả số tiền đều là dữ liệu thử nghiệm; PayPal Sandbox cũng không chuyển tiền thật.
 
 ## Luồng tiền

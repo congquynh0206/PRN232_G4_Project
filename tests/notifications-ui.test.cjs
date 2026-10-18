@@ -16,6 +16,16 @@ function load() {
   vm.runInNewContext(fs.readFileSync('frontend/wwwroot/js/notifications.js', 'utf8'), ctx);
   return ctx.window.G4.Notifications;
 }
+test('payout email identifies the payout and offers finance link only to seller, never a fabricated order or debt', () => {
+  const ui = load();
+  const mail = { id: 10, payoutId: 42, eventType: 'PayoutReturned', subject: 'Khoản rút bị trả lại <script>', status: 'Captured' };
+  const card = ui.cardHtml(mail, 'seller');
+  assert.match(card, /Lần rút tiền #42/); assert.doesNotMatch(card, /Khoản nợ người bán|Đơn #/); assert.match(card, /&lt;script&gt;/);
+  const detail = { summary: mail, body: 'Đã trả lại tiền <img>', attempts: [] };
+  assert.match(ui.detailHtml(detail, 'seller'), /href="\/Seller\?tab=finance"/);
+  assert.doesNotMatch(ui.detailHtml(detail, 'buyer'), /href="\/Seller|data-open-order/);
+  assert.doesNotMatch(ui.detailHtml(detail, 'admin'), /href="\/Seller/);
+});
 test('email dùng nội dung lưu thực tế, escape và ghi rõ Capture chưa gửi', () => {
   const ui = load();
   const html = ui.cardHtml(

@@ -1,5 +1,7 @@
 # PayPal cả giỏ, trả hàng seller, SignalR và modal
 
+**Căn cứ mới 18/10/2026:** [đặc tả mục tiêu](BUSINESS_REQUIREMENTS.md) và [backlog](IMPLEMENTATION_BACKLOG.md) ưu tiên hơn các ghi nhận phiên bản bên dưới. Giữ PayPal capture + reconcile và reservation hợp lệ, không thêm webhook như yêu cầu bắt buộc. Các workflow mới (địa chỉ đủ xác nhận, return/INR, free returns, hạn mức seller, payout chung) phải nối notification/realtime đúng quyền; cập nhật đồng bộ UI, trạng thái và test sau code.
+
 ## Thay đổi sử dụng
 
 - Buyer chọn PayPal ở checkout: các order chưa trả của cùng CheckoutBatch được đưa vào **một lượt xác nhận**. Một purchase unit cho mỗi order, reference `order-{id}`; mỗi đơn lưu capture riêng. Refund tiếp tục dùng capture của chính đơn cần hoàn.

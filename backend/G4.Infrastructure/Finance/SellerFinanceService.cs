@@ -712,6 +712,7 @@ public sealed partial class SellerFinanceService(ApplicationDbContext db, IConfi
             "Payout requested",
             payoutId: payout.Id
         );
+        await new G4.Infrastructure.Notifications.BusinessNotificationService(db, configuration, clock).PayoutAsync(payout, sellerId, ct);
         await db.SaveChangesAsync(ct);
         if (tx != null) await tx.CommitAsync(ct);
         return payout;
@@ -769,6 +770,7 @@ public sealed partial class SellerFinanceService(ApplicationDbContext db, IConfi
                 payout.CompletedAt = Now;
             }
             await SyncDebtAsync(account, ct);
+            await new G4.Infrastructure.Notifications.BusinessNotificationService(db, configuration, clock).PayoutAsync(payout, account.SellerId, ct);
             await db.SaveChangesAsync(ct);
             if (tx != null) await tx.CommitAsync(ct);
         }

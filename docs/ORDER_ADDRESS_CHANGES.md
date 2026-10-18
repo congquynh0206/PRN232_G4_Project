@@ -1,5 +1,7 @@
 # Đổi địa chỉ cho đơn đã đặt
 
+**Căn cứ mới 18/10/2026:** đọc [đặc tả §6](BUSINESS_REQUIREMENTS.md#6-giao-hàng-và-đổi-địa-chỉ) và [task AD1](IMPLEMENTATION_BACKLOG.md#3-ad1--xác-nhận-địa-chỉ-trước-khi-áp-dụng). Nội dung bên dưới mô tả triển khai trước nâng cấp: seller duyệt đã đổi snapshot rồi shipper ack. Hành vi mục tiêu mới là đủ xác nhận trước áp dụng, không chờ shipper nếu chưa gán, có timeout, và không hoàn chi phí ship buyer chưa trả. Chưa nhận task mới là đã làm chỉ từ hướng dẫn/QA cũ này.
+
 Buyer mở chi tiết một đơn đã thanh toán và chọn **Yêu cầu đổi địa chỉ**. Nhập tên, đường, thành phố, tỉnh/quốc gia mới và lý do. Đơn được đổi thành công tối đa một lần, khi đang Paid/Preparing/Shipping và trước lần OutForDelivery đầu tiên. Không nhận yêu cầu khi đang có trả hàng/tranh chấp. Đơn chưa thanh toán có thể hủy và checkout lại với địa chỉ mới.
 
 Yêu cầu lưu riêng trong `AddressChangeRequest`, có địa chỉ cũ/mới, phí theo tuyến, mức seller chịu, thời điểm và quyết định. Không sửa hồ sơ địa chỉ mặc định của buyer. Request key chống gửi trùng; mỗi đơn chỉ có một yêu cầu Pending. Yêu cầu bị từ chối không dùng lượt đổi thành công.

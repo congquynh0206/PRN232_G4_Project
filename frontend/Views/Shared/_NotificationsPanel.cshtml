@@ -6,7 +6,7 @@
         <div>
             <span class="eyebrow">Thông báo</span>
             <h1>Email thông báo</h1>
-            <p>Xem nội dung và kết quả xử lý email liên quan đến đơn hàng và khoản nợ người bán.</p>
+            <p>Xem nội dung và kết quả xử lý email về thanh toán, đơn hàng, trả hàng và tài chính.</p>
         </div>
         <button type="button" id="refresh-notifications">Làm mới</button>
     </div>
@@ -20,11 +20,19 @@
         <label>Loại thông báo<select name="eventType">
                 <option value="">Tất cả</option>
                 <option value="PaymentSucceeded">Thanh toán thành công</option>
+                <option value="PaymentFailed">Thanh toán chưa thành công</option>
+                <option value="OrderCancelled">Đã hủy đơn chưa thanh toán</option>
+                <option value="CancellationRequested">Yêu cầu hủy đơn</option>
+                <option value="ReturnRequested">Yêu cầu trả hàng</option>
+                <option value="ReturnApproved">Đã duyệt trả hàng</option>
+                <option value="ReturnRejected">Đã từ chối trả hàng</option>
                 <option value="Delivered">Giao thành công</option>
                 <option value="DeliveryFailed">Giao chưa thành công</option>
                 <option value="Refunded">Hoàn tiền thành công</option>
                 @if (User.IsInRole("seller") || User.IsInRole("admin"))
                 {
+                    <option value="PayoutCompleted">Rút tiền hoàn tất</option>
+                    <option value="PayoutReturned">Ngân hàng trả lại khoản rút</option>
                     <option value="DebtStarted">Phát sinh nợ</option>
                     <option value="DebtWarning">Nợ sắp đến hạn</option>
                     <option value="DebtOverdue">Đình chỉ do nợ quá hạn</option>

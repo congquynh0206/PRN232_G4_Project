@@ -177,7 +177,10 @@ public sealed class PayPalCartPaymentService(ApplicationDbContext db, IPayPalBat
                         await new CheckoutService(db, config: config).QueueEmailAsync(order, "PaymentSucceeded", "Thanh toán thành công", $"Đơn hàng #{order.Id} đã thanh toán trong giỏ PayPal.", ct);
                     }
                     await db.SaveChangesAsync(ct); await finance.RecordSuccessfulPaymentAsync(order.Id, p.Id, ct);
-                } else if (unit?.Status is "DECLINED" or "FAILED" or "DENIED" || result.Status is "VOIDED" or "DECLINED") p.Status = "Failed";
+                } else if (unit?.Status is "DECLINED" or "FAILED" or "DENIED" || result.Status is "VOIDED" or "DECLINED") {
+                    p.Status = "Failed";
+                    await new G4.Infrastructure.Notifications.BusinessNotificationService(db, config).PaymentFailedAsync(order, p, ct);
+                }
                 else p.Status = batch.Status == "Pending" && result.Status is "CREATED" or "APPROVED" or "PAYER_ACTION_REQUIRED" ? "Pending" : "Verifying";
             }
             batch.Status = payments.All(p => p.Status == "Succeeded") ? "Succeeded"

@@ -1,5 +1,7 @@
 # Cấp seller tự động và đánh giá đơn mua
 
+**Căn cứ mới 18/10/2026:** [đặc tả §10](BUSINESS_REQUIREMENTS.md#10-seller-level-và-hạn-mức) và [LIM1](IMPLEMENTATION_BACKLOG.md#9-lim1--admin-hạn-mức-riêng-seller). Giữ tự xét cấp và các ngưỡng hiện có; bổ sung admin override hạn mức riêng seller có lịch sử/hiệu lực. Quyền mới không cho nhập level tùy ý, không reset hold/fee settlement cũ và không tự xóa override khi đổi cấp. UI cấu hình override chưa có chỉ từ tài liệu này.
+
 Seller và admin có tab **Cấp seller**. Hệ thống tự xét theo dữ liệu đơn; seller có thể yêu cầu xét lại, admin chỉ xem tiêu chí, kết quả và lịch sử. Worker kiểm tra mỗi 5 giây và chỉ xét seller đến hạn: mặc định mỗi **3.600 giây**, Development mỗi **15 giây**, tối đa 50 seller mỗi lượt. Seller mới sạch giữ cấp 1, Active và không bị khóa chỉ vì chưa có dữ liệu.
 
 ## Buyer đánh giá seller

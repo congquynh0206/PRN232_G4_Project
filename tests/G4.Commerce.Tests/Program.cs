@@ -3,6 +3,9 @@ using G4.Contracts.Checkout;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
+if (args.Contains("--business-notifications")) { await BusinessNotificationChecks.RunAsync(); return; }
+if (args.Contains("--business-notifications-sql")) { await BusinessNotificationSqlChecks.RunAsync(); return; }
+
 if (args.Contains("--product-feedback")) { await ProductFeedbackChecks.RunAsync(); return; }
 if (args.Contains("--product-feedback-sql")) { await ProductFeedbackSqlChecks.RunAsync(); return; }
 
@@ -108,6 +111,7 @@ await SellerDebtChecks.RunAsync();
 await SellerRegistrationChecks.RunAsync();
 await SellerLevelChecks.RunAsync();
 await ProductFeedbackChecks.RunAsync();
+await BusinessNotificationChecks.RunAsync();
 await PayPalCartChecks.RunAsync();
 NotificationProcessingChecks.CheckRetryRules();
 await NotificationTemplateChecks.RunAsync();

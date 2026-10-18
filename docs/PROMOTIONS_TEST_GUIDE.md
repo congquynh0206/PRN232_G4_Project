@@ -1,5 +1,7 @@
 # Test quản lý khuyến mãi
 
+**Căn cứ mới 18/10/2026:** [đặc tả §4](BUSINESS_REQUIREMENTS.md#4-promotions) và [FS1/FR1](IMPLEMENTATION_BACKLOG.md). Free shipping dùng loại Shipping/FreeShipping hiện có, không tạo engine song song. Phải phân biệt phí carrier, ship buyer trả và nguồn tài trợ; free returns theo item là policy riêng, không bật theo promotion miễn ship. Kiểm tra đổi địa chỉ/return không hoàn khoản ship chưa thu và không ghi chi phí/subsidy hai lần. Các test dưới đây là ghi nhận phiên bản cũ cho tới khi có cập nhật nghiệm thu mới.
+
 Đã triển khai đủ 5 loại cho seller, coupon do nền tảng tài trợ cho admin và áp dụng tại checkout buyer. Tất cả số tiền là USD.
 
 ## Database và triển khai
