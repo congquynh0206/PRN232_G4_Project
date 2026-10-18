@@ -35,7 +35,7 @@ public sealed class CheckoutService(
 
     public async Task<PriceQuote> QuoteAsync(int buyerId, CheckoutRequest request, CancellationToken ct = default)
     {
-        var(quote, _, _, _) = await ValidateAndQuoteAsync(buyerId, request, ct);
+        var (quote, _, _, _) = await ValidateAndQuoteAsync(buyerId, request, ct);
         return quote;
     }
 
@@ -74,7 +74,7 @@ public sealed class CheckoutService(
                 return existing;
             }
 
-            var(quote, address, products, coupon) = await ValidateAndQuoteAsync(buyerId, request, ct, true);
+            var (quote, address, products, coupon) = await ValidateAndQuoteAsync(buyerId, request, ct, true);
             // Keep the finance gate until the new order commits so a debt update cannot race checkout.
             await (finance ?? new G4.Infrastructure.Finance.SellerFinanceService(db, config ?? new ConfigurationBuilder().Build()))
                 .ValidateNewSaleAsync(products[0].SellerId!.Value, ct);
@@ -349,7 +349,7 @@ public sealed class CheckoutService(
     {
         if (request.Items.Count is < 1 or > 5 || request.Items.Any(i => i.Quantity <= 0) || request.Items.Select(i => i.ProductId).Distinct().Count() != request.Items.Count)
             throw new ArgumentException("Cart must contain 1-5 distinct products with positive quantities");
-        var address = await db.Addresses.SingleOrDefaultAsync(a => a.Id == request.AddressId && a.UserId == buyerId, ct) ?? throw new ArgumentException("Buyer address not found");
+        var address = await db.Addresses.SingleOrDefaultAsync(a => a.Id == request.AddressId && a.UserId == buyerId, ct) ?? throw new ArgumentException("Chưa có địa chỉ giao hàng hợp lệ. Hãy thêm hoặc chọn địa chỉ trước khi thanh toán.");
         var ids = request.Items.Select(i => i.ProductId).ToArray();
         var products = await db.Products.Where(p => ids.Contains(p.Id) && p.Price != null && p.IsAuction != true).ToArrayAsync(ct);
         if (products.Length != ids.Length || products.Select(p => p.SellerId).Distinct().Count() != 1)

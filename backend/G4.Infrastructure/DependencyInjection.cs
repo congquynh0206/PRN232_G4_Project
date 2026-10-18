@@ -29,6 +29,7 @@ public static class DependencyInjection
         services.AddHostedService(sp => sp.GetRequiredService<BufferedIntegrationLogWriter>());
         services.AddScoped<ICheckoutService, CheckoutService>();
         services.AddScoped<IBuyerCartService, BuyerCartService>();
+        services.AddScoped<IBuyerAddressService, BuyerAddressService>();
         services.AddScoped<IAddressChangeService, AddressChangeService>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddSingleton<SellerIdentityHasher>();
