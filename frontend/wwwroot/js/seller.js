@@ -417,4 +417,8 @@
   G4.Promotions.init('seller');
   G4.Notifications.init('seller');
   G4.IntegrationLogs.init('seller');
+  const notificationLink = new URLSearchParams(location.search);
+  if (notificationLink.get('tab') === 'finance') tab('finance');
+  const linkedOrder = Number(notificationLink.get('orderId'));
+  if (Number.isInteger(linkedOrder) && linkedOrder > 0) { tab('orders'); safe(() => showOrder(linkedOrder)); }
 })();

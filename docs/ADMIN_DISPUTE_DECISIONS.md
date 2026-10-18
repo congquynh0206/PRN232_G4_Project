@@ -1,5 +1,7 @@
 # Phán quyết admin theo trách nhiệm và khoản hoàn
 
+**Căn cứ mới 18/10/2026:** [đặc tả §8](BUSINESS_REQUIREMENTS.md#8-tranh-chấp), [task A2](IMPLEMENTATION_BACKLOG.md#11-a2--admin-yêu-cầu-trả-trước-kết-luận) và FR1. Ba phán quyết cuối bên dưới đã có; câu “không tạo vận đơn mới” chỉ nói phiên bản hiện tại. A2 phải bổ sung nhánh yêu cầu trả trước kết luận, dùng lại/tạo return hợp lệ, giữ hold và chặn auto-refund thường. Nhánh này chưa phải phán quyết cuối; giá phải tôn trọng policy free returns snapshot mới khi triển khai.
+
 Admin chỉ quyết định hồ sơ `Escalated` đã chuyển lên, đang mở và chưa có phán quyết. Không tùy chọn ai chịu phí một cách độc lập: admin kết luận trách nhiệm Seller/Buyer từ hồ sơ, chọn căn cứ trong lịch sử và bắt buộc ghi nhận định. Hệ thống tự tính phần phí và khoản hoàn tương ứng.
 
 ## Giao diện và kết quả

@@ -112,7 +112,7 @@ public partial class ApplicationDbContext
             entity.Property(x => x.EventType).HasMaxLength(50);
             entity.Property(x => x.Recipient).HasMaxLength(100);
             entity.Property(x => x.Status).HasMaxLength(20);
-            entity.HasIndex(x => new { x.OrderId, x.EventType }).IsUnique();
+            entity.HasIndex(x => new { x.OrderId, x.EventType }).IsUnique().HasFilter("[EventKey] IS NULL AND [OrderId] IS NOT NULL");
         });
         modelBuilder.Entity<SellerAccount>(entity =>
         {

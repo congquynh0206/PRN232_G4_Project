@@ -1,5 +1,9 @@
 # Chạy dự án checkout & giao hàng (nhóm 4)
 
+**Đọc trước khi phát triển (18/10/2026):** [mục lục tài liệu](README.md), [đặc tả mục tiêu phiên bản 2.0](BUSINESS_REQUIREMENTS.md) và [backlog triển khai](IMPLEMENTATION_BACKLOG.md). Trang này mô tả cách chạy và cấu hình/source hiện có; ghi nhận migration/test bên dưới là theo từng đợt, không chứng minh các thay đổi mới đã triển khai.
+
+**Khoảng cách cấu hình/workflow cần nhớ:** mục tiêu return Development là 300 giây từ outbound Delivered, nhưng source hiện còn kiểm tra hardcode 7 ngày; `Returns:ReceiptSeconds = 45` là thời gian kiểm tra hàng trả về, không đổi khóa đó thành 300. Chưa có nhánh đầy đủ cho deadline từ chối return/INR, ReattemptScheduled, free returns theo item, hạn mức riêng admin hoặc địa chỉ chờ đủ xác nhận. Payout Level 3 còn shortcut Completed cần bỏ theo PAY1. Chỉ hướng dẫn dùng giá trị/API mới như chức năng chạy được sau khi task tương ứng hoàn thành và cập nhật tài liệu này.
+
 Dự án chạy hai ứng dụng .NET 8: API ở `http://localhost:5251` và giao diện ở `http://localhost:5131`. Ứng dụng đọc user, sản phẩm, tồn kho, địa chỉ và coupon từ SQL Server; frontend không tự tạo dữ liệu khi mở trang. Người dùng đăng nhập bằng tài khoản Development và được chuyển tới trang buyer, seller, shipper hoặc admin tương ứng.
 
 Xem cách chia các project tại [BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md), đăng nhập/phân quyền tại [AUTHORIZATION_AND_ROLE_PAGES.md](AUTHORIZATION_AND_ROLE_PAGES.md), tài chính tại [SELLER_FINANCE.md](SELLER_FINANCE.md), và thương lượng tranh chấp tại [DISPUTES.md](DISPUTES.md).
@@ -108,3 +112,7 @@ PayPal checkout hiện thanh toán cả giỏ bằng một lần xác nhận, l�
 ## Feedback sản phẩm
 
 Seller có tab **Đánh giá sản phẩm** để tổng hợp, lọc và trả lời đánh giá theo từng sản phẩm. Buyer mở **Đánh giá sản phẩm & phản hồi** trong chi tiết đơn đã trả tiền; được gửi sau Delivered/Closed và xem phản hồi từ shop. Chức năng dùng Review riêng, không thay đổi seller level. Cần migration **20261017042643_AddProductFeedbackReplies**; xem [PRODUCT_FEEDBACK.md](PRODUCT_FEEDBACK.md). Đợt này chỉ nâng database QA riêng, chưa nâng database chính.
+
+## Bổ sung thông báo N1
+
+Email thông báo có thêm thanh toán thất bại, hủy ngay/yêu cầu hủy, yêu cầu/duyệt/từ chối trả hàng và kết quả payout. Email mới chỉ hiển thị cho đúng tài khoản nhận hoặc admin; outbox và retry tiếp tục dùng cơ chế hiện có. Cần migration **20261017050657_CompleteBusinessNotifications**. Xem [NOTIFICATION_COMPLETION.md](NOTIFICATION_COMPLETION.md) để demo, chạy test và xem phạm vi A2 còn riêng. Migration mới chỉ được áp dụng lên database QA riêng trong đợt này.

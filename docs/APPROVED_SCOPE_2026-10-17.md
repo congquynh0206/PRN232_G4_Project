@@ -1,5 +1,9 @@
 # Phạm vi bổ sung đã chốt ngày 17/10/2026
 
+**Bổ sung hiệu lực ngày 18/10/2026:** đây là bản ghi phạm vi gốc B1/B2/S1/S2/A1/A2/N1, không phải phạm vi mới nhất đầy đủ. Đọc [BUSINESS_REQUIREMENTS.md](BUSINESS_REQUIREMENTS.md) phiên bản 2.0 và [IMPLEMENTATION_BACKLOG.md](IMPLEMENTATION_BACKLOG.md) trước khi code. Đặc tả 18/10 thay thế các câu “giữ nguyên workflow/thời hạn” ở đây khi có khác biệt; các yêu cầu chi tiết không xung đột tiếp tục áp dụng.
+
+Ngày 18/10 đã chốt thêm/điều chỉnh: địa chỉ chỉ áp dụng sau đủ xác nhận, return demo 5 phút và deadline riêng, ReattemptScheduled/actor shipping, INR, đóng return sau từ chối, free returns theo item, admin hạn mức riêng seller, payout chung mọi level và củng cố ledger. Free shipping dùng promotion hiện có; webhook/kế toán kép đầy đủ vẫn tùy chọn. Đây là yêu cầu mục tiêu, không phải xác nhận đã code.
+
 Tài liệu ghi lại quyết định trực tiếp của người dùng cho đợt bổ sung chức năng của nhóm 4, phụ trách thanh toán và giao hàng. Đây là danh sách cần làm, không phải xác nhận đã triển khai. Các quyết định dưới đây thay thế đề xuất trước đó nếu khác nhau về phạm vi đợt này.
 
 ## 1. Buyer
@@ -78,6 +82,8 @@ Tài liệu ghi lại quyết định trực tiếp của người dùng cho đ�
 
 ### N1. Bổ sung thông báo cho các sự kiện còn thiếu
 
+**Trạng thái:** Đã triển khai và kiểm thử trên các luồng hiện có, database QA riêng; database chính chưa áp dụng migration. Xem [NOTIFICATION_COMPLETION.md](NOTIFICATION_COMPLETION.md). Thông báo của nhánh admin yêu cầu trả hàng mới được nối khi triển khai A2.
+
 - Giữ các email/thông báo hiện có cho thanh toán thành công, giao hàng, refund, tranh chấp, đổi địa chỉ và nợ.
 - Bổ sung thông báo/email thanh toán thất bại cần buyer hành động; phân biệt kết quả thất bại đã xác định với giao dịch đang xác minh, không báo thất bại khi chưa biết kết quả.
 - Bổ sung thông báo/email khi buyer yêu cầu hủy đơn; gửi tới seller cần xử lý và xác nhận kết quả tiếp nhận cho buyer phù hợp với trường hợp hủy ngay hoặc chờ duyệt hiện có.
@@ -101,6 +107,6 @@ Yêu cầu chi tiết bốn task ưu tiên B2, B1, A1 và S1: xem [FOUR_TASK_REQ
 | A2 | Admin yêu cầu trả hàng mới, tạo vận đơn trả, chờ hàng về và tiếp tục phán quyết. |
 | N1 | Bổ sung thông báo/email thanh toán thất bại, yêu cầu hủy, yêu cầu/duyệt/từ chối trả hàng và kết quả payout. |
 
-Các đề xuất khác như COD, catalog đầy đủ, quản trị người dùng, mở rộng email ngoài N1 hoặc thay đổi thời hạn demo không tự động được duyệt qua tài liệu này. Những chức năng đã tồn tại ngoài bảy mục bổ sung tiếp tục giữ theo nghiệp vụ hiện tại; các khoảng cách cũ trong tài liệu khác không mặc nhiên trở thành công việc của đợt này.
+Các đề xuất ngoài phạm vi như COD, catalog đầy đủ, quản trị người dùng hoặc chat không được tự thêm. Thời hạn demo và mở rộng workflow đã được quyết định ngày 18/10 áp dụng theo BUSINESS_REQUIREMENTS, không còn bị loại bởi bản phạm vi ngày 17/10. Thông báo cho các workflow mới được nối qua N1 hiện có, đúng người nhận/chống trùng. Khoảng cách cũ không được tự đưa vào đợt code nếu không thuộc đặc tả hiện hành hoặc task được giao.
 
 Khi triển khai bảy mục trên, bổ sung migration nếu cần và giữ dữ liệu hiện có; kiểm thử các phép tính tiền, quyền sở hữu, bộ lọc báo cáo, trả lời đúng đánh giá, việc thay đổi địa chỉ không sửa đơn cũ, luồng trả hàng do admin yêu cầu và phát/gửi lại thông báo không trùng.

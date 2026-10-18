@@ -30,7 +30,8 @@ public partial class ApplicationDbContext
                 SellerLevelEvaluation x => new CommerceChange { Topic = "levels", SellerId = x.SellerId },
                 SellerOrderFeedback x => new CommerceChange { Topic = "levels", SellerId = x.SellerId, BuyerId = x.BuyerId },
                 Review x => new CommerceChange { Topic = "product-feedback", OrderId = x.OrderId, BuyerId = x.ReviewerId, SellerId = x.Product?.SellerId },
-                NotificationOutbox x => new CommerceChange { Topic = "notifications", OrderId = x.OrderId, SellerId = x.SellerId },
+                NotificationOutbox x => new CommerceChange { Topic = "notifications", BuyerId = x.RecipientUserId,
+                    OrderId = x.RecipientUserId == null ? x.OrderId : null, SellerId = x.RecipientUserId == null ? x.SellerId : null },
                 AddressChangeRequest x => new CommerceChange { Topic = "orders", OrderId = x.OrderId },
                 _ => null };
             if (signal != null) { signal.CreatedAt = DateTime.UtcNow; signals.Add(signal); }
