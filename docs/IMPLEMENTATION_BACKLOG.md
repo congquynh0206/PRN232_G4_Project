@@ -12,7 +12,7 @@
 | B2 | Lịch sử payment/refund buyer | Cần triển khai màn tổng hợp; đã có dữ liệu trong từng đơn | §5; bốn task ưu tiên §1 |
 | S1 | Báo cáo tài chính theo thời gian | Cần triển khai; đã có số dư/ledger/payout phân trang | §2, §9; bốn task ưu tiên §4 |
 | S2 | Feedback sản phẩm và trả lời | Có source, cần xác minh triển khai; giữ tách seller feedback | §2; PRODUCT_FEEDBACK.md |
-| A1 | Admin tra cứu order/payment/refund | Cần triển khai; hiện đọc order trong phạm vi dispute escalated | §2; bốn task ưu tiên §3 |
+| A1 | Admin tra cứu order/payment/refund | Đã có source tra cứu chỉ đọc; chờ build và QA nghiệm thu | §2; bốn task ưu tiên §3; [ADMIN_ORDER_LOOKUP.md](ADMIN_ORDER_LOOKUP.md) |
 | A2 | Admin yêu cầu trả trước phán quyết | Cần triển khai; không nhầm với ReturnRefund qua thương lượng | §8 |
 | N1 | Email nghiệp vụ đã bổ sung | Có source, cần xác minh triển khai; nối sự kiện mới theo từng task | §12 |
 | AD1 | Đổi địa chỉ áp dụng sau đủ xác nhận | Cần điều chỉnh; code seller duyệt đã sửa snapshot rồi mới ack | §6 |
@@ -40,6 +40,10 @@ Chi tiết UI, filter, ngày tính tổng, phân trang và quyền tiếp tục 
 - **S2/N1:** giữ review theo product khác SellerOrderFeedback, trả lời đúng quyền; giữ outbox transaction/key/người nhận/retry. Xem PRODUCT_FEEDBACK và NOTIFICATION_COMPLETION để xác minh migration/QA thực tế, không tự coi database chính đã nâng.
 
 Nghiệm thu: success/failure/verifying/refund pending; tổng đúng toàn bộ phạm vi, page/filter ổn định; truy cập chéo bị chặn; CRUD địa chỉ không sửa đơn cũ; báo cáo khớp settlement và ledger.
+
+**A1 cập nhật 19/10/2026:** đã thêm API admin chỉ đọc, tìm kiếm đa mã giao dịch, lọc nhanh/trạng thái, phân trang theo đơn và chi tiết payment/refund/tracking. Solution build thành công; chưa chạy QA/test nghiệp vụ; xem [ADMIN_ORDER_LOOKUP.md](ADMIN_ORDER_LOOKUP.md). Không phát sinh migration.
+
+**A1 sửa tìm mã/UTC và UX 19/10/2026:** hoàn thành hai lỗi được giao: mã đơn tách khỏi ID payment/refund, provider exact-match; timestamp DTO có UTC/Z và UI giữ offset. Đã thiết kế lại tìm kiếm có loại mã, lọc nâng cao thu gọn, nhãn điều kiện, danh sách responsive và chi tiết chia tab. Build output riêng và backend mặc định pass, test A1 InMemory/SQL translation pass, 113/113 test UI pass; QA trình duyệt bằng fixture desktop/mobile pass. Chưa E2E trên SQL Server thật cho đợt này, không áp migration; không tuyên bố hoàn tất toàn bộ nghiệm thu A1. Xem [ADMIN_ORDER_LOOKUP.md](ADMIN_ORDER_LOOKUP.md).
 
 ## 3. AD1 — Xác nhận địa chỉ trước khi áp dụng
 

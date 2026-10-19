@@ -23,6 +23,7 @@ public static class DependencyInjection
         );
         services.AddScoped<IEmailSender, SmtpEmailSender>();
         services.AddScoped<NotificationProcessor>();
+        services.AddScoped<IAdminOrderLookupService, AdminOrderLookupService>();
         services.AddScoped<IntegrationLogWriter>();
         services.AddSingleton<BufferedIntegrationLogWriter>();
         services.AddSingleton<IIntegrationLogWriter>(sp => sp.GetRequiredService<BufferedIntegrationLogWriter>());

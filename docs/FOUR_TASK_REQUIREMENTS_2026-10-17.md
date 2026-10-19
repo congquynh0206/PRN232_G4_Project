@@ -80,12 +80,13 @@ Thêm tab Tra cứu đơn & giao dịch trên trang Admin. Mở tab có ngay dan
 
 ### Danh sách và tìm kiếm
 
-- Một ô tìm mã đơn, mã provider order/capture hoặc mã refund; chấp nhận dạng #125 cho mã đơn. Với mã giao dịch, tìm theo mã đầy đủ để cho kết quả xác định.
+- Một ô tìm mã kèm loại mã rõ ràng. Auto nhận số, #125 hoặc order:125 là mã đơn; payment:125/refund:125 hoặc lựa chọn loại tương ứng tìm ID giao dịch nội bộ. #125 chỉ tìm đơn 125, không khớp ID payment/refund của đơn khác. Mã provider order/capture/refund và tham chiếu tích hợp so khớp đầy đủ, không tìm chuỗi con; mã provider toàn chữ số chọn loại Provider.
 - Bộ lọc buyer/seller bằng tên/email/ID, từ ngày đến ngày, trạng thái đơn, trạng thái thanh toán hiện tại, trạng thái refund; ngày trên danh sách đơn là ngày tạo đơn và phải ghi rõ.
 - Có các nút lọc nhanh Chờ thanh toán, Có thanh toán lỗi, Có refund, Có tranh chấp. Có nút Tất cả/Xóa bộ lọc để quay về danh sách gần nhất.
 - Có thanh toán lỗi nghĩa là có ít nhất một lần thất bại, kể cả đơn đã thanh toán thành công sau đó. Có refund gồm cả đang chờ, thất bại và thành công; phân biệt bằng trạng thái/badge.
 - Bảng gồm mã đơn, thời gian tạo, buyer, seller, tổng tiền, tình trạng thanh toán, đã hoàn thành công, tình trạng giao hàng và nút Xem. Đơn có lỗi cũ và đã trả thành công phải thể hiện cả hai ý, tránh khiến người xem hiểu chưa thanh toán.
 - Mọi đơn có thể có nhiều payment/refund nhưng chỉ một dòng trong danh sách đơn. Các bộ lọc kết hợp nhất quán; đổi bộ lọc quay về trang 1, làm mới giữ bộ lọc.
+- API tra cứu trả timestamp UTC rõ hậu tố Z; UI hiển thị theo múi giờ người dùng, giữ offset nếu payload đã có. Dữ liệu SQL cũ thiếu Kind chỉ được gắn UTC trong DTO, không đổi thời điểm đã lưu.
 
 ### Chi tiết và phân quyền
 

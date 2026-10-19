@@ -3,6 +3,8 @@ using G4.Contracts.Checkout;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
+if (args.Contains("--admin-order-lookup")) { await AdminOrderLookupChecks.RunAsync(); return; }
+
 if (args.Contains("--business-notifications")) { await BusinessNotificationChecks.RunAsync(); return; }
 if (args.Contains("--business-notifications-sql")) { await BusinessNotificationSqlChecks.RunAsync(); return; }
 
@@ -803,6 +805,7 @@ Console.WriteLine("Authentication checks passed");
 await DisputeWorkflowChecks.RunAsync();
 await SellerOrderListChecks.RunAsync();
 await BuyerOrderListChecks.RunAsync();
+await AdminOrderLookupChecks.RunAsync();
 sealed class TestCarrier : ICarrierGateway
 {
     public int Attempts { get; private set; }

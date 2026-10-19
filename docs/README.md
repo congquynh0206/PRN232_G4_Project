@@ -28,6 +28,7 @@
 | Promotion | [PROMOTIONS_TEST_GUIDE.md](PROMOTIONS_TEST_GUIDE.md) |
 | Review sản phẩm, thông báo | [PRODUCT_FEEDBACK.md](PRODUCT_FEEDBACK.md), [NOTIFICATION_COMPLETION.md](NOTIFICATION_COMPLETION.md) |
 | Email/nhật ký | [EMAIL_INTEGRATION_TEST_GUIDE.md](EMAIL_INTEGRATION_TEST_GUIDE.md) |
+| Admin tra cứu đơn và giao dịch | [ADMIN_ORDER_LOOKUP.md](ADMIN_ORDER_LOOKUP.md) |
 
 Tài liệu trong `superpowers/plans` và `superpowers/specs` là kế hoạch theo thời điểm; không ưu tiên hơn đặc tả hiện hành. Báo cáo Word và ảnh QA trong `artifacts/` là bản xuất, không phải nguồn duy nhất để các lần code sau đọc.
 
