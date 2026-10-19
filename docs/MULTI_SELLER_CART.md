@@ -4,6 +4,8 @@ Buyer tạo giỏ ngẫu nhiên gồm 2–5 sản phẩm khác nhau từ đúng 
 
 Giỏ lưu trong bảng `BuyerCart` theo buyer đăng nhập, khôi phục khi mở lại trang hoặc đăng nhập lại. Buyer đổi số lượng (1–5), xóa sản phẩm hoặc tạo giỏ mới. Tạo giỏ mới thay thế giỏ cũ. Giỏ chưa giữ tồn kho hay lượt khuyến mãi. Phiên bản giỏ ngăn hai tab ghi đè thay đổi; khi báo xung đột, bấm **Tải lại giỏ**. Nếu xóa hết hàng của một seller, checkout một seller vẫn hoạt động.
 
+Từ bản hợp nhất 19/10, checkout có sổ địa chỉ thêm/sửa/xóa/mặc định và tính lại báo giá từng seller. Địa chỉ đang dùng trong đơn được lưu lịch sử khi xóa khỏi sổ để không làm hỏng retry tạo đơn. Xem [BUYER_ADDRESS_BOOK.md](BUYER_ADDRESS_BOOK.md). Không có migration mới cho phần sổ địa chỉ.
+
 Checkout hiển thị sản phẩm, mã giảm giá, phí ship và tổng riêng theo seller. Một mã áp dụng trên mỗi đơn seller; mã toàn sàn áp dụng cho hai đơn sẽ giữ hai lượt và phải đáp ứng hạn mức của từng đơn. Server xác nhận lại giá và tồn kho, rồi tạo một đơn cho mỗi seller trong cùng một transaction SQL Server. Lỗi ở bất kỳ seller nào rollback cả nhóm. Bảng `CheckoutBatch` lưu khóa và đơn đã tạo; retry đúng request trả về cùng đơn, kể cả khi giỏ đã được xóa.
 
 Sau khi tạo đơn thành công, hàng được chuyển khỏi giỏ sang **Đơn của tôi**. Thẻ giả lập thanh toán từng đơn, hiển thị đơn còn thất bại để thử lại. PayPal chuyển hướng cho đơn đầu tiên còn chờ; sau khi trở về, mở đơn còn lại trong **Đơn của tôi** và chọn **Thanh toán PayPal**. Các đơn có vận chuyển, hủy, trả hàng, settlement và tiền seller riêng theo luồng hiện có.

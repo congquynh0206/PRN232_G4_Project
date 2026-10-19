@@ -123,14 +123,17 @@ public sealed class BuyerAddressService(ApplicationDbContext db) : IBuyerAddress
         await using var tx = await LockAsync(buyerId, ct);
         var book = await db.Addresses.Where(a => a.UserId == buyerId).ToListAsync(ct);
         var address = book.SingleOrDefault(a => a.Id == id) ?? throw new KeyNotFoundException("Không tìm thấy địa chỉ.");
-        // OrderTable.addressId is a plain FK. Every order already stores its own address text and
-        // delivery region snapshot, so detach old orders instead of blocking the delete or rewriting them.
-        if (db.Database.IsRelational())
-            await db.OrderTables.Where(o => o.AddressId == id).ExecuteUpdateAsync(s => s.SetProperty(o => o.AddressId, (int? )null), ct);
+        // Retain referenced rows as historical addresses. Checkout retries compare the original
+        // AddressId, so clearing that FK would invalidate an otherwise identical idempotent request.
+        // Unowned addresses cannot be selected, listed or edited by any buyer. No schema change.
+        if (await db.OrderTables.AnyAsync(o => o.AddressId == id, ct))
+        {
+            address.UserId = null;
+            address.User = null;
+            address.IsDefault = false;
+        }
         else
-            foreach (var order in await db.OrderTables.Where(o => o.AddressId == id).ToListAsync(ct))
-                order.AddressId = null;
-        db.Addresses.Remove(address);
+            db.Addresses.Remove(address);
         book.Remove(address);
         // Deleting the default promotes the oldest remaining address; no addresses means no default.
         NormalizeDefault(book, null);

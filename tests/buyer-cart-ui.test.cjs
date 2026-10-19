@@ -28,6 +28,9 @@ async function harness(handler, method = 'card') {
         dataset: {},
         classList: { toggle() {}, add() {}, remove() {} },
         setAttribute() {},
+        addEventListener() {},
+        querySelectorAll() { return []; },
+        focus() {},
       });
     return elements.get(id);
   };
@@ -54,7 +57,7 @@ async function harness(handler, method = 'card') {
         .replace(/>/g, '&gt;'),
     api: async (route, verb, body) => {
       calls.push({ route, body });
-      if (route === 'addresses') return [{ id: 1, fullName: 'Buyer' }];
+      if (route === 'addresses') return [{ id: 1, fullName: 'Buyer', street: '1 Road', city: 'Hanoi', state: 'Hanoi', country: 'Vietnam', isDefault: true }];
       return handler(route, verb, body);
     },
     safe: (fn) => fn(),
@@ -72,6 +75,7 @@ async function harness(handler, method = 'card') {
     const result = await G4.api('buyer/paypal-checkouts', 'POST', { checkoutKey, key: 'cart-payment-key' });
     if (result.approvalUrl) context.location.assign(result.approvalUrl);
   } };
+  vm.runInNewContext(fs.readFileSync('frontend/wwwroot/js/buyer-addresses.js', 'utf8'), context);
   vm.runInNewContext(fs.readFileSync('frontend/wwwroot/js/buyer-cart.js', 'utf8'), context);
   await G4.BuyerCart.init({ tab: noop, loadOrders: async () => {}, showOrder: async () => {} });
   return { element, messages, redirects, calls, controls };
@@ -115,6 +119,7 @@ const quoted = {
         total: 12,
         totalWeightKg: 1,
         pricingFingerprint: 'fp-a',
+        shippingBase: 2, shippingDiscount: 0, promotions: [],
       },
     },
     {
@@ -126,6 +131,7 @@ const quoted = {
         total: 25,
         totalWeightKg: 1,
         pricingFingerprint: 'fp-b',
+        shippingBase: 5, shippingDiscount: 0, promotions: [],
       },
     },
   ],
@@ -173,13 +179,15 @@ test('freezes cart and coupon inputs while checkout is being created', async () 
     }
   });
   const paying = h.element('pay').onclick();
-  assert.equal(h.element('address').disabled, true);
+  assert.match(h.element('address-list').innerHTML, /disabled/);
+  assert.equal(h.element('address-form-save').disabled, true);
   assert.equal(h.element('random').disabled, true);
   assert.equal(h.element('seller-coupon-2').disabled, true);
   assert.equal(h.element('quantity-1').disabled, true);
   release();
   await assert.rejects(paying);
-  assert.equal(h.element('address').disabled, false);
+  assert.doesNotMatch(h.element('address-list').innerHTML, /disabled/);
+  assert.equal(h.element('address-form-save').disabled, false);
   assert.equal(h.element('seller-coupon-2').disabled, false);
 });
 

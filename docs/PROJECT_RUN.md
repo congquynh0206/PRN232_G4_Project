@@ -91,6 +91,8 @@ Kiểm tra giao diện bằng các kịch bản:
 
 ## Kiểm thử
 
+Bản hợp nhất hoanglt/hungntm ngày 19/10 có sổ địa chỉ buyer và admin lookup; cần khởi động lại cả API/frontend để dùng source mới. Không phát sinh migration. Có thể kiểm tra riêng sổ địa chỉ bằng `dotnet run --project tests/G4.Commerce.Tests -- --buyer-address-book`; xem [BUYER_ADDRESS_BOOK.md](BUYER_ADDRESS_BOOK.md) cho hành vi xóa/lưu trữ và phạm vi QA.
+
 Admin tra cứu đơn: ô Tìm theo phân biệt mã đơn/payment/refund/provider. `#125` chỉ tìm đơn 125; mã provider cần đầy đủ. Ngày trên màn là giờ địa phương từ UTC. Sau sửa module ngày 19/10 cần khởi động lại API/frontend và tải lại trang; không cần migration mới. Chi tiết UI và kiểm thử tại [ADMIN_ORDER_LOOKUP.md](ADMIN_ORDER_LOOKUP.md). Có thể chạy riêng `dotnet run --project tests/G4.Commerce.Tests -- --admin-order-lookup`.
 
 ```powershell

@@ -62,7 +62,7 @@
             list.innerHTML = addresses
                 .map(
                     (a) =>
-                        `<label class="address-option ${a.id === selectedId ? 'selected' : ''}"><input type="radio" name="delivery-address" value="${a.id}" ${a.id === selectedId ? 'checked' : ''} ${disabled ? 'disabled' : ''}/><span class="address-text">${body(a)}</span></label>`,
+                        `<label class="address-option ${a.id === selectedId ? 'selected' : ''}"><input type="radio" name="delivery-address" value="${a.id}" ${a.id === selectedId ? 'checked' : ''} ${disabled || saving ? 'disabled' : ''}/><span class="address-text">${body(a)}</span></label>`,
                 )
                 .join('');
             list.querySelectorAll('input[name="delivery-address"]').forEach(
@@ -77,13 +77,18 @@
         function renderManage() {
             const box = $('address-manage-list');
             if (!box) return;
+            $('address-form-save').disabled = disabled || saving;
+            $('address-form-cancel').disabled = saving;
+            $('address-dialog-close').disabled = saving;
+            for (const [field] of FIELDS) $(`address-form-${field}`).disabled = disabled || saving;
+            $('address-form-default').disabled = disabled || saving || !addresses.length || !!addresses.find(a => a.id === editingId)?.isDefault;
             $('address-add').disabled = disabled || saving || addresses.length >= MAX_ADDRESSES;
             $('address-limit').hidden = addresses.length < MAX_ADDRESSES;
             box.innerHTML = addresses.length
                 ? addresses
                     .map((a) => {
                         const off = disabled || saving ? 'disabled' : '';
-                        return `<article class="address-card ${a.id === selectedId ? 'selected' : ''}" data-address-card="${a.id}"><div class="address-card-main">${body(a)}</div><div class="address-card-actions"><button type="button" data-act="use" data-id="${a.id}" ${a.id === selectedId || disabled ? 'disabled' : ''}>Giao tới đây</button><button type="button" data-act="edit" data-id="${a.id}" ${off}>Sửa</button><button type="button" data-act="default" data-id="${a.id}" ${a.isDefault || disabled || saving ? 'disabled' : ''}>Đặt mặc định</button><button type="button" class="danger" data-act="delete" data-id="${a.id}" ${off}>Xóa</button></div></article>`;
+                        return `<article class="address-card ${a.id === selectedId ? 'selected' : ''}" data-address-card="${a.id}"><div class="address-card-main">${body(a)}</div><div class="address-card-actions"><button type="button" data-act="use" data-id="${a.id}" ${a.id === selectedId || disabled || saving ? 'disabled' : ''}>Giao tới đây</button><button type="button" data-act="edit" data-id="${a.id}" ${off}>Sửa</button><button type="button" data-act="default" data-id="${a.id}" ${a.isDefault || disabled || saving ? 'disabled' : ''}>Đặt mặc định</button><button type="button" class="danger" data-act="delete" data-id="${a.id}" ${off}>Xóa</button></div></article>`;
                     })
                     .join('')
                 : '<p class="address-empty-note">Chưa có địa chỉ nào. Hãy thêm địa chỉ giao hàng đầu tiên.</p>';
@@ -132,6 +137,7 @@
             $('address-form').hidden = false;
             $('address-form-placeholder').hidden = true;
             $('address-add').hidden = true;
+            renderManage();
             input('fullName').focus();
         }
         function closeForm() {
@@ -142,7 +148,7 @@
         }
         async function submit(event) {
             event.preventDefault();
-            if (saving) return;
+            if (saving || disabled) return;
             const values = Object.fromEntries(FIELDS.map(([f]) => [f, clean(input(f).value)]));
             const errors = validate(values);
             showErrors(errors);
@@ -220,8 +226,9 @@
         $('address-empty-add').onclick = () => openManage(true);
         $('address-add').onclick = () => openForm(null);
         $('address-form').onsubmit = (e) => G4.safe(() => submit(e));
-        $('address-form-cancel').onclick = closeForm;
-        $('address-dialog-close').onclick = () => $('address-dialog').close();
+        $('address-form-cancel').onclick = () => { if (!saving) closeForm(); };
+        $('address-dialog-close').onclick = () => { if (!saving) $('address-dialog').close(); };
+        $('address-dialog').addEventListener('cancel', event => { if (saving) event.preventDefault(); });
         $('address-dialog').addEventListener('close', () => {
             closeForm();
             if (opener?.isConnected) opener.focus();

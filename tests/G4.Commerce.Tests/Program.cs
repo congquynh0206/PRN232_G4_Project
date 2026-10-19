@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
 if (args.Contains("--admin-order-lookup")) { await AdminOrderLookupChecks.RunAsync(); return; }
+if (args.Contains("--buyer-address-book")) { await BuyerAddressBookChecks.RunAsync(); return; }
 
 if (args.Contains("--business-notifications")) { await BusinessNotificationChecks.RunAsync(); return; }
 if (args.Contains("--business-notifications-sql")) { await BusinessNotificationSqlChecks.RunAsync(); return; }
@@ -806,6 +807,7 @@ await DisputeWorkflowChecks.RunAsync();
 await SellerOrderListChecks.RunAsync();
 await BuyerOrderListChecks.RunAsync();
 await AdminOrderLookupChecks.RunAsync();
+await BuyerAddressBookChecks.RunAsync();
 sealed class TestCarrier : ICarrierGateway
 {
     public int Attempts { get; private set; }

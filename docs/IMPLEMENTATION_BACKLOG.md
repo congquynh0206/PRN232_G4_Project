@@ -8,7 +8,7 @@
 
 | Mã | Nội dung | Mốc hiện trạng | Đặc tả |
 | --- | --- | --- | --- |
-| B1 | CRUD địa chỉ/mặc định và lấy báo giá lại | Cần triển khai thêm/xóa/mặc định; đã có xem/sửa | §3; bốn task ưu tiên §2 |
+| B1 | CRUD địa chỉ/mặc định và lấy báo giá lại | Đã có source và hồi quy hợp nhất; chờ SQL QA/E2E địa chỉ | §3; bốn task ưu tiên §2; BUYER_ADDRESS_BOOK.md |
 | B2 | Lịch sử payment/refund buyer | Cần triển khai màn tổng hợp; đã có dữ liệu trong từng đơn | §5; bốn task ưu tiên §1 |
 | S1 | Báo cáo tài chính theo thời gian | Cần triển khai; đã có số dư/ledger/payout phân trang | §2, §9; bốn task ưu tiên §4 |
 | S2 | Feedback sản phẩm và trả lời | Có source, cần xác minh triển khai; giữ tách seller feedback | §2; PRODUCT_FEEDBACK.md |
@@ -38,6 +38,8 @@ Chi tiết UI, filter, ngày tính tổng, phân trang và quyền tiếp tục 
 - **S1:** đọc settlement/ledger và funding snapshot; không cộng đơn chưa trả tiền. Trình bày gross/refund/fee/subsidy/điều chỉnh/net, biểu đồ/bảng ngày/tuần/tháng; net khác Available/PaidOut. Không trừ refund/fee hai lần.
 - **A1:** API admin toàn cục chỉ đọc, tìm order/provider capture/refund/buyer/seller, filter/phân trang; che thông tin nhạy cảm. Không nới quyền order detail cho vai trò khác ngoài phạm vi cần thiết.
 - **S2/N1:** giữ review theo product khác SellerOrderFeedback, trả lời đúng quyền; giữ outbox transaction/key/người nhận/retry. Xem PRODUCT_FEEDBACK và NOTIFICATION_COMPLETION để xác minh migration/QA thực tế, không tự coi database chính đã nâng.
+
+**Hợp nhất hoanglt/hungntm 19/10/2026:** đã tích hợp B1 và A1, giữ cấu hình frontend HTTP 5251 và thay đổi tên hiển thị. Sửa xóa địa chỉ có tham chiếu bằng lưu trữ ngoài sổ, giữ nguyên AddressId/snapshot/tiền và checkout idempotency; khóa form địa chỉ khi đang gửi; cập nhật harness giỏ nạp module địa chỉ thật. Build solution pass 0 warning/error, bộ backend mặc định pass, 115/115 test UI pass. QA Chrome desktop/mobile admin bằng fixture pass. Chưa SQL QA/E2E CRUD địa chỉ trên DB thật; không áp migration hoặc thay database chính. Xem [BUYER_ADDRESS_BOOK.md](BUYER_ADDRESS_BOOK.md).
 
 Nghiệm thu: success/failure/verifying/refund pending; tổng đúng toàn bộ phạm vi, page/filter ổn định; truy cập chéo bị chặn; CRUD địa chỉ không sửa đơn cũ; báo cáo khớp settlement và ledger.
 
