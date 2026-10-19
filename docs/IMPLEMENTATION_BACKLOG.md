@@ -43,6 +43,8 @@ Nghiệm thu: success/failure/verifying/refund pending; tổng đúng toàn bộ
 
 **A1 cập nhật 19/10/2026:** đã thêm API admin chỉ đọc, tìm kiếm đa mã giao dịch, lọc nhanh/trạng thái, phân trang theo đơn và chi tiết payment/refund/tracking. Solution build thành công; chưa chạy QA/test nghiệp vụ; xem [ADMIN_ORDER_LOOKUP.md](ADMIN_ORDER_LOOKUP.md). Không phát sinh migration.
 
+**A1 sửa tìm mã/UTC và UX 19/10/2026:** hoàn thành hai lỗi được giao: mã đơn tách khỏi ID payment/refund, provider exact-match; timestamp DTO có UTC/Z và UI giữ offset. Đã thiết kế lại tìm kiếm có loại mã, lọc nâng cao thu gọn, nhãn điều kiện, danh sách responsive và chi tiết chia tab. Build output riêng và backend mặc định pass, test A1 InMemory/SQL translation pass, 113/113 test UI pass; QA trình duyệt bằng fixture desktop/mobile pass. Chưa E2E trên SQL Server thật cho đợt này, không áp migration; không tuyên bố hoàn tất toàn bộ nghiệm thu A1. Xem [ADMIN_ORDER_LOOKUP.md](ADMIN_ORDER_LOOKUP.md).
+
 ## 3. AD1 — Xác nhận địa chỉ trước khi áp dụng
 
 **Điểm bắt đầu:** `AddressChangeService`, `ShipmentService`, `AddressChangesController`, `OrdersController`, UI address-changes/seller/shipper, snapshot và migration liên quan.

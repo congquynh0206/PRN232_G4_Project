@@ -19,20 +19,7 @@ public sealed class AdminOrderLookupService(ApplicationDbContext db) : IAdminOrd
 
         var query = db.OrderTables.AsNoTracking().AsQueryable();
         if (options.OrderId is not null) query = query.Where(o => o.Id == options.OrderId);
-        var term = options.Search?.Trim();
-        if (!string.IsNullOrWhiteSpace(term))
-        {
-            var normalizedTerm = term.StartsWith('#') ? term[1..] : term;
-            var number = int.TryParse(normalizedTerm, out var parsed) ? parsed : (int?)null;
-            query = query.Where(o =>
-                number != null && o.Id == number ||
-                db.Payments.Any(p => p.OrderId == o.Id &&
-                    ((number != null && p.Id == number) || p.ProviderTransactionId != null && p.ProviderTransactionId.Contains(term) || p.ProviderOrderId != null && p.ProviderOrderId.Contains(term))) ||
-                db.Refunds.Any(r => r.OrderId == o.Id &&
-                    ((number != null && r.Id == number) || r.ProviderRefundId != null && r.ProviderRefundId.Contains(term))) ||
-                db.IntegrationLogs.Any(l => l.OrderId == o.Id &&
-                    (l.ProviderReference != null && l.ProviderReference.Contains(term) || l.EntityId != null && l.EntityId.Contains(term))));
-        }
+        query = ApplySearch(query, options.Search, options.SearchType);
         if (!string.IsNullOrWhiteSpace(options.Buyer))
         {
             var buyer = options.Buyer.Trim();
@@ -105,7 +92,7 @@ public sealed class AdminOrderLookupService(ApplicationDbContext db) : IAdminOrd
         var sellers = await db.Users.AsNoTracking().Where(x => sellerIds.Contains(x.Id))
             .Select(x => new { x.Id, x.Username, x.Email }).ToDictionaryAsync(x => x.Id, ct);
         var items = orders.Select(x => new AdminOrderLookupRow(
-            x.Id, x.OrderDate, MaskPerson(x.BuyerName, x.BuyerEmail),
+            x.Id, UtcOrNull(x.OrderDate), MaskPerson(x.BuyerName, x.BuyerEmail),
             x.SellerId is int sellerId && sellers.TryGetValue(sellerId, out var seller) ? MaskPerson(seller.Username, seller.Email) : null,
             x.TotalPrice ?? 0m, x.Status, PaymentLabel(x.HasSuccess, x.HasPending, x.HasVerifying, x.HasFailed),
             RefundLabel(x.RefundPending, x.RefundSucceeded, x.RefundFailed), x.RefundedAmount, x.Shipping, x.HasFailed, x.HasRefund, x.HasDispute)).ToArray();
@@ -136,9 +123,58 @@ public sealed class AdminOrderLookupService(ApplicationDbContext db) : IAdminOrd
             .Select(i => new AdminOrderItemView(i.ProductTitleSnapshot ?? i.Product!.Title, i.Quantity ?? 0, i.UnitPrice ?? 0m)).ToListAsync(ct);
         var collected = await db.Payments.AsNoTracking().Where(p => p.OrderId == orderId && p.Status == "Succeeded").SumAsync(p => (decimal?)(p.Amount ?? 0m), ct) ?? 0m;
         var refunded = await db.Refunds.AsNoTracking().Where(r => r.OrderId == orderId && r.Status == "Succeeded").SumAsync(r => (decimal?)r.Amount, ct) ?? 0m;
-        return new(order, collected, refunded, Math.Max(0m, collected - refunded), lineItems, payments, refunds,
-            shipments.Select(s => new AdminOrderShipmentView(s.Id, s.Direction, s.Carrier, MaskReference(s.TrackingNumber), s.Status, s.CreatedAt, s.DeliveredAt, s.Events)).ToArray(), disputes);
+        return new(order, collected, refunded, Math.Max(0m, collected - refunded), lineItems,
+            payments.Select(p => p with { CreatedAt = Utc(p.CreatedAt), PaidAt = UtcOrNull(p.PaidAt) }).ToArray(),
+            refunds.Select(r => r with { CreatedAt = Utc(r.CreatedAt), CompletedAt = UtcOrNull(r.CompletedAt) }).ToArray(),
+            shipments.Select(s => new AdminOrderShipmentView(s.Id, s.Direction, s.Carrier, MaskReference(s.TrackingNumber), s.Status,
+                Utc(s.CreatedAt), UtcOrNull(s.DeliveredAt), s.Events.Select(e => e with { OccurredAt = Utc(e.OccurredAt) }).ToArray())).ToArray(),
+            disputes.Select(d => d with { CreatedAt = Utc(d.CreatedAt) }).ToArray());
     }
+
+    private IQueryable<OrderTable> ApplySearch(IQueryable<OrderTable> query, string? search, string? searchType)
+    {
+        var type = string.IsNullOrWhiteSpace(searchType) ? "auto" : searchType.Trim().ToLowerInvariant();
+        if (type is not ("auto" or "order" or "payment" or "refund" or "provider"))
+            throw new ArgumentException("Loại mã tìm kiếm chưa hợp lệ.");
+        var term = search?.Trim();
+        if (string.IsNullOrEmpty(term)) return query;
+        if (term.Length > 100) throw new ArgumentException("Mã tìm kiếm tối đa 100 ký tự.");
+
+        string? prefix = null;
+        if (term.StartsWith('#')) { prefix = "order"; term = term[1..].Trim(); }
+        else
+        {
+            foreach (var candidate in new[] { "order", "payment", "refund" })
+                if (term.StartsWith(candidate + ":", StringComparison.OrdinalIgnoreCase))
+                { prefix = candidate; term = term[(candidate.Length + 1)..].Trim(); break; }
+        }
+        if (prefix is not null)
+        {
+            if (type != "auto" && type != prefix)
+                throw new ArgumentException("Loại mã đã chọn không khớp mã tìm kiếm.");
+            type = prefix;
+        }
+        if (type == "auto") type = int.TryParse(term, out _) ? "order" : "provider";
+        if (type == "provider")
+            return query.Where(o =>
+                db.Payments.Any(p => p.OrderId == o.Id && (p.ProviderTransactionId == term || p.ProviderOrderId == term)) ||
+                db.Refunds.Any(r => r.OrderId == o.Id && r.ProviderRefundId == term) ||
+                db.IntegrationLogs.Any(l => l.OrderId == o.Id && (l.ProviderReference == term || l.EntityId == term)));
+
+        if (!int.TryParse(term, out var id) || id <= 0)
+            throw new ArgumentException("Mã đơn, mã thanh toán hoặc mã hoàn tiền phải là số nguyên dương.");
+        return type switch
+        {
+            "payment" => query.Where(o => db.Payments.Any(p => p.OrderId == o.Id && p.Id == id)),
+            "refund" => query.Where(o => db.Refunds.Any(r => r.OrderId == o.Id && r.Id == id)),
+            _ => query.Where(o => o.Id == id)
+        };
+    }
+
+    // SQL datetime/datetime2 values are stored as UTC but materialized with Kind=Unspecified.
+    private static DateTime Utc(DateTime value) => value.Kind == DateTimeKind.Local
+        ? value.ToUniversalTime() : DateTime.SpecifyKind(value, DateTimeKind.Utc);
+    private static DateTime? UtcOrNull(DateTime? value) => value is null ? null : Utc(value.Value);
 
     private static string PaymentLabel(bool success, bool pending, bool verifying, bool failed) =>
         success ? failed ? "Thành công · có lần lỗi" : "Thành công" : verifying ? "Đang xác minh" : pending ? "Đang chờ" : failed ? "Thất bại" : "Chưa thanh toán";

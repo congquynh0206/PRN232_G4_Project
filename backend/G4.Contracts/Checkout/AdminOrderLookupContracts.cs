@@ -12,7 +12,8 @@ public sealed record AdminOrderLookupQuery(
     string? QuickFilter = null,
     int Page = 1,
     int PageSize = 20,
-    int? OrderId = null
+    int? OrderId = null,
+    string SearchType = "Auto"
 );
 
 public sealed record AdminOrderLookupRow(

@@ -91,6 +91,8 @@ Kiểm tra giao diện bằng các kịch bản:
 
 ## Kiểm thử
 
+Admin tra cứu đơn: ô Tìm theo phân biệt mã đơn/payment/refund/provider. `#125` chỉ tìm đơn 125; mã provider cần đầy đủ. Ngày trên màn là giờ địa phương từ UTC. Sau sửa module ngày 19/10 cần khởi động lại API/frontend và tải lại trang; không cần migration mới. Chi tiết UI và kiểm thử tại [ADMIN_ORDER_LOOKUP.md](ADMIN_ORDER_LOOKUP.md). Có thể chạy riêng `dotnet run --project tests/G4.Commerce.Tests -- --admin-order-lookup`.
+
 ```powershell
 dotnet build G4_Project.sln
 dotnet run --project tests/G4.Commerce.Tests
