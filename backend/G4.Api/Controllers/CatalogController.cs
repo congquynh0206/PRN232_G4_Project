@@ -26,8 +26,16 @@ public sealed class CatalogController(
         await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction == null
             ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
         await finance.ValidateNewSaleAsync(CurrentUserId, ct);
-        var product = new Product { SellerId = CurrentUserId, Title = input.Title.Trim(), Description = input.Description,
-            Price = input.Price, WeightKg = input.WeightKg, CategoryId = input.CategoryId, IsAuction = false };
+        var product = new Product
+        {
+            SellerId = CurrentUserId,
+            Title = input.Title.Trim(),
+            Description = input.Description,
+            Price = input.Price,
+            WeightKg = input.WeightKg,
+            CategoryId = input.CategoryId,
+            IsAuction = false
+        };
         db.Products.Add(product);
         await db.SaveChangesAsync(ct);
         db.Inventories.Add(new Inventory { ProductId = product.Id, Quantity = input.Quantity, LastUpdated = DateTime.UtcNow });
@@ -45,40 +53,5 @@ public sealed class CatalogController(
         var ids = products.Select(p => p.Id).ToArray();
         var stock = await db.Inventories.Where(i => ids.Contains(i.ProductId ?? 0)).ToDictionaryAsync(i => i.ProductId!.Value, ct);
         return Ok(products.Select(p => new { productId = p.Id, title = p.Title, price = p.Price, p.WeightKg, imageUrl = p.Images, quantity = Random.Shared.Next(1, Math.Min(3, stock[p.Id].Quantity!.Value) + 1), available = stock[p.Id].Quantity }));
-    }
-
-    [HttpGet("addresses")]
-    public async Task<IActionResult> Addresses(CancellationToken ct)
-    {
-        if (!IsAvailable || !HasRole("buyer"))
-            return StatusCode(403);
-        return Ok(await db.Addresses.Where(a => a.UserId == CurrentUserId).Select(a => new { a.Id, a.FullName, a.Street, a.City, a.State, a.Country, a.IsDefault })
-            .ToListAsync(ct));
-    }
-
-    [HttpPost("addresses/{id:int}/edit")]
-    public async Task<IActionResult> EditAddress(int id, AddressUpdateRequest request, CancellationToken ct)
-    {
-        if (!IsAvailable || !HasRole("buyer"))
-            return StatusCode(403);
-        if (new[]
-        {
-            request.FullName,
-            request.Street,
-            request.City,
-            request.State,
-            request.Country
-        }.Any(string.IsNullOrWhiteSpace) || request.FullName.Length > 100 || request.Street.Length > 100 || request.City.Length > 50 || request.State.Length > 50 || request.Country.Length > 50)
-            return BadRequest(new { error = "Address fields are required and must fit the allowed lengths" });
-        var address = await db.Addresses.SingleOrDefaultAsync(a => a.Id == id && a.UserId == CurrentUserId, ct);
-        if (address is null)
-            return NotFound();
-        address.FullName = request.FullName.Trim();
-        address.Street = request.Street.Trim();
-        address.City = request.City.Trim();
-        address.State = request.State.Trim();
-        address.Country = request.Country.Trim();
-        await db.SaveChangesAsync(ct);
-        return Ok(new { address.Id, address.FullName, address.Street, address.City, address.State, address.Country, address.IsDefault });
     }
 }

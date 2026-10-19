@@ -13,6 +13,7 @@
     </button>
 </nav>
 <link rel="stylesheet" href="~/css/promotions.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/buyer-addresses.css" asp-append-version="true" />
 <div id="message" class="message" role="status" aria-live="polite"></div>
 <section id="summary" class="panel tab-panel active">
     <div class="section-head">
@@ -49,24 +50,18 @@
     </div>
     <div class="checkout-grid">
         <div class="checkout-main">
-            <div class="block">
-                <h2>Giao đến</h2>
-                <label for="address">Địa chỉ</label>
-                <select id="address"></select>
-                <button id="edit-address" type="button" class="text-button">Sửa địa chỉ</button>
-                <div id="address-fields" class="address-fields hidden">
-                    <label for="address-name">Họ tên</label>
-                    <input id="address-name" />
-                    <label for="address-street">Đường</label>
-                    <input id="address-street" />
-                    <label for="address-city">Thành phố</label>
-                    <input id="address-city" />
-                    <label for="address-state">Tỉnh/khu vực</label>
-                    <input id="address-state" />
-                    <label for="address-country">Quốc gia</label>
-                    <input id="address-country" />
-                    <button id="save-address">Lưu địa chỉ</button>
+            <div class="block" id="address-block">
+                <div class="block-head">
+                    <h2>Giao đến</h2>
+                    <button id="manage-addresses" type="button">Quản lý địa chỉ</button>
                 </div>
+                <div id="address-list" class="address-list" role="radiogroup" aria-label="Địa chỉ giao hàng" aria-busy="true"></div>
+                <div id="address-empty" class="address-empty" hidden>
+                    <strong>Bạn chưa có địa chỉ giao hàng.</strong>
+                    <span>Hãy thêm địa chỉ trước khi thanh toán để xem đúng phí vận chuyển.</span>
+                    <button id="address-empty-add" type="button" class="primary">Thêm địa chỉ</button>
+                </div>
+                <div id="address-quote-status" class="address-quote-status" role="status" aria-live="polite"></div>
             </div>
             <div class="block">
                 <h2>Phương thức thanh toán</h2>
@@ -187,22 +182,24 @@
 </div>
 <partial name="_DisputesPanel" model="false" />
 <partial name="_NotificationsPanel" />
+<partial name="_BuyerAddressDialog" />
 <partial name="_ReturnRequestDialog" />
 <partial name="_SellerFeedbackDialog" />
 <partial name="_BuyerProductReviewsDialog" />
 @section Scripts
 {
-<script src="~/js/common.js" asp-append-version="true"></script>
-<script src="~/lib/signalr/signalr.min.js" asp-append-version="true"></script>
-<script src="~/js/realtime.js" asp-append-version="true"></script>
-<script src="~/js/address-changes.js" asp-append-version="true"></script>
-<script src="~/js/returns.js" asp-append-version="true"></script>
-<script src="~/js/notifications.js" asp-append-version="true"></script>
-<script src="~/js/promotions.js" asp-append-version="true"></script>
-<script src="~/js/disputes.js" asp-append-version="true"></script>
-<script src="~/js/buyer-cart.js" asp-append-version="true"></script>
-<script src="~/js/paypal-cart.js" asp-append-version="true"></script>
-<script src="~/js/seller-feedback.js" asp-append-version="true"></script>
-<script src="~/js/buyer-product-reviews.js" asp-append-version="true"></script>
-<script src="~/js/buyer.js" asp-append-version="true"></script>
+    <script src="~/js/common.js" asp-append-version="true"></script>
+    <script src="~/lib/signalr/signalr.min.js" asp-append-version="true"></script>
+    <script src="~/js/realtime.js" asp-append-version="true"></script>
+    <script src="~/js/address-changes.js" asp-append-version="true"></script>
+    <script src="~/js/returns.js" asp-append-version="true"></script>
+    <script src="~/js/notifications.js" asp-append-version="true"></script>
+    <script src="~/js/promotions.js" asp-append-version="true"></script>
+    <script src="~/js/disputes.js" asp-append-version="true"></script>
+    <script src="~/js/buyer-addresses.js" asp-append-version="true"></script>
+    <script src="~/js/buyer-cart.js" asp-append-version="true"></script>
+    <script src="~/js/paypal-cart.js" asp-append-version="true"></script>
+    <script src="~/js/seller-feedback.js" asp-append-version="true"></script>
+    <script src="~/js/buyer-product-reviews.js" asp-append-version="true"></script>
+    <script src="~/js/buyer.js" asp-append-version="true"></script>
 }

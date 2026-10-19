@@ -1,0 +1,45 @@
+<dialog id="address-dialog" class="action-dialog address-dialog" aria-labelledby="address-dialog-title">
+    <div class="address-dialog-head">
+        <h2 id="address-dialog-title">Quản lý địa chỉ</h2>
+        <button type="button" id="address-dialog-close">Đóng</button>
+    </div>
+    <div class="address-dialog-body">
+        <section class="address-pane address-pane-list" aria-label="Địa chỉ của bạn">
+            <h3>Địa chỉ của bạn</h3>
+            <div id="address-manage-list" class="address-manage-list"></div>
+            <p id="address-limit" class="small" hidden>Đã đạt tối đa 10 địa chỉ. Hãy xóa bớt địa chỉ không dùng để thêm mới.</p>
+        </section>
+        <section class="address-pane address-pane-form" aria-label="Thêm hoặc sửa địa chỉ">
+            <button type="button" id="address-add" class="primary">Thêm địa chỉ mới</button>
+            <p id="address-form-placeholder" class="address-form-placeholder">Bấm “Thêm địa chỉ mới” hoặc “Sửa” ở một địa chỉ bên trái để nhập thông tin.</p>
+            <form id="address-form" novalidate hidden>
+                <h3 id="address-form-title">Thêm địa chỉ mới</h3>
+                <label for="address-form-fullName">Tên người nhận</label>
+                <input id="address-form-fullName" maxlength="100" autocomplete="name" aria-describedby="address-error-fullName" />
+                <small id="address-error-fullName" class="field-error" role="alert"></small>
+                <label for="address-form-street">Đường / số nhà</label>
+                <input id="address-form-street" maxlength="100" autocomplete="address-line1" aria-describedby="address-error-street" />
+                <small id="address-error-street" class="field-error" role="alert"></small>
+                <label for="address-form-city">Thành phố</label>
+                <input id="address-form-city" maxlength="50" autocomplete="address-level2" aria-describedby="address-error-city" />
+                <small id="address-error-city" class="field-error" role="alert"></small>
+                <label for="address-form-state">Tỉnh / vùng</label>
+                <input id="address-form-state" maxlength="50" autocomplete="address-level1" aria-describedby="address-error-state address-state-help" />
+                <small id="address-state-help" class="small">Phí ship nội vùng chỉ áp dụng khi tỉnh/vùng giao hàng là Hà Nội và pickup của seller cũng ở Hà Nội.</small>
+                <small id="address-error-state" class="field-error" role="alert"></small>
+                <label for="address-form-country">Quốc gia</label>
+                <input id="address-form-country" maxlength="50" autocomplete="country-name" aria-describedby="address-error-country" />
+                <small id="address-error-country" class="field-error" role="alert"></small>
+                <label class="address-default-check">
+                    <input type="checkbox" id="address-form-default" />
+                    Đặt làm địa chỉ mặc định
+                </label>
+                <small id="address-form-hint" class="small" hidden></small>
+                <div class="dialog-actions">
+                    <button type="button" id="address-form-cancel">Hủy</button>
+                    <button type="submit" class="primary" id="address-form-save">Lưu địa chỉ</button>
+                </div>
+            </form>
+        </section>
+    </div>
+</dialog>
