@@ -7,6 +7,7 @@
         Tranh chấp
         <span id="dispute-tab-count"></span>
     </button>
+    <button data-tab="order-lookup">Tra cứu đơn &amp; giao dịch</button>
     <button data-tab="inbox">Email thông báo</button>
     <button data-tab="integration-logs">Nhật ký tích hợp</button>
     <button data-tab="promotions">Khuyến mãi</button>
@@ -17,6 +18,7 @@
 </nav>
 <div id="message" class="message" role="status" aria-live="polite"></div>
 <partial name="_DisputesPanel" model="true" />
+<partial name="_AdminOrderLookupPanel" />
 
 <partial name="_NotificationsPanel" />
 <partial name="_IntegrationLogsPanel" />
@@ -40,6 +42,7 @@
 <script src="~/js/seller-debt.js" asp-append-version="true"></script>
 <script src="~/js/seller-risk.js" asp-append-version="true"></script>
 <script src="~/js/seller-levels.js" asp-append-version="true"></script>
+<script src="~/js/admin-order-lookup.js" asp-append-version="true"></script>
 <script src="~/js/admin.js" asp-append-version="true"></script>
 }
 <partial name="_PromotionsPanel" model="true" />

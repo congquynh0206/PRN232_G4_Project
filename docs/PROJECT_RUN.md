@@ -42,11 +42,11 @@ Nếu đã có `CloneEbayDB` từ trước, kiểm tra các bảng nền có kh�
 
 1. Mở `G4_Project.sln` và đợi Visual Studio restore các project.
 2. Chọn **Configure Startup Projects** → **Multiple startup projects**.
-3. Đặt `G4.Api` và `frontend` thành **Start**, chọn profile `http` cho cả hai. Các project Domain/Application/Contracts/Infrastructure để **None**.
+3. Đặt `G4.Api` và `frontend` thành **Start**, chọn profile `https` cho cả hai. Frontend Development gọi API tại `https://localhost:7087` để tránh HTTP tự chuyển hướng làm mất header Bearer; các project Domain/Application/Contracts/Infrastructure để **None**. Profile HTTP vẫn dùng được nếu chọn `http` cho cả hai, khi đó mở frontend `http://localhost:5131` và Swagger `http://localhost:5251/swagger`.
 4. Mở **Manage User Secrets** của project `G4.Api` và đặt `ConnectionStrings:DefaultConnection`.
 5. Chạy [database/seed-data.sql](../database/seed-data.sql) trong SSMS nếu database chưa có dữ liệu tham chiếu.
 6. Bấm đúp `start-mailhog.cmd` trong thư mục gốc dự án để bật MailHog và mở hộp thư, không cần gõ lệnh. Có thể tạo shortcut của file này trên Desktop. Nếu dùng MailHog Docker có sẵn, mở Docker Desktop → Containers → Start container `mailhog` thay thế. Chỉ cần bật một trong hai cách.
-7. Nhấn Start. Giao diện mở tại `http://localhost:5131`, Swagger ở `http://localhost:5251/swagger`; xem thư tại `http://localhost:8025`.
+7. Nhấn Start. Với profile HTTPS, giao diện mở tại `https://localhost:7018`, Swagger ở `https://localhost:7087/swagger`; xem thư tại `http://localhost:8025`. Nếu chọn profile HTTP cho cả hai, dùng `http://localhost:5131` và `http://localhost:5251/swagger`.
 
 Đăng nhập bằng một trong bốn email `buyer@example.test`, `seller@example.test`, `shipper@example.test`, `admin@example.test`; mật khẩu Development dùng chung là `G4@123456`.
 

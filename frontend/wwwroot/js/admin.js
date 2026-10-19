@@ -15,6 +15,7 @@
     else if (id === 'seller-debts') safe(() => G4.SellerDebt.loadAdmin());
     else if (id === 'seller-risk') safe(() => G4.SellerRisk.load());
     else if (id === 'seller-levels') safe(() => G4.SellerLevels.load());
+    else if (id === 'order-lookup') safe(() => G4.AdminOrderLookup.load());
   }
   document
     .querySelectorAll('.tabs button')
@@ -27,6 +28,7 @@
   G4.SellerDebt.init('admin');
   G4.SellerRisk.init();
   G4.SellerLevels.init('admin');
+  G4.AdminOrderLookup.init();
   G4.Realtime?.subscribe(['orders', 'returns', 'disputes', 'finance', 'levels', 'notifications'], async () => {
     const id = document.querySelector('.tab-panel.active')?.id;
     if (id === 'seller-debts') await G4.SellerDebt.loadAdmin();
