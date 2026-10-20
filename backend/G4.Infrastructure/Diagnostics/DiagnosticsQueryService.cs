@@ -47,7 +47,8 @@ public sealed class DiagnosticsQueryService(ApplicationDbContext db)
     public async Task<DiagnosticsPage<EmailNotificationView>> NotificationsAsync(int actorId, string role, NotificationQuery options, CancellationToken ct)
     {
         ValidatePage(options.Page, options.PageSize, options.OrderId);
-        ValidateFilter(options.EventType, ["PaymentSucceeded", "Delivered", "DeliveryFailed", "Refunded",
+        ValidateFilter(options.EventType, ["PaymentSucceeded", "Delivered", "DeliveryFailed", "ReattemptScheduled", "Refunded",
+            "AddressChangePending", "AddressChangeAwaitingShipper", "AddressChangeApproved", "AddressChangeRejected", "AddressChangeExpired",
             "PaymentFailed", "OrderCancelled", "CancellationRequested", "ReturnRequested", "ReturnApproved", "ReturnRejected", "PayoutCompleted", "PayoutReturned",
             "DebtStarted", "DebtWarning", "DebtOverdue", "DebtCleared", "DebtRestored", "DebtRepaymentSucceeded", "DebtRepaymentFailed", "DebtWriteOff", "WriteOffRecovery"]);
         ValidateFilter(options.Status, ["Pending", "Processing", "Sent", "Captured", "Failed"]);

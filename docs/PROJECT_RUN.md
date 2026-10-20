@@ -2,7 +2,7 @@
 
 **Đọc trước khi phát triển (18/10/2026):** [mục lục tài liệu](README.md), [đặc tả mục tiêu phiên bản 2.0](BUSINESS_REQUIREMENTS.md) và [backlog triển khai](IMPLEMENTATION_BACKLOG.md). Trang này mô tả cách chạy và cấu hình/source hiện có; ghi nhận migration/test bên dưới là theo từng đợt, không chứng minh các thay đổi mới đã triển khai.
 
-**Khoảng cách cấu hình/workflow cần nhớ:** mục tiêu return Development là 300 giây từ outbound Delivered, nhưng source hiện còn kiểm tra hardcode 7 ngày; `Returns:ReceiptSeconds = 45` là thời gian kiểm tra hàng trả về, không đổi khóa đó thành 300. Chưa có nhánh đầy đủ cho deadline từ chối return/INR, ReattemptScheduled, free returns theo item, hạn mức riêng admin hoặc địa chỉ chờ đủ xác nhận. Payout Level 3 còn shortcut Completed cần bỏ theo PAY1. Chỉ hướng dẫn dùng giá trị/API mới như chức năng chạy được sau khi task tương ứng hoàn thành và cập nhật tài liệu này.
+**Khoảng cách cấu hình/workflow cần nhớ:** mục tiêu return Development là 300 giây từ outbound Delivered, nhưng source hiện còn kiểm tra hardcode 7 ngày; `Returns:ReceiptSeconds = 45` là thời gian kiểm tra hàng trả về, không đổi khóa đó thành 300. Chưa có nhánh đầy đủ cho deadline từ chối return/INR, free returns theo item hoặc hạn mức riêng admin. Payout Level 3 còn shortcut Completed cần bỏ theo PAY1. SH1 và AD1 đã có source ngày 20/10, cần migration như hướng dẫn dưới. Chỉ hướng dẫn dùng giá trị/API mới như chức năng chạy được sau khi task tương ứng hoàn thành và cập nhật tài liệu này.
 
 Dự án chạy hai ứng dụng .NET 8: API ở `http://localhost:5251` và giao diện ở `http://localhost:5131`. Ứng dụng đọc user, sản phẩm, tồn kho, địa chỉ và coupon từ SQL Server; frontend không tự tạo dữ liệu khi mở trang. Người dùng đăng nhập bằng tài khoản Development và được chuyển tới trang buyer, seller, shipper hoặc admin tương ứng.
 
@@ -12,7 +12,7 @@ SQL Server là nguồn dữ liệu khi chạy ứng dụng. EF Core InMemory ch�
 
 Giỏ buyer hiện random từ đúng hai seller, lưu theo tài khoản và checkout thành các đơn riêng. Cần migration `AddBuyerCartCheckoutBatch` và seed thêm seller thứ hai trước khi dùng; xem [MULTI_SELLER_CART.md](MULTI_SELLER_CART.md).
 
-Đổi địa chỉ đơn đã thanh toán cần migration `AddOrderAddressChanges`. Buyer gửi yêu cầu, seller duyệt trong mức phí chấp nhận và shipper xác nhận địa chỉ mới trước tracking; xem [ORDER_ADDRESS_CHANGES.md](ORDER_ADDRESS_CHANGES.md).
+Đổi địa chỉ đơn đã thanh toán cần migration gốc `AddOrderAddressChanges` và AD1 `20261020153620_AddAddressChangeConfirmations` (sau SH1). Buyer xem/xác nhận quote, seller chấp thuận và shipper đã nhận chấp thuận khả năng giao trước khi áp dụng địa chỉ/tiền. Chưa gán shipper thì seller duyệt cuối; trong lúc chờ chặn OutForDelivery, giữ địa chỉ cũ. Deadline snapshot mặc định 24 giờ, Development 60 giây (`AddressChanges:ConfirmationSeconds`), worker 5 giây. Xem [ORDER_ADDRESS_CHANGES.md](ORDER_ADDRESS_CHANGES.md).
 
 ## Chạy với SQL Server
 
@@ -39,6 +39,10 @@ sqlcmd -S localhost -E -C -i database/seed-data.sql
 Nếu đã có `CloneEbayDB` từ trước, kiểm tra các bảng nền có khớp [database/baseline.sql](../database/baseline.sql) trước khi chạy migration; sao lưu dữ liệu trước khi thay schema.
 
 ## Chạy bằng Visual Studio
+
+**SH1 ngày 20/10:** trước khi chạy binary mới, áp migration tăng dần `20261020150408_AddShipmentReattemptSchedulesAndActors` qua EF trên database đã có baseline/migration trước, rồi khởi động lại API/frontend và tải lại trang. [SQL để duyệt](../database/shipment-reattempt-actors-migration.sql) chỉ thêm cột nullable/index/FK, không sửa lịch sử/actor cũ hoặc tiền. Đợt này chỉ migrate và test trên QA `G4_ShippingReattempt_Test_20261020`, **chưa áp database chính**. Không chạy lại baseline trên database có dữ liệu. Luồng shipper bắt buộc thất bại → lên lịch → bắt đầu giao, lịch không tự chạy/tăng lượt; [hướng dẫn API, kiểm thử và migration SH1](RETURNS_AND_SHIPPING.md#sh1--lên-lịch-giao-lại-và-actor-20102026).
+
+**AD1 ngày 20/10:** binary mới cần nâng tiếp đến `20261020153620_AddAddressChangeConfirmations`, rồi restart API/frontend và tải lại trang; [SQL duyệt](../database/address-change-confirmations-migration.sql). Request Approved lịch sử giữ nguyên tiền/snapshot/actor chưa biết; legacy Pending có hạn CreatedAt + 24 giờ và cần buyer xác nhận quote mới. Build/backend, SQL QA concurrent/rollback, Node 120/120 và Chrome fixture desktop/mobile đạt. Chỉ bootstrap/migrate `G4_AddressConfirmation_Test_20261020`, **chưa áp database chính**. Không chạy baseline trên database có dữ liệu. Lệnh test và trạng thái triển khai ở [AD1](ORDER_ADDRESS_CHANGES.md).
 
 1. Mở `G4_Project.sln` và đợi Visual Studio restore các project.
 2. Chọn **Configure Startup Projects** → **Multiple startup projects**.

@@ -7,6 +7,8 @@ public partial class ShippingInfo
     public string? FailureReason { get; set; }
     public string? IdempotencyKey { get; set; }
     public int DeliveryAttempts { get; set; }
+    public DateTimeOffset? ReattemptAt { get; set; }
+    public string? ReattemptReason { get; set; }
     public int? ShipperId { get; set; }
     public DateTime? ClaimedAt { get; set; }
     public string? PickupAddressSnapshot { get; set; }

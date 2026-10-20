@@ -81,6 +81,8 @@ Seller chuẩn bị đơn, tạo vận đơn chiều đi `Outbound`, bàn giao c
 
 Nếu giao thất bại: `OutForDelivery → DeliveryFailed → ReattemptScheduled → OutForDelivery`. Lịch giao lại lưu thời gian dự kiến và lý do; chỉ tăng `DeliveryAttempts` khi thật sự bắt đầu OutForDelivery, không tăng khi lên lịch. Mặc định tối đa hai lượt/vận đơn. Không thể/hết lượt giao lại thì `DeliveryFailed → ReturningToSender → ReturnedToSeller`; các mốc cần sự kiện thực tế, không tự coi là seller đã nhận hàng chỉ vì hết lượt.
 
+Làm rõ SH1 ngày 20/10: khi tạo lịch phải chọn thời điểm tương lai. Đây là thời gian dự kiến, không tự phát event khi đến giờ và không khóa thao tác bắt đầu sớm nếu shipper thực tế đã xuất phát; phải có event OutForDelivery của shipper được gán mới tăng lượt.
+
 Hai chiều dùng cùng bộ trạng thái và `ShippingInfo.Direction = Outbound/Return`, tracking và timeline riêng; không thêm `ReturnPickedUp/ReturnDelivered` thành bộ trạng thái khác. `Return` Delivered là hàng về seller, không ghi thêm giao thành công cho buyer. Mỗi `ShippingEvent` phải có actor, thời điểm UTC, event ID chống trùng, location/note và vận đơn liên quan.
 
 Buyer được **đổi địa chỉ thành công tối đa một lần**, trước `OutForDelivery`. Yêu cầu phải có lý do, địa chỉ cũ và mới. Seller cấu hình trước mức tăng phí ship tối đa mình sẵn sàng chịu cho một lần đổi địa chỉ. Server tính lại phí theo địa chỉ mới và khối lượng snapshot:
@@ -92,6 +94,8 @@ Buyer được **đổi địa chỉ thành công tối đa một lần**, trư�
 **Thứ tự xác nhận mới:** buyer gửi địa chỉ/lý do và xác nhận báo giá → seller chấp thuận → nếu đã có shipper nhận vận đơn, shipper chấp thuận khả năng giao → mới áp dụng địa chỉ. Nếu chưa có shipper, seller là bên duyệt cuối; shipper nhận sau dùng địa chỉ đã có hiệu lực. Không bắt đơn chờ một shipper chưa được gán.
 
 Trong lúc chờ, địa chỉ cũ còn hiệu lực; chặn bắt đầu giao tới buyer khi yêu cầu còn chờ xác nhận. Có deadline chờ cấu hình được; hết hạn hoặc bị từ chối giữ địa chỉ cũ và không tiêu thụ lượt đổi thành công. Chỉ một yêu cầu đang chờ/đơn. Ngay trước áp dụng đọc lại trạng thái, shipper, cap/báo giá; thay đổi quan trọng phải xác nhận lại. Cập nhật địa chỉ/chi phí/refund/bộ đếm atomic, có lịch sử và chống trùng. Không tự sửa đơn cũ theo sổ địa chỉ. Đây là ngoại lệ mô phỏng, không phải quy trình eBay tiêu chuẩn.
+
+Làm rõ AD1 ngày 20/10: hạn chờ tổng từ khi buyer gửi yêu cầu là 24 giờ mặc định/60 giây Development (`AddressChanges:ConfirmationSeconds`), snapshot theo request, không gia hạn khi chuyển bước. Seller chấp thuận nhưng đã có shipper thì AwaitingShipper; chỉ Approved mới có hiệu lực. Cap/revision, shipper hoặc quote thay đổi quan trọng làm yêu cầu cũ bị từ chối để buyer xem và xác nhận báo giá mới; chưa mất lượt thành công. Request Approved lịch sử giữ nguyên kết quả, không áp lại phí/refund hoặc gán actor cũ không có bằng chứng.
 
 ## 7. Trả hàng và refund
 

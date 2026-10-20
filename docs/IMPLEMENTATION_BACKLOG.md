@@ -17,8 +17,8 @@
 | A1 | Admin tra cứu order/payment/refund | Đã có source tra cứu chỉ đọc; chờ build và QA nghiệm thu | §2; bốn task ưu tiên §3; [ADMIN_ORDER_LOOKUP.md](ADMIN_ORDER_LOOKUP.md) |
 | A2 | Admin yêu cầu trả trước phán quyết | Cần triển khai; không nhầm với ReturnRefund qua thương lượng | §8 |
 | N1 | Email nghiệp vụ đã bổ sung | Có source, cần xác minh triển khai; nối sự kiện mới theo từng task | §12 |
-| AD1 | Đổi địa chỉ áp dụng sau đủ xác nhận | Cần điều chỉnh; code seller duyệt đã sửa snapshot rồi mới ack | §6 |
-| SH1 | ReattemptScheduled và actor từng event | Cần điều chỉnh; hiện DeliveryFailed → OutForDelivery, event chưa có actor | §6 |
+| AD1 | Đổi địa chỉ áp dụng sau đủ xác nhận | Đã triển khai/nghiệm thu source 20/10: backend, SQL QA và browser fixture đạt; migration chưa áp database chính | §6; ORDER_ADDRESS_CHANGES.md |
+| SH1 | ReattemptScheduled và actor từng event | Đã triển khai/nghiệm thu source 20/10: backend, SQL QA và browser fixture đạt; migration chưa áp database chính | §6; RETURNS_AND_SHIPPING.md |
 | RT1 | Return window và snapshot deadline | Cần điều chỉnh; mở/đóng hiện hardcode 7 ngày, ReceiptSeconds dev 45 | §7, §12.1 |
 | RT2 | Đóng/kháng nghị return từ chối | Cần triển khai deadline/worker; chưa có nhánh đủ theo RejectedAt | §7 |
 | INR1 | Hồ sơ chưa nhận hàng | Cần triển khai; OpenAsync hiện yêu cầu Delivered | §8.1 |
@@ -51,6 +51,8 @@ Nghiệm thu: success/failure/verifying/refund pending; tổng đúng toàn bộ
 
 ## 3. AD1 — Xác nhận địa chỉ trước khi áp dụng
 
+**Hoàn thành source ngày 20/10/2026:** buyer xem/xác nhận quote, seller duyệt, shipper đã nhận chấp thuận khả năng giao trước khi đổi snapshot/tiền; chưa có shipper thì seller duyệt cuối. Chặn OutForDelivery khi chờ, deadline snapshot 24 giờ/Development 60 giây, stale cap/shipper/quote yêu cầu xác nhận lại. Request Approved cũ giữ nguyên. Build/backend, UI 120/120, SQL cạnh tranh/rollback và browser fixture desktop/mobile đạt. Migration chỉ áp `G4_AddressConfirmation_Test_20261020`, chưa áp database chính. Xem [ORDER_ADDRESS_CHANGES.md](ORDER_ADDRESS_CHANGES.md).
+
 **Điểm bắt đầu:** `AddressChangeService`, `ShipmentService`, `AddressChangesController`, `OrdersController`, UI address-changes/seller/shipper, snapshot và migration liên quan.
 
 - Buyer gửi lý do/địa chỉ và xác nhận quote; seller chấp thuận; shipper đã nhận chấp thuận khả năng giao. Chưa gán shipper thì không chờ một shipper chưa tồn tại.
@@ -62,6 +64,8 @@ Nghiệm thu: success/failure/verifying/refund pending; tổng đúng toàn bộ
 **Nghiệm thu:** seller approve nhưng shipper chưa approve chưa đổi địa chỉ; chưa shipper thì approve kết thúc hợp lệ; reject/timeout không mất lượt; lần thành công thứ hai bị chặn; đồng thời OutForDelivery/cap/shipper thay đổi không áp quote cũ; free ship không tạo refund khoản chưa thu; retry không nhân chi phí/thông báo.
 
 ## 4. SH1 — Tracking giao lại và actor
+
+**Hoàn thành source ngày 20/10/2026:** bắt buộc bước lên lịch, thời gian UTC/lý do và actor server cho cả hai chiều; lịch không tăng lượt, chỉ bắt đầu giao mới tăng (tối đa hai). Lịch là dự kiến, không tự kích hoạt khi đến giờ. Migration thêm cột nullable giữ lịch sử, không suy diễn actor cũ. Build/backend, 117/117 UI, SQL cạnh tranh/rollback và browser fixture desktop/mobile đạt; migration chỉ áp database QA riêng, chưa áp database chính. Bằng chứng và cách chạy ở [RETURNS_AND_SHIPPING.md](RETURNS_AND_SHIPPING.md#sh1--lên-lịch-giao-lại-và-actor-20102026).
 
 **Điểm bắt đầu:** `ShippingState`, `ShipmentService.RecordEventAsync`, ShippingEvent/ShippingInfo, contract/UI/timeline, các shipping tests.
 
@@ -175,3 +179,21 @@ Mỗi task khi hoàn thành ghi ngay bên dưới phần của task hoặc thêm
 - `--paypal-reservations-sql`: đã chạy trên `G4_PayPalReservation_Test_20261019`; hai request thật qua context riêng tranh 150 USD cho hai đơn 100 USD chỉ một request được tới gateway. Xác minh reservation commit trước provider, thả khóa trước chờ network, rollback settlement/payment/order/outbox, reconcile hoàn tất không capture lại, và race terminal success/failure với timeout đến muộn.
 - Không có migration mới; đã bootstrap baseline khi QA riêng trống và áp các migration hiện có lên QA đó. Không seed/migrate/thay database chính. Provider dùng gateway giả, chưa PayPal Sandbox ngoài hệ thống hoặc browser E2E mới. Cần khởi động lại API; xem [COMMERCE_REFRESH.md](COMMERCE_REFRESH.md).
 - G1/G2/G3 đã sửa trong source. AD1/SH1/RT1/PAY1/LED1 và các task thiếu luồng vẫn giữ trạng thái riêng, không được đánh dấu hoàn thành theo kết quả G3.
+
+## 15. SH1 — Giao lại có lịch và actor ngày 20/10/2026
+
+- Đã bỏ chuyển trực tiếp DeliveryFailed → OutForDelivery. Shipper được gán nhập lịch tương lai/lý do, sau đó bắt đầu giao thực tế; hai chiều dùng chung state machine. Hết hai lượt vẫn phải ghi ReturningToSender → ReturnedToSeller thực tế.
+- Event lấy actor từ server, lưu UTC và snapshot lịch; event ID trùng cùng payload là no-op, khác payload bị từ chối. Thêm bộ lọc/claimability, timeline buyer/seller/shipper/admin, email theo từng shipment/event/người nhận và realtime từ transaction đã commit. UI giữ payload/event ID khi kết quả mạng chưa rõ để thử lại an toàn.
+- Migration `20261020150408_AddShipmentReattemptSchedulesAndActors` và [SQL để duyệt](../database/shipment-reattempt-actors-migration.sql) chỉ thêm cột nullable/index/FK. Lịch sử cũ giữ actor null, timestamp/note/lượt giao không đổi. Đã áp và kiểm tra trên `G4_ShippingReattempt_Test_20261020`; **chưa áp database chính**, không chạy baseline/seed lên database chính.
+- Build solution output `artifacts/shipping-reattempt-validation` đạt 0 warning/error; backend mặc định đạt (gồm SH1 và SMTP loopback), UI Node 117/117 đạt. SQL QA thật đạt: bảo toàn legacy, hai chiều, hai request lên lịch/bắt đầu đồng thời chỉ áp một lần, quyền shipper, claim/filter, giới hạn lượt và rollback shipment/event/email/realtime.
+- Browser fixture dùng Razor/CSS/JS thật đạt trên Chrome 1440px/390px, cả Outbound/Return: validation bắt buộc/tương lai, UTC, thử lại cùng key sau lỗi mạng, timeline/actor, escape note, không tràn ngang. Ảnh `artifacts/shipping-reattempt-ui/`. Đây là API fixture, không phải E2E HTTP + SQL hoặc gọi carrier thật.
+- AD1/RT1/PAY1/LED1 và các task thiếu luồng khác chưa làm trong đợt SH1. Báo cáo audit ngày 19/10 vẫn giữ bằng chứng trước sửa.
+
+## 16. AD1 — Xác nhận địa chỉ trước áp dụng ngày 20/10/2026
+
+- Đã có quote server và buyer xác nhận trước tạo request; state Pending → AwaitingShipper → Approved khi đã gán shipper, hoặc Pending → Approved khi chưa gán. Rejected/Expired không đổi địa chỉ/tiền/lượt. Chặn bắt đầu giao khi còn chờ; lưu actor/deadline/applied time phía server.
+- Apply cuối kiểm tra lại trạng thái/snapshot, cap/revision, shipper, quote/payment/refund còn được hưởng. Cap update/claim cùng gate; stale request bị từ chối để buyer xác nhận lại. Free shipping dùng promotion hiện có, không refund khoản buyer chưa trả; mọi chi phí/refund mô phỏng và outbox/realtime cùng transaction, retry an toàn.
+- Migration `20261020153620_AddAddressChangeConfirmations` và [SQL duyệt](../database/address-change-confirmations-migration.sql): thêm confirmation/deadline/workflow/revision, unique active request theo IsPending; giữ Approved cũ/actor null, Pending cũ có hạn CreatedAt + 24 giờ và cần quote mới. Chỉ bootstrap/migrate QA `G4_AddressConfirmation_Test_20261020`, **chưa áp database chính**.
+- Build output `artifacts/address-confirmation-validation` đạt 0 warning/error; backend mặc định đạt (gồm AD1/SH1/SMTP loopback); UI Node 120/120 đạt. AD1 SQL thật đạt request/seller/shipper concurrent, cuối cùng ghi refund/cost một lần, race cap/claim/start/expiry và rollback sau finance SaveChanges rồi retry. Model/snapshot không thiếu migration.
+- Browser fixture buyer/seller/shipper Chrome 1440px/390px đạt, gồm quote-before-submit, chờ shipper chưa đổi địa chỉ, accept/refuse và trạng thái/thao tác sau quyết định, escape, không lỗi JS/tràn ngang; ảnh đã xem ở `artifacts/address-confirmation-ui/`. Không phải E2E HTTP nối SQL hoặc provider/carrier thật. Không chạy lại QA SQL 13/10 hoặc thay database chính.
+- Chỉ làm AD1 trong đợt này; RT1/PAY1/LED1 và bảy task thiếu luồng từ audit còn phạm vi riêng. Xem [hướng dẫn AD1](ORDER_ADDRESS_CHANGES.md).

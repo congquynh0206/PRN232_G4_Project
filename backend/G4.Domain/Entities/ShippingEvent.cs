@@ -9,4 +9,7 @@ public sealed class ShippingEvent
     public string? Note { get; set; }
     public DateTime OccurredAt { get; set; }
     public DateTime ReceivedAt { get; set; }
+    public int? ActorUserId { get; set; }
+    public string? ActorRole { get; set; }
+    public DateTimeOffset? ReattemptAt { get; set; }
 }

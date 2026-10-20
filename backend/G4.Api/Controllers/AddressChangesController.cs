@@ -6,6 +6,20 @@ namespace G4.Api.Controllers;
 [Route("api")]
 public sealed class AddressChangesController(IAddressChangeService changes, IHostEnvironment environment) : ApiControllerBase(environment)
 {
+    [HttpPost("orders/{orderId:int}/address-changes/quote")]
+    public async Task<IActionResult> Quote(int orderId, AddressChangeInput input, CancellationToken ct)
+    {
+        if (!IsAvailable || !HasRole("buyer")) return StatusCode(403);
+        return Ok(await changes.QuoteAsync(orderId, CurrentUserId, input, ct));
+    }
+
+    [HttpPost("shipper/shipments/{id:int}/address-change/decision")]
+    public async Task<IActionResult> ShipperDecision(int id, AddressChangeShipperDecision input, CancellationToken ct)
+    {
+        if (!IsAvailable || !HasRole("shipper")) return StatusCode(403);
+        return Ok(await changes.DecideShipperAsync(id, CurrentUserId, input, ct));
+    }
+
     [HttpPost("orders/{orderId:int}/address-changes")]
     public async Task<IActionResult> RequestChange(int orderId, AddressChangeInput input, CancellationToken ct)
     {

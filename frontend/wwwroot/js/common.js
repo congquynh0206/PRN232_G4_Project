@@ -139,8 +139,9 @@
                 OutForDelivery: back ? 'Đang giao tới người bán' : 'Đang giao tới người mua',
                 Delivered: back ? 'Người bán đã nhận hàng trả' : 'Người mua đã nhận hàng',
                 DeliveryFailed: 'Giao hàng thất bại',
+                ReattemptScheduled: 'Đã lên lịch giao lại',
                 ReturningToSender: 'Đang chuyển hoàn',
-                ReturnedToSeller: 'Đã chuyển hoàn cho người bán',
+                ReturnedToSeller: back ? 'Đã hoàn về người mua (nơi gửi hàng trả)' : 'Người bán đã nhận hàng chuyển hoàn',
             }[status] ?? label(status)
         );
     }
@@ -186,6 +187,14 @@
             'Distribution hub': 'Trung tâm phân phối',
             'Recipient unavailable': 'Không liên hệ được người nhận',
         })[value] || value;
+    function shippingActor(event) {
+        if (event.actorRole === 'system') return 'Hệ thống';
+        if (event.actorRole === 'shipper') return `Shipper #${event.actorUserId ?? '—'}`;
+        return 'Chưa ghi nhận người thực hiện (dữ liệu cũ)';
+    }
+    function shippingDate(value) {
+        return date(typeof value === 'string' && !/(Z|[+-]\d{2}:\d{2})$/i.test(value) ? value + 'Z' : value);
+    }
     function shipmentHtml(o, shipment, direction, actions = '') {
         const events = shipment
             ? o.events
@@ -193,7 +202,7 @@
                 .sort((a, b) => new Date(a.occurredAt) - new Date(b.occurredAt))
             : [];
         const timeline = events.length
-            ? `<div class="timeline-scroll"><ol class="timeline">${events.map((e) => `<li><strong>${esc(shippingStatus(e.status, direction))}</strong><small>${date(e.occurredAt)}</small>${e.location ? `<span>${esc(eventText(e.location))}</span>` : ''}${e.note ? `<span>${esc(eventText(e.note))}</span>` : ''}</li>`).join('')}</ol></div>`
+            ? `<div class="timeline-scroll"><ol class="timeline">${events.map((e) => `<li><strong>${esc(shippingStatus(e.status, direction))}</strong><small>${shippingDate(e.occurredAt)}</small><span>${esc(shippingActor(e))}</span>${e.reattemptAt ? `<span>Dự kiến giao lại: ${esc(shippingDate(e.reattemptAt))}</span>` : ''}${e.location ? `<span>${esc(eventText(e.location))}</span>` : ''}${e.note ? `<span>${esc(eventText(e.note))}</span>` : ''}</li>`).join('')}</ol></div>`
             : '<p class="empty-note">Chưa có mốc vận chuyển.</p>';
         return `<section class="tracking-card${direction === 'Return' ? ' tracking-return' : ''}"><div class="tracking-head"><h4>${direction === 'Return' ? 'Người mua → Người bán' : 'Người bán → Người mua'}</h4><strong class="tracking-status">${esc(shippingStatus(shipment?.status, direction))}</strong></div><p class="tracking-number">Mã vận đơn: <strong>${esc(shipment?.trackingNumber ?? 'Chưa có')}</strong></p>${timeline}${actions ? `<div class="tracking-actions"><div class="actions">${actions}</div></div>` : ''}</section>`;
     }
@@ -419,6 +428,7 @@
         returnStatus,
         returnSummary,
         shipmentHtml,
+        shippingActor,
         shipperShipmentCard,
         trackingHtml,
         productThumbnail,

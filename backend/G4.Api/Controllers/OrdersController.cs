@@ -62,24 +62,24 @@ public sealed class OrdersController(
         var addressChanges = changeRows.Select(AddressChangeService.View).ToArray();
         if (HasRole("shipper"))
         {
-            var assigned = await db.ShippingInfos.AsNoTracking().Where(s => s.OrderId == id && s.ShipperId == CurrentUserId).Select(s => new { s.Id, s.Direction, s.Status, s.TrackingNumber, s.DeliveryAttempts, PickupAddressSnapshot = s.PickupAddressSnapshot ?? (s.Direction == "Return" ? order.AddressSnapshot : order.PickupAddressSnapshot), DeliveryAddressSnapshot = s.DeliveryAddressSnapshot ?? (s.Direction == "Return" ? order.PickupAddressSnapshot : order.AddressSnapshot), s.ShipperId, s.AddressChangeRequestId, s.AddressChangeAcknowledgedAt })
+            var assigned = await db.ShippingInfos.AsNoTracking().Where(s => s.OrderId == id && s.ShipperId == CurrentUserId).Select(s => new { s.Id, s.Direction, s.Status, s.TrackingNumber, s.DeliveryAttempts, s.ReattemptAt, s.ReattemptReason, PickupAddressSnapshot = s.PickupAddressSnapshot ?? (s.Direction == "Return" ? order.AddressSnapshot : order.PickupAddressSnapshot), DeliveryAddressSnapshot = s.DeliveryAddressSnapshot ?? (s.Direction == "Return" ? order.PickupAddressSnapshot : order.AddressSnapshot), s.ShipperId, s.AddressChangeRequestId, s.AddressChangeAcknowledgedAt })
                 .ToListAsync(ct);
             var assignedIds = assigned.Select(s => s.Id).ToArray();
             var assignedEvents = await db.ShippingEvents.AsNoTracking().Where(e => assignedIds.Contains(e.ShippingInfoId)).OrderBy(e => e.OccurredAt)
-                .Select(e => new { e.ShippingInfoId, e.Status, e.Location, e.Note, e.OccurredAt })
+                .Select(e => new { e.ShippingInfoId, e.Status, e.Location, e.Note, e.OccurredAt, e.ActorUserId, e.ActorRole, e.ReattemptAt })
                 .ToListAsync(ct);
-            return Ok(new { order.Id, order.Status, order.OrderDate, order.UpdatedAt, order.TotalWeightKg, shipments = assigned, events = assignedEvents, addressChanges = addressChanges.Where(x => x.Status == "Approved").Select(x => new { x.Id, x.OldAddress, x.NewAddress, x.Status }) });
+            return Ok(new { order.Id, order.Status, order.OrderDate, order.UpdatedAt, order.TotalWeightKg, shipments = assigned, events = assignedEvents, addressChanges = addressChanges.Select(x => new { x.Id, x.OldAddress, x.NewAddress, x.Status, x.WorkflowVersion, x.ExpiresAt, x.ExpectedShipperId, x.SellerConfirmedAt, x.ShipperDecidedAt, x.AppliedAt }) });
         }
 
         var items = await db.OrderItems.AsNoTracking().Where(i => i.OrderId == id).Select(i => new { i.ProductId, i.ProductTitleSnapshot, i.UnitPrice, i.Quantity, i.UnitWeightKgSnapshot, originalTotal = (i.UnitPrice ?? 0) * (i.Quantity ?? 0), sellerDiscount = i.SellerDiscountSnapshot, platformDiscount = i.PlatformDiscountSnapshot, imageUrl = i.Product == null ? null : i.Product.Images })
             .ToListAsync(ct);
         var payments = await db.Payments.AsNoTracking().Where(p => p.OrderId == id).Select(p => new { p.Id, p.Method, p.Status, p.Amount, p.CreatedAt, p.PaidAt, p.ErrorCode })
             .ToListAsync(ct);
-        var shipments = await db.ShippingInfos.AsNoTracking().Where(s => s.OrderId == id).Select(s => new { s.Id, s.Direction, s.TrackingNumber, s.Status, s.DeliveryAttempts, s.FailureReason, s.ShipperId, s.ClaimedAt, s.PickupAddressSnapshot, s.DeliveryAddressSnapshot, s.AddressChangeRequestId, s.AddressChangeAcknowledgedAt })
+        var shipments = await db.ShippingInfos.AsNoTracking().Where(s => s.OrderId == id).Select(s => new { s.Id, s.Direction, s.TrackingNumber, s.Status, s.DeliveryAttempts, s.ReattemptAt, s.ReattemptReason, s.FailureReason, s.ShipperId, s.ClaimedAt, s.PickupAddressSnapshot, s.DeliveryAddressSnapshot, s.AddressChangeRequestId, s.AddressChangeAcknowledgedAt })
             .ToListAsync(ct);
         var shipmentIds = shipments.Select(s => s.Id).ToArray();
         var events = await db.ShippingEvents.AsNoTracking().Where(e => shipmentIds.Contains(e.ShippingInfoId)).OrderBy(e => e.OccurredAt)
-            .Select(e => new { e.ShippingInfoId, e.Status, e.Location, e.Note, e.OccurredAt })
+            .Select(e => new { e.ShippingInfoId, e.Status, e.Location, e.Note, e.OccurredAt, e.ActorUserId, e.ActorRole, e.ReattemptAt })
             .ToListAsync(ct);
         var returnRequest = await db.ReturnRequests.AsNoTracking().Where(r => r.OrderId == id).Select(r => new { r.Id, r.Reason, r.Status, r.DecisionReason, r.CreatedAt, r.ReceivedAt, r.ConfirmationDueAt,
             r.PricingPolicyVersion, r.ReasonCode, r.Description, r.ShippingPayer, r.GoodsPaidSnapshot, r.OutboundShippingRetained,
@@ -103,7 +103,7 @@ public sealed class OrdersController(
         var payPalCheckoutId = await db.Payments.Where(p => p.OrderId == id && p.PayPalCheckoutId != null
             && db.PayPalCheckouts.Any(c => c.Id == p.PayPalCheckoutId && (c.Status == "Creating" || c.Status == "Pending" || c.Status == "Verifying")))
             .OrderByDescending(p => p.Id).Select(p => p.PayPalCheckoutId).FirstOrDefaultAsync(ct);
-        var canRequestAddressChange = (order.Status is "Paid" or "Preparing" or "Shipping") && order.AddressChangeCount == 0 && !addressChanges.Any(x => x.Status == "Pending") && dispute?.IsOpen != true && returnRequest == null && (outbound == null || outbound.DeliveryAttempts == 0 && (outbound.Status is "NotCreated" or "ShipmentCreationFailed" or "LabelCreated" or "PickedUp" or "InTransit"));
+        var canRequestAddressChange = (order.Status is "Paid" or "Preparing" or "Shipping") && order.AddressChangeCount == 0 && !addressChanges.Any(x => x.Status == "Pending" || x.Status == "AwaitingShipper") && dispute?.IsOpen != true && returnRequest == null && (outbound == null || outbound.DeliveryAttempts == 0 && (outbound.Status is "NotCreated" or "ShipmentCreationFailed" or "LabelCreated" or "PickedUp" or "InTransit"));
         return Ok(new { order.Id, order.Status, order.OrderDate, order.UpdatedAt, order.PaymentExpiresAt, order.AddressSnapshot, order.AddressChangeCount, addressChanges, canRequestAddressChange, order.CancelDecisionReason, order.Subtotal, order.DiscountAmount, order.ShippingFee, order.TotalPrice, order.Currency, order.CouponCode, order.TotalWeightKg, order.PickupAddressSnapshot, shippingBase = order.PricingSchemaVersion == 1 ? order.ShippingBase : order.ShippingFee, order.ShippingDiscount, order.SellerGoodsDiscount, order.PlatformSubsidy, sellerGross = order.PricingSchemaVersion == 1 ? order.SellerGrossSnapshot : order.TotalPrice, promotions, items, payments, shipments, events, returnRequest, refunds, settlement, dispute, sellerFeedback, canReviewSeller, payPalCheckoutId });
     }
 

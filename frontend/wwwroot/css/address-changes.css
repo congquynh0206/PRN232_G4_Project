@@ -6,6 +6,9 @@
   background: #f8faff;
   overflow-wrap: anywhere;
 }
+#action-context {
+  white-space: pre-line;
+}
 .address-change-summary h3 {
   margin-top: 0;
 }

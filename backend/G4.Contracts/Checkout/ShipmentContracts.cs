@@ -11,7 +11,9 @@ public sealed record ShipperShipmentCard(
     DateTime CreatedAt,
     string? PickupAddress,
     string? DeliveryAddress,
-    decimal? TotalWeightKg
+    decimal? TotalWeightKg,
+    DateTimeOffset? ReattemptAt = null,
+    string? ReattemptReason = null
 );
 public sealed record ShipperShipmentPage(
     int Page,

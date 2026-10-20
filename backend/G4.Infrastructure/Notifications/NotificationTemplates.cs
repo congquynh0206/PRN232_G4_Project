@@ -22,6 +22,7 @@ public static class NotificationTemplates
     {
         var seller = input.Audience == "seller";
         var (title, next) = input.EventType switch {
+            "ReattemptScheduled" => ("Đã lên lịch giao lại", "Mở đơn để xem lịch dự kiến và tracking đúng chiều. Lịch chưa phải đã bắt đầu giao hoặc đã giao thành công."),
             "PaymentFailed" => ("Thanh toán chưa thành công", "Đơn chưa được ghi nhận thanh toán thành công từ lần thử này. Mở đơn để kiểm tra thời hạn và thử lại."),
             "OrderCancelled" => ("Đã hủy đơn hàng", "Đơn chưa thanh toán đã được hủy. Không có khoản thanh toán cần hoàn từ thao tác hủy này."),
             "CancellationRequested" => ("Đã tiếp nhận yêu cầu hủy đơn", seller ? "Người mua yêu cầu hủy. Vui lòng mở đơn để duyệt hoặc từ chối; đơn chưa được coi là đã hủy/hoàn tiền." : "Yêu cầu đã được gửi tới shop để xét duyệt. Đơn chưa được hủy và chưa được hoàn tiền chỉ từ yêu cầu này."),

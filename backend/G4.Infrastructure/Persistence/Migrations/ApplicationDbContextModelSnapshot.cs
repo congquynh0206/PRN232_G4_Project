@@ -85,8 +85,20 @@ namespace G4.Infrastructure.Persistence.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime?>("AppliedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("BuyerConfirmedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<decimal>("BuyerRefund")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("BuyerUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CapRevision")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -97,6 +109,15 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<string>("DecisionReason")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int?>("ExpectedShipperId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsPending")
+                        .HasColumnType("bit");
 
                     b.Property<string>("NewAddress")
                         .IsRequired()
@@ -127,6 +148,10 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<int>("OrderId")
                         .HasColumnType("int");
 
+                    b.Property<string>("QuoteToken")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.Property<string>("Reason")
                         .IsRequired()
                         .HasMaxLength(1000)
@@ -143,21 +168,38 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<decimal>("SellerCap")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<DateTime?>("SellerConfirmedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("SellerUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ShipperDecidedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ShipperUserId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<int>("WorkflowVersion")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("OrderId")
                         .IsUnique()
-                        .HasFilter("[Status] = 'Pending'");
+                        .HasFilter("[IsPending] = 1");
 
                     b.HasIndex("RefundId");
 
                     b.HasIndex("RequestKey")
                         .IsUnique();
+
+                    b.HasIndex("IsPending", "ExpiresAt");
 
                     b.ToTable("AddressChangeRequest", (string)null);
                 });
@@ -2758,6 +2800,9 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<decimal>("AddressChangeCap")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<int>("Revision")
+                        .HasColumnType("int");
+
                     b.HasKey("SellerId");
 
                     b.ToTable("SellerShippingPreference", (string)null);
@@ -2796,6 +2841,13 @@ namespace G4.Infrastructure.Persistence.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("ActorRole")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int?>("ActorUserId")
+                        .HasColumnType("int");
+
                     b.Property<string>("ExternalEventId")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -2811,6 +2863,9 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("OccurredAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTimeOffset?>("ReattemptAt")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<DateTime>("ReceivedAt")
                         .HasColumnType("datetime2");
 
@@ -2823,6 +2878,8 @@ namespace G4.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(50)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
 
                     b.HasIndex("ExternalEventId")
                         .IsUnique();
@@ -2891,6 +2948,13 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<string>("PickupAddressSnapshot")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset?>("ReattemptAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("ReattemptReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
@@ -3642,6 +3706,11 @@ namespace G4.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("G4.Domain.Entities.ShippingEvent", b =>
                 {
+                    b.HasOne("G4.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.HasOne("G4.Domain.Entities.ShippingInfo", null)
                         .WithMany()
                         .HasForeignKey("ShippingInfoId")

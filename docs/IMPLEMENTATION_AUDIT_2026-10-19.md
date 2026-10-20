@@ -8,6 +8,10 @@ Kiểm tra trên source tại commit `b4a114f` (`Sửa lỗi địa chỉ sau h�
 
 ## 1. Phạm vi và bằng chứng kiểm tra
 
+**Cập nhật tiếp AD1 ngày 20/10/2026:** AD1 đã sửa/nghiệm thu source, còn **10 hạng mục thiếu/lệch** của audit gốc (7 thiếu luồng, 3 cần điều chỉnh: RT1/PAY1/LED1). Buyer quote confirmation, seller/shipper duyệt trước áp dụng, chưa có shipper không chờ, deadline, stale cap/shipper/quote và transaction tiền đã triển khai. Build/backend, UI 120/120, SQL QA concurrent/rollback và Chrome fixture desktop/mobile đạt; migration chỉ áp `G4_AddressConfirmation_Test_20261020`, chưa áp database chính. Xem [backlog mục 16](IMPLEMENTATION_BACKLOG.md#16-ad1--xác-nhận-địa-chỉ-trước-áp-dụng-ngày-20102026), [AD1](ORDER_ADDRESS_CHANGES.md). Các ghi nhận audit/SH1 phía dưới giữ mốc lịch sử trước AD1.
+
+**Cập nhật SH1 ngày 20/10/2026:** SH1 đã sửa và nghiệm thu source; còn **11 hạng mục thiếu/lệch** từ danh sách 12 hạng mục audit ban đầu (7 thiếu luồng, 4 cần điều chỉnh). Bắt buộc ReattemptScheduled, lịch/lý do UTC, actor server, hai chiều và giới hạn lượt đã có; build/backend, UI 117/117, SQL QA cạnh tranh/rollback và Chrome browser fixture desktop/mobile đạt. Migration chỉ áp `G4_ShippingReattempt_Test_20261020`, chưa áp database chính. Nội dung audit/probe phía dưới là bằng chứng lịch sử trước sửa; xem [backlog mục 15](IMPLEMENTATION_BACKLOG.md#15-sh1--giao-lại-có-lịch-và-actor-ngày-20102026) và [hướng dẫn SH1](RETURNS_AND_SHIPPING.md#sh1--lên-lịch-giao-lại-và-actor-20102026) cho trạng thái hiện tại.
+
 - Đọc controller, contract, entity/EF mapping, service, worker, Razor/JavaScript và test liên quan; đối chiếu xuyên các lớp cho từng nhóm chức năng.
 - Build solution với output riêng trong `artifacts/implementation-audit-20261019`: đạt, 0 warning và 0 error.
 - Chạy toàn bộ console backend trên binary vừa build: đạt, gồm B1, A1, S2, N1, checkout, promotions, payment, finance, return/dispute, shipper, level, debt/write-off và SMTP loopback.

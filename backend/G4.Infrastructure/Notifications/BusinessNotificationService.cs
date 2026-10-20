@@ -40,6 +40,15 @@ public sealed class BusinessNotificationService(ApplicationDbContext db, IConfig
         if (type == "ReturnRequested") await AddAsync(order.SellerId, order.SellerId, order.Id, null, type, $"return:{request.Id}:{type}", "seller", null, order.Currency, null, reason, null, ct);
     }
 
+    public async Task ShipmentReattemptAsync(OrderTable order, ShippingInfo shipment, string eventId, CancellationToken ct = default)
+    {
+        var route = shipment.Direction == "Return" ? "Chiều trả về seller" : "Chiều giao tới buyer";
+        var reason = $"{route}. Dự kiến: {shipment.ReattemptAt:O} (UTC). Lý do: {shipment.ReattemptReason}";
+        var key = $"shipment:{shipment.Id}:reattempt:{eventId}";
+        await AddAsync(order.BuyerId, null, order.Id, null, "ReattemptScheduled", key, "buyer", null, order.Currency, null, reason, null, ct);
+        await AddAsync(order.SellerId, order.SellerId, order.Id, null, "ReattemptScheduled", key, "seller", null, order.Currency, null, reason, null, ct);
+    }
+
     public async Task PayoutAsync(SellerPayout payout, int sellerId, CancellationToken ct = default)
     {
         if (payout.Id <= 0 || payout.Status is not ("Completed" or "Returned")) return;

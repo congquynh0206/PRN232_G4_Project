@@ -19,8 +19,10 @@ public partial class ApplicationDbContext
             e.Property(x => x.NewState).HasMaxLength(50);
             e.Property(x => x.NewCountry).HasMaxLength(50);
             e.Property(x => x.Status).HasMaxLength(20);
+            e.Property(x => x.QuoteToken).HasMaxLength(64);
             e.HasIndex(x => x.RequestKey).IsUnique();
-            e.HasIndex(x => x.OrderId).IsUnique().HasFilter("[Status] = 'Pending'");
+            e.HasIndex(x => x.OrderId).IsUnique().HasFilter("[IsPending] = 1");
+            e.HasIndex(x => new { x.IsPending, x.ExpiresAt });
             e.HasOne<OrderTable>().WithMany().HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.NoAction);
             e.HasOne<Refund>().WithMany().HasForeignKey(x => x.RefundId).OnDelete(DeleteBehavior.NoAction);
             foreach (var name in new[]

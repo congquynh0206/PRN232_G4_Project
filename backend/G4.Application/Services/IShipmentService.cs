@@ -13,6 +13,7 @@ public interface IShipmentService
         string? location = null,
         string? note = null,
         CancellationToken ct = default,
-        int? shipperId = null
+        int? shipperId = null,
+        DateTimeOffset? reattemptAt = null
     );
 }

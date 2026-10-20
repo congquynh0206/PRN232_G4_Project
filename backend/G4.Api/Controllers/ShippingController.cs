@@ -68,7 +68,8 @@ public sealed class ShippingController(
             request.Location,
             request.Note,
             ct,
-            CurrentUserId
+            CurrentUserId,
+            request.ReattemptAt
         );
         return Ok(new { applied });
     }
@@ -96,7 +97,7 @@ public sealed class ShippingController(
             return StatusCode(403);
         if (filter is not ("pending" or "mine"))
             return BadRequest(new { error = "Bộ lọc vận đơn không hợp lệ." });
-        if (search?.Length > 100 || direction is not ("all" or "Outbound" or "Return") || status is not ("all" or "LabelCreated" or "PickedUp" or "InTransit" or "OutForDelivery" or "Delivered" or "DeliveryFailed" or "ReturningToSender" or "ReturnedToSeller"))
+        if (search?.Length > 100 || direction is not ("all" or "Outbound" or "Return") || status is not ("all" or "LabelCreated" or "PickedUp" or "InTransit" or "OutForDelivery" or "Delivered" or "DeliveryFailed" or "ReattemptScheduled" or "ReturningToSender" or "ReturnedToSeller"))
             return BadRequest(new { error = "Thông tin tìm kiếm hoặc bộ lọc không hợp lệ." });
         return Ok(await G4.Infrastructure.Shipping.ShipperShipmentList.ReadAsync(db, CurrentUserId, filter, page, pageSize, ct, search, status, direction));
     }

@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 namespace G4.Infrastructure.Shipping;
 public static class ShipperShipmentList
 {
-    public static IQueryable<ShippingInfo> Claimable(ApplicationDbContext db) => db.ShippingInfos.Where(s => s.ShipperId == null && s.TrackingNumber != null && (s.Status == "LabelCreated" || s.Status == "PickedUp" || s.Status == "InTransit" || s.Status == "OutForDelivery" || s.Status == "DeliveryFailed" || s.Status == "ReturningToSender") && db.OrderTables.Any(o => o.Id == s.OrderId && o.Status != "Closed" && o.Status != "Cancelled" && o.Status != "Expired"));
+    public static IQueryable<ShippingInfo> Claimable(ApplicationDbContext db) => db.ShippingInfos.Where(s => s.ShipperId == null && s.TrackingNumber != null && (s.Status == "LabelCreated" || s.Status == "PickedUp" || s.Status == "InTransit" || s.Status == "OutForDelivery" || s.Status == "DeliveryFailed" || s.Status == "ReattemptScheduled" || s.Status == "ReturningToSender") && db.OrderTables.Any(o => o.Id == s.OrderId && o.Status != "Closed" && o.Status != "Cancelled" && o.Status != "Expired"));
     public static async Task<ShipperShipmentPage> ReadAsync(
         ApplicationDbContext db,
         int shipperId,
@@ -55,7 +55,9 @@ public static class ShipperShipmentList
             s.CreatedAt,
             s.PickupAddressSnapshot ?? (s.Direction == "Return" ? o.AddressSnapshot : o.PickupAddressSnapshot),
             s.DeliveryAddressSnapshot ?? (s.Direction == "Return" ? o.PickupAddressSnapshot : o.AddressSnapshot),
-            o.TotalWeightKg
+            o.TotalWeightKg,
+            s.ReattemptAt,
+            s.ReattemptReason
         )
         )
             .ToListAsync(ct);

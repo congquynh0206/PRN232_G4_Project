@@ -18,10 +18,24 @@ public sealed class AddressChangeRequest
     public string? DecisionReason { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? DecidedAt { get; set; }
+    public int WorkflowVersion { get; set; }
+    public bool IsPending { get; set; }
+    public string? QuoteToken { get; set; }
+    public int CapRevision { get; set; }
+    public int? BuyerUserId { get; set; }
+    public DateTime? BuyerConfirmedAt { get; set; }
+    public int? SellerUserId { get; set; }
+    public DateTime? SellerConfirmedAt { get; set; }
+    public int? ExpectedShipperId { get; set; }
+    public int? ShipperUserId { get; set; }
+    public DateTime? ShipperDecidedAt { get; set; }
+    public DateTime? ExpiresAt { get; set; }
+    public DateTime? AppliedAt { get; set; }
 }
 
 public sealed class SellerShippingPreference
 {
     public int SellerId { get; set; }
     public decimal AddressChangeCap { get; set; }
+    public int Revision { get; set; }
 }

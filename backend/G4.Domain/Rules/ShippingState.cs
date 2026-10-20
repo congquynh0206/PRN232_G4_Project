@@ -9,7 +9,8 @@ public static class ShippingState
         [("InTransit", "OutForDelivery")] = "OutForDelivery",
         [("OutForDelivery", "Delivered")] = "Delivered",
         [("OutForDelivery", "DeliveryFailed")] = "DeliveryFailed",
-        [("DeliveryFailed", "OutForDelivery")] = "OutForDelivery",
+        [("DeliveryFailed", "ReattemptScheduled")] = "ReattemptScheduled",
+        [("ReattemptScheduled", "OutForDelivery")] = "OutForDelivery",
         [("DeliveryFailed", "ReturningToSender")] = "ReturningToSender",
         [("ReturningToSender", "ReturnedToSeller")] = "ReturnedToSeller"
     };

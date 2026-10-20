@@ -28,7 +28,7 @@ test('next actions respect attempt limit and terminal states', () => {
     'ReturningToSender',
   ]);
   assert.deepEqual(Array.from(ui.next({ status: 'DeliveryFailed', deliveryAttempts: 1 })), [
-    'OutForDelivery',
+    'ReattemptScheduled',
     'ReturningToSender',
   ]);
   for (const status of ['Delivered', 'ReturnedToSeller'])
@@ -38,6 +38,13 @@ test('return and reversal labels name the correct task', () => {
   assert.match(ui.direction({ direction: 'Return', status: 'InTransit' }), /Trả hàng/);
   assert.match(ui.direction({ direction: 'Return', status: 'ReturningToSender' }), /Chuyển hoàn/);
   assert.match(ui.label('ReturnedToSeller'), /nơi gửi/);
+});
+test('scheduled reattempt starts manually and still respects the two-attempt cap in either direction', () => {
+  for (const direction of ['Outbound', 'Return']) {
+    assert.deepEqual(Array.from(ui.next({ direction, status: 'ReattemptScheduled', deliveryAttempts: 1 })), ['OutForDelivery']);
+    assert.deepEqual(Array.from(ui.next({ direction, status: 'ReattemptScheduled', deliveryAttempts: 2 })), []);
+  }
+  assert.match(ui.labels.ReattemptScheduled, /lịch giao lại/);
 });
 test('reversal route swaps original pickup and delivery for both directions', () => {
   for (const direction of ['Outbound', 'Return']) {

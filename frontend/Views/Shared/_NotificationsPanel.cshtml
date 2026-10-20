@@ -28,6 +28,12 @@
                 <option value="ReturnRejected">Đã từ chối trả hàng</option>
                 <option value="Delivered">Giao thành công</option>
                 <option value="DeliveryFailed">Giao chưa thành công</option>
+                <option value="ReattemptScheduled">Đã lên lịch giao lại</option>
+                <option value="AddressChangePending">Đổi địa chỉ: chờ seller</option>
+                <option value="AddressChangeAwaitingShipper">Đổi địa chỉ: chờ shipper</option>
+                <option value="AddressChangeApproved">Địa chỉ mới có hiệu lực</option>
+                <option value="AddressChangeRejected">Đổi địa chỉ bị từ chối</option>
+                <option value="AddressChangeExpired">Đổi địa chỉ hết hạn</option>
                 <option value="Refunded">Hoàn tiền thành công</option>
                 @if (User.IsInRole("seller") || User.IsInRole("admin"))
                 {

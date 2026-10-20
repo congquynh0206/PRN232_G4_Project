@@ -37,6 +37,7 @@ public sealed class SellerShippingSettingsController(ApplicationDbContext db, IH
             return StatusCode(403);
         if (input.Amount < 0 || input.Amount > 10000 || decimal.Round(input.Amount, 2) != input.Amount)
             return BadRequest(new { error = "Mức chịu phí cần từ 0 đến 10.000 USD, tối đa 2 chữ số thập phân." });
+        await using var tx = await G4.Infrastructure.Promotions.PromotionLifecycle.LockOrderAsync(db, 0, ct);
         var preference = await db.SellerShippingPreferences.SingleOrDefaultAsync(x => x.SellerId == CurrentUserId, ct);
         if (preference == null)
         {
@@ -47,8 +48,10 @@ public sealed class SellerShippingSettingsController(ApplicationDbContext db, IH
             db.SellerShippingPreferences.Add(preference);
         }
 
+        if (preference.AddressChangeCap != input.Amount) preference.Revision++;
         preference.AddressChangeCap = input.Amount;
         await db.SaveChangesAsync(ct);
+        if (tx != null) await tx.CommitAsync(ct);
         return Ok(new { addressChangeCap = preference.AddressChangeCap });
     }
 

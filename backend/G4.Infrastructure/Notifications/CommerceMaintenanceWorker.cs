@@ -40,6 +40,7 @@ public sealed class CommerceMaintenanceWorker(IServiceScopeFactory scopes, ILogg
                 }
 
                 var checkout = scope.ServiceProvider.GetRequiredService<ICheckoutService>();
+                await scope.ServiceProvider.GetRequiredService<IAddressChangeService>().MaintainAsync(stoppingToken);
                 await scope.ServiceProvider.GetRequiredService<IPayPalCartPaymentService>().MaintainAsync(stoppingToken);
                 await checkout.ExpirePendingAsync(stoppingToken);
                 await checkout.CloseDeliveredOutsideReturnWindowAsync(stoppingToken);

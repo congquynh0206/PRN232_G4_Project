@@ -1,6 +1,8 @@
 # Admin tra cứu đơn và giao dịch
 
-Tab **Tra cứu đơn & giao dịch** trên `/Admin` tải các đơn mới nhất khi được mở. API chỉ cho role `admin` truy cập danh sách và chi tiết tại `GET /api/admin/order-lookup` và `GET /api/admin/order-lookup/{orderId}`. Chức năng chỉ đọc, dùng schema hiện tại và không cần migration mới.
+Tab **Tra cứu đơn & giao dịch** trên `/Admin` tải các đơn mới nhất khi được mở. API chỉ cho role `admin` truy cập danh sách và chi tiết tại `GET /api/admin/order-lookup` và `GET /api/admin/order-lookup/{orderId}`. Chức năng chỉ đọc. Bản A1 gốc không cần migration riêng; từ SH1 ngày 20/10 cần migration tracking `20261020150408_AddShipmentReattemptSchedulesAndActors` trước khi chạy binary mới.
+
+**SH1 ngày 20/10:** timeline mỗi vận đơn thêm `actorUserId`, `actorRole`, `reattemptAt`, `note`. UI hiển thị người thực hiện (system/shipper/dữ liệu cũ chưa ghi nhận), lịch dự kiến và lý do/ghi chú shipper đã escape. Legacy không được gán actor giả. Lịch và trạng thái giữ đúng Direction, không hiểu chuyển hoàn/trả hàng là buyer nhận hàng. Mã provider/tracking vẫn được che, quyền admin vẫn chỉ đọc. Migration chỉ áp QA riêng, chưa áp database chính; kiểm thử backend/UI chung và [SH1 SQL/browser fixture](RETURNS_AND_SHIPPING.md#sh1--lên-lịch-giao-lại-và-actor-20102026) đạt.
 
 Tìm kiếm có lựa chọn **Tìm theo** và API nhận `SearchType=Auto/Order/Payment/Refund/Provider` (mặc định Auto):
 

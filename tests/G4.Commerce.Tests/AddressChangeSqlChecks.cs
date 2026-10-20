@@ -34,6 +34,7 @@ internal static class AddressChangeSqlChecks
                 "SQL address change test",
                 Guid.NewGuid().ToString()
             );
+            input = input with { QuoteToken = (await new AddressChangeService(db, finance).QuoteAsync(orderId, buyer, input)).Token };
         }
 
         async Task<AddressChangeView> Request()
@@ -52,6 +53,17 @@ internal static class AddressChangeSqlChecks
         }
 
         await Task.WhenAll(Approve(), Approve());
+        await using (var waiting = new ApplicationDbContext(options))
+        {
+            Check((await waiting.OrderTables.SingleAsync(x => x.Id == orderId)).AddressChangeCount == 0
+                && !await waiting.Refunds.AnyAsync(x => x.OrderId == orderId), "SQL seller approval waits without money/address change");
+        }
+        async Task FinalApproval()
+        {
+            await using var db = new ApplicationDbContext(options);
+            await new AddressChangeService(db, new SellerFinanceService(db, config)).DecideShipperAsync(shipmentId, shipper, new(requestId, true, null));
+        }
+        await Task.WhenAll(FinalApproval(), FinalApproval());
         await using (var db = new ApplicationDbContext(options))
         {
             var order = await db.OrderTables.SingleAsync(x => x.Id == orderId);
@@ -81,14 +93,7 @@ internal static class AddressChangeSqlChecks
                 s.AddressChangeRequestId == requestId && s.DeliveryAddressSnapshot == order.AddressSnapshot,
                 "SQL updates existing shipment"
             );
-            try
-            {
-                await new ShipmentService(db, new Carrier()).RecordEventAsync(shipmentId, Guid.NewGuid().ToString(), "PickedUp", shipperId: shipper);
-                throw new Exception("missing ack was accepted");
-            }
-            catch (InvalidOperationException)
-            {
-            }
+
         }
 
         async Task Ack()
@@ -114,7 +119,7 @@ internal static class AddressChangeSqlChecks
             var other = await checkout.CreateOrderAsync(buyer, new(address.Id, [new(product.Id, 1)], null, Guid.NewGuid().ToString()));
             await checkout.PayCardAsync(other.Id, "4111111111111111", "12/30", Guid.NewGuid().ToString());
             var changes = new AddressChangeService(db, finance);
-            var change = await changes.RequestAsync(other.Id, buyer, input with { Key = Guid.NewGuid().ToString() });
+            var change = await AddressChangeChecks.SendAsync(changes, db, other.Id, buyer, input with { Key = Guid.NewGuid().ToString(), QuoteToken = null });
             await changes.DecideAsync(change.Id, seller, new(true, null));
             await returns.RequestCancelAsync(other.Id);
             await returns.DecideCancelAsync(other.Id, true, null);

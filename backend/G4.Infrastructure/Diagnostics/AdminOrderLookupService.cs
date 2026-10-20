@@ -115,7 +115,7 @@ public sealed class AdminOrderLookupService(ApplicationDbContext db) : IAdminOrd
             {
                 s.Id, s.Direction, s.Carrier, s.TrackingNumber, s.Status, s.CreatedAt, s.DeliveredAt,
                 Events = db.ShippingEvents.Where(e => e.ShippingInfoId == s.Id).OrderBy(e => e.OccurredAt).ThenBy(e => e.Id)
-                    .Select(e => new AdminOrderShipmentEventView(e.Status, e.OccurredAt)).ToList()
+                    .Select(e => new AdminOrderShipmentEventView(e.Status, e.OccurredAt, e.ActorUserId, e.ActorRole, e.ReattemptAt, e.Note)).ToList()
             }).ToListAsync(ct);
         var disputes = await db.Disputes.AsNoTracking().Where(d => d.OrderId == orderId && d.EscalatedAt != null)
             .OrderByDescending(d => d.CreatedAt).Select(d => new AdminOrderDisputeView(d.Id, d.Status, d.CreatedAt)).ToListAsync(ct);

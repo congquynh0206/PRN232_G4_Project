@@ -7,6 +7,7 @@
     OutForDelivery: 'Đang giao hàng',
     Delivered: 'Giao thành công',
     DeliveryFailed: 'Giao thất bại',
+    ReattemptScheduled: 'Đã lên lịch giao lại',
     ReturningToSender: 'Đang chuyển hoàn',
     ReturnedToSeller: 'Đã hoàn về nơi gửi',
   };
@@ -16,6 +17,7 @@
     OutForDelivery: 'Bắt đầu giao hàng',
     Delivered: 'Giao thành công',
     DeliveryFailed: 'Giao thất bại',
+    ReattemptScheduled: 'Lên lịch giao lại',
     ReturningToSender: 'Chuyển hoàn về nơi gửi',
     ReturnedToSeller: 'Đã hoàn về nơi gửi',
   };
@@ -26,10 +28,11 @@
         PickedUp: ['InTransit'],
         InTransit: ['OutForDelivery'],
         OutForDelivery: ['Delivered', 'DeliveryFailed'],
-        DeliveryFailed: ['OutForDelivery', 'ReturningToSender'],
+        DeliveryFailed: ['ReattemptScheduled', 'ReturningToSender'],
+        ReattemptScheduled: ['OutForDelivery'],
         ReturningToSender: ['ReturnedToSeller'],
       })[s.status] || []
-    ).filter((x) => x !== 'OutForDelivery' || Number(s.deliveryAttempts || 0) < 2);
+    ).filter((x) => !['OutForDelivery', 'ReattemptScheduled'].includes(x) || Number(s.deliveryAttempts || 0) < 2);
   const reverse = (s) => ['ReturningToSender', 'ReturnedToSeller'].includes(s.status);
   const direction = (s) =>
     reverse(s)

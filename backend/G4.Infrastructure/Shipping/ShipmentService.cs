@@ -41,8 +41,12 @@ public sealed class ShipmentService(
             db.ShippingInfos.Add(shipment);
         shipment.DeliveryAddressSnapshot = order.AddressSnapshot;
         if (order.AddressChangeCount > 0)
+        {
             shipment.AddressChangeRequestId = await db.AddressChangeRequests.Where(x => x.OrderId == orderId && x.Status == "Approved").Select(x => (int? )x.Id)
                 .SingleOrDefaultAsync(ct);
+            if (await db.AddressChangeRequests.AnyAsync(x => x.Id == shipment.AddressChangeRequestId && x.WorkflowVersion == 1, ct))
+                shipment.AddressChangeAcknowledgedAt = Now;
+        }
         await db.SaveChangesAsync(ct);
         try
         {
@@ -50,7 +54,7 @@ public sealed class ShipmentService(
             shipment.Status = ShippingState.Next("NotCreated", "LabelCreated");
             order.Status = "Shipping";
             order.UpdatedAt = DateTime.UtcNow;
-            db.ShippingEvents.Add(new ShippingEvent { ShippingInfoId = shipment.Id, ExternalEventId = $"{key}-label", Status = "LabelCreated", OccurredAt = DateTime.UtcNow, ReceivedAt = DateTime.UtcNow, Note = "Đã tạo vận đơn giao hàng" });
+            db.ShippingEvents.Add(new ShippingEvent { ShippingInfoId = shipment.Id, ExternalEventId = $"{key}-label", Status = "LabelCreated", OccurredAt = Now, ReceivedAt = Now, ActorRole = "system", Note = "Đã tạo vận đơn giao hàng" });
         }
         catch (Exception ex)when (ex is HttpRequestException || ex is TaskCanceledException && !ct.IsCancellationRequested)
         {
@@ -90,7 +94,7 @@ public sealed class ShipmentService(
             shipment.TrackingNumber = await RetryLabelAsync(orderId, "Return", key, ct);
             shipment.Status = "LabelCreated";
             order.UpdatedAt = DateTime.UtcNow;
-            db.ShippingEvents.Add(new ShippingEvent { ShippingInfoId = shipment.Id, ExternalEventId = $"{key}-label", Status = "LabelCreated", OccurredAt = DateTime.UtcNow, ReceivedAt = DateTime.UtcNow, Note = "Đã tạo vận đơn trả hàng" });
+            db.ShippingEvents.Add(new ShippingEvent { ShippingInfoId = shipment.Id, ExternalEventId = $"{key}-label", Status = "LabelCreated", OccurredAt = Now, ReceivedAt = Now, ActorRole = "system", Note = "Đã tạo vận đơn trả hàng" });
         }
         catch (Exception ex)when (ex is HttpRequestException || ex is TaskCanceledException && !ct.IsCancellationRequested)
         {
@@ -109,7 +113,8 @@ public sealed class ShipmentService(
         string? location = null,
         string? note = null,
         CancellationToken ct = default,
-        int? shipperId = null
+        int? shipperId = null,
+        DateTimeOffset? reattemptAt = null
     )
     {
         var orderId = await db.ShippingInfos.AsNoTracking().Where(x => x.Id == shippingInfoId).Select(x => x.OrderId)
@@ -123,31 +128,58 @@ public sealed class ShipmentService(
             throw new UnauthorizedAccessException("Chỉ shipper đã nhận vận đơn được cập nhật tracking.");
         if (string.IsNullOrWhiteSpace(eventId) || eventId.Length > 100)
             throw new ArgumentException("Event ID required");
-        if (await db.ShippingEvents.AnyAsync(e => e.ExternalEventId == eventId, ct))
+        location = string.IsNullOrWhiteSpace(location) ? null : location.Trim();
+        note = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+        reattemptAt = reattemptAt?.ToUniversalTime();
+        var existing = await db.ShippingEvents.AsNoTracking().SingleOrDefaultAsync(e => e.ExternalEventId == eventId, ct);
+        if (existing != null)
+        {
+            if (existing.ShippingInfoId != shippingInfoId || existing.Status != nextStatus || existing.Location != location
+                || existing.Note != note || existing.ReattemptAt != reattemptAt || existing.ActorUserId != shipperId)
+                throw new InvalidOperationException("Event ID đã được dùng cho một cập nhật khác.");
+            if (transaction != null) await transaction.CommitAsync(ct);
             return false;
+        }
+        if (location?.Length > 100 || note?.Length > 1000)
+            throw new ArgumentException("Địa điểm tối đa 100 ký tự, ghi chú/lý do tối đa 1000 ký tự.");
+        if (nextStatus == "ReattemptScheduled")
+        {
+            if (reattemptAt == null || reattemptAt <= new DateTimeOffset(Now) || note == null)
+                throw new ArgumentException("Cần thời gian giao lại dự kiến trong tương lai và lý do lên lịch.");
+        }
+        else if (reattemptAt != null)
+            throw new ArgumentException("Chỉ nhập lịch dự kiến cho bước lên lịch giao lại.");
         if (shipment.Status is null || !ShippingState.TryNext(shipment.Status, nextStatus, out var status))
             return false;
         if (shipment.AddressChangeRequestId != null && shipment.AddressChangeAcknowledgedAt == null)
             throw new InvalidOperationException("Cần xác nhận địa chỉ mới đã được seller duyệt trước khi cập nhật vận chuyển.");
-        if (status == "OutForDelivery" && shipment.DeliveryAttempts >= 2)
+        if (status is "OutForDelivery" or "ReattemptScheduled" && shipment.DeliveryAttempts >= 2)
             return false;
-        shipment.Status = status;
+        if (status == "ReattemptScheduled")
+        {
+            shipment.ReattemptAt = reattemptAt;
+            shipment.ReattemptReason = note;
+        }
         var orderForUpdate = await db.OrderTables.SingleAsync(o => o.Id == shipment.OrderId, ct);
         if (db.Database.IsRelational())
             await db.Entry(orderForUpdate).ReloadAsync(ct);
         if (status == "OutForDelivery" && shipment.Direction == "Outbound")
         {
-            var pending = await db.AddressChangeRequests.Where(x => x.OrderId == orderId && x.Status == "Pending").ToListAsync(ct);
+            var pending = await db.AddressChangeRequests.Where(x => x.OrderId == orderId && (x.Status == "Pending" || x.Status == "AwaitingShipper")).ToListAsync(ct);
+            if (pending.Any(x => x.ExpiresAt == null || x.ExpiresAt > Now))
+                throw new InvalidOperationException("Đang chờ xác nhận đổi địa chỉ. Chưa thể bắt đầu giao tới buyer.");
             foreach (var change in pending)
             {
-                change.Status = "Rejected";
+                change.Status = "Expired";
+                change.IsPending = false;
                 change.DecidedAt = Now;
-                change.DecisionReason = "Đơn đã bắt đầu giao tới người mua trước khi seller duyệt. Giữ địa chỉ cũ.";
+                change.DecisionReason = "Hết hạn chờ xác nhận. Giữ địa chỉ cũ khi bắt đầu giao.";
                 await AddressChangeService.EnqueueStatusAsync(db, orderForUpdate, change, config, ct);
             }
         }
 
-        orderForUpdate.UpdatedAt = DateTime.UtcNow;
+        shipment.Status = status;
+        orderForUpdate.UpdatedAt = Now;
         if (status == "OutForDelivery")
             shipment.DeliveryAttempts++;
         if (status == "Delivered")
@@ -163,7 +195,9 @@ public sealed class ShipmentService(
 
         if (status == "DeliveryFailed")
             shipment.FailureReason = note;
-        db.ShippingEvents.Add(new ShippingEvent { ShippingInfoId = shippingInfoId, ExternalEventId = eventId, Status = status, Location = location, Note = note, OccurredAt = DateTime.UtcNow, ReceivedAt = DateTime.UtcNow });
+        db.ShippingEvents.Add(new ShippingEvent { ShippingInfoId = shippingInfoId, ExternalEventId = eventId, Status = status, Location = location, Note = note, OccurredAt = Now, ReceivedAt = Now, ActorUserId = shipperId, ActorRole = "shipper", ReattemptAt = reattemptAt });
+        if (status == "ReattemptScheduled")
+            await new G4.Infrastructure.Notifications.BusinessNotificationService(db, config, clock).ShipmentReattemptAsync(orderForUpdate, shipment, eventId, ct);
         if (shipment.Direction == "Outbound" && status == "Delivered")
         {
             orderForUpdate.Status = OrderState.Next(orderForUpdate.Status!, "Deliver");
@@ -198,8 +232,9 @@ public sealed class ShipmentService(
 
     public async Task<ShippingInfo> ClaimAsync(int shippingInfoId, int shipperId, CancellationToken ct = default)
     {
-        await using var transaction = db.Database.IsRelational() && db.Database.CurrentTransaction == null
-            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.ReadCommitted, ct) : null;
+        var orderId = await db.ShippingInfos.AsNoTracking().Where(x => x.Id == shippingInfoId).Select(x => x.OrderId).SingleOrDefaultAsync(ct)
+            ?? throw new KeyNotFoundException("Không tìm thấy vận đơn.");
+        await using var transaction = await PromotionLifecycle.LockOrderAsync(db, orderId, ct);
         if (!await db.Users.AnyAsync(u => u.Id == shipperId && u.Role == "shipper", ct))
             throw new UnauthorizedAccessException("Chỉ tài khoản shipper được nhận vận đơn.");
         var query = ShipperShipmentList.Claimable(db).Where(s => s.Id == shippingInfoId);

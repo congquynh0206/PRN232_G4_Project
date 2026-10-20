@@ -9,7 +9,11 @@
 
 Outbox lưu cùng transaction nghiệp vụ; không gọi SMTP từ payment/return/payout. Worker gửi và retry riêng. Không phát PaymentFailed cho timeout/Verifying hoặc buyer tự hủy lượt PayPal. Retry cùng sự kiện/người nhận không tạo email mới; các lần thử thanh toán khác nhau và các kỳ yêu cầu hủy khác nhau có thông báo riêng.
 
+**SH1 ngày 20/10:** thêm email `ReattemptScheduled` cho buyer/seller, identity `shipment:{shipmentId}:reattempt:{eventId}` và hậu tố tài khoản nhận theo AddAsync hiện có. Mỗi chiều có thông báo riêng với lịch UTC/lý do; ghi cùng transaction shipment/event, worker gửi sau commit. Replay event không thêm email, rollback không để lại email/realtime. Template có hướng dẫn theo dõi đúng chiều, không coi lịch là đã bắt đầu hoặc Delivered. Bộ lọc Email có sự kiện mới. Đã kiểm tra hai chiều, SQL concurrent/rollback và nội dung escape; không gửi bù lịch sử. Dùng các cột outbox hiện có; migration SH1 chỉ bổ sung tracking, [xem hướng dẫn](RETURNS_AND_SHIPPING.md#sh1--lên-lịch-giao-lại-và-actor-20102026).
+
 ## Người nhận
+
+**AD1 ngày 20/10:** thông báo đổi địa chỉ mới dùng EventType `AddressChangePending`, `AddressChangeAwaitingShipper`, `AddressChangeApproved`, `AddressChangeRejected`, `AddressChangeExpired`; EventKey `address-change:{requestId}:{status}:user:{userId}` và RecipientUserId giữ quyền theo người nhận. Định danh legacy `AddressChange:{requestId}:{status}:{userId}` và email cũ vẫn được giữ. Bộ lọc Email có năm sự kiện mới. Pending/Approved/Rejected/Expired gửi buyer/seller; AwaitingShipper gửi thêm shipper được gán, nêu địa chỉ cũ còn hiệu lực và hạn chờ UTC. Chỉ Approved mới nói địa chỉ/hoàn ship đã áp dụng. Ghi cùng transaction địa chỉ/finance; SQL QA xác minh retry/concurrent/rollback không nhân email hoặc phát realtime sai. Không gửi bù lịch sử, không đổi nội dung email cũ. Xem [AD1](ORDER_ADDRESS_CHANGES.md).
 
 | Sự kiện | Người nhận |
 | --- | --- |
@@ -19,6 +23,7 @@ Outbox lưu cùng transaction nghiệp vụ; không gọi SMTP từ payment/retu
 | ReturnRequested | Buyer xác nhận tiếp nhận; seller cần xử lý. |
 | ReturnApproved / ReturnRejected | Buyer nhận quyết định và bước tiếp theo. |
 | PayoutCompleted / PayoutReturned | Seller chủ payout. |
+| ReattemptScheduled (SH1, 20/10) | Buyer và seller của đơn, cho cả Outbound/Return; có chiều, lịch UTC, lý do và bước theo dõi tiếp. |
 
 Nhánh admin yêu cầu trả hàng mới A2 chưa được triển khai. Khi A2 có luồng tạo return, dùng cơ chế thông báo theo yêu cầu/người nhận này; N1 không tự phát một phán quyết admin chưa tồn tại.
 

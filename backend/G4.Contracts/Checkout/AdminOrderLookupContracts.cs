@@ -58,7 +58,7 @@ public sealed record AdminOrderRefundView(
     string? ProviderReference
 );
 
-public sealed record AdminOrderShipmentEventView(string Status, DateTime OccurredAt);
+public sealed record AdminOrderShipmentEventView(string Status, DateTime OccurredAt, int? ActorUserId = null, string? ActorRole = null, DateTimeOffset? ReattemptAt = null, string? Note = null);
 public sealed record AdminOrderShipmentView(
     int ShipmentId,
     string Direction,

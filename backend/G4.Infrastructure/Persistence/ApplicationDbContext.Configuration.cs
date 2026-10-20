@@ -73,6 +73,7 @@ public partial class ApplicationDbContext
         });
         modelBuilder.Entity<ShippingInfo>(entity =>
         {
+            entity.Property(x => x.ReattemptReason).HasMaxLength(1000);
             entity.Property(x => x.RowVersion).IsRowVersion();
             entity.Property(x => x.PickupAddressSnapshot).HasMaxLength(500);
             entity.Property(x => x.DeliveryAddressSnapshot).HasMaxLength(500);
@@ -91,6 +92,8 @@ public partial class ApplicationDbContext
             entity.Property(x => x.ExternalEventId).HasMaxLength(100);
             entity.Property(x => x.Status).HasMaxLength(50);
             entity.Property(x => x.Location).HasMaxLength(100);
+            entity.Property(x => x.ActorRole).HasMaxLength(20);
+            entity.HasOne<User>().WithMany().HasForeignKey(x => x.ActorUserId).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne<ShippingInfo>().WithMany().HasForeignKey(x => x.ShippingInfoId);
         });
         modelBuilder.Entity<Refund>(entity =>

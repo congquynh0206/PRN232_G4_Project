@@ -1,6 +1,63 @@
 # Trả hàng tự hoàn tiền, phí ship theo kg và shipper nhận vận đơn
 
-**Căn cứ mới 18/10/2026:** [đặc tả §6–8](BUSINESS_REQUIREMENTS.md) và [SH1/RT1/RT2/INR1/FR1](IMPLEMENTATION_BACKLOG.md). Phần dưới mô tả source và test trước nâng cấp. Mục tiêu: return 7 ngày/Development 300 giây từ chiều đi Delivered; receipt 48 giờ/45 giây từ chiều trả Delivered; phản đối từ chối/INR là deadline riêng. Thêm ReattemptScheduled và actor sự kiện, giữ chung state theo Direction; free returns theo policy item. Các bổ sung này chưa chạy được chỉ bằng thay cấu hình receipt.
+**Căn cứ mới 18/10/2026:** [đặc tả §6–8](BUSINESS_REQUIREMENTS.md) và [SH1/RT1/RT2/INR1/FR1](IMPLEMENTATION_BACKLOG.md). SH1 đã triển khai/nghiệm thu source ngày 20/10, hướng dẫn dưới đây; cần migration mới trước khi chạy. Các phần return khác vẫn mô tả source hiện tại: mục tiêu RT1 là return 7 ngày/Development 300 giây từ chiều đi Delivered; receipt 48 giờ/45 giây từ chiều trả Delivered; phản đối từ chối/INR là deadline riêng. RT1/RT2/INR1 và free returns theo item chưa hoàn thành, không chạy được chỉ bằng thay cấu hình receipt.
+
+## SH1 — Lên lịch giao lại và actor 20/10/2026
+
+Áp dụng chung cho `Direction = Outbound` và `Return`:
+
+```text
+LabelCreated → PickedUp → InTransit → OutForDelivery → Delivered
+                                          ↓
+                                    DeliveryFailed
+                                      ↙       ↘
+                         ReattemptScheduled   ReturningToSender → ReturnedToSeller
+                                ↓
+                          OutForDelivery
+```
+
+- Sau thất bại không được bắt đầu giao lại trực tiếp. Chọn **Lên lịch giao lại**, nhập thời gian dự kiến trong tương lai và lý do tối đa 1000 ký tự; địa điểm tùy chọn tối đa 100 ký tự, không tự lấy cả địa chỉ dài làm địa điểm event. Form dùng giờ thiết bị, gửi ISO có timezone; server chuẩn hóa UTC vào `ShippingInfo.ReattemptAt`, `ReattemptReason` và snapshot `ShippingEvent.ReattemptAt`/`Note`.
+- Lên lịch không tăng `DeliveryAttempts`. **Bắt đầu giao hàng** mới tăng, tối đa hai lượt/vận đơn. Lịch là dự kiến: không chặn bắt đầu sớm nếu thực tế shipper đã xuất phát, không có worker tự bắt đầu khi đến giờ. Lịch vẫn lưu để tra cứu sau khi bắt đầu/kết thúc.
+- Sau thất bại lần hai không lên lịch/lượt ba. Chuyển hoàn cần hai event thực tế `ReturningToSender → ReturnedToSeller`; không tự coi đã giao hoặc đã về nơi gửi khi hết lượt.
+- Chỉ shipper đang được gán được cập nhật. `ActorUserId` lấy từ tài khoản xác thực và `ActorRole = shipper`; client không được chọn actor. Event tạo nhãn tự động có role `system`, không gán user giả. Event cũ giữ actor null và UI ghi **Chưa ghi nhận người thực hiện (dữ liệu cũ)**.
+- `OccurredAt`/`ReceivedAt` dùng giờ UTC phía server. Event ID unique, cùng shipment/actor/payload lặp lại là no-op (`applied=false`) kể cả thời gian dự kiến đã qua; dùng lại ID cho payload khác trả 409. Thiếu lịch/lý do, lịch quá khứ, note/location quá dài hoặc gửi lịch cho trạng thái khác trả 400; sai quyền trả 403. Chuyển sai bước/hết lượt trả `applied=false` và không ghi event.
+- UI giữ nguyên event ID/payload sau lỗi mạng/5xx để bấm thử lại; lỗi 4xx cho nhập lại. Buyer/seller có timeline riêng theo chiều, shipper/admin xem actor/lịch/note đã escape. Bộ lọc có ReattemptScheduled; vận đơn đang xử lý chưa được gán vẫn có thể nhận. Email buyer/seller lưu cùng transaction theo từng shipment/event/người nhận, có chiều, lịch UTC và lý do; worker gửi riêng. Realtime phát thay đổi đã commit.
+- `Delivered` chiều trả chỉ bắt đầu receipt deadline, không đánh dấu giao thành công cho buyer hoặc phát email Delivered chiều đi. ReturnedToSeller nghĩa là về nơi gửi ban đầu (seller ở chiều đi; buyer ở chiều trả).
+
+API `POST /api/shipments/{id}/events` thêm trường tùy chọn `reattemptAt`; ví dụ lên lịch (timestamp ví dụ cần đổi thành tương lai khi thử):
+
+```json
+{
+  "eventId": "unique-event-id",
+  "status": "ReattemptScheduled",
+  "location": "Điểm nhận",
+  "note": "Người nhận hẹn giao lại",
+  "reattemptAt": "2026-10-21T09:00:00+07:00"
+}
+```
+
+Endpoint danh sách/chi tiết shipment trả thêm `reattemptAt`, `reattemptReason`; event chi tiết trả `actorUserId`, `actorRole`, `reattemptAt` cùng note/location và timestamp hiện có. Admin lookup bổ sung actor/lịch/note cho timeline, giữ quyền chỉ đọc.
+
+**Migration:** `20261020150408_AddShipmentReattemptSchedulesAndActors`, sau `20261017050657_CompleteBusinessNotifications`; [SQL để duyệt](../database/shipment-reattempt-actors-migration.sql). Chỉ thêm cột nullable, actor index/FK; không backfill actor/lịch giả, không viết lại snapshot/tiền/lịch sử cũ. Trên database hiện có chạy migration tăng dần, không chạy lại baseline:
+
+```powershell
+dotnet ef database update 20261020150408_AddShipmentReattemptSchedulesAndActors --project backend/G4.Infrastructure --startup-project backend/G4.Api
+```
+
+Build rồi áp migration đúng môi trường trước khi chạy API/frontend mới. Đợt này migration **chỉ được áp QA** `G4_ShippingReattempt_Test_20261020`, **chưa áp database chính**.
+
+**Kiểm thử 20/10:** solution build output `artifacts/shipping-reattempt-validation` đạt 0 warning/error; backend mặc định (gồm SH1) đạt; `node --test tests/*.test.cjs` 117/117 đạt. Lệnh riêng:
+
+```powershell
+dotnet run --project tests/G4.Commerce.Tests -- --shipping-reattempts
+$env:G4_SHIPPING_REATTEMPT_SQL_CONNECTION='Server=localhost;Database=G4_ShippingReattempt_Test_20261020;Integrated Security=True;TrustServerCertificate=True'
+dotnet run --project tests/G4.Commerce.Tests -- --shipping-reattempts-sql
+node tests/shipping-reattempt-ui.e2e.cjs
+```
+
+SQL test chỉ chấp nhận tên QA trên, tạo/bootstrap database nếu trống, nâng từ schema trước SH1 và kiểm tra giữ actor null/note/time/lượt giao legacy. Hai chiều đều kiểm tra request đồng thời chỉ ghi một schedule/start, counter, email đúng người nhận, claim/filter và quyền; lỗi sau SaveChanges trước commit rollback shipment/event/outbox/realtime. Không dùng connection database chính.
+
+Browser test cần Playwright và Chrome (`NODE_PATH` trỏ nơi đã cài package nếu cần, `CHROME_PATH` trỏ Chrome; mặc định dùng Chromium của Playwright). Dùng view/dialog/CSS/JS thật và API fixture; đạt desktop 1440px/mobile 390px cả hai chiều, validation, UTC, retry cùng key, escape/timeline/actor, thao tác bắt đầu và không tràn ngang. Ảnh tại `artifacts/shipping-reattempt-ui/`, đã xem lại layout. Chưa E2E HTTP nối SQL hoặc carrier thật.
 
 ## Chuẩn bị
 
