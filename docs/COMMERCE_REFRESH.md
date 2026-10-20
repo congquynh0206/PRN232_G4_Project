@@ -14,7 +14,7 @@
 
 `PayPalCheckout` liên kết CheckoutBatch và buyer. Tạo lượt + Payment cho từng order được commit trước gọi provider. Key provider được suy ra ổn định từ toàn bộ định danh lượt và thời điểm tạo, tránh chỉ dùng số ID có thể lặp giữa các DB. Tạo lại cùng yêu cầu trả approval cũ; cổng trả dữ liệu theo thứ tự khác vẫn ghép theo reference, không lấy capture đầu rồi áp cho mọi đơn.
 
-Trước capture, khóa promotion/order theo thứ tự cố định và kiểm tra trạng thái, hạn, tài khoản, hạn mức. Lưu các Payment **Verifying** trước khi gọi PayPal. Từ thời điểm này việc hủy/expire/thanh toán khác phải chờ đối soát. Payment cart lưu thời điểm và SellerGross đã đặt trước trong hạn mức; lần capture khác tính cả khoản đang được đặt trước. Một khoản thực sự đã thu theo reservation hợp lệ vẫn được ghi nhận nếu cấp seller vừa giảm trong khi chờ phản hồi; hạn mức mới tiếp tục chặn các giao dịch mới.
+Trước capture, khóa promotion/order theo thứ tự cố định và kiểm tra trạng thái, hạn, tài khoản, hạn mức. Lưu các Payment **Verifying** trước khi gọi PayPal. Từ thời điểm này việc hủy/expire/thanh toán khác phải chờ đối soát. Payment cả giỏ và một đơn lưu thời điểm và SellerGross đã đặt trước trong hạn mức; lần capture khác tính cả khoản đang được đặt trước. Một khoản thực sự đã thu theo reservation hợp lệ vẫn được ghi nhận nếu cấp seller vừa giảm trong khi chờ phản hồi; hạn mức mới tiếp tục chặn các giao dịch mới.
 
 Capture response cần đúng provider ID, reference, số tiền và tiền tệ. Capture IDs hoàn tất không được trùng giữa đơn. Không khớp thì giữ Verifying để đối soát, không cộng tiền dựa trên dữ liệu sai. Worker query các lượt Verifying; mất phản hồi capture không bị coi là chưa thu tiền. Succeeded units giữ nguyên, các units chưa rõ tiếp tục xác minh. Units bị từ chối cho kết quả PartiallyPaid/Failed; tạo lượt mới chỉ chứa đơn còn chờ trả. Huỷ approval chưa capture không huỷ order: có thể thử lại trong hạn thanh toán. Đơn expired/cancelled bị chặn trước gọi thu tiền.
 
@@ -29,6 +29,29 @@ API buyer:
 - `POST .../{id}/cancel`: hủy lượt chưa capture, giữ đơn để trả lại sau.
 
 Thiết kế purchase units/reference dựa trên [PayPal Orders v2](https://developer.paypal.com/sdk/orders/v2/definitions/order_request). API hỗ trợ 1–10 units; giỏ hiện tại của dự án chia hai seller. Các seller vẫn nhận doanh thu qua sổ tài chính nội bộ của dự án.
+
+## G3 — Reservation PayPal một đơn, sửa ngày 19/10/2026
+
+Luồng `/api/orders/{id}/pay/paypal/{providerId}/capture` kiểm tra hạn mức và lưu `CaptureReservedAt`, `ReservedSellerGross`, `Status = Verifying` trong cùng transaction giữ khóa seller, rồi commit trước gọi PayPal. Không đủ hạn mức thì không gọi capture và Payment vẫn Pending, không bị kẹt Verifying. Doanh số tính SellerGross, gồm phần nền tảng tài trợ; reservation chưa phải doanh số thành công.
+
+- Các khoản PayPal Verifying của cùng seller chiếm hạn mức cho cả PayPal một đơn, cả giỏ và thẻ. Tháng UTC mới reset doanh số, nhưng không tự xóa các khoản capture chưa rõ kết quả còn có thể hoàn tất.
+- Timeout, provider pending, phản hồi sai số tiền/tiền tệ hoặc client ngừng chờ giữ reservation. Retry dùng lại `capture-{Payment.Id}`, không cấp reservation/key mới; capture đã được cho phép vẫn đối soát được khi hạn mức giảm hoặc hết thời gian chờ trả tiền.
+- Failed chỉ sau kết quả từ chối xác định; không tính reservation Failed vào phần đang giữ. Giữ các field cũ để truy lịch sử; muốn thử thanh toán mới phải dùng payment key mới. Không recapture hoặc hồi sinh Failed khi timeout cũ về muộn.
+- Succeeded ghi settlement, doanh số, ledger/outbox cùng transaction đúng một lần. Nếu provider thu xong nhưng lưu settlement lỗi, transaction rollback giữ reservation Verifying đã commit trước đó; worker reconcile hoàn tất mà không gọi thu tiền mới.
+- Payment Verifying cũ thiếu reservation được tính bảo thủ bằng gross snapshot order trong phần đang giữ; Capture trên attempt đó chỉ query provider, không tự cấp quyền thu tiền mới/backfill reservation giả. Không sửa snapshot hoặc suy diễn đã thành công cho dữ liệu cũ.
+
+Không phát sinh migration mới: dùng các cột của `AddPayPalCartAndRealtime` hiện có. Cần khởi động lại API. Đợt này chỉ bootstrap/migrate database QA riêng `G4_PayPalReservation_Test_20261019`, không áp migration hoặc thay dữ liệu database chính.
+
+Kiểm chứng đợt G3: solution build 0 warning/error; bộ backend mặc định đạt gồm các test reservation mới và SMTP loopback; UI 115/115 đạt. SQL QA thật xác nhận hai đơn 100 USD tranh hạn mức 150 USD chỉ một đơn tới provider, thẻ cũng bị chặn khi tiền còn pending, reservation đã commit và không giữ khóa DB trong lúc chờ gateway. Có kiểm tra rollback settlement sau capture rồi reconcile, cùng race reconcile success/failure với timeout đến muộn. Các gateway là giả lập; chưa gọi PayPal Sandbox ngoài hệ thống hoặc chạy browser E2E mới.
+
+```powershell
+dotnet build G4_Project.sln --artifacts-path artifacts/paypal-reservation-validation -m:1 --disable-build-servers -p:NuGetAudit=false
+dotnet artifacts/paypal-reservation-validation/bin/G4.Commerce.Tests/debug/G4.Commerce.Tests.dll --paypal-reservations
+$env:G4_PAYPAL_RESERVATION_SQL_CONNECTION='Server=localhost;Database=G4_PayPalReservation_Test_20261019;Integrated Security=True;TrustServerCertificate=True'
+dotnet artifacts/paypal-reservation-validation/bin/G4.Commerce.Tests/debug/G4.Commerce.Tests.dll --paypal-reservations-sql
+```
+
+SQL test chỉ nhận đúng tên QA trên; chỉ chạy baseline nếu QA hoàn toàn trống, sau đó áp chuỗi migration hiện có. Mỗi lần thêm fixture riêng, không reset dữ liệu đã có. Bộ SQL không nằm trong backend mặc định; bộ InMemory `--paypal-reservations` có trong mặc định.
 
 ## SignalR và bảo vệ dữ liệu
 

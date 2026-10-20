@@ -37,6 +37,8 @@ Development dùng `Finance:Levels:1:HoldSeconds = 30`, `Finance:Levels:2:HoldSec
 
 Doanh số được tính theo tháng UTC và tự về 0 khi sang tháng. Backend kiểm tra giới hạn trước khi gọi cổng thanh toán và kiểm tra lại lúc ghi nhận thanh toán. Nút **Đánh giá lại cấp** trên tab **Seller Finance** tính level từ dữ liệu đơn, feedback và lần giao hàng hiện có.
 
+Từ bản sửa G3 ngày 19/10/2026, PayPal một đơn cũng commit reservation SellerGross cùng trạng thái Verifying trước capture, dùng chung phần hạn mức đang giữ với PayPal cả giỏ và thẻ. Ví dụ còn 150 USD, đơn 100 USD đang chờ PayPal thì chỉ còn 50 USD cho payment khác. Thất bại đã xác định giải phóng phần giữ; timeout/request bị hủy/sang tháng không tự giải phóng khoản chưa rõ kết quả. Settlement tôn trọng reservation hợp lệ kể cả hạn mức vừa giảm, retry/reconcile không cộng doanh số hai lần. Luồng cũ thiếu reservation được query để đối soát, không tự cấp quyền capture mới. Chi tiết kiểm thử InMemory/SQL và dữ liệu cũ ở [COMMERCE_REFRESH.md](COMMERCE_REFRESH.md#g3--reservation-paypal-một-đơn-sửa-ngày-19102026). Không có migration mới; chỉ áp chuỗi hiện có trên QA riêng, chưa áp lên database chính trong đợt này.
+
 ## Hoàn tiền và số dư âm
 
 Khi refund thành công, hệ thống hoàn lại phần phí nền tảng theo tỷ lệ số tiền refund. Nghĩa vụ còn lại được trừ lần lượt từ tiền của settlement đang `Processing`, khoản `OnHold` của đúng đơn, rồi `Available`. Phần vẫn còn thiếu trở thành `Negative`.

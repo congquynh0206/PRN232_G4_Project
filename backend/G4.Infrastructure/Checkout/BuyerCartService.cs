@@ -89,6 +89,11 @@ public sealed class BuyerCartService(ApplicationDbContext db, ICheckoutService c
         await using var tx = await BeginAsync(ct);
         var cart = await CartAsync(buyerId, ct);
         CheckVersion(cart, request.Version);
+        var productIds = request.Items.Select(x => x.ProductId).ToArray();
+        var sellerCount = await db.Products.Where(x => productIds.Contains(x.Id) && x.SellerId != null)
+            .Select(x => x.SellerId).Distinct().CountAsync(ct);
+        if (sellerCount > 2)
+            throw new ArgumentException("Giỏ hàng chỉ được chứa sản phẩm từ tối đa hai seller.");
         // Keep unavailable existing lines removable; validate only additions or quantity increases.
         var old = JsonSerializer.Deserialize<CartLine[]>(cart.ItemsJson)!.ToDictionary(x => x.ProductId, x => x.Quantity);
         foreach (var line in request.Items.Where(x => x.Quantity > old.GetValueOrDefault(x.ProductId)))

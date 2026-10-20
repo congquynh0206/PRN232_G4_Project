@@ -54,6 +54,8 @@ Sau khi đổi cấu trúc, project startup backend là `backend/G4.Api/G4.Api.c
 
 ## PayPal Sandbox và dữ liệu thử
 
+**G3 ngày 19/10:** PayPal một đơn giữ hạn mức SellerGross trước capture, timeout giữ Verifying để reconcile; dùng các cột reservation đã có, không có migration mới. Khởi động lại API để dùng bản sửa. Test riêng: `dotnet run --project tests/G4.Commerce.Tests -- --paypal-reservations`; SQL QA dùng `--paypal-reservations-sql` và đúng database `G4_PayPalReservation_Test_20261019` theo [COMMERCE_REFRESH.md](COMMERCE_REFRESH.md). Build/backend, UI 115/115 và SQL cạnh tranh/rollback/race đã đạt; chỉ bootstrap/migrate QA riêng, không thay database chính. Chưa gọi PayPal Sandbox thật hoặc chạy browser E2E mới.
+
 Đặt `PayPal__ClientId` và `PayPal__ClientSecret` từ ứng dụng **Sandbox** của PayPal bằng biến môi trường hoặc .NET User Secrets của project `G4.Api`. `UserSecretsId` cũ được giữ nguyên nên secret đã lưu trên máy vẫn dùng được. Không ghi secret vào source. Tài khoản buyer sandbox dùng ở trang PayPal khi được chuyển hướng. Nếu chưa có credential, nút PayPal sẽ báo chưa cấu hình; các luồng thẻ và giao hàng vẫn chạy được.
 
 Credit Card ở đây chỉ là mô phỏng: `4111111111111111` + `12/30` thành công; `4000000000000002` + `12/30` bị từ chối; tháng/năm đã qua trả về hết hạn. Không nhập thẻ thật. Seller tạo vận đơn, xử lý hủy/trả hàng và hoàn tiền trên trang **Seller**; shipper phát các mốc tracking trên trang **Shipper**. Buyer/seller/admin có tab **Email thông báo**; seller/admin có **Nhật ký tích hợp**. Development mặc định gửi SMTP tới MailHog tại `127.0.0.1:1025`; khi chạy API bằng Docker Compose, host được đổi thành `mailhog`. Thư được giữ trong MailHog để test, không tự gửi tới Gmail. Có thể đặt `Mail__Mode=Capture` để chỉ lưu trong app khi không chạy MailHog; xem [hướng dẫn test email/nhật ký](EMAIL_INTEGRATION_TEST_GUIDE.md).
@@ -90,6 +92,8 @@ Kiểm tra giao diện bằng các kịch bản:
 4. Đăng nhập lần lượt bằng buyer, seller, shipper và admin; kiểm tra mỗi tài khoản chỉ thấy trang và thao tác của role đó. Kiểm tra cả màn hình điện thoại và desktop.
 
 ## Kiểm thử
+
+Sửa G1/G2 ngày 19/10: server lưu giỏ chặn hơn hai seller, báo giá/tạo đơn mới qua API cũ chặn số lượng ngoài 1–5; retry đơn cũ giữ snapshot. Không cần migration; khởi động lại API để chạy bản sửa. Kiểm tra riêng bằng `dotnet run --project tests/G4.Commerce.Tests -- --checkout-limits`; bộ này cũng nằm trong backend mặc định. Đợt này build/backend và UI 115/115 đạt, chưa chạy SQL hoặc HTTP/browser E2E mới, không thay database chính. Xem [MULTI_SELLER_CART.md](MULTI_SELLER_CART.md).
 
 Bản hợp nhất hoanglt/hungntm ngày 19/10 có sổ địa chỉ buyer và admin lookup; cần khởi động lại cả API/frontend để dùng source mới. Không phát sinh migration. Có thể kiểm tra riêng sổ địa chỉ bằng `dotnet run --project tests/G4.Commerce.Tests -- --buyer-address-book`; xem [BUYER_ADDRESS_BOOK.md](BUYER_ADDRESS_BOOK.md) cho hành vi xóa/lưu trữ và phạm vi QA.
 

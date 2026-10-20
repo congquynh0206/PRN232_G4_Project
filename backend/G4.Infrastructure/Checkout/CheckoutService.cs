@@ -355,8 +355,8 @@ public sealed class CheckoutService(
         bool locked = false
     )
     {
-        if (request.Items.Count is < 1 or > 5 || request.Items.Any(i => i.Quantity <= 0) || request.Items.Select(i => i.ProductId).Distinct().Count() != request.Items.Count)
-            throw new ArgumentException("Cart must contain 1-5 distinct products with positive quantities");
+        if (request.Items is null || request.Items.Count is < 1 or > 5 || request.Items.Any(i => i.Quantity is < 1 or > 5) || request.Items.Select(i => i.ProductId).Distinct().Count() != request.Items.Count)
+            throw new ArgumentException("Giỏ hàng cần từ 1 đến 5 sản phẩm khác nhau, mỗi sản phẩm có số lượng từ 1 đến 5.");
         var address = await db.Addresses.SingleOrDefaultAsync(a => a.Id == request.AddressId && a.UserId == buyerId, ct) ?? throw new ArgumentException("Chưa có địa chỉ giao hàng hợp lệ. Hãy thêm hoặc chọn địa chỉ trước khi thanh toán.");
         var ids = request.Items.Select(i => i.ProductId).ToArray();
         var products = await db.Products.Where(p => ids.Contains(p.Id) && p.Price != null && p.IsAuction != true).ToArrayAsync(ct);

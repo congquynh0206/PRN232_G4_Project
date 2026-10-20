@@ -4,6 +4,8 @@
 
 **Nhãn trạng thái:** `Cần triển khai` = thiếu luồng chính; `Cần điều chỉnh` = đã có nền tảng nhưng khác nghiệp vụ mới; `Giữ/hồi quy` = đã có source, cần giữ đúng; `Có source, cần xác minh triển khai` = có ghi nhận QA/migration riêng, chưa xác nhận database hiện dùng. Không đánh dấu done khi chỉ có tài liệu hoặc migration chưa nghiệm thu.
 
+**Rà soát source/test 19/10/2026:** [báo cáo đối chiếu thực tế](IMPLEMENTATION_AUDIT_2026-10-19.md) xác nhận 7 task thiếu luồng và 5 task cần điều chỉnh bên dưới; B1/A1/S2/N1 có source và regression hiện tại đạt. Build solution đạt 0 warning/error, bộ backend mặc định đạt (SMTP loopback chạy ngoài sandbox), UI 115/115 đạt. Có 10 probe InMemory tái hiện các điểm lệch, gồm 3 lỗi server bổ sung cần sửa: lưu giỏ hơn hai seller (G1), API tạo đơn cũ nhận Quantity > 5 (G2), PayPal một đơn Verifying không giữ hạn mức (G3). Đây là audit, chưa sửa các lỗi hoặc hoàn thành task; chưa chạy SQL/browser E2E mới, không áp migration và không thay database chính. Các ghi nhận QA cũ bên dưới giữ nguyên theo từng đợt.
+
 ## 1. Danh mục và phụ thuộc
 
 | Mã | Nội dung | Mốc hiện trạng | Đặc tả |
@@ -154,3 +156,22 @@ Nghiệm thu: success/failure/verifying/refund pending; tổng đúng toàn bộ
 Mỗi task khi hoàn thành ghi ngay bên dưới phần của task hoặc thêm bản ghi ngày: thay đổi/API/config/migration, kiểm thử đã chạy, QA database, migration chính đã/chưa áp, giới hạn còn lại. Đồng bộ hướng dẫn module và PROJECT_RUN khi hành vi chạy thực tế thay đổi. Đánh dấu hoàn thành chỉ khi đạt nghiệm thu phù hợp, không dựa vào các kết quả test cũ trong docs.
 
 Đợt **18/10/2026 cập nhật tài liệu**: chưa task mới nào ở trên được ghi hoàn thành; không sửa code, không đổi cấu hình runtime và không áp database migration. Các thay đổi source chưa commit của S2/N1 và phần khác được giữ nguyên.
+
+## 13. G1/G2 — Giới hạn seller và số lượng tại server
+
+**19/10/2026 — đã sửa và đạt regression source.** G1: SaveAsync đếm seller trên toàn bộ sản phẩm được giữ lại trước khi ghi giỏ, chặn hơn hai seller và giữ nguyên version khi từ chối; giỏ cũ sai có thể sửa xuống một/hai seller hoặc xóa hết, giữ khả năng xóa hàng không còn bán được. G2: ValidateAndQuoteAsync kiểm tra số lượng 1–5 cho cả báo giá và tạo đơn mới qua API một seller; retry đúng đơn đã tồn tại giữ snapshot và không trừ tồn lần nữa. ArgumentException được handler hiện có ánh xạ HTTP 400; không thay quyền API hoặc công thức tiền.
+
+- Thêm `CheckoutLimitChecks` vào backend mặc định và tùy chọn `--checkout-limits`. Kiểm tra seller thứ ba gồm dòng không đổi/giỏ cũ, giỏ một/hai seller/rỗng; số lượng -1/0/6/int.MaxValue ở save/quote/create; biên 1/5 hợp lệ; không ghi giỏ/version/stock/order/batch/payment/promotion usage/ledger/outbox khi từ chối; idempotency và snapshot lịch sử.
+- Test mới tái hiện G1 trước sửa; sau sửa test riêng đạt. Solution build output `artifacts/checkout-limits-validation` đạt 0 warning/error; backend mặc định đạt, gồm SMTP loopback ngoài sandbox; UI 115/115 đạt.
+- Không phát sinh migration; không áp migration/seed và không thay database chính. Chưa SQL QA hoặc HTTP/browser E2E mới. Cần khởi động lại API để dùng source mới. Chi tiết tại [MULTI_SELLER_CART.md](MULTI_SELLER_CART.md).
+- G3, AD1/SH1/RT1/PAY1/LED1 và các task còn lại chưa được sửa trong đợt này. Báo cáo audit phía trên giữ ghi nhận tại thời điểm trước bản sửa.
+
+## 14. G3 — Reservation hạn mức PayPal một đơn
+
+**19/10/2026 — đã sửa và đạt regression InMemory/SQL QA.** Single-order capture kiểm tra và ghi reservation SellerGross/Verifying trong cùng transaction giữ seller gate, commit trước gọi provider. Không đủ hạn mức thì Payment vẫn Pending và không capture; payment khác (PayPal/card) tính cả reservation đang chờ. Settlement một đơn tôn trọng reservation hợp lệ như cả giỏ; không kiểm tra lại hạn mức mới để bỏ lửng tiền đã thu. Failed chắc chắn giải phóng phần giữ bằng trạng thái, giữ field làm lịch sử; retry/new key, reconcile, timeout hoặc client cancellation không nhân thu/settlement/ledger/outbox. Legacy Verifying không có reservation vẫn tính vào phần giữ, Capture chỉ query provider; reservation còn chờ không mất chỉ vì sang tháng UTC.
+
+- Build solution output `artifacts/paypal-reservation-validation` đạt 0 warning/error; backend mặc định đạt, gồm `PayPalReservationChecks` mới và SMTP loopback ngoài sandbox; UI Node 115/115 đạt.
+- `--paypal-reservations`: giữ trước provider, chặn PayPal/card cạnh tranh, không để Pending thành Verifying khi preflight lỗi; các kết quả từ chối giải phóng đúng; subsidy tính trong SellerGross; retry/cap giảm/hết hạn; phản hồi sai tiền; client cancellation; tháng UTC và dữ liệu legacy.
+- `--paypal-reservations-sql`: đã chạy trên `G4_PayPalReservation_Test_20261019`; hai request thật qua context riêng tranh 150 USD cho hai đơn 100 USD chỉ một request được tới gateway. Xác minh reservation commit trước provider, thả khóa trước chờ network, rollback settlement/payment/order/outbox, reconcile hoàn tất không capture lại, và race terminal success/failure với timeout đến muộn.
+- Không có migration mới; đã bootstrap baseline khi QA riêng trống và áp các migration hiện có lên QA đó. Không seed/migrate/thay database chính. Provider dùng gateway giả, chưa PayPal Sandbox ngoài hệ thống hoặc browser E2E mới. Cần khởi động lại API; xem [COMMERCE_REFRESH.md](COMMERCE_REFRESH.md).
+- G1/G2/G3 đã sửa trong source. AD1/SH1/RT1/PAY1/LED1 và các task thiếu luồng vẫn giữ trạng thái riêng, không được đánh dấu hoàn thành theo kết quả G3.

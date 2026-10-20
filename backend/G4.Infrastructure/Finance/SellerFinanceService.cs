@@ -23,8 +23,15 @@ public sealed partial class SellerFinanceService(ApplicationDbContext db, IConfi
             throw new InvalidOperationException("Seller is permanently restricted from new sales");
         if (IsDebtOverdue(account) && order.OrderDate >= account.DebtDueAt)
             throw new InvalidOperationException("Seller has overdue debt and cannot receive new orders");
-        var reserved = await db.Payments.Where(p => p.OrderId != orderId && p.Status == "Verifying" && p.CaptureReservedAt >= MonthStart()
-            && db.OrderTables.Any(o => o.Id == p.OrderId && o.SellerId == sellerId)).SumAsync(p => p.ReservedSellerGross ?? 0m, ct);
+        // Unknown captures can still complete after a UTC month boundary. Keep
+        // their capacity until resolved; legacy attempts without a reservation
+        // conservatively use the order's gross instead of disappearing here.
+        var reserved = await (from payment in db.Payments
+            join pendingOrder in db.OrderTables on payment.OrderId equals pendingOrder.Id
+            where payment.OrderId != orderId && payment.Method == "PayPal" && payment.Status == "Verifying"
+                && pendingOrder.SellerId == sellerId
+            select payment.ReservedSellerGross ?? (pendingOrder.PricingSchemaVersion == 1
+                ? pendingOrder.SellerGrossSnapshot : pendingOrder.TotalPrice ?? 0m)).SumAsync(ct);
         if (account.MonthlySalesAmount + reserved + SnapshotGross(order, order.TotalPrice ?? 0m) > account.MonthlySalesLimit)
             throw new InvalidOperationException($"Seller level {account.Level} monthly sales limit would be exceeded");
         await db.SaveChangesAsync(ct);
@@ -54,7 +61,7 @@ public sealed partial class SellerFinanceService(ApplicationDbContext db, IConfi
         var account = await GetOrCreateAccountAsync(sellerId, ct);
         await LockAccountAsync(account, ct);
         ResetMonth(account);
-        var authorizedReservation = payment.PayPalCheckoutId != null && payment.CaptureReservedAt != null && payment.ReservedSellerGross == gross;
+        var authorizedReservation = payment.Method == "PayPal" && payment.CaptureReservedAt != null && payment.ReservedSellerGross == gross;
         if (!authorizedReservation && account.MonthlySalesAmount + gross > account.MonthlySalesLimit)
             throw new InvalidOperationException($"Seller level {account.Level} monthly sales limit exceeded");
         var now = Now;

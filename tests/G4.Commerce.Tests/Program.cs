@@ -5,6 +5,9 @@ using Microsoft.Extensions.Configuration;
 
 if (args.Contains("--admin-order-lookup")) { await AdminOrderLookupChecks.RunAsync(); return; }
 if (args.Contains("--buyer-address-book")) { await BuyerAddressBookChecks.RunAsync(); return; }
+if (args.Contains("--checkout-limits")) { await CheckoutLimitChecks.RunAsync(); return; }
+if (args.Contains("--paypal-reservations")) { await PayPalReservationChecks.RunAsync(); return; }
+if (args.Contains("--paypal-reservations-sql")) { await PayPalReservationSqlChecks.RunAsync(); return; }
 
 if (args.Contains("--business-notifications")) { await BusinessNotificationChecks.RunAsync(); return; }
 if (args.Contains("--business-notifications-sql")) { await BusinessNotificationSqlChecks.RunAsync(); return; }
@@ -107,6 +110,7 @@ await PromotionManagementChecks.RunAsync();
 PromotionPricingChecks.Run();
 await PromotionCheckoutChecks.RunAsync();
 await BuyerCartChecks.RunAsync();
+await CheckoutLimitChecks.RunAsync();
 await AddressChangeChecks.RunAsync();
 await PromotionFinanceChecks.RunAsync();
 await FinancePolicyChecks.RunAsync();
@@ -116,6 +120,7 @@ await SellerLevelChecks.RunAsync();
 await ProductFeedbackChecks.RunAsync();
 await BusinessNotificationChecks.RunAsync();
 await PayPalCartChecks.RunAsync();
+await PayPalReservationChecks.RunAsync();
 NotificationProcessingChecks.CheckRetryRules();
 await NotificationTemplateChecks.RunAsync();
 await NotificationProcessorBehaviorChecks.RunAsync();

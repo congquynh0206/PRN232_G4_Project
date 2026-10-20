@@ -13,6 +13,8 @@ public sealed class PayPalPaymentService(
     IPayPalCartPaymentService? carts = null
 ) : IPayPalPaymentService
 {
+    private ISellerFinanceService Finance => finance ?? new SellerFinanceService(db, config);
+
     public async Task<PayPalCreated> StartAsync(int orderId, string key, CancellationToken ct = default)
     {
         using var diagnostic = IntegrationContext.ForOrder(orderId);
@@ -28,11 +30,12 @@ public sealed class PayPalPaymentService(
             throw new InvalidOperationException("PayPal đang xác minh thanh toán. Hãy chờ trước khi tạo lần thanh toán khác.");
         if (order.Status != "AwaitingPayment" || order.PaymentExpiresAt <= DateTime.UtcNow)
             throw new InvalidOperationException("Order is not payable");
-        if (finance is not null)
-            await finance.ValidateMonthlyLimitAsync(orderId, ct);
+        await Finance.ValidateMonthlyLimitAsync(orderId, ct);
         var payment = await db.Payments.SingleOrDefaultAsync(p => p.IdempotencyKey == key, ct);
-        if (payment is not null && payment.OrderId != orderId)
+        if (payment is not null && (payment.OrderId != orderId || payment.Method != "PayPal"))
             throw new InvalidOperationException("Payment key already used");
+        if (payment?.Status == "Failed")
+            throw new InvalidOperationException("Lần thanh toán đã thất bại. Hãy thử lại bằng khóa thanh toán mới.");
         var frontendBase = (config["Frontend:PublicBaseUrl"] ?? "http://localhost:5000").TrimEnd('/');
         var created = await paypal.CreateAsync(
             order.TotalPrice!.Value,
@@ -75,6 +78,7 @@ public sealed class PayPalPaymentService(
             return await db.Payments.SingleAsync(x => x.Id == cartPayment.Id, ct);
         }
         using var diagnostic = IntegrationContext.ForOrder(orderId);
+        var reconcileOnly = false;
         // Hold usage while a capture is in flight or its result is unknown.
         await using (var tx = await PromotionLifecycle.LockOrderAsync(db, orderId, ct))
         {
@@ -82,13 +86,30 @@ public sealed class PayPalPaymentService(
             if (db.Database.IsRelational())
                 await db.Entry(current).ReloadAsync(ct);
             var attempt = await db.Payments.SingleAsync(x => x.OrderId == orderId && x.ProviderOrderId == providerOrderId && x.Method == "PayPal", ct);
-            if (attempt.Status != "Succeeded")
+            if (db.Database.IsRelational())
+                await db.Entry(attempt).ReloadAsync(ct);
+            if (attempt.Status is not ("Succeeded" or "Failed"))
             {
-                if (await db.Payments.AnyAsync(x => x.OrderId == orderId && x.Id != attempt.Id && x.Status == "Verifying", ct))
+                if (await db.Payments.AnyAsync(x => x.OrderId == orderId && x.Id != attempt.Id && (x.Status == "Verifying" || x.Status == "Succeeded"), ct))
                     throw new InvalidOperationException("Một lần thanh toán PayPal khác đang được xác minh.");
                 if (current.Status != "AwaitingPayment" || current.PaymentExpiresAt <= DateTime.UtcNow && attempt.Status != "Verifying")
                     throw new InvalidOperationException("Order is not payable");
+                if (attempt.Status == "Verifying")
+                {
+                    // A legacy unknown attempt is queried, never retroactively
+                    // authorized for a fresh capture under today's capacity.
+                    reconcileOnly = attempt.CaptureReservedAt == null || attempt.ReservedSellerGross == null;
+                }
+                else
+                {
+                    // The seller gate acquired by validation lives until this
+                    // outer transaction commits both the reservation and state.
+                    await Finance.ValidateMonthlyLimitAsync(orderId, ct);
+                    attempt.CaptureReservedAt = DateTime.UtcNow;
+                    attempt.ReservedSellerGross = current.PricingSchemaVersion == 1 ? current.SellerGrossSnapshot : current.TotalPrice;
+                }
                 attempt.Status = "Verifying";
+                attempt.UpdatedAt = DateTime.UtcNow;
                 await db.SaveChangesAsync(ct);
             }
 
@@ -97,37 +118,36 @@ public sealed class PayPalPaymentService(
         }
 
         var payment = await db.Payments.SingleAsync(p => p.OrderId == orderId && p.ProviderOrderId == providerOrderId && p.Method == "PayPal", ct);
+        if (payment.Status == "Failed")
+            return payment;
         if (payment.Status == "Succeeded")
         {
             await PromotionLifecycle.ConsumeAsync(db, orderId, ct);
             await db.SaveChangesAsync(ct);
-            if (finance is not null)
-                await finance.RecordSuccessfulPaymentAsync(orderId, payment.Id, ct);
+            await Finance.RecordSuccessfulPaymentAsync(orderId, payment.Id, ct);
             return payment;
         }
 
         var order = await db.OrderTables.SingleAsync(o => o.Id == orderId, ct);
         if (order.Status != "AwaitingPayment")
             throw new InvalidOperationException("Order is not awaiting payment");
-        if (finance is not null)
-            await finance.ValidateMonthlyLimitAsync(orderId, ct);
         PayPalCaptured capture;
         try
         {
-            capture = await paypal.CaptureAsync(providerOrderId, $"capture-{payment.Id}", ct);
+            capture = reconcileOnly ? await paypal.GetAsync(providerOrderId, ct)
+                : await paypal.CaptureAsync(providerOrderId, $"capture-{payment.Id}", ct);
         }
         catch (Exception ex)when (ex is HttpRequestException || ex is TaskCanceledException && !ct.IsCancellationRequested)
         {
             await using var tx = await PromotionLifecycle.LockOrderAsync(db, orderId, ct);
             if (db.Database.IsRelational())
                 await db.Entry(payment).ReloadAsync(ct);
-            if (payment.Status != "Succeeded")
+            if (payment.Status is not ("Succeeded" or "Failed"))
                 payment.Status = "Verifying";
-            else
+            else if (payment.Status == "Succeeded")
             {
                 await PromotionLifecycle.ConsumeAsync(db, orderId, ct);
-                if (finance != null)
-                    await finance.RecordSuccessfulPaymentAsync(orderId, payment.Id, ct);
+                await Finance.RecordSuccessfulPaymentAsync(orderId, payment.Id, ct);
             }
 
             await db.SaveChangesAsync(ct);
@@ -150,12 +170,13 @@ public sealed class PayPalPaymentService(
             await carts.ReconcileAsync(payment.UserId!.Value, payment.PayPalCheckoutId.Value, ct);
             return payment;
         }
+        if (payment.Status == "Failed")
+            return payment;
         if (payment.Status == "Succeeded")
         {
             await PromotionLifecycle.ConsumeAsync(db, orderId, ct);
             await db.SaveChangesAsync(ct);
-            if (finance is not null)
-                await finance.RecordSuccessfulPaymentAsync(orderId, payment.Id, ct);
+            await Finance.RecordSuccessfulPaymentAsync(orderId, payment.Id, ct);
             return payment;
         }
 
@@ -178,12 +199,14 @@ public sealed class PayPalPaymentService(
             await db.Entry(payment).ReloadAsync(ct);
         }
 
-        if (payment.Status == "Succeeded")
+        if (payment.Status is "Succeeded" or "Failed")
         {
-            await PromotionLifecycle.ConsumeAsync(db, order.Id, ct);
-            await db.SaveChangesAsync(ct);
-            if (finance != null)
-                await finance.RecordSuccessfulPaymentAsync(order.Id, payment.Id, ct);
+            if (payment.Status == "Succeeded")
+            {
+                await PromotionLifecycle.ConsumeAsync(db, order.Id, ct);
+                await db.SaveChangesAsync(ct);
+                await Finance.RecordSuccessfulPaymentAsync(order.Id, payment.Id, ct);
+            }
             if (tx != null)
                 await tx.CommitAsync(ct);
             return payment;
@@ -219,8 +242,8 @@ public sealed class PayPalPaymentService(
         payment.UpdatedAt = DateTime.UtcNow;
         order.UpdatedAt = payment.UpdatedAt.Value;
         await db.SaveChangesAsync(ct);
-        if (payment.Status == "Succeeded" && finance is not null)
-            await finance.RecordSuccessfulPaymentAsync(order.Id, payment.Id, ct);
+        if (payment.Status == "Succeeded")
+            await Finance.RecordSuccessfulPaymentAsync(order.Id, payment.Id, ct);
         if (tx != null)
             await tx.CommitAsync(ct);
         return payment;

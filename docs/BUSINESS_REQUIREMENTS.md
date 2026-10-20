@@ -170,6 +170,8 @@ Ví dụ Available 87,70 USD, rút 50 USD: còn 37,70 USD, đang chuyển 50 USD
 
 Level do **hệ thống tự đánh giá**, Admin xem kết quả/lý do; không nhập level tùy ý. Doanh số là `SellerGross` của payment thành công theo **tháng UTC**; tháng mới về 0. Kiểm tra hạn mức trước gọi cổng và khi ghi nhận thành công; tôn trọng reservation capture hợp lệ để không bỏ lửng payment đã thu.
 
+Reservation capture phải được ghi cùng trạng thái đang xử lý trước gọi provider, tính theo SellerGross và cạnh tranh chung với các payment khác của cùng seller. Timeout, request bị hủy hoặc sang tháng UTC không tự giải phóng khoản capture chưa rõ kết quả; doanh số tháng mới vẫn về 0, còn nghĩa vụ đang chờ được giữ đến khi đối soát. Thất bại đã xác định giải phóng reservation; thành công chuyển phần đó thành doanh số đúng một lần. Đây là quy tắc áp dụng cho cả PayPal một đơn và cả giỏ, không phải khóa tiền trong ví buyer/seller.
+
 **Admin cấu hình hạn mức riêng seller:** mức theo level là mặc định; override có số tiền dương, actor, lý do, thời điểm lưu/hiệu lực từ hiện tại hoặc tương lai và lịch sử chỉ thêm. Có thể kết thúc override để về mức level; đổi level không tự xóa override còn hiệu lực. Hạ mức dưới doanh số đã đạt không sửa/hủy payment hoặc settlement cũ; chặn giao dịch mới, tính cả capture đang giữ hạn mức. Kiểm tra lại dưới khóa; chỉ admin được thay, không cập nhật bằng client/seller. Snapshot/lịch sử phải giải thích được mức có hiệu lực tại lần kiểm tra. Chi tiết triển khai chọn API/schema phù hợp, không coi là endpoint đã tồn tại.
 
 | Level | Hạn mức mặc định/tháng | Khi Net vào ví | Development | Điều kiện lên cấp |
