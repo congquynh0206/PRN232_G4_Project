@@ -34,6 +34,7 @@
       .querySelectorAll('.tabs button')
       .forEach((x) => x.classList.toggle('active', x.dataset.tab === id));
     if (id === 'orders') safe(loadOrders);
+    else if (id === 'finance-report') G4.SellerReport.load();
     else if (id === 'disputes') safe(() => G4.Disputes.load());
     else if (id === 'promotions') safe(() => G4.Promotions.load());
     else if (id === 'notifications') safe(() => G4.Notifications.load());
@@ -395,6 +396,7 @@
     const active = document.querySelector('.tab-panel.active')?.id;
     if (active === 'orders') await loadOrders(orderPage, true);
     if (active === 'finance') await loadFinance();
+    if (active === 'finance-report') await G4.SellerReport.load();
     if (active === 'seller-levels') await G4.SellerLevels.load();
     if (active === 'notifications') await G4.Notifications.load();
     await G4.SellerReturns.load();
@@ -417,8 +419,10 @@
   G4.Promotions.init('seller');
   G4.Notifications.init('seller');
   G4.IntegrationLogs.init('seller');
+  G4.SellerReport.init();
   const notificationLink = new URLSearchParams(location.search);
   if (notificationLink.get('tab') === 'finance') tab('finance');
+  if (notificationLink.get('tab') === 'finance-report') tab('finance-report');
   const linkedOrder = Number(notificationLink.get('orderId'));
   if (Number.isInteger(linkedOrder) && linkedOrder > 0) { tab('orders'); safe(() => showOrder(linkedOrder)); }
 })();
