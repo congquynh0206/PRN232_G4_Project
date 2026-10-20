@@ -1,6 +1,6 @@
 # Trả hàng tự hoàn tiền, phí ship theo kg và shipper nhận vận đơn
 
-**Căn cứ mới 18/10/2026:** [đặc tả §6–8](BUSINESS_REQUIREMENTS.md) và [SH1/RT1/RT2/INR1/FR1](IMPLEMENTATION_BACKLOG.md). SH1 đã triển khai/nghiệm thu source ngày 20/10, hướng dẫn dưới đây; cần migration mới trước khi chạy. Các phần return khác vẫn mô tả source hiện tại: mục tiêu RT1 là return 7 ngày/Development 300 giây từ chiều đi Delivered; receipt 48 giờ/45 giây từ chiều trả Delivered; phản đối từ chối/INR là deadline riêng. RT1/RT2/INR1 và free returns theo item chưa hoàn thành, không chạy được chỉ bằng thay cấu hình receipt.
+**Căn cứ mới 18/10/2026:** [đặc tả §6–8](BUSINESS_REQUIREMENTS.md). SH1 và RT1 đã triển khai/nghiệm thu source ngày 20/10, cần migration trước khi chạy. [RT1](RETURN_WINDOW_POLICY.md) dùng deadline snapshot từ Outbound Delivered: mặc định 7 ngày/Development 300 giây cho delivery mới; legacy đã giao giữ 7 ngày. Receipt mặc định 48 giờ/Development 45 giây từ Return Delivered vẫn riêng. RT2/INR1/free returns theo item chưa hoàn thành; không thay khóa receipt để làm cửa sổ mở request.
 
 ## SH1 — Lên lịch giao lại và actor 20/10/2026
 
@@ -76,7 +76,7 @@ Khởi động lại API và frontend sau khi build. API Development dùng `Retu
 ## Trả hàng thường
 
 1. Buyer đặt đơn, thanh toán, seller tạo vận đơn; shipper nhận vận đơn chiều đi và tracking đến `Delivered`.
-2. Buyer bấm **Yêu cầu trả hàng** trong vòng 7 ngày từ giao thành công, chọn lý do và xác nhận báo giá gồm refund/phí chiều về trước khi gửi. Trạng thái `Requested` chỉ chờ seller, chưa tự hoàn tiền. Xem [RETURN_PRICING.md](RETURN_PRICING.md).
+2. Buyer bấm **Yêu cầu trả hàng** trong cửa sổ đã snapshot từ giao thành công (mặc định 7 ngày/Development 300 giây cho delivery mới; legacy 7 ngày), chọn lý do và xác nhận báo giá gồm refund/phí chiều về trước khi gửi. Trạng thái `Requested` chỉ chờ seller, chưa tự hoàn tiền. Xem [RETURN_PRICING.md](RETURN_PRICING.md).
 3. Seller duyệt. Tiền seller chuyển sang `OnHold`; hệ thống tạo vận đơn chiều trả. Nếu carrier thất bại, bấm **Thử tạo vận đơn trả lại**.
 4. Shipper nhận riêng vận đơn chiều trả, cập nhật `PickedUp → InTransit → OutForDelivery → Delivered`.
 5. Từ thời điểm chiều trả `Delivered`, seller có 45 giây ở Development để kiểm tra hàng. Seller bấm **Xác nhận hàng hợp lệ và hoàn tiền** thì hoàn ngay. Nếu seller không phản hồi, worker tự xác nhận và hoàn tiền ở lần kiểm tra sau hạn.

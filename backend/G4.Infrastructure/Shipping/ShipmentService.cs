@@ -200,6 +200,7 @@ public sealed class ShipmentService(
             await new G4.Infrastructure.Notifications.BusinessNotificationService(db, config, clock).ShipmentReattemptAsync(orderForUpdate, shipment, eventId, ct);
         if (shipment.Direction == "Outbound" && status == "Delivered")
         {
+            G4.Infrastructure.Returns.ReturnWindowPolicy.SnapshotDelivery(orderForUpdate, shipment.DeliveredAt!.Value, config);
             orderForUpdate.Status = OrderState.Next(orderForUpdate.Status!, "Deliver");
             await new CheckoutService(db, config: config).QueueEmailAsync(
                 orderForUpdate,

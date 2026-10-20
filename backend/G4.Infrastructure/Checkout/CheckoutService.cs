@@ -14,7 +14,8 @@ public sealed class CheckoutService(
     ApplicationDbContext db,
     ISellerFinanceService? finance = null,
     IConfiguration? config = null,
-    IIntegrationLogWriter? logs = null
+    IIntegrationLogWriter? logs = null,
+    TimeProvider? clock = null
 ) : ICheckoutService
 {
     public async Task<IReadOnlyList<Product>> RandomProductsAsync(int count, CancellationToken ct = default)
@@ -304,17 +305,32 @@ public sealed class CheckoutService(
 
     public async Task<int> CloseDeliveredOutsideReturnWindowAsync(CancellationToken ct = default)
     {
-        var cutoff = DateTime.UtcNow.AddDays(-7);
-        var orders = await db.OrderTables.Where(o => o.Status == "Delivered" && db.ShippingInfos.Any(s => s.OrderId == o.Id && s.Direction == "Outbound" && s.DeliveredAt < cutoff) && !db.ReturnRequests.Any(r => r.OrderId == o.Id && r.Status != "Rejected") && !db.Disputes.Any(d => d.OrderId == o.Id && d.WorkflowEnabled && d.IsOpen))
-            .ToListAsync(ct);
-        foreach (var order in orders)
+        var now = (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime;
+        var legacyCutoff = now.AddSeconds(-G4.Infrastructure.Returns.ReturnWindowPolicy.LegacySeconds);
+        var ids = await db.OrderTables.AsNoTracking().Where(o => o.Status == "Delivered"
+            && (o.ReturnWindowClosesAt <= now || o.ReturnWindowClosesAt == null && db.ShippingInfos.Any(s => s.OrderId == o.Id && s.Direction == "Outbound" && s.DeliveredAt <= legacyCutoff)))
+            .OrderBy(o => o.Id).Select(o => o.Id).ToListAsync(ct);
+        var count = 0;
+        foreach (var id in ids)
         {
+            await using var tx = await PromotionLifecycle.LockOrderAsync(db, id, ct);
+            var order = db.Database.IsSqlServer()
+                ? await db.OrderTables.FromSqlInterpolated($"SELECT * FROM [OrderTable] WITH (UPDLOCK,HOLDLOCK) WHERE [id]={id}").SingleAsync(ct)
+                : await db.OrderTables.SingleAsync(o => o.Id == id, ct);
+            if (db.Database.IsRelational()) await db.Entry(order).ReloadAsync(ct);
+            var delivered = await db.ShippingInfos.AsNoTracking().Where(s => s.OrderId == id && s.Direction == "Outbound").Select(s => s.DeliveredAt).SingleOrDefaultAsync(ct);
+            // Rejected returns retain appeal rights. RT2 will own their eventual closing deadline.
+            if (order.Status != "Delivered" || delivered == null || G4.Infrastructure.Returns.ReturnWindowPolicy.IsOpen(order, delivered, now)
+                || await db.ReturnRequests.AnyAsync(r => r.OrderId == id && r.Status != "Closed", ct)
+                || await db.Disputes.AnyAsync(d => d.OrderId == id && d.IsOpen, ct))
+            { if (tx != null) await tx.CommitAsync(ct); continue; }
             order.Status = OrderState.Next(order.Status!, "Close");
-            order.UpdatedAt = DateTime.UtcNow;
+            order.UpdatedAt = now;
+            await db.SaveChangesAsync(ct);
+            if (tx != null) await tx.CommitAsync(ct);
+            count++;
         }
-
-        await db.SaveChangesAsync(ct);
-        return orders.Count;
+        return count;
     }
 
     public async Task<OrderTable> CancelUnpaidAsync(int orderId, CancellationToken ct = default)

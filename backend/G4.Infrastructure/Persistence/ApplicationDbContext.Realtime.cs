@@ -26,6 +26,7 @@ public partial class ApplicationDbContext
                 Dispute x => new CommerceChange { Topic = "disputes", OrderId = x.OrderId, DisputeId = x.Id > 0 ? x.Id : null },
                 DisputeEntry x => new CommerceChange { Topic = "disputes", DisputeId = x.DisputeId },
                 SellerAccount x => new CommerceChange { Topic = "finance", SellerId = x.SellerId },
+                SellerPayout x => new CommerceChange { Topic = "finance", SellerAccountId = x.SellerAccountId },
                 SellerDebtEvent x => new CommerceChange { Topic = "finance", SellerAccountId = x.SellerAccountId },
                 SellerLevelEvaluation x => new CommerceChange { Topic = "levels", SellerId = x.SellerId },
                 SellerOrderFeedback x => new CommerceChange { Topic = "levels", SellerId = x.SellerId, BuyerId = x.BuyerId },

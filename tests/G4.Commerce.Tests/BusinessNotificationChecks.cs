@@ -75,11 +75,12 @@ internal static class BusinessNotificationChecks
         Check(rejection.Body.Contains("<script>decision</script>") && rejection.HtmlBody!.Contains("&lt;script&gt;") && !rejection.HtmlBody.Contains("<script>"), "rejection explains reason as encoded text");
         var instant = await finance.RequestPayoutAsync(f.Seller, 10, "instant-payout", false);
         await finance.RequestPayoutAsync(f.Seller, 10, "instant-payout", false);
-        Check(await db.NotificationOutbox.CountAsync(n => n.PayoutId == instant.Id && n.EventType == "PayoutCompleted") == 1, "instant completed payout immediately notifies once");
+        Check(!await db.NotificationOutbox.AnyAsync(n => n.PayoutId == instant.Id), "Level 3 payout request must not claim bank completion");
         var returned = await finance.RequestPayoutAsync(f.Seller, 12, "returned-payout", true);
         Check(!await db.NotificationOutbox.AnyAsync(n => n.PayoutId == returned.Id), "pending payout cannot claim completion");
         for (var i = 0; i < 4; i++) await finance.AdvancePayoutsAsync();
         Check(await db.NotificationOutbox.CountAsync(n => n.PayoutId == returned.Id && n.EventType == "PayoutReturned") == 1, "returned payout notifies once after funds restored");
+        Check(await db.NotificationOutbox.CountAsync(n => n.PayoutId == instant.Id && n.EventType == "PayoutCompleted") == 1, "Level 3 completion email only after bank workflow finishes");
         var diagnostics = new DiagnosticsQueryService(db);
         var buyerMails = await diagnostics.NotificationsAsync(f.Buyer, "buyer", new(PageSize: 100), default);
         var sellerMails = await diagnostics.NotificationsAsync(f.Seller, "seller", new(PageSize: 100), default);

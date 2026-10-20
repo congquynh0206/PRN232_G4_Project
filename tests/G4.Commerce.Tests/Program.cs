@@ -10,6 +10,9 @@ if (args.Contains("--paypal-reservations")) { await PayPalReservationChecks.RunA
 if (args.Contains("--paypal-reservations-sql")) { await PayPalReservationSqlChecks.RunAsync(); return; }
 if (args.Contains("--shipping-reattempts")) { await ShipmentReattemptChecks.RunAsync(); return; }
 if (args.Contains("--address-confirmations")) { await AddressConfirmationChecks.RunAsync(); return; }
+if (args.Contains("--return-window")) { await ReturnWindowChecks.RunAsync(); return; }
+if (args.Contains("--payout-workflow")) { await PayoutWorkflowChecks.RunAsync(); return; }
+if (args.Contains("--return-payout-sql")) { await ReturnPayoutSqlChecks.RunAsync(); return; }
 if (args.Contains("--address-confirmations-sql")) { await AddressConfirmationSqlChecks.RunAsync(); return; }
 if (args.Contains("--shipping-reattempts-sql")) { await ShipmentReattemptSqlChecks.RunAsync(); return; }
 
@@ -118,6 +121,8 @@ await BuyerCartChecks.RunAsync();
 await CheckoutLimitChecks.RunAsync();
 await AddressChangeChecks.RunAsync();
 await AddressConfirmationChecks.RunAsync();
+await ReturnWindowChecks.RunAsync();
+await PayoutWorkflowChecks.RunAsync();
 await PromotionFinanceChecks.RunAsync();
 await FinancePolicyChecks.RunAsync();
 await SellerDebtChecks.RunAsync();

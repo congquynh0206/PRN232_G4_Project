@@ -701,11 +701,12 @@ public sealed partial class SellerFinanceService(ApplicationDbContext db, IConfi
             IdempotencyKey = key,
             DestinationMasked = bankIdentity == null ? "****1234" : bankIdentity.Split(" · ")[0] + " · ****" + bankIdentity[^4..],
             SimulateFailure = simulateFailure,
-            Status = account.Level >= 3 && !simulateFailure ? "Completed" : "Created",
+            Status = "Created",
+            WorkflowVersion = 1,
             CreatedAt = now,
             UpdatedAt = now,
-            CompletedAt = account.Level >= 3 && !simulateFailure ? now : null,
-            BankReferenceId = account.Level >= 3 && !simulateFailure ? "BANK-" + Guid.NewGuid().ToString("N")[..12].ToUpperInvariant() : null
+            CompletedAt = null,
+            BankReferenceId = null
         };
         db.SellerPayouts.Add(payout);
         await db.SaveChangesAsync(ct);
@@ -719,15 +720,21 @@ public sealed partial class SellerFinanceService(ApplicationDbContext db, IConfi
             "Payout requested",
             payoutId: payout.Id
         );
-        await new G4.Infrastructure.Notifications.BusinessNotificationService(db, configuration, clock).PayoutAsync(payout, sellerId, ct);
+        RecordPayoutStep(payout, null, sellerId, "seller");
         await db.SaveChangesAsync(ct);
         if (tx != null) await tx.CommitAsync(ct);
         return payout;
     }
 
+    private void RecordPayoutStep(SellerPayout payout, string? from, int? actor, string role)
+    {
+        db.SellerPayoutEvents.Add(new SellerPayoutEvent { PayoutId = payout.Id, FromStatus = from, ToStatus = payout.Status,
+            ActorUserId = actor, ActorRole = role, OccurredAt = Now, BankReferenceId = payout.BankReferenceId });
+    }
+
     public async Task<int> AdvancePayoutsAsync(CancellationToken ct = default)
     {
-        var payouts = await db.SellerPayouts.AsNoTracking().Where(x => x.Status != "Completed" && x.Status != "Returned").OrderBy(x => x.Id)
+        var payouts = await db.SellerPayouts.AsNoTracking().Where(x => x.Status == "Created" || x.Status == "InProgress" || x.Status == "FundsSent").OrderBy(x => x.Id)
             .Take(50)
             .Select(x => new { x.Id, SellerId = db.SellerAccounts.Where(a => a.Id == x.SellerAccountId).Select(a => a.SellerId).Single() })
             .ToListAsync(ct);
@@ -745,6 +752,7 @@ public sealed partial class SellerFinanceService(ApplicationDbContext db, IConfi
             }
             var account = await db.SellerAccounts.SingleAsync(x => x.Id == payout.SellerAccountId, ct);
             await LockAccountAsync(account, ct);
+            var from = payout.Status;
             payout.UpdatedAt = Now;
             if (payout.Status == "Created")
                 payout.Status = "InProgress";
@@ -753,7 +761,7 @@ public sealed partial class SellerFinanceService(ApplicationDbContext db, IConfi
                 payout.Status = "FundsSent";
                 payout.BankReferenceId = "BANK-" + Guid.NewGuid().ToString("N")[..12].ToUpperInvariant();
             }
-            else if (payout.SimulateFailure)
+            else if (payout.Status == "FundsSent" && payout.SimulateFailure)
             {
                 payout.Status = "Returned";
                 payout.CompletedAt = Now;
@@ -771,11 +779,13 @@ public sealed partial class SellerFinanceService(ApplicationDbContext db, IConfi
                 );
                 RecoverAvailableDebt(account, $"payout:{payout.Id}:returned-debt");
             }
-            else
+            else if (payout.Status == "FundsSent")
             {
                 payout.Status = "Completed";
                 payout.CompletedAt = Now;
             }
+            else throw new InvalidOperationException("Payout has an unsupported state.");
+            RecordPayoutStep(payout, from, null, "system");
             await SyncDebtAsync(account, ct);
             await new G4.Infrastructure.Notifications.BusinessNotificationService(db, configuration, clock).PayoutAsync(payout, account.SellerId, ct);
             await db.SaveChangesAsync(ct);
@@ -827,19 +837,10 @@ public sealed partial class SellerFinanceService(ApplicationDbContext db, IConfi
             .Take(50)
             .Select(x => new FinanceTransactionView(x.Id, x.OrderId, x.Type, x.Bucket, x.Amount, x.Currency, x.Description, x.CreatedAt))
             .ToListAsync(ct);
-        var payouts = await db.SellerPayouts.AsNoTracking().Where(x => x.SellerAccountId == account.Id).OrderByDescending(x => x.Id)
-            .Take(20)
-            .Select(x => new PayoutView(
-            x.Id,
-            x.Amount,
-            x.Currency,
-            x.Status,
-            x.DestinationMasked,
-            x.BankReferenceId,
-            x.CreatedAt,
-            x.CompletedAt
-        ))
-            .ToListAsync(ct);
+        var owned = db.SellerPayouts.AsNoTracking().Where(x => x.SellerAccountId == account.Id);
+        var pending = await owned.Where(x => x.Status != "Completed" && x.Status != "Returned").SumAsync(x => x.Amount, ct);
+        var paidOut = await owned.Where(x => x.Status == "Completed").SumAsync(x => x.Amount, ct);
+        var payouts = await PayoutQuery.ReadAsync(db, owned.OrderByDescending(x => x.Id).Take(20), ct);
         return new SellerFinanceSummary(
             account.SellerId,
             account.Level,
@@ -863,7 +864,9 @@ public sealed partial class SellerFinanceService(ApplicationDbContext db, IConfi
         ),
             transactions,
             payouts,
-            HoldSeconds(account.Level, account.HoldDays)
+            HoldSeconds(account.Level, account.HoldDays),
+            pending,
+            paidOut
         );
     }
 

@@ -19,6 +19,31 @@ function load(api = async () => baseQuote) {
   context.G4.Returns.init();
   return { ui: context.G4.Returns, node };
 }
+
+test('return deadline uses UTC, expires independently of receipt and preserves timely case guidance', () => {
+  const { ui } = load();
+  assert.equal(ui.windowOpen({ returnWindowClosesAt: '2070-01-01T00:00:00' }), true);
+  const future = ui.windowHtml({ returnWindowClosesAt: '2070-01-01T00:00:00' });
+  assert.match(future, /datetime="2070-01-01T00:00:00Z"/);
+  assert.match(future, /Gửi yêu cầu trước hạn/);
+  const past = { returnWindowClosesAt: '2000-01-01T00:00:00Z', returnRequest: { status: 'Requested' } };
+  assert.equal(ui.windowOpen(past), false);
+  assert.match(ui.windowHtml(past), /Đã hết hạn.*tiếp tục được xử lý.*hạn kiểm tra hàng trả là riêng/);
+});
+
+test('a quote that expires before submit cannot post a new return', async () => {
+  let posts = 0;
+  const { ui, node } = load(async (url, method) => {
+    if (method === 'POST') posts++;
+    return { ...baseQuote, returnWindowClosesAt: '2000-01-01T00:00:00Z' };
+  });
+  await ui.open(7);
+  await node('return-form').onsubmit({ preventDefault() {} });
+  assert.equal(posts, 0);
+  assert.equal(node('return-confirm').disabled, true);
+  assert.match(node('return-error').textContent, /hết hạn/);
+  assert.doesNotMatch(node('return-quote').innerHTML, /Phí trả hàng vượt/);
+});
 test('preview shows buyer-funded return deduction and excludes platform subsidy from cash', () => {
   const { ui } = load();
   const html = ui.quoteHtml({ ...baseQuote, reasonCode: 'ChangedMind', shippingPayer: 'Buyer', outboundShippingRetained: 5, buyerReturnShippingFee: 5, buyerRefund: 85 });

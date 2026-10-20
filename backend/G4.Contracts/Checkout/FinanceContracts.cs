@@ -29,8 +29,11 @@ public sealed record PayoutView(
     string DestinationMasked,
     string? BankReferenceId,
     DateTime CreatedAt,
-    DateTime? CompletedAt
+    DateTime? CompletedAt,
+    IReadOnlyList<PayoutStepView>? History = null,
+    int WorkflowVersion = 0
 );
+public sealed record PayoutStepView(string? FromStatus, string ToStatus, DateTime OccurredAt, int? ActorUserId, string ActorRole, string? BankReferenceId);
 public sealed record SellerFinanceSummary(
     int SellerId,
     int Level,
@@ -46,7 +49,9 @@ public sealed record SellerFinanceSummary(
     SellerLevelProgress LevelProgress,
     IReadOnlyList<FinanceTransactionView> Transactions,
     IReadOnlyList<PayoutView> Payouts,
-    int HoldSeconds = 0
+    int HoldSeconds = 0,
+    decimal PayoutPending = 0,
+    decimal PaidOut = 0
 );
 
 public sealed record PlatformFeeChangeRequest(decimal FeePercent, decimal FixedFee, DateTimeOffset? EffectiveAt,

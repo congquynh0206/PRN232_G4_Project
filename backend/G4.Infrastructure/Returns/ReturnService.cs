@@ -35,6 +35,7 @@ public sealed class ReturnService(
         var existing = await db.ReturnRequests.SingleOrDefaultAsync(x => x.OrderId == orderId || x.RequestKey == input.Key, ct);
         if (existing != null)
         {
+            if (db.Database.IsRelational()) await db.Entry(existing).ReloadAsync(ct);
             if (existing.OrderId != orderId || existing.RequestKey != input.Key || existing.ReasonCode != input.ReasonCode
                 || existing.Description != (input.Description ?? "").Trim() || existing.PricingFingerprint != input.PricingFingerprint)
                 throw new InvalidOperationException("Đơn hoặc khóa đã có yêu cầu khác. Tải lại chi tiết đơn.");
@@ -48,7 +49,7 @@ public sealed class ReturnService(
         var request = new ReturnRequest
         {
             OrderId = orderId, UserId = order.BuyerId, Reason = quote.ReasonLabel, Description = (input.Description ?? "").Trim(),
-            Status = "Requested", CreatedAt = Now, ReturnDeadline = Now.AddDays(7), PricingPolicyVersion = 1,
+            Status = "Requested", CreatedAt = Now, ReturnDeadline = quote.ReturnWindowClosesAt, PricingPolicyVersion = 1,
             ReasonCode = input.ReasonCode, RequestKey = input.Key, PricingFingerprint = quote.PricingFingerprint,
             ShippingPayer = quote.ShippingPayer, GoodsPaidSnapshot = quote.GoodsPaid,
             OutboundShippingRetained = quote.OutboundShippingRetained, ReturnShippingFee = quote.ReturnShippingFee,
@@ -83,7 +84,7 @@ public sealed class ReturnService(
         );
         if (!agreedReturn && await db.Disputes.AnyAsync(d => d.OrderId == orderId && d.WorkflowEnabled && d.IsOpen, ct))
             throw new InvalidOperationException("Đơn đang có yêu cầu giải quyết; hãy xử lý trả hàng trong yêu cầu đó.");
-        if (!agreedReturn && (order.Status != "Delivered" || deliveredAt is null || deliveredAt < Now.AddDays(-7)))
+        if (!agreedReturn && (order.Status != "Delivered" || !ReturnWindowPolicy.IsOpen(order, deliveredAt, Now)))
             throw new InvalidOperationException("Order is outside return window");
         var request = new ReturnRequest
         {
@@ -92,7 +93,7 @@ public sealed class ReturnService(
             Reason = reason,
             Status = "Requested",
             CreatedAt = Now,
-            ReturnDeadline = Now.AddDays(7)
+            ReturnDeadline = ReturnWindowPolicy.Deadline(order, deliveredAt)
         };
         // Accepted full-refund agreements have no buyer postage deduction. Old orders
         // without enough shipping snapshots keep their pre-upgrade treatment.
@@ -273,8 +274,10 @@ public sealed class ReturnService(
     private async Task LockOrderAsync(int orderId, CancellationToken ct)
     {
         if (db.Database.IsSqlServer())
-            await db.OrderTables.FromSqlInterpolated($"SELECT * FROM [OrderTable] WITH (UPDLOCK, HOLDLOCK) WHERE [id] = {orderId}")
-                .SingleAsync(ct);
+        {
+            var order = await db.OrderTables.FromSqlInterpolated($"SELECT * FROM [OrderTable] WITH (UPDLOCK, HOLDLOCK) WHERE [id] = {orderId}").SingleAsync(ct);
+            await db.Entry(order).ReloadAsync(ct);
+        }
     }
 
     public async Task<OrderTable> RequestCancelAsync(int orderId, CancellationToken ct = default)

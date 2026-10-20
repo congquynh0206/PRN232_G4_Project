@@ -9,6 +9,8 @@
 
 Outbox lưu cùng transaction nghiệp vụ; không gọi SMTP từ payment/return/payout. Worker gửi và retry riêng. Không phát PaymentFailed cho timeout/Verifying hoặc buyer tự hủy lượt PayPal. Retry cùng sự kiện/người nhận không tạo email mới; các lần thử thanh toán khác nhau và các kỳ yêu cầu hủy khác nhau có thông báo riêng.
 
+**PAY1 ngày 20/10:** bỏ email Completed tức thời khi Level 3 yêu cầu payout. Mọi level chỉ có PayoutCompleted/PayoutReturned sau bước xác nhận ngân hàng mô phỏng terminal; giữ EventKey/RecipientUserId hiện có. Created/InProgress/FundsSent không phát email kết quả. Lịch sử payout và realtime cùng transaction; SQL QA lỗi sau SaveChanges trước commit xác nhận không phát email/state terminal giả và retry chỉ một thông báo. Không gửi bù cho payout terminal cũ. Xem [PAY1](PAYOUT_WORKFLOW.md).
+
 **SH1 ngày 20/10:** thêm email `ReattemptScheduled` cho buyer/seller, identity `shipment:{shipmentId}:reattempt:{eventId}` và hậu tố tài khoản nhận theo AddAsync hiện có. Mỗi chiều có thông báo riêng với lịch UTC/lý do; ghi cùng transaction shipment/event, worker gửi sau commit. Replay event không thêm email, rollback không để lại email/realtime. Template có hướng dẫn theo dõi đúng chiều, không coi lịch là đã bắt đầu hoặc Delivered. Bộ lọc Email có sự kiện mới. Đã kiểm tra hai chiều, SQL concurrent/rollback và nội dung escape; không gửi bù lịch sử. Dùng các cột outbox hiện có; migration SH1 chỉ bổ sung tracking, [xem hướng dẫn](RETURNS_AND_SHIPPING.md#sh1--lên-lịch-giao-lại-và-actor-20102026).
 
 ## Người nhận

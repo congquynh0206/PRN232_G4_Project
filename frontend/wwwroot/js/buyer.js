@@ -105,10 +105,12 @@
       );
     if (['Paid', 'Preparing'].includes(o.status))
       buttons.push(`<button data-action="cancel" data-id="${o.id}">Yêu cầu hủy</button>`);
-    if (o.status === 'Delivered' && !o.returnRequest)
+    if (o.status === 'Delivered' && !o.returnRequest && o.canRequestReturn !== false && (G4.Returns.windowOpen?.(o) ?? true))
       buttons.push(`<button data-action="return" data-id="${o.id}">Yêu cầu trả hàng</button>`);
     if (
       o.status === 'Delivered' &&
+      o.canOpenDispute !== false &&
+      (o.returnRequest?.status === 'Rejected' || (G4.Returns.windowOpen?.(o) ?? true)) &&
       !o.dispute?.isOpen &&
       (!o.returnRequest || ['Rejected', 'Closed'].includes(o.returnRequest.status)) &&
       !o.refunds.some((r) => r.status === 'Succeeded' && r.reason !== 'shipping-adjustment')
@@ -130,7 +132,7 @@
       )
       .join('');
     openDetail(
-      `<div class="detail" data-order-detail="${o.id}"><h2>Đơn mua hàng #${o.id}</h2><p class="small">Tạo: ${date(o.orderDate)} · Cập nhật: ${date(o.updatedAt || o.orderDate)}</p><p class="small">${esc(o.addressSnapshot)} · Khối lượng: ${o.totalWeightKg == null ? 'Chưa có dữ liệu' : Number(o.totalWeightKg) + ' kg'}</p>${status}${G4.AddressChanges.summaryHtml(o, 'buyer')}${G4.disputeBadge(o.dispute)}<h3>Sản phẩm</h3>${lines}${G4.Promotions.breakdownHtml(o)}<div class="promotion-order-totals"><p>Phí vận chuyển: <strong>${money(o.shippingFee ?? o.shipping)}</strong></p><p>Tổng thanh toán: <strong>${money(o.totalPrice)}</strong></p></div><h3>Tiến trình vận chuyển</h3>${trackingHtml(o)}<h3>Thao tác</h3><div class="actions">${actions(o)}</div>${G4.SellerFeedback.html(o)}${G4.returnSummary(o)}${o.refunds.length ? `<div class="refund-summary">${o.refunds.map((r) => `<p>${r.reason === 'shipping-adjustment' ? 'Hoàn chênh lệch ship giả lập' : 'Hoàn'} ${money(r.amount)} · ${esc(label(r.status))}</p>`).join('')}</div>` : ''}</div>`,
+      `<div class="detail" data-order-detail="${o.id}"><h2>Đơn mua hàng #${o.id}</h2><p class="small">Tạo: ${date(o.orderDate)} · Cập nhật: ${date(o.updatedAt || o.orderDate)}</p><p class="small">${esc(o.addressSnapshot)} · Khối lượng: ${o.totalWeightKg == null ? 'Chưa có dữ liệu' : Number(o.totalWeightKg) + ' kg'}</p>${status}${G4.AddressChanges.summaryHtml(o, 'buyer')}${G4.Returns.windowHtml?.(o) || ''}${G4.disputeBadge(o.dispute)}<h3>Sản phẩm</h3>${lines}${G4.Promotions.breakdownHtml(o)}<div class="promotion-order-totals"><p>Phí vận chuyển: <strong>${money(o.shippingFee ?? o.shipping)}</strong></p><p>Tổng thanh toán: <strong>${money(o.totalPrice)}</strong></p></div><h3>Tiến trình vận chuyển</h3>${trackingHtml(o)}<h3>Thao tác</h3><div class="actions">${actions(o)}</div>${G4.SellerFeedback.html(o)}${G4.returnSummary(o)}${o.refunds.length ? `<div class="refund-summary">${o.refunds.map((r) => `<p>${r.reason === 'shipping-adjustment' ? 'Hoàn chênh lệch ship giả lập' : 'Hoàn'} ${money(r.amount)} · ${esc(label(r.status))}</p>`).join('')}</div>` : ''}</div>`,
       preserveScroll,
     );
   }

@@ -2,7 +2,7 @@
 
 **Căn cứ mới 18/10/2026:** [đặc tả §7](BUSINESS_REQUIREMENTS.md#7-trả-hàng-và-refund) và [task FR1](IMPLEMENTATION_BACKLOG.md#8-fr1--free-returns-theo-mặt-hàng). Công thức bên dưới là phiên bản đã triển khai trước free returns. Bản mới phải snapshot policy item, phân phí một nhãn theo khối lượng cho đơn trộn free/non-free, không trừ phần seller chịu vào refund buyer và không sửa hồi tố snapshot cũ. Free shipping chiều đi không tự bật free returns. Giữ dữ liệu/kiểm thử lịch sử như ghi nhận theo phiên bản cũ.
 
-Áp dụng từ migration `20261014061325_AddReasonBasedReturnPricing`. Buyer trả toàn bộ hàng trong 7 ngày từ Delivered chiều đi; cơ chế seller duyệt, tracking chiều trả, receipt và tự refund vẫn như [RETURNS_AND_SHIPPING.md](RETURNS_AND_SHIPPING.md). Thời hạn demo receipt vẫn 45 giây, môi trường khác 48 giờ.
+Áp dụng từ migration `20261014061325_AddReasonBasedReturnPricing`. Từ RT1 ngày 20/10, buyer trả toàn bộ hàng trong deadline snapshot từ Delivered chiều đi (mặc định 7 ngày/Development 300 giây cho delivery mới, legacy giữ 7 ngày; xem [RT1](RETURN_WINDOW_POLICY.md)); cơ chế seller duyệt, tracking chiều trả, receipt và tự refund vẫn như [RETURNS_AND_SHIPPING.md](RETURNS_AND_SHIPPING.md). Thời hạn demo receipt vẫn 45 giây, môi trường khác 48 giờ.
 
 ## Báo giá và xác nhận
 

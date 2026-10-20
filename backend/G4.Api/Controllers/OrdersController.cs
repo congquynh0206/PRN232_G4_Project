@@ -9,7 +9,8 @@ public sealed class OrdersController(
     ApplicationDbContext db,
     ICheckoutService checkout,
     IReturnService returns,
-    IHostEnvironment environment
+    IHostEnvironment environment,
+    TimeProvider? clock = null
 ) : ApiControllerBase(environment)
 {
     [HttpGet("orders")]
@@ -81,7 +82,7 @@ public sealed class OrdersController(
         var events = await db.ShippingEvents.AsNoTracking().Where(e => shipmentIds.Contains(e.ShippingInfoId)).OrderBy(e => e.OccurredAt)
             .Select(e => new { e.ShippingInfoId, e.Status, e.Location, e.Note, e.OccurredAt, e.ActorUserId, e.ActorRole, e.ReattemptAt })
             .ToListAsync(ct);
-        var returnRequest = await db.ReturnRequests.AsNoTracking().Where(r => r.OrderId == id).Select(r => new { r.Id, r.Reason, r.Status, r.DecisionReason, r.CreatedAt, r.ReceivedAt, r.ConfirmationDueAt,
+        var returnRequest = await db.ReturnRequests.AsNoTracking().Where(r => r.OrderId == id).Select(r => new { r.Id, r.Reason, r.Status, r.DecisionReason, r.CreatedAt, r.ReceivedAt, r.ConfirmationDueAt, r.ReturnDeadline,
             r.PricingPolicyVersion, r.ReasonCode, r.Description, r.ShippingPayer, r.GoodsPaidSnapshot, r.OutboundShippingRetained,
             r.ReturnShippingFee, r.BuyerReturnShippingFee, r.BuyerRefundAmount, r.PlatformSubsidyReversal, r.ShippingCostChargedAt })
             .SingleOrDefaultAsync(ct);
@@ -104,7 +105,16 @@ public sealed class OrdersController(
             && db.PayPalCheckouts.Any(c => c.Id == p.PayPalCheckoutId && (c.Status == "Creating" || c.Status == "Pending" || c.Status == "Verifying")))
             .OrderByDescending(p => p.Id).Select(p => p.PayPalCheckoutId).FirstOrDefaultAsync(ct);
         var canRequestAddressChange = (order.Status is "Paid" or "Preparing" or "Shipping") && order.AddressChangeCount == 0 && !addressChanges.Any(x => x.Status == "Pending" || x.Status == "AwaitingShipper") && dispute?.IsOpen != true && returnRequest == null && (outbound == null || outbound.DeliveryAttempts == 0 && (outbound.Status is "NotCreated" or "ShipmentCreationFailed" or "LabelCreated" or "PickedUp" or "InTransit"));
-        return Ok(new { order.Id, order.Status, order.OrderDate, order.UpdatedAt, order.PaymentExpiresAt, order.AddressSnapshot, order.AddressChangeCount, addressChanges, canRequestAddressChange, order.CancelDecisionReason, order.Subtotal, order.DiscountAmount, order.ShippingFee, order.TotalPrice, order.Currency, order.CouponCode, order.TotalWeightKg, order.PickupAddressSnapshot, shippingBase = order.PricingSchemaVersion == 1 ? order.ShippingBase : order.ShippingFee, order.ShippingDiscount, order.SellerGoodsDiscount, order.PlatformSubsidy, sellerGross = order.PricingSchemaVersion == 1 ? order.SellerGrossSnapshot : order.TotalPrice, promotions, items, payments, shipments, events, returnRequest, refunds, settlement, dispute, sellerFeedback, canReviewSeller, payPalCheckoutId });
+        var deliveredAt = await db.ShippingInfos.AsNoTracking().Where(s => s.OrderId == id && s.Direction == "Outbound").Select(s => s.DeliveredAt).SingleOrDefaultAsync(ct);
+        var now = (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime;
+        var returnWindowOpen = G4.Infrastructure.Returns.ReturnWindowPolicy.IsOpen(order, deliveredAt, now);
+        var deadline = G4.Infrastructure.Returns.ReturnWindowPolicy.Deadline(order, deliveredAt);
+        var returnWindowClosesAt = deadline == null ? (DateTime?)null : DateTime.SpecifyKind(deadline.Value, DateTimeKind.Utc);
+        var canRequestReturn = order.Status == "Delivered" && returnWindowOpen && returnRequest == null && dispute?.IsOpen != true && !refunds.Any(r => r.Reason != "shipping-adjustment");
+        var protectedAppeal = returnRequest?.Status == "Rejected" && G4.Infrastructure.Returns.ReturnWindowPolicy.TimelyReturn(order, deliveredAt, returnRequest.CreatedAt);
+        var canOpenDispute = order.Status == "Delivered" && (returnWindowOpen || protectedAppeal) && dispute?.IsOpen != true
+            && (returnRequest == null || returnRequest.Status is "Rejected" or "Closed") && !refunds.Any(r => r.Status == "Succeeded" && r.Reason != "shipping-adjustment");
+        return Ok(new { order.Id, order.Status, order.OrderDate, order.UpdatedAt, order.PaymentExpiresAt, order.AddressSnapshot, order.AddressChangeCount, addressChanges, canRequestAddressChange, returnWindowClosesAt, order.ReturnWindowPolicyVersion, order.ReturnWindowSeconds, canRequestReturn, canOpenDispute, order.CancelDecisionReason, order.Subtotal, order.DiscountAmount, order.ShippingFee, order.TotalPrice, order.Currency, order.CouponCode, order.TotalWeightKg, order.PickupAddressSnapshot, shippingBase = order.PricingSchemaVersion == 1 ? order.ShippingBase : order.ShippingFee, order.ShippingDiscount, order.SellerGoodsDiscount, order.PlatformSubsidy, sellerGross = order.PricingSchemaVersion == 1 ? order.SellerGrossSnapshot : order.TotalPrice, promotions, items, payments, shipments, events, returnRequest, refunds, settlement, dispute, sellerFeedback, canReviewSeller, payPalCheckoutId });
     }
 
     [HttpPost("orders/{id:int}/cancel")]

@@ -51,6 +51,7 @@ public sealed partial class DisputeService(
         await AtomicAsync(async () =>
         {
             var order = await (db.Database.IsSqlServer() ? db.OrderTables.FromSqlInterpolated($"SELECT * FROM [OrderTable] WITH (UPDLOCK, HOLDLOCK) WHERE [id] = {orderId}") : db.OrderTables.Where(x => x.Id == orderId)).SingleOrDefaultAsync(ct) ?? throw new KeyNotFoundException("Không tìm thấy đơn hàng.");
+            if (db.Database.IsRelational()) await db.Entry(order).ReloadAsync(ct);
             if (order.BuyerId != buyerId)
                 throw new UnauthorizedAccessException("Bạn không có quyền mở yêu cầu cho đơn này.");
             result = await db.Disputes.SingleOrDefaultAsync(x => x.OrderId == orderId && x.WorkflowEnabled && x.IsOpen, ct);
@@ -63,7 +64,9 @@ public sealed partial class DisputeService(
                 throw new InvalidOperationException("Đơn đang xử lý trả hàng. Theo dõi yêu cầu trả hàng hoặc chờ người bán từ chối trước khi mở yêu cầu giải quyết.");
             var delivered = await db.ShippingInfos.Where(x => x.OrderId == orderId && x.Direction == "Outbound").Select(x => x.DeliveredAt)
                 .FirstOrDefaultAsync(ct);
-            if (order.Status != "Delivered" || delivered is null || delivered < Now.AddDays(-7) || await db.Refunds.AnyAsync(x => x.OrderId == orderId && x.Status == "Succeeded" && x.Reason != "shipping-adjustment", ct))
+            var rejected = await db.ReturnRequests.AsNoTracking().SingleOrDefaultAsync(r => r.OrderId == orderId && r.Status == "Rejected", ct);
+            var protectedAppeal = rejected != null && G4.Infrastructure.Returns.ReturnWindowPolicy.TimelyReturn(order, delivered, rejected.CreatedAt);
+            if (order.Status != "Delivered" || !(G4.Infrastructure.Returns.ReturnWindowPolicy.IsOpen(order, delivered, Now) || protectedAppeal) || await db.Refunds.AnyAsync(x => x.OrderId == orderId && x.Status == "Succeeded" && x.Reason != "shipping-adjustment", ct))
                 throw new InvalidOperationException("Đơn chưa đủ điều kiện hoặc đã hết thời hạn mở yêu cầu giải quyết.");
             var payment = await db.Payments.SingleAsync(x => x.OrderId == orderId && x.Status == "Succeeded", ct);
             await finance.RecordSuccessfulPaymentAsync(orderId, payment.Id, ct);

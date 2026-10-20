@@ -53,17 +53,8 @@ public sealed class FinanceController(
         var query = db.SellerPayouts.AsNoTracking().Where(x => db.SellerAccounts.Any(a => a.Id == x.SellerAccountId && a.SellerId == CurrentUserId));
         var totalCount = await query.CountAsync(ct);
         page = Math.Min(page, Math.Max(1, (totalCount + pageSize - 1) / pageSize));
-        var items = await query.OrderByDescending(x => x.Id).Skip((page - 1) * pageSize).Take(pageSize).Select(x => new PayoutView(
-            x.Id,
-            x.Amount,
-            x.Currency,
-            x.Status,
-            x.DestinationMasked,
-            x.BankReferenceId,
-            x.CreatedAt,
-            x.CompletedAt
-        ))
-            .ToListAsync(ct);
+        var items = await G4.Infrastructure.Finance.PayoutQuery.ReadAsync(db,
+            query.OrderByDescending(x => x.Id).Skip((page - 1) * pageSize).Take(pageSize), ct);
         return Ok(new { page, pageSize, totalCount, items });
     }
 
@@ -81,16 +72,8 @@ public sealed class FinanceController(
         if (!IsAvailable || !HasRole("seller"))
             return StatusCode(403);
         var payout = await finance.RequestPayoutAsync(CurrentUserId, request.Amount, request.Key, request.SimulateFailure, ct);
-        return Ok(new PayoutView(
-            payout.Id,
-            payout.Amount,
-            payout.Currency,
-            payout.Status,
-            payout.DestinationMasked,
-            payout.BankReferenceId,
-            payout.CreatedAt,
-            payout.CompletedAt
-        ));
+        return Ok((await G4.Infrastructure.Finance.PayoutQuery.ReadAsync(db, db.SellerPayouts.AsNoTracking()
+            .Where(x => x.Id == payout.Id && db.SellerAccounts.Any(a => a.Id == x.SellerAccountId && a.SellerId == CurrentUserId)), ct)).Single());
     }
 
     [HttpPost("orders/{orderId:int}/fund-hold")]

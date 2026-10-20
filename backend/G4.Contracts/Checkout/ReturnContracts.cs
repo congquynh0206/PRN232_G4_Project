@@ -6,4 +6,4 @@ public sealed record ReturnQuote(int OrderId, string ReasonCode, string ReasonLa
     decimal ReturnShippingFee, decimal BuyerReturnShippingFee, decimal BuyerRefund,
     decimal PlatformSubsidyReversal, decimal SellerGrossRefund, decimal WeightKg,
     string PickupAddress, string DeliveryAddress, string Currency, bool CanRequest, string? BlockReason,
-    string PricingFingerprint);
+    string PricingFingerprint, DateTime? ReturnWindowClosesAt = null, int ReturnWindowPolicyVersion = 0);

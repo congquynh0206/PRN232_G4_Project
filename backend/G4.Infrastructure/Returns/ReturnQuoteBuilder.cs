@@ -16,15 +16,19 @@ internal static class ReturnQuoteBuilder
             ?? throw new KeyNotFoundException("Không tìm thấy đơn hàng.");
         var delivered = await db.ShippingInfos.AsNoTracking().Where(x => x.OrderId == orderId && x.Direction == "Outbound")
             .Select(x => x.DeliveredAt).SingleOrDefaultAsync(ct);
-        if (order.Status != "Delivered" || delivered == null || delivered < now.AddDays(-7))
-            throw new InvalidOperationException("Đơn chưa giao thành công hoặc đã quá 7 ngày yêu cầu trả hàng.");
+        if (order.Status != "Delivered" || !ReturnWindowPolicy.IsOpen(order, delivered, now))
+            throw new InvalidOperationException("Đơn chưa giao thành công hoặc đã hết hạn yêu cầu trả hàng.");
         if (await db.ReturnRequests.AnyAsync(x => x.OrderId == orderId, ct))
             throw new InvalidOperationException("Đơn đã có yêu cầu trả hàng. Hãy theo dõi yêu cầu hiện tại.");
         if (await db.Disputes.AnyAsync(x => x.OrderId == orderId && x.WorkflowEnabled && x.IsOpen, ct))
             throw new InvalidOperationException("Đơn đang có tranh chấp. Hãy xử lý trả hàng trong hồ sơ đó.");
         if (await db.Refunds.AnyAsync(x => x.OrderId == orderId && x.Reason != "shipping-adjustment", ct))
             throw new InvalidOperationException("Đơn đã có giao dịch hoàn tiền khác; cần xử lý riêng.");
-        return await BuildMoneyAsync(db, order, reasonCode, label, ct);
+        return (await BuildMoneyAsync(db, order, reasonCode, label, ct)) with
+        {
+            ReturnWindowClosesAt = DateTime.SpecifyKind(ReturnWindowPolicy.Deadline(order, delivered)!.Value, DateTimeKind.Utc),
+            ReturnWindowPolicyVersion = order.ReturnWindowPolicyVersion
+        };
     }
 
     public static async Task<ReturnQuote> BuildAgreementAsync(ApplicationDbContext db, OrderTable order, CancellationToken ct)

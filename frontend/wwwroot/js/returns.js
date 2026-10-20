@@ -2,13 +2,28 @@
   const { $, api, esc, money, message } = G4;
   let orderId, quote = null, quoteSequence = 0, saving = false, loading = false, refresh;
   const drafts = new Map();
+  const utc = value => typeof value === 'string' && !/(Z|[+-]\d{2}:\d{2})$/i.test(value) ? value + 'Z' : value;
+  const windowOpen = order => !order.returnWindowClosesAt || Date.now() < new Date(utc(order.returnWindowClosesAt)).getTime();
+  function windowHtml(order) {
+    if (!order.returnWindowClosesAt) return '';
+    const deadline = utc(order.returnWindowClosesAt);
+    return `<p class="return-window" role="status">Hạn mở yêu cầu trả hàng: <time datetime="${esc(deadline)}">${esc(G4.date?.(deadline) || deadline)}</time>. ${windowOpen(order) ? 'Gửi yêu cầu trước hạn này.' : 'Đã hết hạn mở yêu cầu trả hàng mới.'}${order.returnRequest ? ' Yêu cầu đã gửi đúng hạn tiếp tục được xử lý; hạn kiểm tra hàng trả là riêng.' : ''}</p>`;
+  }
+  function expireQuote() {
+    if (!quote?.returnWindowClosesAt || windowOpen(quote) || saving || quote.windowExpired) return false;
+    quote = { ...quote, canRequest: false, windowExpired: true, blockReason: 'Đã hết hạn mở yêu cầu trả hàng mới. Yêu cầu đã gửi đúng hạn vẫn được xử lý.' };
+    $('return-quote').innerHTML = quoteHtml(quote);
+    $('return-confirm').disabled = true;
+    error(quote.blockReason);
+    return true;
+  }
   function quoteHtml(q) {
     const rows = [
       ['Tiền hàng sau giảm giá', q.goodsPaid],
       ['Phí ship chiều đi không hoàn', q.outboundShippingRetained],
       [q.shippingPayer === 'Buyer' ? 'Phí trả hàng trừ vào khoản hoàn' : 'Phí trả hàng do người bán chịu', q.returnShippingFee],
     ];
-    return `<section class="return-price"><h3>Khoản hoàn dự kiến</h3>${rows.map(([name, amount]) => `<p><span>${esc(name)}</span><strong>${money(amount)}</strong></p>`).join('')}<p class="return-total">${q.canRequest ? `<span>Bạn được hoàn</span><strong>${money(q.buyerRefund)}</strong>` : 'Phí trả hàng vượt số tiền có thể hoàn.'}</p>${q.alreadyRefunded > 0 ? `<small>Đã hoàn chênh lệch ship ${money(q.alreadyRefunded)} trước đó; không hoàn lại khoản này.</small>` : ''}<small>${q.shippingPayer === 'Buyer' ? 'Tiền hàng được hoàn sau khi trừ phí chiều về; phí ship chiều đi không hoàn.' : 'Hoàn số tiền bạn đã trả còn lại, gồm phí ship chiều đi; bạn không chịu phí trả hàng.'}</small>${q.platformSubsidyReversal > 0 ? '<small>Coupon do nền tảng tài trợ được điều chỉnh riêng, không cộng thêm vào tiền hoàn cho bạn.</small>' : ''}${!q.canRequest ? `<p role="alert">${esc(q.blockReason)}</p>` : ''}</section>`;
+    return `<section class="return-price"><h3>Khoản hoàn dự kiến</h3>${windowHtml(q)}${rows.map(([name, amount]) => `<p><span>${esc(name)}</span><strong>${money(amount)}</strong></p>`).join('')}<p class="return-total">${q.canRequest ? `<span>Bạn được hoàn</span><strong>${money(q.buyerRefund)}</strong>` : q.windowExpired ? 'Đã hết hạn mở yêu cầu trả hàng mới.' : 'Phí trả hàng vượt số tiền có thể hoàn.'}</p>${q.alreadyRefunded > 0 ? `<small>Đã hoàn chênh lệch ship ${money(q.alreadyRefunded)} trước đó; không hoàn lại khoản này.</small>` : ''}<small>${q.shippingPayer === 'Buyer' ? 'Tiền hàng được hoàn sau khi trừ phí chiều về; phí ship chiều đi không hoàn.' : 'Hoàn số tiền bạn đã trả còn lại, gồm phí ship chiều đi; bạn không chịu phí trả hàng.'}</small>${q.platformSubsidyReversal > 0 ? '<small>Coupon do nền tảng tài trợ được điều chỉnh riêng, không cộng thêm vào tiền hoàn cho bạn.</small>' : ''}${!q.canRequest ? `<p role="alert">${esc(q.blockReason)}</p>` : ''}</section>`;
   }
   function savedHtml(order) {
     const r = order.returnRequest;
@@ -70,6 +85,7 @@
     $('return-dialog').oncancel = (event) => { event.preventDefault(); close(); };
     $('return-form').onsubmit = async (event) => {
       event.preventDefault();
+      if (expireQuote()) return;
       if (saving || loading || !quote?.canRequest || quote.reasonCode !== $('return-reason').value) return;
       const input = { reasonCode: quote.reasonCode, description: $('return-description').value.trim(), pricingFingerprint: quote.pricingFingerprint };
       const fingerprint = JSON.stringify(input), previous = drafts.get(orderId);
@@ -93,5 +109,8 @@
       }
     };
   }
-  G4.Returns = { init, open, quoteHtml, savedHtml };
+  globalThis.setInterval?.(() => {
+    if (quote && $('return-dialog')?.open) expireQuote();
+  }, 1000);
+  G4.Returns = { init, open, quoteHtml, savedHtml, windowHtml, windowOpen };
 })();

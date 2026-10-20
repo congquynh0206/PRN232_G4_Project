@@ -9,3 +9,11 @@
 .return-price small { display: block; margin-top: 10px; line-height: 1.5; }
 .return-price .return-total { border-top: 1px solid #ced8e5; padding-top: 14px; font-size: 18px; }
 #return-error { color: #9b1c1c; margin: 14px 0; }
+.return-price p.return-window {
+  display: block;
+  line-height: 1.5;
+}
+.return-window time {
+  white-space: nowrap;
+  font-weight: 600;
+}

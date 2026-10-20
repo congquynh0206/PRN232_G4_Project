@@ -1,6 +1,6 @@
 # Nghiệp vụ tài chính người bán
 
-**Căn cứ mới 18/10/2026:** [đặc tả §9–10](BUSINESS_REQUIREMENTS.md) và [LIM1/PAY1/LED1](IMPLEMENTATION_BACKLOG.md). Phí 12% + 0,30 USD, kg lẻ, hold từ Delivered và Instant vào ví giữ nguyên. Cần thêm hạn mức riêng do admin đặt, payout đủ bước cho mọi level và bảo vệ/đối soát ledger. Source hiện còn Level 3 tạo payout Completed tức thời; mô tả tiến trình chung bên dưới là mục tiêu, không chứng minh shortcut đã bỏ. Không nhận ledger hiện có là kế toán kép đầy đủ.
+**Căn cứ mới 18/10/2026:** [đặc tả §9–10](BUSINESS_REQUIREMENTS.md) và [LIM1/PAY1/LED1](IMPLEMENTATION_BACKLOG.md). Phí 12% + 0,30 USD, kg lẻ, hold từ Delivered và Instant vào ví giữ nguyên. Cần thêm hạn mức riêng do admin đặt, payout đủ bước cho mọi level và bảo vệ/đối soát ledger. PAY1 đã hoàn thành source ngày 20/10, bỏ shortcut Level 3 Completed tại request; cần migration `20261020162647_UnifyPayoutWorkflowAndHistory`. [Hướng dẫn PAY1](PAYOUT_WORKFLOW.md) ghi API/tổng pending/paid-out/lịch sử và kiểm thử. Chỉ áp QA riêng, chưa áp database chính. Không nhận ledger hiện có là kế toán kép đầy đủ.
 
 Gói tài chính mô phỏng cách marketplace thu tiền buyer, trừ phí, giữ tiền trước khi cho seller rút và xử lý trường hợp seller không còn đủ tiền để hoàn lại. Tất cả số tiền đều là dữ liệu thử nghiệm; PayPal Sandbox cũng không chuyển tiền thật.
 
@@ -10,7 +10,7 @@ Gói tài chính mô phỏng cách marketplace thu tiền buyer, trừ phí, gi�
 2. Mức phí mặc định **12% SellerGross + 0,30 USD/đơn**, không vượt SellerGross. Admin thay đổi trong tab **Phí nền tảng**, có hiệu lực ngay hoặc theo lịch. Settlement chọn mức theo `Payment.PaidAt` và lưu `FeePercentSnapshot`, `FixedFeeAmount`, `PlatformFeeAmount`, `FeePolicyId`; refund vẫn dùng phí gốc.
 3. Phần còn lại là **Net**, dùng bù Negative trước. Level 1/2 giữ phần dư trong `Processing`; Level 3 tự cộng phần dư vào **ví Available ngay khi thanh toán thành công**, không cần Delivered hoặc tạo payout.
 4. Level 1/2 tính thời gian giữ từ `DeliveredAt` chiều đi. Worker chỉ chuyển tiền vào ví khi hết hạn và không có return/dispute đang mở; giao chiều trả không bắt đầu hoặc đặt lại lịch này.
-5. Seller chỉ payout từ `Available`. Payout lần lượt đi qua `Created → InProgress → FundsSent → Completed`. Nếu giả lập ngân hàng từ chối, payout thành `Returned` và tiền được cộng lại vào `Available`.
+5. Seller chỉ payout từ `Available`. Payout lần lượt đi qua `Created → InProgress → FundsSent → Completed`. Nếu giả lập ngân hàng từ chối, payout thành `Returned`, tiền trả về hệ thống một lần rồi bù Negative nếu có, phần dư vào `Available`. Tất cả level qua cùng workflow; FundsSent chưa phải hoàn tất. Lịch sử từng bước/actor/UTC trong SellerPayoutEvent, không backfill bước cũ chưa biết. PayoutPending/PaidOut tính trên toàn bộ payout, không cắt theo trang.
 
 Development dùng `Finance:Levels:1:HoldSeconds = 30`, `Finance:Levels:2:HoldSeconds = 15`; Level 3 luôn 0 giây từ payment thành công. Môi trường khác bỏ các khóa HoldSeconds của Level 1/2 và dùng 21/7 ngày từ giao thành công. Level và thời gian giữ được snapshot lúc tạo settlement, không đọc lại level khi mở khóa. Trước Delivered, Level 1/2 có `ReleaseAt = null`.
 

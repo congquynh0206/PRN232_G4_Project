@@ -101,6 +101,8 @@ Làm rõ AD1 ngày 20/10: hạn chờ tổng từ khi buyer gửi yêu cầu là
 
 Buyer chỉ được yêu cầu **trả toàn bộ hàng của order** trong 7 ngày kể từ `Delivered` chiều đi; **Development: 5 phút**. Đây là thời gian mở yêu cầu, khác deadline kiểm tra hàng trả và phản đối từ chối. Một luồng return đang hoạt động/đơn; hồ sơ bị từ chối đi theo quyền phản đối, không mở hồ sơ trùng để né hạn. Buyer chọn lý do và xác nhận báo giá trước gửi.
 
+Làm rõ RT1 ngày 20/10: `Returns:WindowSeconds` được snapshot cùng Outbound Delivered (mặc định 604800/Development 300). Quote/request/dispute thường/worker dùng cùng deadline, tại đúng hạn không mở yêu cầu mới. Đơn đã giao trước nâng cấp giữ 7 ngày, không chuyển hồi tố thành 5 phút; ReturnDeadline của hồ sơ cũ giữ lịch sử. Request/hồ sơ mở đúng hạn tiếp tục sau cửa sổ. Khi RT2 chưa có deadline riêng, giữ quyền của return đã mở đúng hạn rồi bị từ chối, không để worker RT1 tự đóng mất quyền phản đối.
+
 | Lý do | Phí ship chiều về | Khoản refund mặc định khi return hợp lệ |
 | --- | --- | --- |
 | Sai hàng, sai mô tả, hàng hỏng/thiếu do seller | Seller chịu | Toàn bộ số tiền buyer đã trả, gồm phí ship chiều đi; nền tảng hoàn phần coupon do mình tài trợ. |
@@ -167,6 +169,8 @@ Cửa sổ return demo 5 phút dài hơn hold 30/15 giây là chủ ý: buyer v�
 **Payout chung mọi level:** seller yêu cầu rút thủ công, trừ Available và tạo payout/ledger atomic. Worker/ngân hàng ảo chuyển `Created → InProgress → FundsSent → Completed`; `FundsSent` chưa phải ngân hàng xác nhận hoàn tất. Lỗi ngân hàng đi `FundsSent → Returned`, hoàn hệ thống đúng một lần rồi bù nợ nếu có. Bỏ nhánh Level 3 tạo Completed tức thời trong code cũ. Đích ngân hàng giả lập được che; không tích hợp tiền production.
 
 Ví dụ Available 87,70 USD, rút 50 USD: còn 37,70 USD, đang chuyển 50 USD. Completed tăng lịch sử đã chi 50; Returned trả hệ thống 50 trước các khoản bù nợ/điều chỉnh phát sinh. Tổng đang payout tính từ SellerPayout chưa kết thúc; chưa bắt buộc thêm trường balance `PayoutPending`. Lưu payout ID/key, amount/currency, đích che, bank reference, actor và lịch sử chuyển bước. Payout theo lịch là tùy chọn nâng cao.
+
+Làm rõ PAY1 ngày 20/10: mọi yêu cầu mới là Created; worker mô phỏng ngân hàng chuyển một bước mỗi lượt, chỉ FundsSent mới có bước tiếp xác nhận Completed/Returned. Legacy Completed/Returned giữ nguyên kết quả; pending cũ tiếp tục từ bước thực tế, không ghi lại các bước/actor chưa biết hoặc trừ ví lần nữa. PayoutPending/PaidOut là tổng truy vấn toàn bộ payout seller, không cắt theo trang.
 
 **Ledger nghiệp vụ:** mọi payment, subsidy, fee, hold, release, refund, fee credit, debt recovery và payout có khóa duy nhất/tham chiếu. Số dư và ledger lưu cùng transaction; không sửa/xóa dòng cũ, sửa sai bằng bút toán điều chỉnh có lý do. Chuyển bucket truy được nguồn/đích: release 87,70 ghi Processing −87,70 và Available +87,70, cùng nghiệp vụ. Kiểm tra đối soát số dư/lịch sử và xử lý đồng thời; không gọi mọi dòng hiện có là kế toán kép. Kế toán kép đầy đủ là hướng nâng cao, không viết lại toàn bộ tài chính chỉ để đổi tên mô hình.
 

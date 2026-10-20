@@ -73,7 +73,7 @@ internal static class ReturnAutomationChecks
         {
             db.OrderTables.Add(new OrderTable { Id = id, BuyerId = 1, SellerId = 2, Status = "Delivered", TotalPrice = 100m });
             db.Payments.Add(new Payment { Id = id, OrderId = id, Status = "Succeeded", Amount = 100m, Method = "Card" });
-            db.ShippingInfos.Add(new ShippingInfo { OrderId = id, Direction = "Outbound", Status = "Delivered", DeliveredAt = DateTime.UtcNow });
+            db.ShippingInfos.Add(new ShippingInfo { OrderId = id, Direction = "Outbound", Status = "Delivered", DeliveredAt = clock.GetUtcNow().UtcDateTime });
         }
 
         await db.SaveChangesAsync();

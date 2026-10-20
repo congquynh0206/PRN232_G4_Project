@@ -5,9 +5,21 @@ namespace G4.Infrastructure.Persistence;
 public partial class ApplicationDbContext
 {
     public DbSet<PlatformFeePolicy> PlatformFeePolicies => Set<PlatformFeePolicy>();
+    public DbSet<SellerPayoutEvent> SellerPayoutEvents => Set<SellerPayoutEvent>();
 
     private static void ConfigureFinancePolicies(ModelBuilder model)
     {
+        model.Entity<SellerPayoutEvent>(e =>
+        {
+            e.ToTable("SellerPayoutEvent");
+            e.Property(x => x.FromStatus).HasMaxLength(20);
+            e.Property(x => x.ToStatus).HasMaxLength(20);
+            e.Property(x => x.ActorRole).HasMaxLength(20);
+            e.Property(x => x.BankReferenceId).HasMaxLength(100);
+            e.HasIndex(x => new { x.PayoutId, x.ToStatus }).IsUnique();
+            e.HasOne<SellerPayout>().WithMany().HasForeignKey(x => x.PayoutId).OnDelete(DeleteBehavior.NoAction);
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.ActorUserId).OnDelete(DeleteBehavior.NoAction);
+        });
         model.Entity<PlatformFeePolicy>(e =>
         {
             e.ToTable("PlatformFeePolicy");
@@ -37,6 +49,8 @@ public partial class ApplicationDbContext
 
     private void GuardFinanceHistory()
     {
+        if (ChangeTracker.Entries<SellerPayoutEvent>().Any(e => e.State is EntityState.Modified or EntityState.Deleted))
+            throw new InvalidOperationException("Lịch sử payout chỉ được thêm mới, không sửa hoặc xóa.");
         if (ChangeTracker.Entries<SellerDebtRepayment>().Any(e => e.State is EntityState.Modified or EntityState.Deleted)
             || ChangeTracker.Entries<SellerDebtEvent>().Any(e => e.State is EntityState.Modified or EntityState.Deleted))
             throw new InvalidOperationException("Biên nhận và lịch sử nợ không thể sửa hoặc xóa.");

@@ -19,12 +19,12 @@
 | N1 | Email nghiệp vụ đã bổ sung | Có source, cần xác minh triển khai; nối sự kiện mới theo từng task | §12 |
 | AD1 | Đổi địa chỉ áp dụng sau đủ xác nhận | Đã triển khai/nghiệm thu source 20/10: backend, SQL QA và browser fixture đạt; migration chưa áp database chính | §6; ORDER_ADDRESS_CHANGES.md |
 | SH1 | ReattemptScheduled và actor từng event | Đã triển khai/nghiệm thu source 20/10: backend, SQL QA và browser fixture đạt; migration chưa áp database chính | §6; RETURNS_AND_SHIPPING.md |
-| RT1 | Return window và snapshot deadline | Cần điều chỉnh; mở/đóng hiện hardcode 7 ngày, ReceiptSeconds dev 45 | §7, §12.1 |
+| RT1 | Return window và snapshot deadline | Đã triển khai/nghiệm thu source 20/10: backend, SQL QA và browser fixture đạt; migration chưa áp database chính | §7, §12.1; RETURN_WINDOW_POLICY.md |
 | RT2 | Đóng/kháng nghị return từ chối | Cần triển khai deadline/worker; chưa có nhánh đủ theo RejectedAt | §7 |
 | INR1 | Hồ sơ chưa nhận hàng | Cần triển khai; OpenAsync hiện yêu cầu Delivered | §8.1 |
 | FR1 | Free returns theo mặt hàng | Cần triển khai policy/snapshot/phân phí; đã có giá return theo lý do | §3, §7 |
 | LIM1 | Admin override hạn mức seller | Cần triển khai; mức hiện từ cấu hình ứng dụng theo level | §10 |
-| PAY1 | Payout chung mọi level | Cần điều chỉnh; Level 3 hiện có Completed ngay khi tạo | §9 |
+| PAY1 | Payout chung mọi level | Đã triển khai/nghiệm thu source 20/10: backend, SQL QA và browser fixture đạt; migration chưa áp database chính | §9; PAYOUT_WORKFLOW.md |
 | LED1 | Ledger chỉ thêm và đối soát nguồn/đích | Cần củng cố; có FinancialTransaction/key, chưa có guard bất biến tổng quát | §9 |
 | FS1 | Free shipping dùng promotion hiện có | Giữ/hồi quy; Shipping/FreeShipping đã có source | §4 |
 | BASE | Kg lẻ, policy phí, hold, level, nợ/write-off | Giữ/hồi quy theo quy tắc 18/10 | §3.1, §9–11 |
@@ -77,6 +77,8 @@ Nghiệm thu: success/failure/verifying/refund pending; tổng đúng toàn bộ
 **Nghiệm thu:** không nhảy bước, lịch không tiêu lượt, lượt ba bị chặn; chỉ shipper được gán thao tác; event lặp không tăng lượt; tracking return không tăng số đơn giao thành công cho buyer.
 
 ## 5. RT1 — Deadline dùng chung và return demo 5 phút
+
+**Hoàn thành source 20/10/2026:** snapshot cửa sổ tại Outbound Delivered, Development 300 giây/mặc định 7 ngày; quote/request/dispute/worker/UI dùng chung deadline; legacy giữ 7 ngày và request cũ không bị viết lại. Receipt vẫn 45 giây; request/dispute hợp lệ tiếp tục sau cửa sổ. Rejected return được bảo vệ chuyển tiếp, RT2 deadline/auto-close vẫn riêng. Build/backend, SQL race/rollback và Chrome fixture đạt; UI cả đợt 125/125. Migration chỉ áp QA, chưa áp database chính. Xem [RT1](RETURN_WINDOW_POLICY.md).
 
 **Điểm bắt đầu:** `ReturnQuoteBuilder`, `ReturnService`, `CheckoutService.CloseDeliveredOutsideReturnWindowAsync`, `DisputeService`, Orders/return UI, configuration và test TimeProvider.
 
@@ -134,6 +136,8 @@ Nghiệm thu: success/failure/verifying/refund pending; tổng đúng toàn bộ
 **Nghiệm thu:** immediate/future policy đúng thời điểm; kết thúc override về level; replay key không nhân audit; seller bị từ chối; cap giảm giữa capture không bỏ tiền đã thu; hai payment đồng thời không vượt reservation; tháng UTC mới reset doanh số đúng.
 
 ## 10. PAY1 và LED1 — Payout và ledger
+
+**PAY1 hoàn thành source 20/10/2026; LED1 vẫn còn riêng.** Mọi level payout qua Created/InProgress/FundsSent/Completed hoặc Returned, lưu lịch sử actor/UTC chỉ thêm, tổng đang chuyển/đã chi và terminal-only email/realtime. Level 3 vẫn instant vào ví; legacy giữ kết quả, không backfill lịch sử giả hoặc trừ tiền lại. Build/backend, SQL concurrent/rollback và Chrome fixture đạt; UI 125/125. Migration chỉ áp QA, chưa áp database chính. [PAY1](PAYOUT_WORKFLOW.md). Guard mới bảo vệ SellerPayoutEvent, chưa phải guard/đối soát toàn bộ FinancialTransaction của LED1.
 
 **Điểm bắt đầu:** SellerFinanceService.RequestPayoutAsync/AdvancePayoutsAsync/AddEntry, FinancialTransaction, SellerPayout, DbContext guards, finance UI, notifications và kiểm thử.
 
@@ -197,3 +201,14 @@ Mỗi task khi hoàn thành ghi ngay bên dưới phần của task hoặc thêm
 - Build output `artifacts/address-confirmation-validation` đạt 0 warning/error; backend mặc định đạt (gồm AD1/SH1/SMTP loopback); UI Node 120/120 đạt. AD1 SQL thật đạt request/seller/shipper concurrent, cuối cùng ghi refund/cost một lần, race cap/claim/start/expiry và rollback sau finance SaveChanges rồi retry. Model/snapshot không thiếu migration.
 - Browser fixture buyer/seller/shipper Chrome 1440px/390px đạt, gồm quote-before-submit, chờ shipper chưa đổi địa chỉ, accept/refuse và trạng thái/thao tác sau quyết định, escape, không lỗi JS/tràn ngang; ảnh đã xem ở `artifacts/address-confirmation-ui/`. Không phải E2E HTTP nối SQL hoặc provider/carrier thật. Không chạy lại QA SQL 13/10 hoặc thay database chính.
 - Chỉ làm AD1 trong đợt này; RT1/PAY1/LED1 và bảy task thiếu luồng từ audit còn phạm vi riêng. Xem [hướng dẫn AD1](ORDER_ADDRESS_CHANGES.md).
+
+
+## 17. RT1/PAY1 — Deadline trả hàng và payout ngày 20/10/2026
+
+- RT1 đã dùng ReturnWindowPolicy chung cho quote/API cũ/mới/dispute/close, snapshot từ Outbound Delivered: 7 ngày/Development 300 giây, đúng hạn không mở mới; thay cấu hình không đổi đơn đã giao. Legacy giữ quyền 7 ngày và ReturnRequest.ReturnDeadline cũ. Request đúng hạn tiếp tục, receipt 45 giây riêng. Không đóng return/dispute còn cản trở; quyền phản đối rejection được bảo vệ chuyển tiếp, chưa triển khai RT2 deadline/auto-close.
+- PAY1 đã bỏ Level 3 Completed tức thời: mọi level đi qua ngân hàng mô phỏng, Created/InProgress/FundsSent/Completed hoặc Returned. Ví trừ một lần, tổng pending/paid-out toàn bộ payout; history actor/UTC chỉ thêm và chống trùng, email terminal/realtime atomic, Returned bù nợ một lần. Legacy terminal không chạy lại; pending cũ tiếp tục từ bước thực, không bịa lịch sử hoặc trừ ví lại. Level 3 vẫn vào ví ngay sau payment/bù nợ; LED1 FinancialTransaction guard/đối soát vẫn chưa làm.
+- Migration `20261020162229_SnapshotReturnWindowDeadlines` và `20261020162647_UnifyPayoutWorkflowAndHistory`; SQL duyệt [RT1](../database/return-window-deadlines-migration.sql), [PAY1](../database/payout-workflow-history-migration.sql). Chỉ bootstrap/migrate **G4_ReturnWindowPayout_Test_20261020**, **chưa áp database chính**, không reset dữ liệu chính.
+- Build output `artifacts/return-window-payout-validation` 0 warning/error, backend mặc định đạt gồm các module trước và SMTP loopback. Test RT1 299/300 giây, policy cũ/mới, replay, tiếp tục return/appeal và receipt riêng; PAY1 ba level, số dư/pending/paid-out, lịch sử/actor, debt recovery, legacy/retry/guard. Hai fixture cũ đã dùng đồng hồ giả nhất quán cho DeliveredAt thay vì thời gian thực chạy sau thời điểm fake clock.
+- SQL QA thật đạt bảo toàn migration/legacy, request/close cạnh tranh, snapshot/event rollback, payout cùng key và hai key tranh tiền, worker concurrent đủ bước, DTO/history/tổng, rollback request/Completed/Returned sau SaveChanges và retry. UI Node 125/125 đạt.
+- Chrome fixture desktop 1440px/mobile 390px dùng dialog return và Seller Razor/CSS/JS thật: deadline, hết hạn vô hiệu quote, request payout, pending balances, các bước/history, Completed/Returned; không lỗi JS hoặc tràn ngang, ảnh đã xem tại `artifacts/return-window-payout-ui/`. Đây là API fixture, chưa E2E HTTP nối SQL hoặc carrier/bank/provider thật.
+- Đã cập nhật [RT1](RETURN_WINDOW_POLICY.md), [PAY1](PAYOUT_WORKFLOW.md), module và PROJECT_RUN. Không làm các task khác hoặc áp migration chính trong đợt này.

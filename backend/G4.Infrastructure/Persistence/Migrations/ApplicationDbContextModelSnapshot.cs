@@ -1191,6 +1191,18 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<int>("PricingSchemaVersion")
                         .HasColumnType("int");
 
+                    b.Property<DateTime?>("ReturnWindowClosesAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("ReturnWindowPolicyVersion")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ReturnWindowSeconds")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ReturnWindowStartedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<decimal>("SellerGoodsDiscount")
                         .HasColumnType("decimal(18,2)");
 
@@ -2632,6 +2644,9 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("WorkflowVersion")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("IdempotencyKey")
@@ -2640,6 +2655,51 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.HasIndex("SellerAccountId");
 
                     b.ToTable("SellerPayout", (string)null);
+                });
+
+            modelBuilder.Entity("G4.Domain.Entities.SellerPayoutEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ActorRole")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int?>("ActorUserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("BankReferenceId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("FromStatus")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("PayoutId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("PayoutId", "ToStatus")
+                        .IsUnique();
+
+                    b.ToTable("SellerPayoutEvent", (string)null);
                 });
 
             modelBuilder.Entity("G4.Domain.Entities.SellerRegistration", b =>
@@ -3647,6 +3707,20 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.HasOne("G4.Domain.Entities.SellerAccount", null)
                         .WithMany()
                         .HasForeignKey("SellerAccountId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("G4.Domain.Entities.SellerPayoutEvent", b =>
+                {
+                    b.HasOne("G4.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("G4.Domain.Entities.SellerPayout", null)
+                        .WithMany()
+                        .HasForeignKey("PayoutId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
                 });

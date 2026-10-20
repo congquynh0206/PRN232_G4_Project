@@ -6,7 +6,7 @@ SQL Server lưu hồ sơ `Dispute`, lịch sử `DisputeEntry`, khoản giữ ti
 
 ## Quy trình
 
-1. Trong chi tiết đơn đã giao, buyer chọn **Mở yêu cầu giải quyết**, nhập mô tả và từ 1–10 link bằng chứng HTTP/HTTPS. Đơn còn trong cửa sổ 7 ngày từ khi giao, chưa hoàn tiền thành công mới được mở. Mỗi đơn chỉ có một yêu cầu đang mở.
+1. Trong chi tiết đơn đã giao, buyer chọn **Mở yêu cầu giải quyết**, nhập mô tả và từ 1–10 link bằng chứng HTTP/HTTPS. Đơn còn trong deadline return đã snapshot (7 ngày/Development 300 giây cho delivery mới từ RT1), chưa hoàn tiền thành công mới được mở. Mỗi đơn chỉ có một yêu cầu đang mở.
 2. Hệ thống giữ khoản tiền của đúng đơn, gửi thông báo cho cả hai bên, gắn trạng thái vào dòng đơn và tạo hồ sơ **Chờ người bán phản hồi**.
 3. Seller gửi phương án **Hoàn tiền toàn bộ**, **Trả hàng để hoàn tiền** hoặc **Giữ nguyên đơn hàng**, kèm mô tả và link bằng chứng. Buyer/seller được gửi bổ sung bằng chứng trong lúc thương lượng hoặc chờ admin; mỗi lần gửi bắt buộc có mô tả và link.
 4. Buyer chấp nhận thì hệ thống thực hiện phương án. Giữ nguyên đơn: đóng hồ sơ và giải phóng khoản giữ theo điều kiện tài chính. Hoàn tiền/trả hàng: hồ sơ tiếp tục mở đến khi hoàn tiền thành công. Lỗi cổng thanh toán vẫn giữ tiền và worker thử lại.
@@ -15,6 +15,8 @@ SQL Server lưu hồ sơ `Dispute`, lịch sử `DisputeEntry`, khoản giữ ti
 7. Admin chỉ thấy hồ sơ đã chuyển lên, đọc lịch sử của cả hai bên, chọn căn cứ và kết luận trách nhiệm kèm lý do. Có thể hoàn toàn bộ khoản đủ điều kiện hoặc một phần sau preview tài chính; seller thắng thì giải phóng khoản giữ theo lịch. Quyết định được lưu riêng, không sửa báo giá buyer. Kết quả còn lưu trong bộ lọc **Đã giải quyết**.
 
 Bằng chứng/lịch sử chỉ được thêm mới. Không có API sửa/xóa; DbContext từ chối cập nhật/xóa `DisputeEntry`. Giao diện nhắc **Bằng chứng không thể sửa hoặc xóa sau khi gửi** trước khi xác nhận. Bổ sung bằng chứng không kéo dài thời hạn; seller không được gửi lại phương án để đặt lại hạn buyer.
+
+**RT1 ngày 20/10:** gate mở dispute thường dùng chung ReturnWindowPolicy; hồ sơ đã mở hợp lệ tiếp tục sau cửa sổ. Return bị từ chối nhưng đã mở đúng hạn được bảo vệ quyền phản đối và worker RT1 không tự đóng mất quyền. RT2 deadline phản đối từ RejectedAt/auto-close và INR1 vẫn chưa triển khai, không coi bảo vệ chuyển tiếp này là hoàn thành RT2. [Chi tiết RT1](RETURN_WINDOW_POLICY.md).
 
 ## Thời hạn demo
 

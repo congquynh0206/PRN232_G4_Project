@@ -1,0 +1,7 @@
+.payout-row > div { min-width: 0; overflow-wrap: anywhere; }
+.payout-row details { margin-top: 10px; }
+.payout-row summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+.payout-history { display: grid; gap: 12px; margin: 8px 0; padding-left: 22px; }
+.payout-history li > * { display: block; }
+.payout-history time, .payout-history span { font-size: .875rem; }
+@media (max-width: 540px) { .payout-row { flex-wrap: wrap; gap: 12px; } }

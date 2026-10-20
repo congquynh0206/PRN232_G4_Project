@@ -315,12 +315,7 @@
     const result = await api(`seller/finance/payouts/page?page=${page}&pageSize=10`);
     payoutPage = result.page;
     $('finance-payouts').innerHTML = result.items.length
-      ? result.items
-          .map(
-            (x) =>
-              `<article class="finance-row"><div><strong>Lần rút tiền #${x.id} · ${esc(payoutLabels[x.status] || label(x.status))}</strong><small>${financeDate(x.createdAt)} · ${esc(x.bankReferenceId || x.destinationMasked || 'Chưa có mã ngân hàng')}</small></div><b>${money(x.amount)}</b></article>`,
-          )
-          .join('')
+      ? result.items.map(G4.Payouts.card).join('')
       : '<p class="empty-note">Chưa có lần rút tiền.</p>';
     pager('finance-payouts-pagination', result, (p) => safe(() => loadPayouts(p)));
   }
@@ -331,6 +326,8 @@
       ['Ví khả dụng', f.available],
       ['Đang giữ', f.onHold],
       ['Số dư âm', f.negative],
+      ['Đang chuyển ngân hàng', f.payoutPending],
+      ['Đã chi ra ngân hàng', f.paidOut],
     ];
     $('finance-balances').innerHTML = cards
       .map(
@@ -341,7 +338,7 @@
     const p = f.levelProgress;
     const hold = f.holdSeconds < 86400 ? `${f.holdSeconds} giây` : `${f.holdSeconds / 86400} ngày`;
     $('finance-level').innerHTML =
-      `<p><strong>Cấp ${f.level}${f.level >= 3 ? ' · Instant' : ''}</strong></p><p>${f.level >= 3 ? 'Tiền sau phí tự vào ví khi thanh toán thành công, không cần yêu cầu payout.' : `Tiền vào ví sau ${hold} kể từ giao thành công.`}</p><p>Giới hạn doanh số: ${money(f.monthlySalesLimit)}/tháng</p><p>Doanh số tháng này: ${money(f.monthlySalesAmount)}</p><p class="small">Xem tiêu chí và lịch sử chi tiết tại mục Cấp seller.</p>`;
+      `<p><strong>Cấp ${f.level}${f.level >= 3 ? ' · Instant' : ''}</strong></p><p>${f.level >= 3 ? 'Tiền sau phí và bù nợ tự vào ví khi thanh toán thành công. Muốn chuyển ra ngân hàng giả lập, bạn vẫn cần yêu cầu rút tiền.' : `Tiền vào ví sau ${hold} kể từ giao thành công.`}</p><p>Giới hạn doanh số: ${money(f.monthlySalesLimit)}/tháng</p><p>Doanh số tháng này: ${money(f.monthlySalesAmount)}</p><p class="small">Xem tiêu chí và lịch sử chi tiết tại mục Cấp seller.</p>`;
     await Promise.all([loadTransactions(), loadPayouts(), G4.SellerDebt.loadSeller()]);
   }
   document.querySelectorAll('[data-order-filter]').forEach(
@@ -366,17 +363,24 @@
       await loadFinance();
       message('Đã cập nhật cấp người bán.', true);
     });
-  $('request-payout').onclick = () =>
-    safe(async () => {
-      await api('seller/payouts', 'POST', {
-        amount: Number($('payout-amount').value),
-        key: crypto.randomUUID(),
-        simulateFailure: $('payout-failure').checked,
-      });
+  $('request-payout').onclick = () => safe(async () => {
+    const button = $('request-payout');
+    if (button.disabled) return;
+    button.disabled = true;
+    $('payout-amount').disabled = $('payout-failure').disabled = true;
+    button.textContent = 'Đang gửi yêu cầu…';
+    try {
+      const result = await G4.Payouts.request(Number($('payout-amount').value), $('payout-failure').checked);
+      if (!result) return;
       payoutPage = 1;
       await loadFinance();
-      message('Đã ghi nhận yêu cầu rút tiền. Bạn có thể theo dõi trạng thái bên dưới.', true);
-    });
+      message('Đã tạo yêu cầu rút tiền. Khoản tiền đang qua quy trình ngân hàng giả lập.', true);
+    } finally {
+      button.disabled = false;
+      $('payout-amount').disabled = $('payout-failure').disabled = false;
+      button.textContent = 'Rút tiền';
+    }
+  });
   G4.Disputes.init('seller', () => loadOrders(orderPage, true));
   G4.SellerDebt.init('seller', loadFinance);
   G4.SellerIdentity.init();
