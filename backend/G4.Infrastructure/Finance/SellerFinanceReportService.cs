@@ -44,6 +44,8 @@ public sealed class SellerFinanceReportService(ApplicationDbContext db, TimeProv
         var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(clock.GetUtcNow(), zone).DateTime);
         var startDate = from ?? new DateOnly(today.Year, today.Month, 1);
         var endDate = to ?? today;
+        if (startDate.Year < 2 || endDate.Year >= 9999)
+            throw new ArgumentException("Ngày báo cáo nằm ngoài khoảng hỗ trợ (năm 2–9998).");
         if (endDate < startDate || endDate.DayNumber - startDate.DayNumber > 365)
             throw new ArgumentException("Khoảng ngày phải từ 1 đến 366 ngày và ngày bắt đầu không sau ngày kết thúc.");
         group = string.IsNullOrWhiteSpace(group) ? "day" : group.ToLowerInvariant();
@@ -59,13 +61,13 @@ public sealed class SellerFinanceReportService(ApplicationDbContext db, TimeProv
         var paid = await (from e in db.FinancialTransactions.AsNoTracking()
             join s in db.SellerSettlements.AsNoTracking() on e.SettlementId equals (int?)s.Id
             join p in db.Payments.AsNoTracking() on s.PaymentId equals p.Id
-            where s.SellerId == sellerId && e.SellerAccountId == s.SellerAccountId && p.OrderId == s.OrderId && p.Status == "Succeeded" && p.PaidAt >= startUtc && p.PaidAt < endUtc
+            where s.SellerId == sellerId && e.SellerAccountId == s.SellerAccountId && db.SellerAccounts.Any(a => a.Id == s.SellerAccountId && a.SellerId == sellerId) && p.OrderId == s.OrderId && p.Status == "Succeeded" && p.PaidAt >= startUtc && p.PaidAt < endUtc
                 && (e.Type == "Sale" || e.Type == "PlatformSubsidy" || e.Type == "PlatformFee")
             select new { e.Id, e.OrderId, e.RefundId, e.Type, e.Amount, At = p.PaidAt!.Value }).ToListAsync(ct);
         var refunded = await (from e in db.FinancialTransactions.AsNoTracking()
             join r in db.Refunds.AsNoTracking() on e.RefundId equals (int?)r.Id
             join s in db.SellerSettlements.AsNoTracking() on r.OrderId equals s.OrderId
-            where s.SellerId == sellerId && e.SellerAccountId == s.SellerAccountId && r.PaymentId == s.PaymentId && r.Status == "Succeeded" && r.CompletedAt >= startUtc && r.CompletedAt < endUtc
+            where s.SellerId == sellerId && e.SellerAccountId == s.SellerAccountId && db.SellerAccounts.Any(a => a.Id == s.SellerAccountId && a.SellerId == sellerId) && r.PaymentId == s.PaymentId && r.Status == "Succeeded" && r.CompletedAt >= startUtc && r.CompletedAt < endUtc
                 && (e.Type == "Refund" || e.Type == "PlatformSubsidyReversal" || e.Type == "FeeCredit")
             select new { e.Id, e.OrderId, e.RefundId, e.Type, e.Amount, CashRefund = r.Amount, r.BuyerReturnShippingRecovery, At = r.CompletedAt!.Value }).ToListAsync(ct);
         var costs = await (from e in db.FinancialTransactions.AsNoTracking()
@@ -97,7 +99,7 @@ public sealed class SellerFinanceReportService(ApplicationDbContext db, TimeProv
         foreach (var e in costs) Add(e.Id, e.OrderId, e.RefundId, e.Type, e.Amount, e.At);
         var orders = await (from s in db.SellerSettlements.AsNoTracking()
             join p in db.Payments.AsNoTracking() on s.PaymentId equals p.Id
-            where s.SellerId == sellerId && p.OrderId == s.OrderId && p.Status == "Succeeded" && p.PaidAt >= startUtc && p.PaidAt < endUtc
+            where s.SellerId == sellerId && db.SellerAccounts.Any(a => a.Id == s.SellerAccountId && a.SellerId == sellerId) && p.OrderId == s.OrderId && p.Status == "Succeeded" && p.PaidAt >= startUtc && p.PaidAt < endUtc
             select new { s.OrderId, At = p.PaidAt!.Value }).ToListAsync(ct);
         foreach (var o in orders)
         {
@@ -106,11 +108,13 @@ public sealed class SellerFinanceReportService(ApplicationDbContext db, TimeProv
         }
         var missingPayments = await db.Payments.AsNoTracking().CountAsync(p => p.Status == "Succeeded" && p.PaidAt >= startUtc && p.PaidAt < endUtc
             && p.OrderId != null && db.OrderTables.Any(o => o.Id == p.OrderId && o.SellerId == sellerId)
-            && !db.SellerSettlements.Any(s => s.PaymentId == p.Id
-                && db.FinancialTransactions.Any(e => e.SettlementId == s.Id && e.Type == "Sale")), ct);
+            && !db.SellerSettlements.Any(s => s.PaymentId == p.Id && s.OrderId == p.OrderId && s.SellerId == sellerId && db.SellerAccounts.Any(a => a.Id == s.SellerAccountId && a.SellerId == sellerId)
+                && db.FinancialTransactions.Any(e => e.SettlementId == s.Id && e.SellerAccountId == s.SellerAccountId && e.Type == "Sale")), ct);
         var missingRefunds = await db.Refunds.AsNoTracking().CountAsync(r => r.Status == "Succeeded" && r.CompletedAt >= startUtc && r.CompletedAt < endUtc
             && db.SellerSettlements.Any(s => s.OrderId == r.OrderId && s.SellerId == sellerId)
-            && !db.FinancialTransactions.Any(e => e.RefundId == r.Id && e.Type == "RefundApplied" && db.SellerAccounts.Any(a => a.Id == e.SellerAccountId && a.SellerId == sellerId)), ct);
+            && !db.SellerSettlements.Any(s => s.OrderId == r.OrderId && s.PaymentId == r.PaymentId && s.SellerId == sellerId && db.SellerAccounts.Any(a => a.Id == s.SellerAccountId && a.SellerId == sellerId)
+                && db.FinancialTransactions.Any(e => e.RefundId == r.Id && e.SellerAccountId == s.SellerAccountId && e.Type == "RefundApplied")
+                && db.FinancialTransactions.Any(e => e.RefundId == r.Id && e.SellerAccountId == s.SellerAccountId && e.Type == "Refund")), ct);
         var total = new PeriodData(first);
         foreach (var p in periods.Values)
         {

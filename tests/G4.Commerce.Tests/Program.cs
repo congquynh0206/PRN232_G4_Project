@@ -3,6 +3,7 @@ using G4.Contracts.Checkout;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
+if (args.Contains("--seller-finance-report-sql")) { await SellerFinanceReportSqlChecks.RunAsync(); return; }
 if (args.Contains("--seller-finance-report")) { await SellerFinanceReportChecks.RunAsync(); return; }
 if (args.Contains("--admin-order-lookup")) { await AdminOrderLookupChecks.RunAsync(); return; }
 if (args.Contains("--buyer-address-book")) { await BuyerAddressBookChecks.RunAsync(); return; }

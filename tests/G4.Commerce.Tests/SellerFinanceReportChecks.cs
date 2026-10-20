@@ -51,6 +51,10 @@ internal static class SellerFinanceReportChecks
         await Reject(() => service.GetAsync(1, start, end, "hour", "UTC"));
         await Reject(() => service.GetAsync(1, start, end, "day", "not/a-zone"));
         Check(!db.ChangeTracker.HasChanges(), "report is read-only");
+        await Reject(() => service.GetAsync(1, DateOnly.MinValue, DateOnly.MinValue, "week", "UTC"));
+        await Reject(() => service.GetAsync(1, DateOnly.MaxValue, DateOnly.MaxValue, "day", "UTC"));
+        var empty = await service.GetAsync(1, start.AddMonths(-1), start.AddMonths(-1), "day", "Asia/Ho_Chi_Minh");
+        Check(empty.Chart.Count == 1 && empty.Totals.Net == 0m && empty.Items[0].Sources?.Count == 0, "empty day is represented as zero without invented sources");
         // Subsidy is seller funding, not buyer cash; return postage and its buyer recovery must not double count.
         var later = refunded.AddDays(1);
         db.OrderTables.Add(new OrderTable { Id = 104, SellerId = 1 });
