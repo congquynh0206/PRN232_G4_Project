@@ -40,6 +40,7 @@ public static class DependencyInjection
         services.AddScoped<IPayPalPaymentService, PayPalPaymentService>();
         services.AddScoped<IPayPalCartPaymentService, PayPalCartPaymentService>();
         services.AddScoped<ISellerFinanceService, SellerFinanceService>();
+        services.AddScoped<SellerFinanceReportService>();
         services.AddScoped<ISellerFeedbackService, SellerFeedbackService>();
         services.AddScoped<IProductFeedbackService, ProductFeedbackService>();
         services.AddSingleton(TimeProvider.System);

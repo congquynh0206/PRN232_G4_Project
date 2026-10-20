@@ -5,6 +5,7 @@
 <nav class="tabs role-tabs">
     <button data-tab="orders" class="active">Đơn hàng</button>
     <button data-tab="finance">Tài chính</button>
+    <button data-tab="finance-report">Báo cáo tài chính</button>
     <button data-tab="seller-returns">Trả hàng / Hoàn tiền <span id="seller-return-count"></span></button>
     <button data-tab="seller-levels">Cấp seller</button>
     <button data-tab="product-feedback">Đánh giá sản phẩm</button>
@@ -133,6 +134,57 @@
         <div id="finance-payouts-pagination" class="pagination"></div>
     </div>
 </section>
+<section id="finance-report" class="panel tab-panel">
+    <div class="section-head">
+        <div>
+            <span class="eyebrow">Người bán · USD</span>
+            <h1>Báo cáo tài chính</h1>
+            <p>Phát sinh bán hàng trong kỳ, không phải số dư ví hay tiền có thể rút.</p>
+        </div>
+        <button type="button" id="report-refresh">Làm mới</button>
+    </div>
+    <form id="report-filter" class="report-filters">
+        <label>Khoảng thời gian
+            <select id="report-preset">
+                <option value="month" selected>Tháng này</option>
+                <option value="today">Hôm nay</option>
+                <option value="7">7 ngày</option>
+                <option value="30">30 ngày</option>
+                <option value="custom">Tùy chọn</option>
+            </select>
+        </label>
+        <label>Từ ngày<input id="report-from" type="date" required></label>
+        <label>Đến ngày<input id="report-to" type="date" required></label>
+        <label>Nhóm theo
+            <select id="report-group">
+                <option value="day">Ngày</option>
+                <option value="week">Tuần (thứ Hai)</option>
+                <option value="month">Tháng</option>
+            </select>
+        </label>
+        <button class="primary" type="submit">Áp dụng</button>
+    </form>
+    <p class="small">Payment theo PaidAt, refund theo CompletedAt; chi phí khác theo lúc ghi nhận. Ngày và nhóm kỳ theo múi giờ trình duyệt: <strong id="report-zone"></strong>. Khoảng tối đa 366 ngày; nhóm ngày tối đa 93 ngày.</p>
+    <p id="report-status" role="status" aria-live="polite"></p>
+    <div id="report-cards" class="report-cards"></div>
+    <section class="finance-block" aria-labelledby="report-chart-title">
+        <h2 id="report-chart-title">Xu hướng theo kỳ</h2>
+        <div class="report-legend" aria-label="Chọn chuỗi hiển thị">
+            <label><input type="checkbox" data-report-series="buyerPaid" checked> <span class="report-key paid"></span> Buyer đã trả</label>
+            <label><input type="checkbox" data-report-series="buyerRefunded" checked> <span class="report-key refunded"></span> Đã hoàn</label>
+            <label><input type="checkbox" data-report-series="net" checked> <span class="report-key net"></span> Net seller</label>
+        </div>
+        <div id="report-chart" class="report-chart"></div>
+    </section>
+    <section class="finance-block" aria-labelledby="report-table-title">
+        <h2 id="report-table-title">Số liệu và bút toán nguồn</h2>
+        <div class="report-table-wrap"><table class="report-table">
+            <thead><tr><th>Kỳ</th><th>Số đơn đã trả</th><th>Buyer đã trả</th><th>Đã hoàn</th><th>Phí thực thu</th><th>Net seller</th></tr></thead>
+            <tbody id="report-rows"></tbody>
+        </table></div>
+        <div id="report-pagination" class="pagination"></div>
+    </section>
+</section>
 <partial name="_DisputesPanel" model="false" />
 <section id="shipping-settings" class="panel tab-panel">
     <div class="section-head">
@@ -231,6 +283,7 @@
 <script src="~/js/seller-returns.js" asp-append-version="true"></script>
 <script src="~/js/product-feedback.js" asp-append-version="true"></script>
 <script src="~/js/payouts-ui.js" asp-append-version="true"></script>
+<script src="~/js/seller-report.js" asp-append-version="true"></script>
 <script src="~/js/seller.js" asp-append-version="true"></script>
 }
 <partial name="_PromotionsPanel" model="false" />

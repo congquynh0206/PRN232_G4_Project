@@ -106,3 +106,7 @@ Ngày 14/10/2026 đã kiểm tra SQL QA: cùng payment retry đồng thời ch�
 ## Quản lý nợ và trả nợ
 
 Kỳ nợ liên tục, trả nợ ngân hàng giả lập, đình chỉ do quá hạn và dashboard admin được mô tả tại [SELLER_DEBT.md](SELLER_DEBT.md). Cần migration `20261014102533_AddSellerDebtManagement` trước khi chạy API mới.
+
+## Báo cáo phát sinh theo kỳ (S1)
+
+Tab Báo cáo tài chính riêng, cách tính và test ở [SELLER_FINANCE_REPORT.md](SELLER_FINANCE_REPORT.md). Đây là read-only projection từ payment/refund thành công và bút toán nghiệp vụ; không thay số dư ví hoặc lịch sử payout. Source/test đã thêm trên nhánh S1, còn cần QA SQL Server tích hợp.
