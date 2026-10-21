@@ -15,6 +15,19 @@ Hệ thống có bốn role độc lập. Người dùng đăng nhập tại `/A
 
 ## Phân chia chức năng
 
+### Điều hướng ngày 21/10/2026
+
+- Buyer: Giỏ hàng, Đơn hàng, Tranh chấp, Thông báo. Thanh toán mở từ **Tiếp tục thanh toán**, có **Quay lại giỏ hàng**; khi thanh toán, mục Giỏ hàng vẫn được đánh dấu. Desktop menu ngang; mobile ≤760px dùng thanh dưới với khoảng đệm cuối trang/safe area để cuộn tới các nút hành động.
+- Seller: sidebar 230px chia **Đơn hàng** (đơn, trả/hoàn, tranh chấp), **Tài chính** (ví/rút tiền, báo cáo), **Cửa hàng** (khuyến mãi, đánh giá, giao hàng), **Tài khoản** (cấp, định danh, thông báo, nhật ký).
+- Admin: sidebar chia **Xử lý đơn** (tranh chấp, tra cứu), **Người bán** (cấp, nợ, nợ khó thu/danh sách chặn), **Chính sách** (khuyến mãi, phí), **Hệ thống** (thông báo, nhật ký).
+- Seller/Admin ≤1000px mở menu qua nút Menu; dialog native giữ focus bàn phím, Escape/Đóng trả focus về nút mở; chọn mục đóng menu và đưa focus tới tiêu đề nội dung. Khi resize, cùng một nav chuyển giữa sidebar/drawer nên không nhân ID badge hoặc handler.
+- Fragment URL như `/Seller#finance-report`, `/Admin#order-lookup`, `/Buyer#checkout` giữ mục khi tải lại và hỗ trợ Back/Forward. Link cũ `?tab=finance`, `?tab=finance-report`, `?orderId=...` và PayPal return vẫn được xử lý; fragment hợp lệ ưu tiên khi đã chuyển mục. Fragment lạ/khác role quay về mặc định, không mở loader ngoài role.
+- Shipper giữ nguyên layout/menu/CSS/JS. Menu mới không đổi quyền server, endpoint, tiền hoặc trạng thái dữ liệu.
+
+Build frontend 0 warning/error, Node 128/128 và Chrome fixture Razor thật ở 320/390/768/1000/1024/1440px đạt. Kiểm tra đủ 4/12/9 mục, badge duy nhất, history/reload/query link, checkout/quay lại, keyboard/Escape/focus, resize drawer, không tràn ngang hoặc gọi API ghi dữ liệu. Fixture RT1/PAY1 hồi quy đạt. Ảnh `artifacts/role-navigation-ui/`. Login/API browser là fixture; chưa E2E nối SQL/provider hoặc xác nhận dữ liệu thật. Không có migration mới, không seed/migrate database nào trong đợt UI này.
+
+### Chức năng theo role
+
 - **Buyer:** random giỏ, checkout, Credit Card/PayPal, xem đơn của chính mình, tracking, hủy, trả hàng; tab Tranh chấp để mở yêu cầu có bằng chứng, bổ sung và chấp nhận/từ chối phương án.
 - **Seller:** chỉ xem đơn bán của mình; chuẩn bị hàng, tạo vận đơn, xử lý hủy/trả/refund, xem balance, level, ledger và payout; tab Tranh chấp để gửi bằng chứng và phương án. Seller không có quyền phát tracking event hoặc quyết định thay admin.
 - **Shipper:** xem vận đơn chờ nhận, nhận riêng chiều đi/chiều trả rồi cập nhật tracking của mình. Chi tiết đơn chỉ chứa vận đơn và lịch sử đang sở hữu; payment, refund và balance không trả về cho shipper. Xem [RETURNS_AND_SHIPPING.md](RETURNS_AND_SHIPPING.md).

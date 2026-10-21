@@ -24,12 +24,7 @@
     orderRequest = 0,
     visibleOrders = new Map();
   function tab(id, loadList = true) {
-    document
-      .querySelectorAll('.tab-panel')
-      .forEach((x) => x.classList.toggle('active', x.id === id));
-    document
-      .querySelectorAll('.tabs button')
-      .forEach((x) => x.classList.toggle('active', x.dataset.tab === id));
+    if (!G4.Navigation.select(id)) return;
     if (id === 'orders' && loadList) safe(loadOrders);
     if (id === 'disputes') safe(() => G4.Disputes.load());
     if (id === 'notifications') safe(() => G4.Notifications.load());
@@ -196,7 +191,6 @@
         safe(() => loadOrders(1));
       }),
   );
-  document.querySelectorAll('.tabs button').forEach((b) => (b.onclick = () => tab(b.dataset.tab)));
   $('refresh-orders').onclick = () => safe(() => loadOrders(state.page));
   document.body.addEventListener('click', (e) => {
     const open = e.target.closest('[data-open-order]');
@@ -232,11 +226,10 @@
     )
       safe(() => showOrder(detailOrderId, true));
   }, 5000);
+  G4.Navigation.init(tab);
   safe(async () => {
     const p = new URLSearchParams(location.search);
-    if (p.has('paypalCheckoutId')) tab('orders');
-    if (p.has('orderId')) {
-      tab('orders');
+    if (p.has('orderId') && G4.Navigation.current === 'orders') {
       await showOrder(Number(p.get('orderId')));
       if (p.has('paymentResult'))
         message(

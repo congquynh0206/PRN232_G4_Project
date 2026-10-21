@@ -45,6 +45,10 @@
             <link rel="stylesheet" href="~/css/vnpost.css" asp-append-version="true" />
         }
         <link rel="stylesheet" href="~/css/dialogs.css" asp-append-version="true" />
+        @if (role is "buyer" or "seller" or "admin")
+        {
+            <link rel="stylesheet" href="~/css/role-navigation.css" asp-append-version="true" />
+        }
     </head>
     <body class="@(role == "shipper" ? "vnpost-workspace" : "")">
         <header class="topbar role-topbar">
@@ -87,7 +91,48 @@
                 <strong>@roleLabel</strong>
             }
         </div>
-        <main>@RenderBody()</main>
+        @if (role is "buyer" or "seller" or "admin")
+        {
+            <div class="workspace-shell workspace-@role @(role == "buyer" ? "" : "has-sidebar")">
+                @if (role == "buyer")
+                {
+                    <partial name="_RoleNavigation" model="role" />
+                }
+                else
+                {
+                    <aside id="workspace-sidebar" class="workspace-sidebar">
+                        <partial name="_RoleNavigation" model="role" />
+                    </aside>
+                }
+                <main id="workspace-main" class="workspace-main">
+                    @if (role != "buyer")
+                    {
+                        <div class="workspace-mobile-bar">
+                            <button type="button" id="navigation-toggle" aria-controls="navigation-drawer" aria-expanded="false" aria-haspopup="dialog">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+                                Menu @(role == "admin" ? "quản trị" : "người bán")
+                            </button>
+                            <strong id="navigation-current">@(role == "admin" ? "Tranh chấp" : "Đơn hàng")</strong>
+                        </div>
+                    }
+                    @RenderBody()
+                </main>
+            </div>
+            @if (role != "buyer")
+            {
+                <dialog id="navigation-drawer" class="navigation-drawer" aria-labelledby="navigation-drawer-title">
+                    <div class="navigation-drawer-head">
+                        <h2 id="navigation-drawer-title">Menu @(role == "admin" ? "quản trị" : "người bán")</h2>
+                        <button type="button" id="navigation-close" aria-label="Đóng menu">Đóng</button>
+                    </div>
+                    <div id="navigation-drawer-content"></div>
+                </dialog>
+            }
+        }
+        else
+        {
+            <main>@RenderBody()</main>
+        }
         <dialog id="detail-dialog" class="detail-dialog" aria-label="Chi tiết">
             <div class="detail-dialog-head">
                 <strong>Chi tiết</strong>

@@ -1,5 +1,13 @@
 # Backlog triển khai theo đặc tả ngày 18/10/2026
 
+## UI-NAV — Điều hướng Buyer/Seller/Admin ngày 21/10/2026
+
+- Hoàn thành source theo yêu cầu người dùng: Buyer 4 mục, Thanh toán từ giỏ và có nút quay lại; Seller/Admin sidebar 230px có nhóm, ≤1000px dùng drawer; Buyer ≤760px dùng bottom navigation. Shipper giữ nguyên. Badge giữ ID duy nhất; native dialog quản lý focus/Escape, chọn mục đóng menu, resize chuyển cùng nav. URL fragment hỗ trợ Back/Forward/tải lại, link query cũ/PayPal return và fallback fragment không hợp lệ.
+- Thay đổi ở `_RoleNavigation`, `_RoleLayout`, ba role views/scripts và CSS/JS điều hướng chung. Không thay API, quyền server, tiền hoặc workflow; đã đồng bộ đặc tả, [hướng dẫn role](AUTHORIZATION_AND_ROLE_PAGES.md#điều-hướng-ngày-21102026), PROJECT_RUN và nội dung checkout PayPal cả giỏ.
+- Bằng chứng mới: `dotnet build frontend/frontend.csproj --no-restore -m:1 --disable-build-servers` đạt 0 warning/error; `node --test tests/*.test.cjs` đạt 128/128. Chrome `tests/role-navigation.e2e.cjs` dùng frontend Razor thật, login/API fixture: đủ mục, badge, Back/Forward/reload/query link, checkout/quay lại, keyboard/Escape/focus, resize drawer, không tràn ngang ở 320–1440px hoặc request ghi dữ liệu; ảnh đã xem tại `artifacts/role-navigation-ui/`. `tests/return-payout-ui.e2e.cjs` đã nối bộ điều hướng mới và hồi quy RT1/PAY1 desktop/mobile đạt.
+- Không có migration mới; không seed/migrate hoặc sửa database chính/QA. Browser dùng dữ liệu giả lập, chưa E2E nối SQL/provider; không ghi nhận các task nghiệp vụ khác hoàn thành. Restart frontend/tải lại để nhận UI mới.
+- Hai script E2E cấp seller/đăng ký seller đã đổi selector menu sang `data-tab` ổn định và đạt `node --check`; chưa chạy lại hai kịch bản nối API/SQL này trong đợt UI.
+
 **Nguồn nghiệp vụ:** [BUSINESS_REQUIREMENTS.md](BUSINESS_REQUIREMENTS.md), phiên bản 2.0. Backlog này cụ thể hóa đầu vào code, không phải xác nhận đã làm. Mốc hiện trạng là đối chiếu source ngày 18/10; đợt cập nhật này chỉ sửa tài liệu, chưa chạy lại app/tests hoặc áp migration. Khi bắt đầu task phải đọc lại source mới nhất.
 
 **Nhãn trạng thái:** `Cần triển khai` = thiếu luồng chính; `Cần điều chỉnh` = đã có nền tảng nhưng khác nghiệp vụ mới; `Giữ/hồi quy` = đã có source, cần giữ đúng; `Có source, cần xác minh triển khai` = có ghi nhận QA/migration riêng, chưa xác nhận database hiện dùng. Không đánh dấu done khi chỉ có tài liệu hoặc migration chưa nghiệm thu.

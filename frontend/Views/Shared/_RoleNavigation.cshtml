@@ -1,0 +1,96 @@
+@model string
+@{
+    var groups = new List<(string Label, (string Id, string Label, string Icon, string Badge)[] Items)>();
+    if (Model == "buyer")
+    {
+        groups.Add(("", new[] {
+            ("summary", "Giỏ hàng", "cart", ""),
+            ("orders", "Đơn hàng", "orders", ""),
+            ("disputes", "Tranh chấp", "dispute", "dispute-tab-count"),
+            ("notifications", "Thông báo", "bell", "")
+        }));
+    }
+    else if (Model == "seller")
+    {
+        groups.Add(("Đơn hàng", new[] {
+            ("orders", "Đơn hàng", "orders", ""),
+            ("seller-returns", "Trả hàng / Hoàn tiền", "return", "seller-return-count"),
+            ("disputes", "Tranh chấp", "dispute", "dispute-tab-count")
+        }));
+        groups.Add(("Tài chính", new[] {
+            ("finance", "Ví & Rút tiền", "wallet", ""),
+            ("finance-report", "Báo cáo tài chính", "chart", "")
+        }));
+        groups.Add(("Cửa hàng", new[] {
+            ("promotions", "Khuyến mãi", "tag", ""),
+            ("product-feedback", "Đánh giá sản phẩm", "review", ""),
+            ("shipping-settings", "Thiết lập giao hàng", "truck", "")
+        }));
+        groups.Add(("Tài khoản", new[] {
+            ("seller-levels", "Cấp người bán", "level", ""),
+            ("seller-identity", "Định danh", "identity", ""),
+            ("notifications", "Thông báo", "bell", ""),
+            ("integration-logs", "Nhật ký tích hợp", "log", "")
+        }));
+    }
+    else if (Model == "admin")
+    {
+        groups.Add(("Xử lý đơn", new[] {
+            ("disputes", "Tranh chấp", "dispute", "dispute-tab-count"),
+            ("order-lookup", "Tra cứu đơn", "search", "")
+        }));
+        groups.Add(("Người bán", new[] {
+            ("seller-levels", "Cấp người bán", "level", ""),
+            ("seller-debts", "Khoản nợ", "wallet", ""),
+            ("seller-risk", "Nợ khó thu / Danh sách chặn", "shield", "")
+        }));
+        groups.Add(("Chính sách", new[] {
+            ("promotions", "Khuyến mãi", "tag", ""),
+            ("platform-fees", "Phí nền tảng", "chart", "")
+        }));
+        groups.Add(("Hệ thống", new[] {
+            ("inbox", "Thông báo", "bell", ""),
+            ("integration-logs", "Nhật ký tích hợp", "log", "")
+        }));
+    }
+    var paths = new Dictionary<string, string> {
+        ["cart"] = "M3 3h2l2 12h12l2-8H6 M9 20h.01 M18 20h.01",
+        ["orders"] = "M8 4H5v17h14V4h-3 M9 3h6v4H9z M8 11h8 M8 15h8",
+        ["dispute"] = "M21 11a8 8 0 0 1-8 8H5l-3 3V11a9 9 0 0 1 19 0z M12 7v5 M12 15h.01",
+        ["bell"] = "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9 M10 21h4",
+        ["return"] = "M9 4 4 9l5 5 M4 9h10a6 6 0 0 1 0 12h-3",
+        ["wallet"] = "M20 7V4H4v16h17V7H4 M16 11h5v5h-5z",
+        ["chart"] = "M4 3v18h17 M8 16v-4 M13 16V8 M18 16V5",
+        ["tag"] = "M3 3h8l10 10-8 8L3 11z M7 7h.01",
+        ["review"] = "m12 3 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z",
+        ["truck"] = "M3 5h12v12H3z M15 9h4l3 4v4h-7 M6 17a2 2 0 1 0 4 0 M16 17a2 2 0 1 0 4 0",
+        ["level"] = "M7 3h10v7a5 5 0 0 1-10 0z M7 5H3v3a4 4 0 0 0 4 4 M17 5h4v3a4 4 0 0 1-4 4 M12 15v6 M8 21h8",
+        ["identity"] = "M3 4h18v16H3z M7 9a2 2 0 1 0 4 0 2 2 0 0 0-4 0 M6 17v-2a3 3 0 0 1 6 0v2 M15 9h3 M15 13h3",
+        ["log"] = "M5 3h14v18H5z M8 8h8 M8 12h8 M8 16h5",
+        ["search"] = "M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14 M15 15l6 6",
+        ["shield"] = "m12 2 9 4v6c0 5-9 10-9 10S3 17 3 12V6z M8 12h8"
+    };
+    var defaultId = Model == "buyer" ? "summary" : Model == "admin" ? "disputes" : "orders";
+}
+<nav class="role-tabs workspace-nav @(Model == "buyer" ? "buyer-nav" : "sidebar-nav")" aria-label="Điều hướng chính" data-role-navigation="@Model">
+    @foreach (var group in groups)
+    {
+        <div class="navigation-group">
+            @if (!string.IsNullOrEmpty(group.Label))
+            {
+                <p class="navigation-group-label">@group.Label</p>
+            }
+            @foreach (var item in group.Items)
+            {
+                <button type="button" data-tab="@item.Id" data-nav-label="@item.Label" class="navigation-item @(item.Id == defaultId ? "active" : "")" aria-controls="@item.Id" aria-current="@(item.Id == defaultId ? "page" : null)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="@paths[item.Icon]" /></svg>
+                    <span class="navigation-label">@item.Label</span>
+                    @if (!string.IsNullOrEmpty(item.Badge))
+                    {
+                        <span id="@item.Badge" class="navigation-badge"></span>
+                    }
+                </button>
+            }
+        </div>
+    }
+</nav>

@@ -40,3 +40,6 @@ app.UseAuthorization();
 app.MapControllerRoute(name: "root", pattern: "", defaults: new { controller = "Account", action = "Login" });
 app.MapControllerRoute(name: "default", pattern: "{controller=Account}/{action=Index}/{id?}");
 app.Run();
+
+
+// dotnet ef database update --project backend/G4.Infrastructure --startup-project backend/G4.Api

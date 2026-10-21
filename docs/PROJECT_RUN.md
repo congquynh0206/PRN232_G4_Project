@@ -10,6 +10,10 @@ Xem cách chia các project tại [BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE
 
 SQL Server là nguồn dữ liệu khi chạy ứng dụng. EF Core InMemory chỉ còn được dùng bên trong kiểm thử tự động, không dùng để khởi tạo dữ liệu cho giao diện.
 
+**Điều hướng 21/10:** Buyer có 4 mục; Thanh toán mở từ giỏ. Seller/Admin dùng sidebar desktop và nút Menu ở màn hình ≤1000px; Shipper giữ nguyên. Build/restart frontend và tải lại trang để nhận Razor/CSS/JS mới; không có migration/config API mới. Fragment URL giữ mục khi reload/Back/Forward. [Nhóm menu và kết quả QA](AUTHORIZATION_AND_ROLE_PAGES.md#điều-hướng-ngày-21102026).
+
+QA điều hướng không cần API/SQL đang chạy: `dotnet build frontend/frontend.csproj --no-restore`, rồi `node tests/role-navigation.e2e.cjs` với Playwright có sẵn trong `NODE_PATH`; nếu cần đặt `CHROME_PATH` tới Chrome cài sẵn. Script tự mở frontend/API đăng nhập giả lập trên cổng localhost riêng và đóng khi xong; API nghiệp vụ dùng fixture đọc, kiểm tra không phát sinh request ghi. Sandbox cần cho phép loopback/Chrome. Đây không phải E2E nối database/provider. Hồi quy return/payout: `node tests/return-payout-ui.e2e.cjs` với cùng môi trường Playwright.
+
 Giỏ buyer hiện random từ đúng hai seller, lưu theo tài khoản và checkout thành các đơn riêng. Cần migration `AddBuyerCartCheckoutBatch` và seed thêm seller thứ hai trước khi dùng; xem [MULTI_SELLER_CART.md](MULTI_SELLER_CART.md).
 
 Đổi địa chỉ đơn đã thanh toán cần migration gốc `AddOrderAddressChanges` và AD1 `20261020153620_AddAddressChangeConfirmations` (sau SH1). Buyer xem/xác nhận quote, seller chấp thuận và shipper đã nhận chấp thuận khả năng giao trước khi áp dụng địa chỉ/tiền. Chưa gán shipper thì seller duyệt cuối; trong lúc chờ chặn OutForDelivery, giữ địa chỉ cũ. Deadline snapshot mặc định 24 giờ, Development 60 giây (`AddressChanges:ConfirmationSeconds`), worker 5 giây. Xem [ORDER_ADDRESS_CHANGES.md](ORDER_ADDRESS_CHANGES.md).

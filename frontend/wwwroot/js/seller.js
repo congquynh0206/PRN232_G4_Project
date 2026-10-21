@@ -27,12 +27,7 @@
   let detailOrderId = null,
     detailRequest = 0;
   function tab(id) {
-    document
-      .querySelectorAll('.tab-panel')
-      .forEach((x) => x.classList.toggle('active', x.id === id));
-    document
-      .querySelectorAll('.tabs button')
-      .forEach((x) => x.classList.toggle('active', x.dataset.tab === id));
+    if (!G4.Navigation.select(id)) return;
     if (id === 'orders') safe(loadOrders);
     else if (id === 'finance-report') G4.SellerReport.load();
     else if (id === 'disputes') safe(() => G4.Disputes.load());
@@ -353,9 +348,6 @@
     needsAction = $('seller-needs-action').checked;
     safe(() => loadOrders(1));
   };
-  document
-    .querySelectorAll('.role-tabs [data-tab]')
-    .forEach((b) => (b.onclick = () => tab(b.dataset.tab)));
   $('refresh-orders').onclick = () => safe(() => loadOrders(orderPage, true));
   $('refresh-finance').onclick = () => safe(loadFinance);
   $('evaluate-level').onclick = () =>
@@ -395,7 +387,6 @@
     const b = e.target.closest('[data-action]');
     if (b) return safe(() => action(b));
   });
-  safe(loadOrders);
   G4.Realtime?.subscribe(['orders', 'returns', 'shipments', 'disputes', 'finance', 'levels', 'notifications'], async () => {
     const active = document.querySelector('.tab-panel.active')?.id;
     if (active === 'orders') await loadOrders(orderPage, true);
@@ -424,9 +415,8 @@
   G4.Notifications.init('seller');
   G4.IntegrationLogs.init('seller');
   G4.SellerReport.init();
+  G4.Navigation.init(tab);
   const notificationLink = new URLSearchParams(location.search);
-  if (notificationLink.get('tab') === 'finance') tab('finance');
-  if (notificationLink.get('tab') === 'finance-report') tab('finance-report');
   const linkedOrder = Number(notificationLink.get('orderId'));
-  if (Number.isInteger(linkedOrder) && linkedOrder > 0) { tab('orders'); safe(() => showOrder(linkedOrder)); }
+  if (Number.isInteger(linkedOrder) && linkedOrder > 0 && G4.Navigation.current === 'orders') safe(() => showOrder(linkedOrder));
 })();

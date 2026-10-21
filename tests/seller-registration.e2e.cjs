@@ -59,7 +59,7 @@ const folder = 'artifacts/seller-registration-qa';
     const sql = spawnSync('sqlcmd', ['-S', 'localhost', '-E', '-C', '-d', 'G4_SellerRegistration_Test_20261015', '-b', '-Q',
       `UPDATE SellerAccount SET NegativeBalance=40 WHERE SellerId=${auth.userId} AND NegativeBalance=0 AND DebtStartedAt IS NULL;`], { encoding: 'utf8' });
     assert.equal(sql.status, 0, sql.stderr);
-    await page.getByRole('button', { name: 'Tài chính', exact: true }).click();
+    await page.locator('[data-tab="finance"]').click();
     await page.locator('#seller-debt-summary').filter({ hasText: '$40.00' }).waitFor();
     console.log('E2E: waiting for background worker using shortened QA policy (90 seconds).');
     const deadline = Date.now() + 120000;
@@ -90,7 +90,7 @@ const folder = 'artifacts/seller-registration-qa';
     await page.getByLabel('Địa chỉ thư điện tử', { exact: true }).fill('admin@example.test');
     await page.getByLabel('Mật khẩu', { exact: true }).fill('G4@123456');
     await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
-    await page.getByRole('button', { name: 'Nợ khó thu / Blacklist', exact: true }).click();
+    await page.locator('[data-tab="seller-risk"]').click();
     await page.locator('#seller-risk-seller').fill(String(auth.userId));
     await page.getByRole('button', { name: 'Lọc hồ sơ', exact: true }).click();
     await page.locator('#seller-write-offs').filter({ hasText: 'Seller #' + auth.userId }).waitFor();

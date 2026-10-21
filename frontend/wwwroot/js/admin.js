@@ -1,12 +1,7 @@
 (() => {
   const { $, safe } = G4;
   function tab(id) {
-    document
-      .querySelectorAll('.tab-panel')
-      .forEach((x) => x.classList.toggle('active', x.id === id));
-    document
-      .querySelectorAll('.tabs button')
-      .forEach((x) => x.classList.toggle('active', x.dataset.tab === id));
+    if (!G4.Navigation.select(id)) return;
     if (id === 'disputes') safe(() => G4.Disputes.load());
     else if (id === 'promotions') safe(() => G4.Promotions.load());
     else if (id === 'inbox') safe(() => G4.Notifications.load());
@@ -17,9 +12,6 @@
     else if (id === 'seller-levels') safe(() => G4.SellerLevels.load());
     else if (id === 'order-lookup') safe(() => G4.AdminOrderLookup.load());
   }
-  document
-    .querySelectorAll('.tabs button')
-    .forEach((button) => (button.onclick = () => tab(button.dataset.tab)));
   G4.Disputes.init('admin');
   G4.Promotions.init('admin');
   G4.Notifications.init('admin');
@@ -29,6 +21,7 @@
   G4.SellerRisk.init();
   G4.SellerLevels.init('admin');
   G4.AdminOrderLookup.init();
+  G4.Navigation.init(tab);
   G4.Realtime?.subscribe(['orders', 'returns', 'disputes', 'finance', 'levels', 'notifications'], async () => {
     const id = document.querySelector('.tab-panel.active')?.id;
     if (id === 'seller-debts') await G4.SellerDebt.loadAdmin();

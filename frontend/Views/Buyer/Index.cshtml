@@ -2,16 +2,6 @@
     Layout = "_RoleLayout";
     ViewData["Title"] = "Người mua";
 }
-<nav class="tabs role-tabs">
-    <button data-tab="summary" class="active">Giỏ hàng</button>
-    <button data-tab="checkout">Thanh toán</button>
-    <button data-tab="orders">Đơn của tôi</button>
-    <button data-tab="notifications">Email thông báo</button>
-    <button data-tab="disputes">
-        Tranh chấp
-        <span id="dispute-tab-count"></span>
-    </button>
-</nav>
 <link rel="stylesheet" href="~/css/promotions.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/buyer-addresses.css" asp-append-version="true" />
 <div id="message" class="message" role="status" aria-live="polite"></div>
@@ -41,6 +31,7 @@
     </div>
 </section>
 <section id="checkout" class="panel tab-panel">
+    <button type="button" class="checkout-back" data-nav-target="summary">← Quay lại giỏ hàng</button>
     <div class="section-head">
         <div>
             <span class="eyebrow">Người mua</span>
@@ -128,8 +119,8 @@
                 Báo giá chưa giữ lượt khuyến mãi. Giá được xác nhận khi tạo đơn.
             </p>
             <p class="promotion-checkout-note">
-                Mỗi seller nhận một đơn riêng. PayPal thanh toán từng đơn; các đơn còn lại nằm trong
-                “Đơn của tôi”.
+                Mỗi người bán nhận một đơn riêng. PayPal xác nhận thanh toán cả giỏ trong một lượt;
+                kết quả từng đơn được hiển thị tại “Đơn hàng”.
             </p>
             <button class="primary wide" id="pay" disabled>Đặt hàng &amp; thanh toán</button>
         </aside>
@@ -189,6 +180,7 @@
 @section Scripts
 {
     <script src="~/js/common.js" asp-append-version="true"></script>
+    <script src="~/js/role-navigation.js" asp-append-version="true"></script>
     <script src="~/lib/signalr/signalr.min.js" asp-append-version="true"></script>
     <script src="~/js/realtime.js" asp-append-version="true"></script>
     <script src="~/js/address-changes.js" asp-append-version="true"></script>

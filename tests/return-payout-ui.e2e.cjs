@@ -7,7 +7,7 @@ const output = path.resolve('artifacts/return-window-payout-ui');
 (async () => {
   fs.mkdirSync(output, { recursive: true });
   const browser = await chromium.launch({ headless: true, ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {}) });
-  const dialogs = read('frontend/Views/Shared/_RoleLayout.cshtml').match(/<dialog\b[\s\S]*?<\/dialog>/g).join('');
+  const dialogs = read('frontend/Views/Shared/_RoleLayout.cshtml').match(/<dialog\b[\s\S]*?<\/dialog>/g).filter(html => !html.includes('id="navigation-drawer"')).join('');
   try {
     for (const [device, viewport] of [['desktop', { width: 1440, height: 1000 }], ['mobile', { width: 390, height: 844 }]]) {
       async function pageFor(body) {
@@ -51,10 +51,12 @@ const output = path.resolve('artifacts/return-window-payout-ui');
 
       for (const returned of [false, true]) {
         const seller = read('frontend/Views/Seller/Index.cshtml').replace(/^@\{[\s\S]*?\}/, '').split('@section Scripts')[0].replace(/<partial\b[^>]*\/>/g, '');
-        view = await pageFor(seller); page = view.page;
+        // This focused payout fixture supplies one navigation entry; the complete
+        // rendered sidebar/drawer is exercised by role-navigation.e2e.cjs.
+        view = await pageFor(`<nav data-role-navigation="seller"><button type="button" data-tab="finance" data-nav-label="Ví & Rút tiền">Ví & Rút tiền</button></nav>${seller}`); page = view.page;
         await page.evaluate(() => {
           const noOp = () => {}, asyncNoOp = async () => {};
-          for (const name of ['Disputes', 'SellerDebt', 'SellerIdentity', 'SellerLevels', 'SellerReturns', 'ProductFeedback', 'AddressChanges', 'Promotions', 'Notifications', 'IntegrationLogs'])
+          for (const name of ['Disputes', 'SellerDebt', 'SellerIdentity', 'SellerLevels', 'SellerReturns', 'ProductFeedback', 'AddressChanges', 'Promotions', 'Notifications', 'IntegrationLogs', 'SellerReport'])
             G4[name] = { init: noOp, load: asyncNoOp, loadSeller: asyncNoOp };
           G4.Realtime = { connected: true, subscribe: (topics, callback) => window.refreshFixture = callback };
           window.fixture = { available: 87.7, payouts: [], calls: [] };
@@ -75,7 +77,7 @@ const output = path.resolve('artifacts/return-window-payout-ui');
             throw new Error('Unexpected fixture request ' + url);
           };
         });
-        for (const js of ['payouts-ui', 'seller']) await page.addScriptTag({ content: read(`frontend/wwwroot/js/${js}.js`) });
+        for (const js of ['role-navigation', 'payouts-ui', 'seller']) await page.addScriptTag({ content: read(`frontend/wwwroot/js/${js}.js`) });
         await page.locator('[data-tab="finance"]').click();
         await page.getByText('Ví khả dụng', { exact: true }).waitFor();
         await page.locator('#payout-amount').fill('50');

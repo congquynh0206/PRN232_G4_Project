@@ -2,23 +2,6 @@
     Layout = "_RoleLayout";
     ViewData["Title"] = "Người bán";
 }
-<nav class="tabs role-tabs">
-    <button data-tab="orders" class="active">Đơn hàng</button>
-    <button data-tab="finance">Tài chính</button>
-    <button data-tab="finance-report">Báo cáo tài chính</button>
-    <button data-tab="seller-returns">Trả hàng / Hoàn tiền <span id="seller-return-count"></span></button>
-    <button data-tab="seller-levels">Cấp seller</button>
-    <button data-tab="product-feedback">Đánh giá sản phẩm</button>
-    <button data-tab="shipping-settings">Thiết lập giao hàng</button>
-    <button data-tab="seller-identity">Định danh</button>
-    <button data-tab="promotions">Khuyến mãi</button>
-    <button data-tab="notifications">Email thông báo</button>
-    <button data-tab="integration-logs">Nhật ký tích hợp</button>
-    <button data-tab="disputes">
-        Tranh chấp
-        <span id="dispute-tab-count"></span>
-    </button>
-</nav>
 <div id="message" class="message" role="status" aria-live="polite"></div>
 <section id="orders" class="panel tab-panel active">
     <div class="section-head">
@@ -268,6 +251,7 @@
 @section Scripts
 {
 <script src="~/js/common.js" asp-append-version="true"></script>
+    <script src="~/js/role-navigation.js" asp-append-version="true"></script>
 <script src="~/lib/signalr/signalr.min.js" asp-append-version="true"></script>
 <script src="~/js/realtime.js" asp-append-version="true"></script>
 <script src="~/js/address-changes.js" asp-append-version="true"></script>

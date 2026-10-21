@@ -14,6 +14,8 @@ Hệ thống có bốn vai trò `buyer`, `seller`, `shipper`, `admin`. API kiể
 
 ## 2. Quyền của từng vai trò
 
+**Quyết định giao diện 21/10/2026:** Buyer dùng bốn mục Giỏ hàng, Đơn hàng, Tranh chấp, Thông báo; Thanh toán là bước tiếp theo của giỏ và có nút quay lại. Seller/Admin dùng sidebar chia nhóm trên desktop, menu ngăn kéo trên màn hình nhỏ; Buyer dùng thanh điều hướng dưới trên mobile. Giữ badge cần xử lý, hỗ trợ bàn phím, Back/Forward và khôi phục mục khi tải lại. Giữ nguyên điều hướng Shipper. Thay đổi này không đổi quyền/API hoặc quy tắc tài chính.
+
 | Vai trò | Nghiệp vụ chính |
 | --- | --- |
 | Buyer | Random giỏ, quản lý địa chỉ/mặc định, xem báo giá và policy free returns trước mua, dùng promotion, thanh toán, lịch sử payment/refund, theo dõi tracking, yêu cầu hủy/đổi địa chỉ/return, báo chưa nhận hàng và mở dispute, đánh giá sau giao. |
