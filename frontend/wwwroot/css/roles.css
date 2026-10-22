@@ -128,7 +128,7 @@
 .report-legend { display:flex; flex-wrap:wrap; gap:14px; margin:12px 0; }
 .report-legend label { display:inline-flex; align-items:center; gap:5px; cursor:pointer; }
 .report-key { width:18px; border-top:3px solid; display:inline-block; }
-.report-key.paid { color:#28699b; } .report-key.refunded { color:#bb5b38; border-top-style:dashed; } .report-key.net { color:#405a3b; }
+.report-key.paid { color:#28699b; } .report-key.refunded { color:#bb5b38; border-top-style:dashed; } .report-key.net { color:#405a3b; border-top-style:dotted; }
 .report-chart svg { display:block; width:100%; max-height:360px; font:12px sans-serif; }
 .report-chart svg text { fill:#506068; }
 .report-table-wrap { overflow-x:auto; }

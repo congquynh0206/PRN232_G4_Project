@@ -20,7 +20,7 @@
 | --- | --- | --- | --- |
 | B1 | CRUD địa chỉ/mặc định và lấy báo giá lại | Đã có source và hồi quy hợp nhất; chờ SQL QA/E2E địa chỉ | §3; bốn task ưu tiên §2; BUYER_ADDRESS_BOOK.md |
 | B2 | Lịch sử payment/refund buyer | Cần triển khai màn tổng hợp; đã có dữ liệu trong từng đơn | §5; bốn task ưu tiên §1 |
-| S1 | Báo cáo tài chính theo thời gian | Đã có source API/UI, test InMemory/UI, LocalDB QA riêng và HTTP role/filter; chờ QA browser, review và nghiệm thu | §2, §9; bốn task ưu tiên §4 |
+| S1 | Báo cáo tài chính theo thời gian | Đã hợp nhất master; SQL/HTTP/browser local và regression đạt 22/10; còn snapshot đọc đồng thời, review và nghiệm thu | §2, §9; bốn task ưu tiên §4 |
 | S2 | Feedback sản phẩm và trả lời | Có source, cần xác minh triển khai; giữ tách seller feedback | §2; PRODUCT_FEEDBACK.md |
 | A1 | Admin tra cứu order/payment/refund | Đã có source tra cứu chỉ đọc; chờ build và QA nghiệm thu | §2; bốn task ưu tiên §3; [ADMIN_ORDER_LOOKUP.md](ADMIN_ORDER_LOOKUP.md) |
 | A2 | Admin yêu cầu trả trước phán quyết | Cần triển khai; không nhầm với ReturnRefund qua thương lượng | §8 |
@@ -50,6 +50,8 @@ Chi tiết UI, filter, ngày tính tổng, phân trang và quyền tiếp tục 
 - **S2/N1:** giữ review theo product khác SellerOrderFeedback, trả lời đúng quyền; giữ outbox transaction/key/người nhận/retry. Xem PRODUCT_FEEDBACK và NOTIFICATION_COMPLETION để xác minh migration/QA thực tế, không tự coi database chính đã nâng.
 
 **Hợp nhất S1 vào master ngày 21/10/2026:** xử lý conflict mục lục tài liệu và script Seller, giữ cả báo cáo tài chính lẫn PAY1. Build solution đạt 0 warning/error; backend `--seller-finance-report` và `--payout-workflow` đạt; UI Node 128/128 đạt. Không tạo/áp migration, không thay database; chưa chạy lại SQL/HTTP/browser. Hai lỗi đã review (đọc báo cáo thiếu snapshot nhất quán khi có giao dịch đồng thời, bật/tắt chuỗi làm hiện biểu đồ cũ sau lỗi tải) chưa sửa trong đợt hợp nhất này; S1 chưa được nghiệm thu hoàn tất.
+
+**QA S1 22/10/2026:** nhánh sửa từ master `fix/seller-finance-report-qa` xử lý DST ở ranh giới ngày, cảnh báo refund thiếu settlement, chống biểu đồ cũ và busy state; thêm InMemory/SQL/UI regression. Solution 0 warning/error, backend mặc định và SQL QA riêng đạt, Node 130/130. `CloneEbayDB` local đã được sao lưu/verify và nâng 4 migration còn thiếu tới 24/24; browser nối DB local cho seller xác nhận số tiền, lọc tuần, bảng và bút toán. Không suy ra database nhóm/production đã nâng. Còn rủi ro truy vấn nhiều lượt không chung snapshot khi dữ liệu đang thay đổi; chưa nghiệm thu cuối. Xem [SELLER_FINANCE_REPORT.md](SELLER_FINANCE_REPORT.md).
 
 **Hợp nhất hoanglt/hungntm 19/10/2026:** đã tích hợp B1 và A1, giữ cấu hình frontend HTTP 5251 và thay đổi tên hiển thị. Sửa xóa địa chỉ có tham chiếu bằng lưu trữ ngoài sổ, giữ nguyên AddressId/snapshot/tiền và checkout idempotency; khóa form địa chỉ khi đang gửi; cập nhật harness giỏ nạp module địa chỉ thật. Build solution pass 0 warning/error, bộ backend mặc định pass, 115/115 test UI pass. QA Chrome desktop/mobile admin bằng fixture pass. Chưa SQL QA/E2E CRUD địa chỉ trên DB thật; không áp migration hoặc thay database chính. Xem [BUYER_ADDRESS_BOOK.md](BUYER_ADDRESS_BOOK.md).
 

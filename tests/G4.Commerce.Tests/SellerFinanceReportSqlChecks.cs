@@ -97,6 +97,14 @@ internal static class SellerFinanceReportSqlChecks
         var otherReport = await service.GetAsync(other.Id, start, end, "day", "Asia/Ho_Chi_Minh");
         Check(otherReport.Totals.BuyerPaid == 900m && otherReport.Totals.BuyerRefunded == 0m,
             "other seller cannot see this seller's transactions");
+        var noSettlementRefund = new Refund { OrderId = missing.Id, PaymentId = missingPayment.Id, Amount = 3m,
+            Status = "Succeeded", CompletedAt = refundDay, IdempotencyKey = "no-settlement-" + token };
+        db.Refunds.Add(noSettlementRefund);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        var missingSettlement = await service.GetAsync(seller.Id, start, end, "day", "Asia/Ho_Chi_Minh");
+        Check(missingSettlement.UnreconciledRefunds == 1 && missingSettlement.Totals.BuyerRefunded == 20m,
+            "real SQL refund without settlement is warned about without inventing money");
         var mismatchedSettlement = new SellerSettlement { SellerId = seller.Id, SellerAccountId = account.Id,
             OrderId = missing.Id, PaymentId = missingPayment.Id };
         var markerOnly = new Refund { OrderId = sale.Id, PaymentId = payment.Id, Amount = 5m,
@@ -109,8 +117,8 @@ internal static class SellerFinanceReportSqlChecks
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();
         var incomplete = await service.GetAsync(seller.Id, start, end, "day", "Asia/Ho_Chi_Minh");
-        Check(incomplete.UnreconciledPayments == 1 && incomplete.UnreconciledRefunds == 1,
-            "wrong-account sale and marker-only refund must be flagged as unreconciled");
+        Check(incomplete.UnreconciledPayments == 1 && incomplete.UnreconciledRefunds == 2,
+            "wrong-account sale and both incomplete refunds must be flagged as unreconciled");
         Check(incomplete.Totals.BuyerPaid == 100m && incomplete.Totals.BuyerRefunded == 20m,
             "unreconciled events must not invent or leak money");
         var wrongOwnerOrder = new OrderTable { SellerId = seller.Id, Status = "Paid", TotalPrice = 77m };

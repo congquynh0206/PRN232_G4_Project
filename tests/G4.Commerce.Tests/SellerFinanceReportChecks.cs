@@ -81,7 +81,38 @@ internal static class SellerFinanceReportChecks
             && complex.Totals.BuyerRefunded == 17m && complex.Totals.SubsidyReversal == 5m
             && complex.Totals.ReturnShippingRecovery == 3m && complex.Totals.ReturnShippingCost == 3m
             && complex.Totals.ShippingAdjustments == 4m && complex.Totals.Net == 61.16m,
-            "subsidy, return shipping recovery and split/debt shipping adjustment reconcile to ledger once");        Console.WriteLine("Seller report: paid/refund/fee/net, timezone, backfill, negative period, seller isolation, warning, paging passed");
+            "subsidy, return shipping recovery and split/debt shipping adjustment reconcile to ledger once");
+        db.Refunds.Add(new Refund { Id = 35, OrderId = 103, PaymentId = 14, Status = "Succeeded",
+            CompletedAt = refunded, Amount = 4m }); // No settlement for this paid order yet.
+        await db.SaveChangesAsync(); db.ChangeTracker.Clear();
+        var missingSettlementRefund = await service.GetAsync(1, start, end, "day", "Asia/Ho_Chi_Minh");
+        Check(missingSettlementRefund.UnreconciledRefunds == 1 && missingSettlementRefund.Totals.BuyerRefunded == 20m,
+            "successful refund without settlement must be warned about, not included in money");
+
+        void PaidAt(int orderId, int paymentId, int settlementId, long entryId, DateTime at, decimal amount)
+        {
+            db.OrderTables.Add(new OrderTable { Id = orderId, SellerId = 1 });
+            db.Payments.Add(new Payment { Id = paymentId, OrderId = orderId, Status = "Succeeded", PaidAt = at, Amount = amount });
+            db.SellerSettlements.Add(new SellerSettlement { Id = settlementId, SellerId = 1, SellerAccountId = 1,
+                OrderId = orderId, PaymentId = paymentId });
+            db.FinancialTransactions.Add(new FinancialTransaction { Id = entryId, SellerAccountId = 1, SettlementId = settlementId,
+                OrderId = orderId, Type = "Sale", Amount = amount });
+        }
+        // Havana repeats 00:00-00:59: both UTC instants belong to November 1.
+        PaidAt(105, 16, 25, 61, new DateTime(2026, 11, 1, 4, 30, 0, DateTimeKind.Utc), 5m);
+        PaidAt(106, 17, 26, 62, new DateTime(2026, 11, 1, 5, 30, 0, DateTimeKind.Utc), 7m);
+        PaidAt(107, 18, 27, 63, new DateTime(2026, 11, 2, 5, 0, 0, DateTimeKind.Utc), 11m);
+        // Santiago skips midnight; 04:00Z is the first instant of September 6 locally.
+        PaidAt(108, 19, 28, 64, new DateTime(2026, 9, 6, 4, 0, 0, DateTimeKind.Utc), 9m);
+        PaidAt(109, 20, 29, 65, new DateTime(2026, 9, 6, 3, 59, 0, DateTimeKind.Utc), 13m);
+        await db.SaveChangesAsync(); db.ChangeTracker.Clear();
+        var havana = await service.GetAsync(1, new DateOnly(2026, 11, 1), new DateOnly(2026, 11, 1), "day", "America/Havana");
+        Check(havana.Totals.BuyerPaid == 12m && havana.Totals.PaidOrders == 2,
+            "both occurrences of ambiguous midnight count; following midnight does not");
+        var santiago = await service.GetAsync(1, new DateOnly(2026, 9, 6), new DateOnly(2026, 9, 6), "day", "America/Santiago");
+        Check(santiago.Totals.BuyerPaid == 9m && santiago.Totals.PaidOrders == 1,
+            "nonexistent midnight starts at the first valid local instant");
+        Console.WriteLine("Seller report: paid/refund/fee/net, timezone/DST, backfill, negative period, seller isolation, missing-settlement warning, paging passed");
     }
     private static void Check(bool ok, string detail) { if (!ok) throw new Exception(detail); }
     private static async Task Reject(Func<Task> action)

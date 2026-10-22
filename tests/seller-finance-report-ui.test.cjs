@@ -34,6 +34,8 @@ test('filter uses local zone and same source for cards/chart/table; source text 
   assert.equal(query.get('from'), '2026-10-19'); assert.ok(query.get('timeZone'));
   assert.match(h.$('report-cards').innerHTML, /\$87.70/);
   assert.match(h.$('report-chart').innerHTML, /polyline/);
+  assert.match(h.$('report-chart').innerHTML, /stroke-dasharray="2 4"/);
+  assert.match(h.$('report-chart').innerHTML, /<polygon /);
   assert.match(h.$('report-rows').innerHTML, /&lt;bad&gt;/);
   assert.match(h.$('report-rows').innerHTML, /Seller\?orderId=42/);
   h.checks[0].checked = false; h.checks[0].onchange();
@@ -60,4 +62,29 @@ test('failed fetch clears stale data and empty report shows zeros without demo v
   await h.ui.load(); assert.match(h.$('report-status').textContent, /Không có phát sinh/);
   failed = true; await h.ui.load();
   assert.equal(h.$('report-cards').innerHTML, ''); assert.match(h.$('report-status').textContent, /Làm mới/);
+});
+test('series toggle cannot redraw an old chart during loading or after failure', async () => {
+  let calls = 0, rejectPending;
+  const h = harness(() => ++calls === 1 ? Promise.resolve(result()) : new Promise((_, reject) => { rejectPending = reject; }));
+  h.$('report-from').value = '2026-10-19'; h.$('report-to').value = '2026-10-20';
+  await h.ui.load();
+  const pending = h.ui.load();
+  h.checks[0].checked = false; h.checks[0].onchange();
+  assert.equal(h.$('report-chart').innerHTML, '');
+  rejectPending(new Error('Mất kết nối')); await pending;
+  h.checks[0].checked = true; h.checks[0].onchange();
+  assert.equal(h.$('report-chart').innerHTML, '');
+});
+test('invalid filter cancels a pending request and resets busy state', async () => {
+  let resolvePending;
+  const h = harness(() => new Promise(resolve => { resolvePending = resolve; }));
+  h.$('report-from').value = '2026-10-19'; h.$('report-to').value = '2026-10-20';
+  const pending = h.ui.load();
+  assert.equal(h.$('report-status').attrs['aria-busy'], 'true');
+  h.$('report-from').value = '2026-10-21';
+  await h.ui.load();
+  assert.equal(h.$('report-status').attrs['aria-busy'], 'false');
+  resolvePending(result()); await pending;
+  assert.equal(h.$('report-status').attrs['aria-busy'], 'false');
+  assert.equal(h.$('report-chart').innerHTML, '');
 });

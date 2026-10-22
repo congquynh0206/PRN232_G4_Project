@@ -12,7 +12,7 @@
     ShippingAdjustmentCost: 'Phí đổi địa chỉ', ShippingAdjustmentDebt: 'Phí đổi địa chỉ ghi nợ',
     ReturnShippingCost: 'Phí ship trả hàng',
   };
-  let request = 0, last = null;
+  let request = 0, last = null, showing = false;
   const zone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
   const day = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   function preset() {
@@ -59,10 +59,12 @@
         const cx = x(i), cy = y(p[k]);
         const shape = k === 'buyerRefunded'
           ? `<rect x="${cx - 3}" y="${cy - 3}" width="6" height="6" />`
-          : `<circle cx="${cx}" cy="${cy}" r="3" />`;
+          : k === 'net'
+            ? `<polygon points="${cx},${cy - 4} ${cx + 4},${cy} ${cx},${cy + 4} ${cx - 4},${cy}" />`
+            : `<circle cx="${cx}" cy="${cy}" r="3" />`;
         return `<g fill="${colors[k]}">${shape}<title>${esc(period(p.period, last.group))} · ${names[k]}: ${money(p[k])}</title></g>`;
       }).join('');
-      return `<polyline fill="none" stroke="${colors[k]}" stroke-width="2" ${k === 'buyerRefunded' ? 'stroke-dasharray="6 4"' : ''} points="${points}"/>${markers}`;
+      return `<polyline fill="none" stroke="${colors[k]}" stroke-width="2" ${k === 'buyerRefunded' ? 'stroke-dasharray="6 4"' : k === 'net' ? 'stroke-dasharray="2 4"' : ''} points="${points}"/>${markers}`;
     }).join('');
     const zero = y(0);
     host.innerHTML = `<svg viewBox="0 0 750 230" role="img" aria-label="Biểu đồ đường: ${keys.map(k => names[k]).join(', ')}. Bảng bên dưới có giá trị chính xác.">
@@ -90,8 +92,10 @@
   }
   async function load(page = 1) {
     const id = ++request;
+    showing = false;
     clear();
     const status = $('report-status');
+    status.setAttribute('aria-busy', 'false');
     const from = $('report-from').value, to = $('report-to').value;
     if (!from || !to || from > to) { status.textContent = 'Vui lòng chọn khoảng ngày hợp lệ (từ ngày không sau đến ngày).'; return; }
     const days = Math.round((Date.parse(to) - Date.parse(from)) / 86400000) + 1;
@@ -108,6 +112,7 @@
       cards(result.totals);
       chart(result.chart);
       table(result);
+      showing = true;
       const warnings = result.unreconciledPayments + result.unreconciledRefunds;
       status.textContent = warnings
         ? `Chưa đối soát đủ: ${result.unreconciledPayments} payment và ${result.unreconciledRefunds} refund chưa có bút toán liên kết. Không suy đoán số tiền còn thiếu.`
@@ -128,7 +133,7 @@
     $('report-group').onchange = () => load();
     $('report-filter').onsubmit = e => { e.preventDefault(); load(); };
     $('report-refresh').onclick = () => load(last?.page || 1);
-    document.querySelectorAll('[data-report-series]').forEach(x => x.onchange = () => { if (last) chart(last.chart); });
+    document.querySelectorAll('[data-report-series]').forEach(x => x.onchange = () => { if (showing) chart(last.chart); });
   }
   G4.SellerReport = { init, load };
 })();

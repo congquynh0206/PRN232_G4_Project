@@ -6,6 +6,27 @@ namespace G4.Infrastructure.Finance;
 // Read-only business projection: wallet transfers, holds, debt recovery and payouts are not sales.
 public sealed class SellerFinanceReportService(ApplicationDbContext db, TimeProvider clock)
 {
+    private static DateTime DayStartUtc(DateOnly date, TimeZoneInfo zone)
+    {
+        var local = date.ToDateTime(TimeOnly.MinValue);
+        if (zone.IsInvalidTime(local))
+        {
+            // A local day may start inside a DST gap; use its first existing instant.
+            var invalid = local;
+            var valid = local.AddHours(1);
+            while (zone.IsInvalidTime(valid)) { invalid = valid; valid = valid.AddHours(1); }
+            while (valid.Ticks - invalid.Ticks > 1)
+            {
+                var middle = new DateTime(invalid.Ticks + (valid.Ticks - invalid.Ticks) / 2, DateTimeKind.Unspecified);
+                if (zone.IsInvalidTime(middle)) invalid = middle; else valid = middle;
+            }
+            local = valid;
+        }
+        // At a repeated midnight, the larger UTC offset identifies the first occurrence.
+        var offset = zone.IsAmbiguousTime(local) ? zone.GetAmbiguousTimeOffsets(local).Max() : zone.GetUtcOffset(local);
+        return new DateTimeOffset(local, offset).UtcDateTime;
+    }
+
     private sealed record Entry(long Id, int? OrderId, int? RefundId, string Type, decimal Amount, DateTime At, decimal Recovery = 0m, decimal? CashRefund = null);
     private sealed class PeriodData(DateOnly period)
     {
@@ -54,8 +75,8 @@ public sealed class SellerFinanceReportService(ApplicationDbContext db, TimeProv
             throw new ArgumentException("Khoảng trên 93 ngày hãy nhóm theo tuần hoặc tháng.");
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 50);
-        var startUtc = TimeZoneInfo.ConvertTimeToUtc(startDate.ToDateTime(TimeOnly.MinValue), zone);
-        var endUtc = TimeZoneInfo.ConvertTimeToUtc(endDate.AddDays(1).ToDateTime(TimeOnly.MinValue), zone);
+        var startUtc = DayStartUtc(startDate, zone);
+        var endUtc = DayStartUtc(endDate.AddDays(1), zone);
 
         // Backfilled rows belong to PaidAt/CompletedAt, not their late ledger insertion time.
         var paid = await (from e in db.FinancialTransactions.AsNoTracking()
@@ -111,7 +132,7 @@ public sealed class SellerFinanceReportService(ApplicationDbContext db, TimeProv
             && !db.SellerSettlements.Any(s => s.PaymentId == p.Id && s.OrderId == p.OrderId && s.SellerId == sellerId && db.SellerAccounts.Any(a => a.Id == s.SellerAccountId && a.SellerId == sellerId)
                 && db.FinancialTransactions.Any(e => e.SettlementId == s.Id && e.SellerAccountId == s.SellerAccountId && e.Type == "Sale")), ct);
         var missingRefunds = await db.Refunds.AsNoTracking().CountAsync(r => r.Status == "Succeeded" && r.CompletedAt >= startUtc && r.CompletedAt < endUtc
-            && db.SellerSettlements.Any(s => s.OrderId == r.OrderId && s.SellerId == sellerId)
+            && db.OrderTables.Any(o => o.Id == r.OrderId && o.SellerId == sellerId)
             && !db.SellerSettlements.Any(s => s.OrderId == r.OrderId && s.PaymentId == r.PaymentId && s.SellerId == sellerId && db.SellerAccounts.Any(a => a.Id == s.SellerAccountId && a.SellerId == sellerId)
                 && db.FinancialTransactions.Any(e => e.RefundId == r.Id && e.SellerAccountId == s.SellerAccountId && e.Type == "RefundApplied")
                 && db.FinancialTransactions.Any(e => e.RefundId == r.Id && e.SellerAccountId == s.SellerAccountId && e.Type == "Refund")), ct);
