@@ -14,7 +14,8 @@ public sealed record BuyerOrderCard(
     int ItemCount,
     bool HasRefund,
     string? Attention,
-    SellerOrderCaseBadge? Dispute
+    SellerOrderCaseBadge? Dispute,
+    DateTime? PaymentExpiresAt = null
 );
 
 public sealed record BuyerOrderListPage(

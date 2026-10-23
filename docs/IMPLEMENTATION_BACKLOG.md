@@ -1,5 +1,25 @@
 # Backlog triển khai theo đặc tả ngày 18/10/2026
 
+## UI-COUNTDOWN — Đồng hồ thao tác và tiền giữ từng đơn ngày 23/10/2026
+
+- Đã triển khai đồng hồ tại payment, return window/receipt, phản hồi tranh chấp/receipt theo thỏa thuận, đổi địa chỉ Buyer/Seller/Shipper, xét cấp và nợ Seller/Admin. Dùng deadline server, đồng bộ giờ qua proxy, cập nhật mỗi giây; về 0 hiện chờ xử lý, không tự ghi nhận kết quả tiền/trạng thái. Không tạo deadline giả cho payout, return chưa duyệt hoặc nhánh chưa triển khai.
+- Ví Seller thêm danh sách phân trang Processing/OnHold còn giữ theo đơn, snapshot level/thời gian và lý do chặn. Endpoint chỉ đọc `GET /api/seller/finance/funds/page` kiểm tra role và owner; chi tiết đơn chỉ bổ sung sellerFunds cho seller sở hữu đơn. OnHold dùng khoản giữ mới nhất sau tiêu/giải phóng, đọc nhất quán trong transaction; không tính lại bằng Net ban đầu hoặc level hiện tại. Receipt legacy thiếu deadline dùng fallback server như worker, policy dispute tách khỏi return thường.
+- Bằng chứng: solution build đầu ra riêng đạt 0 warning/error; backend mặc định và Node 132/132 đạt. SellerFundsChecks kiểm tra owner, phân trang, khoản đã giải phóng/tiêu một phần, snapshot cũ, các hồ sơ cản trở, hai policy receipt khác nhau, không ghi ledger/số dư và dịch truy vấn thật sang SQL Server. Chrome Razor fixture đạt bốn role tại 320/390/1280px, lệch đồng hồ máy khách 9 giờ, reload không reset, không tràn và không request ghi; đã xem ảnh `artifacts/countdown-ui/`. Hồi quy Chrome điều hướng 320–1440px và RT1/PAY1 desktop/mobile đạt.
+- Không có migration mới; không migrate/seed hoặc sửa database chính/QA. Browser dùng login/API fixture, SQL mới kiểm tra translation chưa chạy trên DB/provider thật. Log `artifacts/countdown-validation/`. Khởi động lại API/frontend và tải lại trang. [Hướng dẫn nguồn deadline/API/UI/test](DEMO_COUNTDOWNS.md).
+
+## DEMO-TIME — Điều chỉnh mốc Development ngày 23/10/2026
+
+- Theo yêu cầu mới: hold seller Level 1 = 300 giây (5 phút), Level 2 = 180 giây (3 phút); tự đánh giá seller level mỗi 60 giây (1 phút); xác nhận đổi địa chỉ 120 giây (2 phút). Đã cập nhật cấu hình Development, đặc tả, PROJECT_RUN và hướng dẫn tài chính/cấp seller/đổi địa chỉ/return window. Mặc định ngoài Development và các mốc demo khác giữ nguyên.
+- Hold vẫn bắt đầu từ Outbound Delivered; thời lượng được snapshot khi tạo settlement. Settlement có sẵn giữ HoldSecondsSnapshot/ReleaseAt, request đổi địa chỉ có sẵn giữ ExpiresAt; không cập nhật hồi tố tiền/deadline/lịch sử. Chu kỳ xét cấp dùng cấu hình hiện hành và LastLevelEvaluatedAt, không đặt lại lịch sử đánh giá.
+- Kiểm thử: solution build đầu ra riêng đạt 0 warning/error; bộ backend mặc định đạt (SMTP loopback ngoài sandbox), gồm hold 299/300 và 179/180 giây, đánh giá 59/60 giây, xác nhận địa chỉ 119/120 giây, snapshot, quyền, retry và bảo vệ tiền. Đối chiếu JSON xác nhận chỉ bốn giá trị Development thay đổi. Hai bộ SQL opt-in dùng chung fixture đã cập nhật biên 120/60 giây và kiểm tra compile; chưa chạy lại SQL/provider/browser trong đợt này. Log tại `artifacts/demo-timing-validation/`.
+- Không tạo/áp migration, không seed hoặc thay database chính/QA. Khởi động lại API để chắc chắn nhận cấu hình mới. Các ghi nhận QA/lịch sử ngày 14–20/10 bên dưới vẫn giữ giá trị theo thời điểm kiểm thử.
+
+## UI-CHECKOUT — Responsive checkout buyer ngày 23/10/2026
+
+- Sửa phần sản phẩm/đơn hàng checkout trên điện thoại: tên shop/sản phẩm/khuyến mãi dài xuống dòng trong khung; ảnh, số lượng và giá bố trí bằng grid ở ≤600px; ô mã giảm giá và nút Áp dụng chiếm trọn hàng. Tổng kết nằm dưới sản phẩm ở ≤900px, giữ hai cột trên desktop. CSS chỉ áp dụng trong `#checkout`, nạp riêng cho Buyer.
+- Đã tái hiện lỗi tràn checkout ở 320px bằng Chrome với hai seller và tên shop dài không có khoảng trắng. Sau sửa: frontend build đầu ra riêng 0 warning/error, Node 128/128 đạt; Chrome fixture Razor thật kiểm tra 320–1440px, biên 900/901px, tên dài, giảm giá, nhập/áp mã riêng seller, chuyển PayPal/thẻ, tổng tiền và nút thanh toán có thể chạm mà không tạo đơn/thanh toán. Ảnh ở `artifacts/checkout-responsive-ui/`.
+- Không đổi API/logic thanh toán, không tạo/áp migration hoặc seed/thay database. Browser dùng login/cart/quote fixture, chưa kiểm thử SQL/provider thật. [Hướng dẫn module](MULTI_SELLER_CART.md#responsive-checkout-buyer-23102026).
+
 ## FORMAT — Trình bày mã nguồn ngày 23/10/2026
 
 - Format C#, project XML, JavaScript, CSS, Razor và mã kiểm thử: căn lề, tách khối và xuống dòng tham số/điều kiện/thuộc tính dài. Mục tiêu 100 ký tự/dòng; giữ nguyên giá trị chuỗi và template literal dài. Không đổi nghiệp vụ, API hoặc cấu trúc dữ liệu; giữ thay đổi tên trang `Group 4` đã có trước phiên làm việc.

@@ -22,6 +22,7 @@ public static class BuyerOrderList
                 o.Id,
                 o.OrderDate,
                 o.UpdatedAt,
+                o.PaymentExpiresAt,
                 o.Status,
                 o.TotalPrice,
                 o.Currency,
@@ -132,7 +133,8 @@ public static class BuyerOrderList
                     o.ItemCount,
                     o.HasRefund,
                     o.Attention,
-                    o.Dispute
+                    o.Dispute,
+                    o.PaymentExpiresAt
                 ))
                 .ToList()
         );

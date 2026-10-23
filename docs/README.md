@@ -1,6 +1,6 @@
 # Tài liệu dự án G4_Project
 
-Điểm đọc đầu tiên khi triển khai nghiệp vụ. Cập nhật ngày 18/10/2026 theo báo cáo đặc tả phiên bản 2.0 và quyết định của người dùng.
+Điểm đọc đầu tiên khi triển khai nghiệp vụ. Đặc tả phiên bản 2.0 chốt ngày 18/10/2026; cập nhật mốc demo ngày 23/10/2026 theo quyết định của người dùng.
 
 ## Tài liệu có hiệu lực
 
@@ -10,6 +10,7 @@
 | Phần đã có/chưa có, task và nghiệm thu | [IMPLEMENTATION_BACKLOG.md](IMPLEMENTATION_BACKLOG.md) |
 | Đối chiếu source/test thực tế ngày 19/10, lỗi đã tái hiện | [IMPLEMENTATION_AUDIT_2026-10-19.md](IMPLEMENTATION_AUDIT_2026-10-19.md) |
 | Chạy API/frontend, database và cấu hình hiện tại | [PROJECT_RUN.md](PROJECT_RUN.md) |
+| Đồng hồ demo tại thao tác và tiền giữ từng đơn | [DEMO_COUNTDOWNS.md](DEMO_COUNTDOWNS.md) |
 | Phân lớp và nơi đặt code | [BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md) |
 | Yêu cầu chi tiết B2/B1/A1/S1 vẫn còn hiệu lực | [FOUR_TASK_REQUIREMENTS_2026-10-17.md](FOUR_TASK_REQUIREMENTS_2026-10-17.md) |
 | Quyết định bảy nhóm chức năng ngày 17/10 | [APPROVED_SCOPE_2026-10-17.md](APPROVED_SCOPE_2026-10-17.md) |

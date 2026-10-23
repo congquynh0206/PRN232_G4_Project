@@ -16,7 +16,8 @@ public sealed record SellerOrderCard(
     bool HasRefund,
     string? Attention,
     SellerOrderCaseBadge? Dispute,
-    string? ImageUrl = null
+    string? ImageUrl = null,
+    DateTime? PaymentExpiresAt = null
 );
 
 public sealed record SellerOrderListPage(

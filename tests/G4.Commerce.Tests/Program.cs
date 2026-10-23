@@ -8,6 +8,11 @@ if (args.Contains("--seller-finance-report-sql"))
     await SellerFinanceReportSqlChecks.RunAsync();
     return;
 }
+if (args.Contains("--seller-funds"))
+{
+    await SellerFundsChecks.RunAsync();
+    return;
+}
 if (args.Contains("--seller-finance-report"))
 {
     await SellerFinanceReportChecks.RunAsync();
@@ -211,6 +216,7 @@ await ReturnWindowChecks.RunAsync();
 await PayoutWorkflowChecks.RunAsync();
 await PromotionFinanceChecks.RunAsync();
 await FinancePolicyChecks.RunAsync();
+await SellerFundsChecks.RunAsync();
 await SellerDebtChecks.RunAsync();
 await SellerRegistrationChecks.RunAsync();
 await SellerLevelChecks.RunAsync();

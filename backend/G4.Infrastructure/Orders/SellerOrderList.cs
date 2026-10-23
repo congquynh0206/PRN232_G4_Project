@@ -24,6 +24,7 @@ public static class SellerOrderList
                 o.Id,
                 o.OrderDate,
                 o.UpdatedAt,
+                o.PaymentExpiresAt,
                 o.Status,
                 o.TotalPrice,
                 o.Currency,
@@ -157,7 +158,8 @@ public static class SellerOrderList
                     o.HasRefund,
                     o.Attention,
                     o.Dispute,
-                    o.ImageUrl
+                    o.ImageUrl,
+                    o.PaymentExpiresAt
                 ))
                 .ToList()
         );

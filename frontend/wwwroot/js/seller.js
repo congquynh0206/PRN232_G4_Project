@@ -163,7 +163,7 @@
       )
       .join('');
     openDetail(
-      `<div class="detail" data-order-detail="${o.id}"><h2>Đơn bán hàng #${o.id} · ${esc(label(o.status))}</h2><p class="small">Tạo: ${date(o.orderDate)} · Cập nhật: ${date(o.updatedAt || o.orderDate)}</p><p class="small">${esc(o.addressSnapshot)} · Khối lượng: ${o.totalWeightKg == null ? 'Chưa có dữ liệu' : Number(o.totalWeightKg) + ' kg'}</p>${G4.AddressChanges.summaryHtml(o, 'seller')}<h3>Sản phẩm</h3>${items}${G4.Promotions.breakdownHtml(o)}${o.platformSubsidy > 0 ? `<p class="promotion-checkout-note">Nền tảng bù ${money(o.platformSubsidy)} cho shop. Doanh thu đối soát: ${money(o.sellerGross)}.</p>` : ''}${G4.disputeBadge(o.dispute)}${settlement}<h3>Tiến trình vận chuyển</h3>${trackingHtml(o)}<p class="small">Các mốc vận chuyển do đơn vị giao hàng cập nhật.</p><button type="button" data-log-order="${o.id}">Xem nhật ký xử lý đơn</button><h3>Thao tác của người bán</h3><div class="actions">${sellerActions(o)}</div>${G4.returnSummary(o)}</div>`,
+      `<div class="detail" data-order-detail="${o.id}"><h2>Đơn bán hàng #${o.id} · ${esc(label(o.status))}</h2><p class="small">Tạo: ${date(o.orderDate)} · Cập nhật: ${date(o.updatedAt || o.orderDate)}</p><p class="small">${esc(o.addressSnapshot)} · Khối lượng: ${o.totalWeightKg == null ? 'Chưa có dữ liệu' : Number(o.totalWeightKg) + ' kg'}</p>${G4.AddressChanges.summaryHtml(o, 'seller')}<h3>Sản phẩm</h3>${items}${G4.Promotions.breakdownHtml(o)}${o.platformSubsidy > 0 ? `<p class="promotion-checkout-note">Nền tảng bù ${money(o.platformSubsidy)} cho shop. Doanh thu đối soát: ${money(o.sellerGross)}.</p>` : ''}${G4.disputeBadge(o.dispute)}${settlement}${G4.SellerFunds.detail(o)}<h3>Tiến trình vận chuyển</h3>${trackingHtml(o)}<p class="small">Các mốc vận chuyển do đơn vị giao hàng cập nhật.</p><button type="button" data-log-order="${o.id}">Xem nhật ký xử lý đơn</button><h3>Thao tác của người bán</h3><div class="actions">${sellerActions(o)}</div>${G4.returnSummary(o)}</div>`,
       preserveScroll,
     );
   }
@@ -347,7 +347,12 @@
     const hold = f.holdSeconds < 86400 ? `${f.holdSeconds} giây` : `${f.holdSeconds / 86400} ngày`;
     $('finance-level').innerHTML =
       `<p><strong>Cấp ${f.level}${f.level >= 3 ? ' · Instant' : ''}</strong></p><p>${f.level >= 3 ? 'Tiền sau phí và bù nợ tự vào ví khi thanh toán thành công. Muốn chuyển ra ngân hàng giả lập, bạn vẫn cần yêu cầu rút tiền.' : `Tiền vào ví sau ${hold} kể từ giao thành công.`}</p><p>Giới hạn doanh số: ${money(f.monthlySalesLimit)}/tháng</p><p>Doanh số tháng này: ${money(f.monthlySalesAmount)}</p><p class="small">Xem tiêu chí và lịch sử chi tiết tại mục Cấp seller.</p>`;
-    await Promise.all([loadTransactions(), loadPayouts(), G4.SellerDebt.loadSeller()]);
+    await Promise.all([
+      loadTransactions(),
+      loadPayouts(),
+      G4.SellerDebt.loadSeller(),
+      G4.SellerFunds.load(),
+    ]);
   }
   document.querySelectorAll('[data-order-filter]').forEach(
     (b) =>
@@ -361,6 +366,7 @@
     safe(() => loadOrders(1));
   };
   $('refresh-orders').onclick = () => safe(() => loadOrders(orderPage, true));
+  G4.SellerFunds.init();
   $('refresh-finance').onclick = () => safe(loadFinance);
   $('evaluate-level').onclick = () =>
     safe(async () => {
@@ -435,6 +441,14 @@
   G4.Notifications.init('seller');
   G4.IntegrationLogs.init('seller');
   G4.SellerReport.init();
+  for (const kind of ['payment', 'receipt', 'address', 'funds']) {
+    G4.Countdown?.subscribe(kind, async () => {
+      if (document.hidden) return;
+      if ($('detail-dialog')?.open && document.querySelector('#detail-content [data-order-detail]'))
+        await showOrder(detailOrderId, true);
+      if (G4.Navigation.current === 'seller-returns') await G4.SellerReturns.load();
+    });
+  }
   G4.Navigation.init(tab);
   const notificationLink = new URLSearchParams(location.search);
   const linkedOrder = Number(notificationLink.get('orderId'));

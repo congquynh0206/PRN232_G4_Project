@@ -15,7 +15,11 @@ Tối đa một request đang chờ/đơn, tối đa **một lần thành công*
 
 ## Deadline, báo giá và cạnh tranh
 
-- `AddressChanges:ConfirmationSeconds`: mặc định **86.400 giây (24 giờ)**, Development **60 giây**, giới hạn cấu hình 1–604.800 giây. ExpiresAt UTC được snapshot lúc gửi yêu cầu; chuyển sang AwaitingShipper hoặc đổi cấu hình không gia hạn. Worker kiểm tra mỗi 5 giây; decision tại đúng hạn đã trả Expired. Khi bắt đầu giao sau hạn, server cũng hết hạn request trong transaction để dùng địa chỉ cũ mà không phải chờ worker.
+**Giao diện 23/10/2026:** Buyer/Seller và thông báo địa chỉ Shipper hiển thị đồng hồ cùng ExpiresAt đã snapshot, không cộng lại 2 phút khi chuyển bên xác nhận. Hết hạn hiện chờ cập nhật, giữ địa chỉ cũ; quyết định vẫn do server kiểm tra. [Hướng dẫn đồng hồ](DEMO_COUNTDOWNS.md).
+
+Mốc Development 2 phút từ 23/10/2026 áp dụng cho request mới. Request đã tạo giữ nguyên `ExpiresAt`, không tự kéo dài deadline 60 giây cũ. Không có migration hoặc cập nhật dữ liệu; khởi động lại API để chắc chắn nạp cấu hình mới.
+
+- `AddressChanges:ConfirmationSeconds`: mặc định **86.400 giây (24 giờ)**, Development **120 giây (2 phút, cập nhật 23/10/2026)**, giới hạn cấu hình 1–604.800 giây. ExpiresAt UTC được snapshot lúc gửi yêu cầu; chuyển sang AwaitingShipper hoặc đổi cấu hình không gia hạn. Worker kiểm tra mỗi 5 giây; decision tại đúng hạn đã trả Expired. Khi bắt đầu giao sau hạn, server cũng hết hạn request trong transaction để dùng địa chỉ cũ mà không phải chờ worker.
 - QuoteToken là fingerprint báo giá/địa chỉ/lý do/cap/revision/shipper/refund còn được hưởng; server luôn tính tiền lại, không nhận số tiền từ client. Thiếu token hoặc quote đã đổi trả 409 và cần xem lại báo giá. Quote không tạo request hoặc giữ lượt đổi.
 - Trước áp dụng đọc lại trạng thái, snapshot, shipper đang gán, cap/revision, payment/refund và giá. Thay đổi quan trọng làm request **Rejected**, có lý do yêu cầu buyer xem quote và gửi lại; không dùng xác nhận cũ. Kể cả cap mới vẫn đủ hoặc cap đổi rồi đổi lại, revision làm mất hiệu lực xác nhận cũ.
 - Cap update và claim tham gia cùng gate/transaction với quyết định đổi địa chỉ. Nếu chưa có shipper lúc buyer xác nhận nhưng claim trước seller approve, cần buyer xác nhận quote mới có shipper; nếu seller apply trước claim, người nhận vận đơn sau dùng địa chỉ có hiệu lực, không có bước ack mới.

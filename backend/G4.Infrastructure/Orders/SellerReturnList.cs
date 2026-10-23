@@ -10,7 +10,8 @@ public static class SellerReturnList
         string filter,
         int page,
         int pageSize,
-        CancellationToken ct
+        CancellationToken ct,
+        int receiptSeconds = 172800
     )
     {
         var query = db
@@ -25,7 +26,15 @@ public static class SellerReturnList
                 r.Reason,
                 r.Description,
                 r.CreatedAt,
-                r.ConfirmationDueAt,
+                ConfirmationDueAt = r.ConfirmationDueAt
+                    ?? db.ShippingInfos.Where(s =>
+                            s.OrderId == r.OrderId
+                            && s.Direction == "Return"
+                            && s.Status == "Delivered"
+                            && s.DeliveredAt != null
+                        )
+                        .Select(s => (DateTime?)s.DeliveredAt!.Value.AddSeconds(receiptSeconds))
+                        .FirstOrDefault(),
                 r.BuyerRefundAmount,
                 r.ReturnShippingFee,
                 r.ShippingPayer,

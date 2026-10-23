@@ -136,7 +136,7 @@
       )
       .join('');
     openDetail(
-      `<div class="detail" data-order-detail="${o.id}"><h2>Đơn mua hàng #${o.id}</h2><p class="small">Tạo: ${date(o.orderDate)} · Cập nhật: ${date(o.updatedAt || o.orderDate)}</p><p class="small">${esc(o.addressSnapshot)} · Khối lượng: ${o.totalWeightKg == null ? 'Chưa có dữ liệu' : Number(o.totalWeightKg) + ' kg'}</p>${status}${G4.AddressChanges.summaryHtml(o, 'buyer')}${G4.Returns.windowHtml?.(o) || ''}${G4.disputeBadge(o.dispute)}<h3>Sản phẩm</h3>${lines}${G4.Promotions.breakdownHtml(o)}<div class="promotion-order-totals"><p>Phí vận chuyển: <strong>${money(o.shippingFee ?? o.shipping)}</strong></p><p>Tổng thanh toán: <strong>${money(o.totalPrice)}</strong></p></div><h3>Tiến trình vận chuyển</h3>${trackingHtml(o)}<h3>Thao tác</h3><div class="actions">${actions(o)}</div>${G4.SellerFeedback.html(o)}${G4.returnSummary(o)}${o.refunds.length ? `<div class="refund-summary">${o.refunds.map((r) => `<p>${r.reason === 'shipping-adjustment' ? 'Hoàn chênh lệch ship giả lập' : 'Hoàn'} ${money(r.amount)} · ${esc(label(r.status))}</p>`).join('')}</div>` : ''}</div>`,
+      `<div class="detail" data-order-detail="${o.id}"><h2>Đơn mua hàng #${o.id}</h2><p class="small">Tạo: ${date(o.orderDate)} · Cập nhật: ${date(o.updatedAt || o.orderDate)}</p><p class="small">${esc(o.addressSnapshot)} · Khối lượng: ${o.totalWeightKg == null ? 'Chưa có dữ liệu' : Number(o.totalWeightKg) + ' kg'}</p>${status}${G4.paymentCountdown(o)}${G4.AddressChanges.summaryHtml(o, 'buyer')}${G4.Returns.windowHtml?.(o) || ''}${G4.disputeBadge(o.dispute)}<h3>Sản phẩm</h3>${lines}${G4.Promotions.breakdownHtml(o)}<div class="promotion-order-totals"><p>Phí vận chuyển: <strong>${money(o.shippingFee ?? o.shipping)}</strong></p><p>Tổng thanh toán: <strong>${money(o.totalPrice)}</strong></p></div><h3>Tiến trình vận chuyển</h3>${trackingHtml(o)}<h3>Thao tác</h3><div class="actions">${actions(o)}</div>${G4.SellerFeedback.html(o)}${G4.returnSummary(o)}${o.refunds.length ? `<div class="refund-summary">${o.refunds.map((r) => `<p>${r.reason === 'shipping-adjustment' ? 'Hoàn chênh lệch ship giả lập' : 'Hoàn'} ${money(r.amount)} · ${esc(label(r.status))}</p>`).join('')}</div>` : ''}</div>`,
       preserveScroll,
     );
   }
@@ -245,6 +245,14 @@
     )
       safe(() => showOrder(detailOrderId, true));
   }, 5000);
+  for (const kind of ['payment', 'return-window', 'receipt', 'address']) {
+    G4.Countdown?.subscribe(kind, async () => {
+      if (document.hidden) return;
+      if ($('detail-dialog')?.open && document.querySelector('#detail-content [data-order-detail]'))
+        await showOrder(detailOrderId, true);
+      if (G4.Navigation.current === 'orders') await loadOrders(state.page);
+    });
+  }
   G4.Navigation.init(tab);
   safe(async () => {
     const p = new URLSearchParams(location.search);

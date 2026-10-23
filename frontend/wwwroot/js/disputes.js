@@ -69,7 +69,7 @@
     return Date.parse(/(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? value : value + 'Z');
   }
 
-  function countdown(value, now = Date.now()) {
+  function countdown(value, now = G4.Countdown?.now() ?? Date.now()) {
     const remaining = Math.max(0, Math.ceil((utcTime(value) - now) / 1000));
     return remaining > 0
       ? `Còn ${remaining} giây để phản hồi`
@@ -139,6 +139,7 @@
   }
 
   function deadlineHtml(c) {
+    if (G4.Countdown) return G4.Countdown.dispute(c);
     return c.responseDueAt
       ? `<p class="case-deadline" data-case-deadline="${esc(c.responseDueAt)}">${countdown(c.responseDueAt)}</p>`
       : '';
@@ -290,7 +291,8 @@
   ) {
     const c = data.case;
     const hero = caseHero(c, order, actorRole);
-    const canRespond = c.responseDueAt && utcTime(c.responseDueAt) > Date.now();
+    const canRespond =
+      c.responseDueAt && utcTime(c.responseDueAt) > (G4.Countdown?.now() ?? Date.now());
     const canEvidence = actorRole !== 'admin' && c.isOpen && !c.outcome;
     const buttons = [];
     if (actorRole === 'seller' && c.status === 'AwaitingSeller')
@@ -558,8 +560,9 @@
       node.textContent = countdown(node.dataset.caseDeadline);
     });
     const detail = document.querySelector('[data-dispute-detail]');
-    const deadline = detail?.querySelector('[data-case-deadline]')?.dataset.caseDeadline;
-    if (deadline && utcTime(deadline) <= Date.now())
+    const timer = detail?.querySelector('[data-case-deadline], [data-countdown]');
+    const deadline = timer?.dataset.caseDeadline || timer?.dataset.countdown;
+    if (deadline && utcTime(deadline) <= (G4.Countdown?.now() ?? Date.now()))
       detail
         .querySelectorAll(
           '[data-case-action="proposal"],[data-case-action="accept"],[data-case-action="reject"]',
@@ -620,6 +623,7 @@
         await open(activeId, true);
     };
     G4.Realtime?.subscribe(['disputes', 'returns', 'orders'], refresh);
+    G4.Countdown?.subscribe('dispute', refresh);
     setInterval(() => {
       if (!G4.Realtime?.connected) safe(refresh);
     }, 10000);

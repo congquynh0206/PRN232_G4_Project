@@ -11,7 +11,8 @@ public sealed class OrdersController(
     ICheckoutService checkout,
     IReturnService returns,
     IHostEnvironment environment,
-    TimeProvider? clock = null
+    TimeProvider? clock = null,
+    IConfiguration? config = null
 ) : ApiControllerBase(environment)
 {
     [HttpGet("orders")]
@@ -250,6 +251,14 @@ public sealed class OrdersController(
                 e.ReattemptAt,
             })
             .ToListAsync(ct);
+        var receiptSeconds = Math.Max(
+            1,
+            config?.GetValue("Returns:ReceiptSeconds", 172800) ?? 172800
+        );
+        var disputeReceiptSeconds = Math.Max(
+            1,
+            config?.GetValue("Disputes:ReturnReceiptSeconds", 172800) ?? 172800
+        );
         var returnRequest = await db
             .ReturnRequests.AsNoTracking()
             .Where(r => r.OrderId == id)
@@ -261,7 +270,15 @@ public sealed class OrdersController(
                 r.DecisionReason,
                 r.CreatedAt,
                 r.ReceivedAt,
-                r.ConfirmationDueAt,
+                ConfirmationDueAt = r.ConfirmationDueAt
+                    ?? db.ShippingInfos.Where(s =>
+                            s.OrderId == id
+                            && s.Direction == "Return"
+                            && s.Status == "Delivered"
+                            && s.DeliveredAt != null
+                        )
+                        .Select(s => (DateTime?)s.DeliveredAt!.Value.AddSeconds(receiptSeconds))
+                        .FirstOrDefault(),
                 r.ReturnDeadline,
                 r.PricingPolicyVersion,
                 r.ReasonCode,
@@ -325,6 +342,22 @@ public sealed class OrdersController(
                 d.Status,
                 d.IsOpen,
                 d.Outcome,
+                d.Proposal,
+                ReturnConfirmationDueAt = d.IsOpen
+                && d.Status == "ExecutingAgreement"
+                && d.Proposal == "ReturnRefund"
+                    ? db
+                        .ShippingInfos.Where(s =>
+                            s.OrderId == id
+                            && s.Direction == "Return"
+                            && s.Status == "Delivered"
+                            && s.DeliveredAt != null
+                        )
+                        .Select(s =>
+                            (DateTime?)s.DeliveredAt!.Value.AddSeconds(disputeReceiptSeconds)
+                        )
+                        .FirstOrDefault()
+                    : null,
             })
             .FirstOrDefaultAsync(ct);
         var promotions = await db
@@ -404,6 +437,19 @@ public sealed class OrdersController(
             deadline == null
                 ? (DateTime?)null
                 : DateTime.SpecifyKind(deadline.Value, DateTimeKind.Utc);
+        var sellerFunds = HasRole("seller")
+            ? (
+                await G4.Infrastructure.Finance.SellerFundsQuery.ReadAsync(
+                    db,
+                    CurrentUserId,
+                    1,
+                    1,
+                    ct,
+                    order.Id,
+                    config
+                )
+            ).Items.SingleOrDefault()
+            : null;
         var canRequestReturn =
             order.Status == "Delivered"
             && returnWindowOpen
@@ -440,6 +486,7 @@ public sealed class OrdersController(
                 order.ReturnWindowSeconds,
                 canRequestReturn,
                 canOpenDispute,
+                sellerFunds,
                 order.CancelDecisionReason,
                 order.Subtotal,
                 order.DiscountAmount,

@@ -10,11 +10,20 @@
   const utc = (value) =>
     typeof value === 'string' && !/(Z|[+-]\d{2}:\d{2})$/i.test(value) ? value + 'Z' : value;
   const windowOpen = (order) =>
-    !order.returnWindowClosesAt || Date.now() < new Date(utc(order.returnWindowClosesAt)).getTime();
+    !order.returnWindowClosesAt ||
+    (G4.Countdown?.now() ?? Date.now()) < new Date(utc(order.returnWindowClosesAt)).getTime();
   function windowHtml(order) {
     if (!order.returnWindowClosesAt) return '';
     const deadline = utc(order.returnWindowClosesAt);
-    return `<p class="return-window" role="status">Hạn mở yêu cầu trả hàng: <time datetime="${esc(deadline)}">${esc(G4.date?.(deadline) || deadline)}</time>. ${windowOpen(order) ? 'Gửi yêu cầu trước hạn này.' : 'Đã hết hạn mở yêu cầu trả hàng mới.'}${order.returnRequest ? ' Yêu cầu đã gửi đúng hạn tiếp tục được xử lý; hạn kiểm tra hàng trả là riêng.' : ''}</p>`;
+    const countdown = !order.returnRequest
+      ? G4.Countdown?.html(deadline, {
+          label: 'Thời gian còn được yêu cầu trả hàng',
+          expired: 'Đã hết hạn mở yêu cầu mới; hồ sơ đã gửi đúng hạn vẫn tiếp tục xử lý',
+          kind: 'return-window',
+          scope: order.id || orderId,
+        }) || ''
+      : '';
+    return `<p class="return-window" role="status">Hạn mở yêu cầu trả hàng: <time datetime="${esc(deadline)}">${esc(G4.date?.(deadline) || deadline)}</time>. ${windowOpen(order) ? 'Gửi yêu cầu trước hạn này.' : 'Đã hết hạn mở yêu cầu trả hàng mới.'}${order.returnRequest ? ' Yêu cầu đã gửi đúng hạn tiếp tục được xử lý; hạn kiểm tra hàng trả là riêng.' : ''}</p>${countdown}`;
   }
   function expireQuote() {
     if (!quote?.returnWindowClosesAt || windowOpen(quote) || saving || quote.windowExpired)

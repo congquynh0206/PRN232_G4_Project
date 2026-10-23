@@ -11,7 +11,8 @@ public sealed class FinanceController(
     ISellerFinanceService finance,
     IDisputeService disputes,
     G4.Infrastructure.Finance.SellerFinanceReportService reports,
-    IHostEnvironment environment
+    IHostEnvironment environment,
+    IConfiguration? config = null
 ) : ApiControllerBase(environment)
 {
     [HttpGet("seller/finance")]
@@ -20,6 +21,27 @@ public sealed class FinanceController(
         if (!IsAvailable || !HasRole("seller"))
             return StatusCode(403);
         return Ok(await finance.GetSummaryAsync(CurrentUserId, ct));
+    }
+
+    [HttpGet("seller/finance/funds/page")]
+    public async Task<IActionResult> Funds(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        CancellationToken ct = default
+    )
+    {
+        if (!IsAvailable || !HasRole("seller"))
+            return StatusCode(403);
+        return Ok(
+            await G4.Infrastructure.Finance.SellerFundsQuery.ReadAsync(
+                db,
+                CurrentUserId,
+                page,
+                pageSize,
+                ct,
+                config: config
+            )
+        );
     }
 
     [HttpGet("seller/finance/report")]

@@ -470,7 +470,7 @@ internal static class AddressConfirmationSqlChecks
             ).Id;
             await Service(db, clock).DecideAsync(id, f.Seller, new(true, null));
         }
-        clock.Utc = clock.Utc.AddSeconds(60);
+        clock.Utc = clock.Utc.AddSeconds(120);
         async Task Worker()
         {
             await using var db = new ApplicationDbContext(options);

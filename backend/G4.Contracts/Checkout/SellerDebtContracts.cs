@@ -31,7 +31,8 @@ public sealed record SellerDebtSummary(
     string AccountStatus,
     DateTime? PermanentSalesBlockedAt = null,
     DateTime? EarliestWriteOffAt = null,
-    int RecoveryGraceSeconds = 0
+    int RecoveryGraceSeconds = 0,
+    DateTime? WarningAt = null
 );
 
 public sealed record SellerProductInput(

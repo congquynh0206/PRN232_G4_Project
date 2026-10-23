@@ -11,7 +11,8 @@ public sealed class ReturnsController(
     IReturnService returns,
     IDisputeService disputes,
     CarrierAvailabilityState carrierState,
-    IHostEnvironment environment
+    IHostEnvironment environment,
+    IConfiguration? config = null
 ) : ApiControllerBase(environment)
 {
     [HttpGet("seller/returns/page")]
@@ -31,7 +32,8 @@ public sealed class ReturnsController(
                 filter,
                 page,
                 pageSize,
-                ct
+                ct,
+                Math.Max(1, config?.GetValue("Returns:ReceiptSeconds", 172800) ?? 172800)
             )
         );
     }

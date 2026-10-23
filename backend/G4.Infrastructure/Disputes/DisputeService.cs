@@ -932,7 +932,23 @@ public sealed partial class DisputeService(
                     .OrderByDescending(t => t.Id)
                     .Select(t => t.Amount)
                     .FirstOrDefault()
-                : 0m
+                : 0m,
+            x.IsOpen
+            && x.Status == "ExecutingAgreement"
+            && x.Proposal == "ReturnRefund"
+            && db.ReturnRequests.Any(r =>
+                r.OrderId == x.OrderId && (r.Status == "Approved" || r.Status == "ReturnShipping")
+            )
+                ? db
+                    .ShippingInfos.Where(s =>
+                        s.OrderId == x.OrderId
+                        && s.Direction == "Return"
+                        && s.Status == "Delivered"
+                        && s.DeliveredAt != null
+                    )
+                    .Select(s => (DateTime?)s.DeliveredAt!.Value.AddSeconds(ReturnReceiptSeconds))
+                    .FirstOrDefault()
+                : null
         ));
 
     private async Task<Dispute> OwnedAsync(int id, int actorId, string role, CancellationToken ct)

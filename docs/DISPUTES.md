@@ -20,6 +20,8 @@ Bằng chứng/lịch sử chỉ được thêm mới. Không có API sửa/xóa
 
 ## Thời hạn demo
 
+**Giao diện 23/10/2026:** danh sách và chi tiết tranh chấp có đồng hồ mm:ss/hh:mm:ss theo deadline server, phân biệt chờ seller gửi phương án, buyer phản hồi và receipt theo thỏa thuận. Hết giờ chỉ chờ kết quả thực tế; không tự coi là refund thành công hoặc buyer đã đồng ý. [Nguồn deadline và kiểm thử](DEMO_COUNTDOWNS.md).
+
 `backend/G4.Api/appsettings.Development.json` đặt cả ba khóa dưới đây là **45 giây**:
 
 | Cấu hình | Ý nghĩa | Mặc định khi không cấu hình |

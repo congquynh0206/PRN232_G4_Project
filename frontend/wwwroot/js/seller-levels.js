@@ -32,7 +32,14 @@
     return `<p class="level-result"><strong>Cấp ${Number(d.previousLevel)} → cấp ${Number(d.resultLevel)}</strong><br>${esc(d.reason)}</p><p class="small">Kỳ ${stamp(m.windowStart)} – ${stamp(m.windowEnd)} · ${Number(m.paidOrders)} đơn thanh toán · ${Number(m.feedbackCount)} đánh giá · ${Number(m.deliveryCount)} đơn có hạn giao.</p><div class="level-tier-grid">${d.tiers.map(criteriaHtml).join('')}</div>`;
   }
   function detailHtml(d) {
-    return `<h2>Seller #${Number(d.sellerId)} · Cấp ${Number(d.level)}</h2><p>Lần xét gần nhất: ${stamp(d.lastEvaluatedAt)} · Lần tự xét tiếp theo sớm nhất: ${stamp(d.nextEvaluationAt)}</p><p class="small">Bên dưới là dữ liệu hiện tại và kết quả nếu xét ngay. Mỗi đánh giá 4–5 sao được tính là tích cực; thiếu đánh giá không tính là phản hồi xấu.</p>${decisionHtml(d.preview)}<h2>Lịch sử đánh giá gần nhất</h2><div class="level-history">${d.history.length ? d.history.map((h) => `<details><summary>${stamp(h.createdAt)} · ${h.source === 'Worker' ? 'Hệ thống tự xét' : 'Seller yêu cầu'} · ${Number(h.decision.previousLevel)} → ${Number(h.decision.resultLevel)}</summary><p class="small">Số liệu và chính sách tại thời điểm xét, không thay đổi theo dữ liệu hiện tại.</p>${decisionHtml(h.decision)}</details>`).join('') : '<p>Chưa có lịch sử đánh giá.</p>'}</div>`;
+    const countdown =
+      G4.Countdown?.html(d.nextEvaluationAt, {
+        label: 'Lượt tự đánh giá seller tiếp theo sớm nhất',
+        expired: 'Đã đến lượt — đang chờ hệ thống đánh giá và cập nhật kết quả',
+        kind: 'level',
+        scope: d.sellerId,
+      }) || '';
+    return `<h2>Seller #${Number(d.sellerId)} · Cấp ${Number(d.level)}</h2><p>Lần xét gần nhất: ${stamp(d.lastEvaluatedAt)} · Lần tự xét tiếp theo sớm nhất: ${stamp(d.nextEvaluationAt)}</p>${countdown}<p class="small">Bên dưới là dữ liệu hiện tại và kết quả nếu xét ngay. Mỗi đánh giá 4–5 sao được tính là tích cực; thiếu đánh giá không tính là phản hồi xấu.</p>${decisionHtml(d.preview)}<h2>Lịch sử đánh giá gần nhất</h2><div class="level-history">${d.history.length ? d.history.map((h) => `<details><summary>${stamp(h.createdAt)} · ${h.source === 'Worker' ? 'Hệ thống tự xét' : 'Seller yêu cầu'} · ${Number(h.decision.previousLevel)} → ${Number(h.decision.resultLevel)}</summary><p class="small">Số liệu và chính sách tại thời điểm xét, không thay đổi theo dữ liệu hiện tại.</p>${decisionHtml(h.decision)}</details>`).join('') : '<p>Chưa có lịch sử đánh giá.</p>'}</div>`;
   }
   async function loadDetail(id) {
     const token = ++request;
@@ -171,6 +178,20 @@
   }
   function init(r) {
     role = r;
+    const refreshTimer = () => {
+      if (
+        document.hidden ||
+        evaluating ||
+        simulating ||
+        !$('seller-levels').classList.contains('active') ||
+        document.activeElement?.closest('#seller-level-detail') ||
+        document.querySelector('#seller-level-detail details[open]')
+      )
+        return;
+      return role === 'admin' && selectedSeller ? loadDetail(selectedSeller) : load();
+    };
+    G4.Countdown?.subscribe('level', refreshTimer);
+    globalThis.setInterval?.(() => safe(refreshTimer), 10000);
     $('refresh-seller-levels').onclick = () =>
       safe(() => (role === 'admin' && selectedSeller ? loadDetail(selectedSeller) : load()));
     if (role === 'admin') {

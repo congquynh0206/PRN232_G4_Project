@@ -14,7 +14,7 @@ internal static class AddressConfirmationChecks
     internal static IConfiguration Config =>
         new ConfigurationBuilder()
             .AddInMemoryCollection(
-                new Dictionary<string, string?> { ["AddressChanges:ConfirmationSeconds"] = "60" }
+                new Dictionary<string, string?> { ["AddressChanges:ConfirmationSeconds"] = "120" }
             )
             .Build();
 
@@ -63,7 +63,7 @@ internal static class AddressConfirmationChecks
             wait.Status == "AwaitingShipper"
                 && wait.SellerUserId == 2
                 && wait.BuyerUserId == 1
-                && wait.ExpiresAt == clock.Utc.AddSeconds(60),
+                && wait.ExpiresAt == clock.Utc.AddSeconds(120),
             "server confirmation audit and fixed deadline"
         );
         Check(
@@ -130,7 +130,7 @@ internal static class AddressConfirmationChecks
         var r = await AddressChangeChecks.SendAsync(changes, db, f.Order.Id, 1, Input());
         if (stage == "AwaitingShipper")
             await changes.DecideAsync(r.Id, 2, new(true, null));
-        clock.Utc = clock.Utc.AddSeconds(59);
+        clock.Utc = clock.Utc.AddSeconds(119);
         await changes.MaintainAsync();
         Check(
             AddressChangeService.Pending((await db.AddressChangeRequests.FindAsync(r.Id))!),

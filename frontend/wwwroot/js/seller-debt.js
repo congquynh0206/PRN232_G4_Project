@@ -28,6 +28,7 @@
         ? `${Math.floor(seconds / 3600)} giờ ${Math.floor((seconds % 3600) / 60)} phút`
         : `${Math.floor(seconds)} giây`;
   function summaryHtml(d, admin = false) {
+    const countdown = G4.Countdown?.debt(d) || '';
     const status = d.permanentSalesBlockedAt
       ? 'Khóa bán vĩnh viễn'
       : !Number(d.balance)
@@ -49,6 +50,7 @@
       (d.overdue
         ? `<p>${admin ? 'Seller' : 'Bạn'} vẫn đăng nhập, trả nợ, giao hàng và xử lý return/dispute của đơn hiện có.</p>`
         : '') +
+      countdown +
       (d.accountStatus !== 'Active'
         ? `<p>Hạn chế tài khoản khác: ${esc(d.accountStatus)}. Trả hết nợ chỉ gỡ hạn chế do nợ.</p>`
         : '')
@@ -264,7 +266,7 @@
         ? result.items
             .map(
               (x) =>
-                `<article class="finance-row"><div><strong>Seller #${Number(x.sellerId)} · ${esc(x.email)}</strong><small>${x.permanentSalesBlockedAt ? 'Khóa bán vĩnh viễn' : x.overdue ? 'Quá hạn · đình chỉ do nợ' : Number(x.negativeBalance) ? 'Đang nợ' : 'Không còn nợ'} · Trạng thái khác: ${esc(x.status)}</small><small>Bắt đầu: ${stamp(x.debtStartedAt)} · Hạn trả: ${stamp(x.debtDueAt)}</small><button type="button" data-debt-seller="${Number(x.sellerId)}">Xem lịch sử seller #${Number(x.sellerId)}</button></div><b>${money(x.negativeBalance)}</b></article>`,
+                `<article class="finance-row"><div><strong>Seller #${Number(x.sellerId)} · ${esc(x.email)}</strong><small>${x.permanentSalesBlockedAt ? 'Khóa bán vĩnh viễn' : x.overdue ? 'Quá hạn · đình chỉ do nợ' : Number(x.negativeBalance) ? 'Đang nợ' : 'Không còn nợ'} · Trạng thái khác: ${esc(x.status)}</small><small>Bắt đầu: ${stamp(x.debtStartedAt)} · Hạn trả: ${stamp(x.debtDueAt)}</small>${G4.Countdown?.debt({ balance: x.negativeBalance, sellerId: x.sellerId, dueAt: x.debtDueAt, suspended: x.debtSuspended }) || ''}<button type="button" data-debt-seller="${Number(x.sellerId)}">Xem lịch sử seller #${Number(x.sellerId)}</button></div><b>${money(x.negativeBalance)}</b></article>`,
             )
             .join('')
         : '<p class="empty-note">Không có seller phù hợp.</p>';
@@ -278,6 +280,14 @@
     }
   }
   function init(role, refresh) {
+    const refreshTimer = () => {
+      if (document.hidden || busy || $('debt-repayment-form')?.contains(document.activeElement))
+        return;
+      if (role === 'seller' && $('finance')?.classList.contains('active')) return loadSeller();
+      if (role === 'admin' && $('seller-debts')?.classList.contains('active')) return loadAdmin();
+    };
+    G4.Countdown?.subscribe('debt', refreshTimer);
+    globalThis.setInterval?.(() => safe(refreshTimer), 10000);
     if (role === 'seller') {
       onPaid = refresh;
       $('debt-repayment-fields').disabled = true;

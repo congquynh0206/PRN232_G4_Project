@@ -108,7 +108,7 @@ internal static class SellerLevelSqlChecks
                 "level evaluation preserves sales and wallet"
             );
         }
-        clock.Advance(15);
+        clock.Advance(60);
         async Task Payment()
         {
             await using var db = new ApplicationDbContext(options);

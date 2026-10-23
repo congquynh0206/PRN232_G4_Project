@@ -88,6 +88,7 @@
     return 'Thao tác chưa thành công. Vui lòng kiểm tra thông tin và thử lại.';
   }
   async function api(path, method = 'GET', body = null) {
+    const started = globalThis.performance?.now?.() ?? Date.now();
     let response;
     try {
       response = await fetch('/api/proxy/' + path, {
@@ -102,6 +103,11 @@
       location.assign(response.url);
       throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
     }
+    const elapsed = (globalThis.performance?.now?.() ?? Date.now()) - started;
+    window.G4?.Countdown?.sync(
+      response.headers?.get('X-Server-Time') || response.headers?.get('Date'),
+      elapsed,
+    );
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       const error = new Error(friendlyError(response.status, data.error || data.title));
@@ -163,17 +169,34 @@
       }[status] ?? label(status)
     );
   }
+  function paymentCountdown(o) {
+    return window.G4?.Countdown?.payment(o) || '';
+  }
   function returnSummary(o) {
     const r = o.returnRequest;
     if (!r) return '';
+    const agreement =
+      o.dispute?.isOpen &&
+      o.dispute.status === 'ExecutingAgreement' &&
+      o.dispute.proposal === 'ReturnRefund';
+    const receipt = agreement ? { ...r, confirmationDueAt: o.dispute.returnConfirmationDueAt } : r;
+    const countdown =
+      window.G4?.Countdown?.receipt(receipt, o.dispute?.isOpen && !agreement, o.id) || '';
+    const receiptDeadline =
+      typeof receipt.confirmationDueAt === 'string' &&
+      !/(Z|[+-]\d{2}:\d{2})$/i.test(receipt.confirmationDueAt)
+        ? receipt.confirmationDueAt + 'Z'
+        : receipt.confirmationDueAt;
     const deadline =
-      r.confirmationDueAt && ['Approved', 'ReturnShipping'].includes(r.status)
-        ? `<p class="small">Hạn xác nhận hàng trả: ${date(r.confirmationDueAt)}. Hệ thống tự hoàn tiền nếu người bán không phản hồi trong hạn.</p>`
+      (!o.dispute?.isOpen || agreement) &&
+      receipt.confirmationDueAt &&
+      ['Approved', 'ReturnShipping'].includes(r.status)
+        ? `<p class="small">Hạn xác nhận hàng trả: ${date(receiptDeadline)}. Hệ thống tự hoàn tiền nếu người bán không phản hồi trong hạn.</p>`
         : '';
     const retry = ['ReceivedBySeller', 'RefundPending', 'RefundFailed'].includes(r.status)
       ? '<p class="small">Hệ thống đang xử lý hoàn tiền và sẽ tự thử lại nếu cổng thanh toán gặp lỗi.</p>'
       : '';
-    return `<section class="return-summary"><p>Trả hàng: ${esc(r.reason)} · ${esc(returnStatus(r.status))}</p>${window.G4.Returns?.savedHtml(o) || ''}${deadline}${retry}</section>`;
+    return `<section class="return-summary"><p>Trả hàng: ${esc(r.reason)} · ${esc(returnStatus(r.status))}</p>${window.G4.Returns?.savedHtml(o) || ''}${deadline}${countdown}${retry}</section>`;
   }
   function shipperShipmentCard(s) {
     const action =
@@ -266,6 +289,7 @@
       <div class="seller-order-body">${productThumbnail(o.imageUrl, title, 'seller-product-thumb')}
         <div class="seller-product-info"><strong class="seller-product-title" title="${esc(title)}">${esc(title)}</strong><span class="seller-product-count">${extras}${items}</span><span class="seller-buyer">${source === 'buyer' ? 'Người bán' : 'Người mua'}: ${esc((source === 'buyer' ? o.sellerName : o.buyerName) || 'Chưa có thông tin')}</span></div>
         <div class="seller-order-total"><span>Tổng đơn</span><strong>${money(o.totalPrice)}</strong></div></div>
+      ${paymentCountdown(o)}
       <footer class="seller-order-foot"><div class="seller-order-badges"><span class="seller-status seller-status-${tone}">${esc(status)}</span>${o.hasRefund && !refunded ? '<span class="seller-status seller-status-refund">Đã hoàn tiền</span>' : ''}${o.attention ? `<span class="seller-attention">${esc(o.attention)}</span>` : ''}${disputeBadge(o.dispute)}</div><button type="button" data-open-order="${o.id}" data-source="${source}" aria-label="Xem chi tiết đơn #${o.id}">Xem chi tiết</button></footer></article>`;
   }
   function orderCard(o, source = 'orders') {
@@ -431,6 +455,7 @@
     shippingStatus,
     returnStatus,
     returnSummary,
+    paymentCountdown,
     shipmentHtml,
     shippingActor,
     shipperShipmentCard,

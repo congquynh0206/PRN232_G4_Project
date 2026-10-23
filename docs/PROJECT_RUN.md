@@ -1,5 +1,7 @@
 # Chạy dự án checkout & giao hàng (nhóm 4)
 
+**Đồng hồ demo 23/10/2026:** khởi động lại API/frontend và tải lại trang để nhận countdown tại thao tác và danh sách tiền giữ từng đơn trong Ví Seller. Không có migration mới hoặc cập nhật database; deadline/snapshot cũ giữ nguyên. [Hướng dẫn và kiểm thử](DEMO_COUNTDOWNS.md).
+
 **Format mã nguồn 23/10/2026:** căn lề/xuống dòng C#/JavaScript/CSS/Razor và test, không đổi nghiệp vụ hoặc schema; không có migration mới và không thay database. Quy tắc 100 ký tự/dòng và cấu hình formatter ở [BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md#trình-bày-mã-nguồn). Solution build đầu ra riêng, backend mặc định và Node 128/128 đạt. API/frontend đang chạy khóa file build mặc định nên đợt này xuất build sang `artifacts/format-build/`, dùng `OutputPath` riêng và `UseAppHost=false` để xác minh mà không dừng ứng dụng.
 
 **Đọc trước khi phát triển (18/10/2026):** [mục lục tài liệu](README.md), [đặc tả mục tiêu phiên bản 2.0](BUSINESS_REQUIREMENTS.md) và [backlog triển khai](IMPLEMENTATION_BACKLOG.md). Trang này mô tả cách chạy và cấu hình/source hiện có; ghi nhận migration/test bên dưới là theo từng đợt, không chứng minh các thay đổi mới đã triển khai.
@@ -18,7 +20,7 @@ QA điều hướng không cần API/SQL đang chạy: `dotnet build frontend/fr
 
 Giỏ buyer hiện random từ đúng hai seller, lưu theo tài khoản và checkout thành các đơn riêng. Cần migration `AddBuyerCartCheckoutBatch` và seed thêm seller thứ hai trước khi dùng; xem [MULTI_SELLER_CART.md](MULTI_SELLER_CART.md).
 
-Đổi địa chỉ đơn đã thanh toán cần migration gốc `AddOrderAddressChanges` và AD1 `20261020153620_AddAddressChangeConfirmations` (sau SH1). Buyer xem/xác nhận quote, seller chấp thuận và shipper đã nhận chấp thuận khả năng giao trước khi áp dụng địa chỉ/tiền. Chưa gán shipper thì seller duyệt cuối; trong lúc chờ chặn OutForDelivery, giữ địa chỉ cũ. Deadline snapshot mặc định 24 giờ, Development 60 giây (`AddressChanges:ConfirmationSeconds`), worker 5 giây. Xem [ORDER_ADDRESS_CHANGES.md](ORDER_ADDRESS_CHANGES.md).
+Đổi địa chỉ đơn đã thanh toán cần migration gốc `AddOrderAddressChanges` và AD1 `20261020153620_AddAddressChangeConfirmations` (sau SH1). Buyer xem/xác nhận quote, seller chấp thuận và shipper đã nhận chấp thuận khả năng giao trước khi áp dụng địa chỉ/tiền. Chưa gán shipper thì seller duyệt cuối; trong lúc chờ chặn OutForDelivery, giữ địa chỉ cũ. Deadline snapshot mặc định 24 giờ, Development 120 giây/2 phút (`AddressChanges:ConfirmationSeconds`), worker 5 giây. Xem [ORDER_ADDRESS_CHANGES.md](ORDER_ADDRESS_CHANGES.md).
 
 ## Chạy với SQL Server
 
@@ -76,7 +78,7 @@ Code email/nhật ký mới cần migration `20261005062401_AddEmailIntegrationD
 
 Tab **Báo cáo tài chính** (S1) riêng trên trang Seller đọc các phát sinh theo kỳ qua `GET /api/seller/finance/report`; không thay tab ví/payout. Bộ lọc theo múi giờ trình duyệt, dữ liệu từ ledger/payment/refund, không tạo dữ liệu demo. Xem [SELLER_FINANCE_REPORT.md](SELLER_FINANCE_REPORT.md) để biết nguồn số và test; đã QA truy vấn trên LocalDB QA riêng và HTTP auth/filter; chưa QA UI browser hoặc áp migration lên database chính.
 
-Tab **Tài chính người bán** hiển thị ví khả dụng, tiền đang xử lý/đang giữ/số dư âm, level và lịch sử rút tiền. Level 1/2 bắt đầu giữ từ giao thành công: Development 30/15 giây, môi trường khác 21/7 ngày. Level 3 Instant tự cộng Net sau phí/bù nợ vào ví khi payment thành công, không cần payout. Payout chỉ dùng để rút ra ngân hàng giả lập. Admin có tab **Phí nền tảng** để đặt mức phí, lịch hiệu lực và xem lịch sử; mặc định 12% SellerGross + 0,30 USD. Cần migration `20261014051607_AddPlatformFeePoliciesAndDeliveryHolds`; xem [SELLER_FINANCE.md](SELLER_FINANCE.md). Settlement cũ giữ lịch và phí trước nâng cấp. Worker cũng tự tạo đối soát cho payment/refund cũ sau khi nâng database.
+Tab **Tài chính người bán** hiển thị ví khả dụng, tiền đang xử lý/đang giữ/số dư âm, level và lịch sử rút tiền. Level 1/2 bắt đầu giữ từ giao thành công: Development 300/180 giây (5/3 phút), môi trường khác 21/7 ngày. Level 3 Instant tự cộng Net sau phí/bù nợ vào ví khi payment thành công, không cần payout. Payout chỉ dùng để rút ra ngân hàng giả lập. Admin có tab **Phí nền tảng** để đặt mức phí, lịch hiệu lực và xem lịch sử; mặc định 12% SellerGross + 0,30 USD. Cần migration `20261014051607_AddPlatformFeePoliciesAndDeliveryHolds`; xem [SELLER_FINANCE.md](SELLER_FINANCE.md). Settlement cũ giữ lịch và phí trước nâng cấp. Worker cũng tự tạo đối soát cho payment/refund cũ sau khi nâng database.
 
 Buyer và seller có tab **Tranh chấp** để thương lượng với mô tả và link bằng chứng bắt buộc, không sửa/xóa sau khi gửi. Admin chỉ xử lý hồ sơ đã chuyển lên. Development dùng **45 giây** cho phản hồi seller, phản hồi buyer và xác nhận hàng trả; worker chạy mỗi 5 giây. Xem quy tắc đầy đủ tại [DISPUTES.md](DISPUTES.md).
 
@@ -126,7 +128,7 @@ Kiểm thử console còn xác nhận tính phí, idempotency settlement/payout,
 
 
 
-Tab **Cấp seller** dùng đánh giá đơn mua thực tế, dữ liệu giao đúng hạn và tỷ lệ hủy/trả/tranh chấp; worker tự xét mỗi giờ, Development 15 giây. Buyer có nút **Đánh giá seller** trong đơn Delivered/Closed đã thanh toán; seller yêu cầu xét lại và admin xem lịch sử. Màn mô phỏng Development có sáu tình huống và không ghi dữ liệu tài chính. Cần migration `20261015102627_AddSellerLevelsAndOrderFeedback` trước khi chạy API mới; xem [SELLER_LEVELS.md](SELLER_LEVELS.md). Migration chỉ được kiểm thử trên DB QA riêng, không tự áp dụng lên CloneEbayDB.
+Tab **Cấp seller** dùng đánh giá đơn mua thực tế, dữ liệu giao đúng hạn và tỷ lệ hủy/trả/tranh chấp; worker tự xét mỗi giờ, Development 60 giây (1 phút)/lần. Buyer có nút **Đánh giá seller** trong đơn Delivered/Closed đã thanh toán; seller yêu cầu xét lại và admin xem lịch sử. Màn mô phỏng Development có sáu tình huống và không ghi dữ liệu tài chính. Cần migration `20261015102627_AddSellerLevelsAndOrderFeedback` trước khi chạy API mới; xem [SELLER_LEVELS.md](SELLER_LEVELS.md). Migration chỉ được kiểm thử trên DB QA riêng, không tự áp dụng lên CloneEbayDB.
 
 
 PayPal checkout hiện thanh toán cả giỏ bằng một lần xác nhận, lưu capture riêng từng đơn. Seller có tab Trả hàng / Hoàn tiền; các role nhận cập nhật qua SignalR và modal đã thu gọn. Cần migration `20261015161703_AddPayPalCartAndRealtime`, khởi động lại API/frontend và tải lại trang. Xem [COMMERCE_REFRESH.md](COMMERCE_REFRESH.md) cho cấu hình URL/CORS local, HTTPS, Docker và kịch bản kiểm thử.

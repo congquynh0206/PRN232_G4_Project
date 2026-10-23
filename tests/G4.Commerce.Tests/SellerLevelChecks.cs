@@ -15,9 +15,9 @@ internal static class SellerLevelChecks
             .AddInMemoryCollection(
                 new Dictionary<string, string?>
                 {
-                    ["Finance:LevelPromotion:EvaluationSeconds"] = "15",
-                    ["Finance:Levels:1:HoldSeconds"] = "30",
-                    ["Finance:Levels:2:HoldSeconds"] = "15",
+                    ["Finance:LevelPromotion:EvaluationSeconds"] = "60",
+                    ["Finance:Levels:1:HoldSeconds"] = "300",
+                    ["Finance:Levels:2:HoldSeconds"] = "180",
                 }
             )
             .Build();
@@ -294,7 +294,7 @@ internal static class SellerLevelChecks
         var old = await f.Finance.RecordSuccessfulPaymentAsync(s.Orders[0], firstPayment.Id);
         var oldRelease = old.ReleaseAt;
         Check(
-            old.SellerLevelSnapshot == 1 && old.HoldSecondsSnapshot == 30,
+            old.SellerLevelSnapshot == 1 && old.HoldSecondsSnapshot == 300,
             "old settlement snapshots level 1"
         );
         Check(
@@ -313,7 +313,7 @@ internal static class SellerLevelChecks
         Check(
             old.SellerLevelSnapshot == 1
                 && old.ReleaseAt == oldRelease
-                && old.HoldSecondsSnapshot == 30,
+                && old.HoldSecondsSnapshot == 300,
             "promotion leaves old schedule intact"
         );
         var secondPayment = await f.Db.Payments.SingleAsync(x => x.OrderId == s.Orders[1]);
@@ -326,7 +326,7 @@ internal static class SellerLevelChecks
             "new settlement uses instant policy after promotion"
         );
         var frozen = (await f.Finance.GetLevelDetailsAsync(s.Seller)).History.Single().Decision;
-        f.Clock.Advance(14);
+        f.Clock.Advance(59);
         Check(await f.Finance.MaintainLevelsAsync() == 0, "no early evaluation");
         f.Clock.Advance(1);
         Check(await f.Finance.MaintainLevelsAsync() == 1, "evaluation at exact interval");

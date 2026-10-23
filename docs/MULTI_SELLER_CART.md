@@ -12,6 +12,20 @@ Checkout hiển thị sản phẩm, mã giảm giá, phí ship và tổng riêng
 
 Sau khi tạo đơn thành công, hàng được chuyển khỏi giỏ sang **Đơn của tôi**. Thẻ giả lập thanh toán từng đơn, hiển thị đơn còn thất bại để thử lại. PayPal chuyển hướng cho đơn đầu tiên còn chờ; sau khi trở về, mở đơn còn lại trong **Đơn của tôi** và chọn **Thanh toán PayPal**. Các đơn có vận chuyển, hủy, trả hàng, settlement và tiền seller riêng theo luồng hiện có.
 
+## Responsive checkout buyer (23/10/2026)
+
+Checkout dùng một cột ở màn hình ≤900px; tổng kết nằm sau phần sản phẩm, hai cột giữ trên desktop. Ở ≤600px, mỗi sản phẩm hiển thị ảnh/tên rồi số lượng/giá; mã giảm giá và nút Áp dụng xếp dọc, tối thiểu 44px. Tên shop/sản phẩm/khuyến mãi dài tự xuống dòng. CSS riêng `buyer-checkout.css` chỉ tác động `#checkout`, không đổi giỏ chỉnh sửa, các role khác hoặc logic báo giá/thanh toán. Build/restart frontend và tải lại trang để nhận stylesheet mới.
+
+Đã tái hiện lỗi tràn ở 320px trước sửa; frontend build 0 warning/error, Node 128/128 và Chrome fixture Razor thật ở 320–1440px đạt. Script `tests/checkout-responsive.e2e.cjs` kiểm tra hai seller, tên dài không có khoảng trắng, khuyến mãi, mã theo seller, chuyển phương thức, tổng tiền, vị trí cột và nút thanh toán không bị che. Không gọi API tạo đơn/payment, không thay database hoặc migration; chưa E2E nối SQL/PayPal thật.
+
+Chạy sau khi build frontend, với `NODE_PATH` trỏ tới Playwright; `CHROME_PATH` có thể chọn Chrome cài sẵn. `FRONTEND_DLL` cho phép chọn DLL ở đầu ra build riêng khi ứng dụng đang chạy khóa thư mục mặc định:
+
+```powershell
+node tests/checkout-responsive.e2e.cjs
+```
+
+Ảnh kiểm tra lưu tại `artifacts/checkout-responsive-ui/`.
+
 ## Chuẩn bị database
 
 Dừng API, chạy migration trên database đã có baseline và các migration trước:

@@ -29,7 +29,8 @@ public sealed record DisputeSummary(
     DateTime UpdatedAt,
     DateTime? ResponseDueAt,
     decimal TotalPrice,
-    decimal HeldAmount
+    decimal HeldAmount,
+    DateTime? ReturnConfirmationDueAt = null
 );
 
 public sealed record DisputeEntryView(

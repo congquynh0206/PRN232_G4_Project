@@ -114,6 +114,17 @@
             <button class="primary" id="request-payout">Rút tiền</button>
         </div>
     </div>
+    <section class="finance-block" aria-labelledby="seller-funds-title">
+        <div class="block-head">
+            <h2 id="seller-funds-title">Tiền giữ theo từng đơn</h2>
+            <button type="button" id="refresh-seller-funds">Làm mới tiền giữ</button>
+        </div>
+        <p class="small">Mỗi khoản dùng thời hạn đã chốt của đơn. Hết đếm ngược chỉ là đủ thời gian;
+            server còn kiểm tra trả hàng/tranh chấp trước khi chuyển tiền vào ví.</p>
+        <p id="seller-funds-status" role="status"></p>
+        <div id="seller-funds-list" class="seller-funds-list" aria-busy="false"></div>
+        <div id="seller-funds-pagination" class="pagination"></div>
+    </section>
     <div class="finance-block">
         <h2>Nhật ký tài chính</h2>
         <div id="finance-transactions" class="finance-list"></div>
@@ -272,6 +283,7 @@
 @section Scripts
 {
 <script src="~/js/common.js" asp-append-version="true"></script>
+    <script src="~/js/countdowns.js" asp-append-version="true"></script>
     <script src="~/js/role-navigation.js" asp-append-version="true"></script>
 <script src="~/lib/signalr/signalr.min.js" asp-append-version="true"></script>
 <script src="~/js/realtime.js" asp-append-version="true"></script>
@@ -289,6 +301,7 @@
 <script src="~/js/product-feedback.js" asp-append-version="true"></script>
 <script src="~/js/payouts-ui.js" asp-append-version="true"></script>
 <script src="~/js/seller-report.js" asp-append-version="true"></script>
+<script src="~/js/seller-funds.js" asp-append-version="true"></script>
 <script src="~/js/seller.js" asp-append-version="true"></script>
 }
 <partial name="_PromotionsPanel" model="false" />

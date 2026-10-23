@@ -30,6 +30,8 @@ public sealed class ApiProxyController(IHttpClientFactory factory, IConfiguratio
         }
 
         using var response = await factory.CreateClient().SendAsync(request, ct);
+        if (response.Headers.Date is { } serverTime)
+            Response.Headers["X-Server-Time"] = serverTime.ToString("O");
         var body = await response.Content.ReadAsStringAsync(ct);
         return new ContentResult
         {

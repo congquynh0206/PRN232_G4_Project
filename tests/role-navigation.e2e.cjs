@@ -109,7 +109,10 @@ async function main() {
   const port = reserve.address().port;
   await new Promise((resolve) => reserve.close(resolve));
   const base = `http://127.0.0.1:${port}`;
-  const frontend = spawn('dotnet', ['bin/Debug/net8.0/frontend.dll', '--urls', base], {
+  const dll = process.env.FRONTEND_DLL
+    ? path.resolve(process.env.FRONTEND_DLL)
+    : 'bin/Debug/net8.0/frontend.dll';
+  const frontend = spawn('dotnet', [dll, '--urls', base], {
     cwd: path.resolve('frontend'),
     windowsHide: true,
     env: {

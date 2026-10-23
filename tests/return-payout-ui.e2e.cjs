@@ -163,6 +163,8 @@ const output = path.resolve('artifacts/return-window-payout-ui');
               };
             if (url.startsWith('seller/finance/transactions/page'))
               return { items: [], page: 1, pageSize: 10, totalCount: 0 };
+            if (url.startsWith('seller/finance/funds/page'))
+              return { items: [], page: 1, pageSize: 10, totalCount: 0 };
             if (url.startsWith('seller/finance/payouts/page'))
               return {
                 items: structuredClone(fixture.payouts),
@@ -197,7 +199,7 @@ const output = path.resolve('artifacts/return-window-payout-ui');
             throw new Error('Unexpected fixture request ' + url);
           };
         });
-        for (const js of ['role-navigation', 'payouts-ui', 'seller'])
+        for (const js of ['role-navigation', 'payouts-ui', 'seller-funds', 'seller'])
           await page.addScriptTag({ content: read(`frontend/wwwroot/js/${js}.js`) });
         await page.locator('[data-tab="finance"]').click();
         await page.getByText('Ví khả dụng', { exact: true }).waitFor();

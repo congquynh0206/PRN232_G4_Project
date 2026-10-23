@@ -207,7 +207,8 @@ public sealed partial class SellerFinanceService
             a.Status,
             a.PermanentSalesBlockedAt,
             earliest,
-            cycle?.RecoveryGraceSeconds ?? 0
+            cycle?.RecoveryGraceSeconds ?? 0,
+            cycle?.WarningAt
         );
     }
 

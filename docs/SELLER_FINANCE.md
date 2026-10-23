@@ -6,15 +6,19 @@ Gói tài chính mô phỏng cách marketplace thu tiền buyer, trừ phí, gi�
 
 ## Luồng tiền
 
+**Giao diện 23/10/2026:** Ví Seller có **Tiền giữ theo từng đơn**, phân trang và đồng hồ riêng theo ReleaseAt/HoldSecondsSnapshot. Hiển thị Processing và OnHold còn lại, chưa giao thì chưa bắt đầu đếm, có return/dispute thì nêu lý do chặn. Hết giờ không tự coi tiền đã vào ví. API đọc `seller/finance/funds/page` chỉ cho chính seller, không sửa số dư/ledger hoặc cần migration. [Chi tiết](DEMO_COUNTDOWNS.md).
+
 1. Buyer thanh toán thành công. **SellerGross** bằng tiền buyer trả cộng phần coupon nền tảng tài trợ; giảm giá seller đã được trừ khỏi giá hàng.
 2. Mức phí mặc định **12% SellerGross + 0,30 USD/đơn**, không vượt SellerGross. Admin thay đổi trong tab **Phí nền tảng**, có hiệu lực ngay hoặc theo lịch. Settlement chọn mức theo `Payment.PaidAt` và lưu `FeePercentSnapshot`, `FixedFeeAmount`, `PlatformFeeAmount`, `FeePolicyId`; refund vẫn dùng phí gốc.
 3. Phần còn lại là **Net**, dùng bù Negative trước. Level 1/2 giữ phần dư trong `Processing`; Level 3 tự cộng phần dư vào **ví Available ngay khi thanh toán thành công**, không cần Delivered hoặc tạo payout.
 4. Level 1/2 tính thời gian giữ từ `DeliveredAt` chiều đi. Worker chỉ chuyển tiền vào ví khi hết hạn và không có return/dispute đang mở; giao chiều trả không bắt đầu hoặc đặt lại lịch này.
 5. Seller chỉ payout từ `Available`. Payout lần lượt đi qua `Created → InProgress → FundsSent → Completed`. Nếu giả lập ngân hàng từ chối, payout thành `Returned`, tiền trả về hệ thống một lần rồi bù Negative nếu có, phần dư vào `Available`. Tất cả level qua cùng workflow; FundsSent chưa phải hoàn tất. Lịch sử từng bước/actor/UTC trong SellerPayoutEvent, không backfill bước cũ chưa biết. PayoutPending/PaidOut tính trên toàn bộ payout, không cắt theo trang.
 
-Development dùng `Finance:Levels:1:HoldSeconds = 30`, `Finance:Levels:2:HoldSeconds = 15`; Level 3 luôn 0 giây từ payment thành công. Môi trường khác bỏ các khóa HoldSeconds của Level 1/2 và dùng 21/7 ngày từ giao thành công. Level và thời gian giữ được snapshot lúc tạo settlement, không đọc lại level khi mở khóa. Trước Delivered, Level 1/2 có `ReleaseAt = null`.
+Development dùng `Finance:Levels:1:HoldSeconds = 300`, `Finance:Levels:2:HoldSeconds = 180`; Level 3 luôn 0 giây từ payment thành công. Môi trường khác bỏ các khóa HoldSeconds của Level 1/2 và dùng 21/7 ngày từ giao thành công. Level và thời gian giữ được snapshot lúc tạo settlement, không đọc lại level khi mở khóa. Trước Delivered, Level 1/2 có `ReleaseAt = null`.
 
 **Ví và payout:** Available là tiền nằm trong ví hệ thống. Payout chuyển từ ví ra ngân hàng giả lập và vẫn là tính năng riêng. Nhận tiền Instant vào ví không tạo SellerPayout hoặc PaidOut. Tiền Instant vẫn được giữ khi return/dispute và được thu hồi khi refund.
+
+**Cập nhật demo 23/10/2026:** Level 1 giữ 5 phút, Level 2 giữ 3 phút từ Outbound Delivered. Cấu hình mới áp dụng khi tạo settlement mới; settlement đã có giữ nguyên `HoldSecondsSnapshot` và `ReleaseAt`, kể cả chưa giao hàng. Không sửa tiền/lịch sử hoặc cần migration; khởi động lại API để chắc chắn nạp cấu hình mới.
 
 ## Các số dư
 
@@ -31,8 +35,8 @@ Development dùng `Finance:Levels:1:HoldSeconds = 30`, `Finance:Levels:2:HoldSec
 
 | Level | Doanh số tối đa/tháng | Giữ tiền | Điều kiện lên cấp |
 | --- | ---: | ---: | --- |
-| 1 | 5.000 USD | 21 ngày từ Delivered; demo 30 giây | Mặc định |
-| 2 | 10.000 USD | 7 ngày từ Delivered; demo 15 giây | 20 đơn hoàn tất, feedback dương ≥ 90%, giao đúng hạn ≥ 90% |
+| 1 | 5.000 USD | 21 ngày từ Delivered; demo 5 phút (300 giây) | Mặc định |
+| 2 | 10.000 USD | 7 ngày từ Delivered; demo 3 phút (180 giây) | 20 đơn hoàn tất, feedback dương ≥ 90%, giao đúng hạn ≥ 90% |
 | 3 (`Instant`) | 1.000.000 USD | 0 giây từ payment thành công, tự vào ví | 100 đơn hoàn tất, feedback dương ≥ 97%, giao đúng hạn ≥ 95% |
 
 Doanh số được tính theo tháng UTC và tự về 0 khi sang tháng. Backend kiểm tra giới hạn trước khi gọi cổng thanh toán và kiểm tra lại lúc ghi nhận thanh toán. Nút **Đánh giá lại cấp** trên tab **Seller Finance** tính level từ dữ liệu đơn, feedback và lần giao hàng hiện có.

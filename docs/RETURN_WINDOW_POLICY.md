@@ -1,5 +1,7 @@
 # RT1 — Cửa sổ trả hàng từ giao thành công
 
+**Đồng hồ 23/10/2026:** Buyer xem đếm ngược ReturnWindowClosesAt trong chi tiết đơn và báo giá return; receipt hiển thị riêng theo hạn nhận hàng trả. Không khởi động lại thời hạn khi reload và không cắt hồ sơ đã gửi đúng hạn. [Hướng dẫn chung](DEMO_COUNTDOWNS.md).
+
 Đã triển khai và kiểm thử source ngày 20/10/2026. [Đặc tả §7](BUSINESS_REQUIREMENTS.md#7-trả-hàng-và-refund), [backlog RT1](IMPLEMENTATION_BACKLOG.md#5-rt1--deadline-dùng-chung-và-return-demo-5-phút). Migration chỉ áp QA riêng, **chưa áp database chính**.
 
 ## Deadline dùng chung
@@ -14,7 +16,7 @@
 
 Request mới lưu ReturnDeadline bằng deadline đã chốt từ giao thành công, thay cho cách cũ “thời điểm gửi + 7 ngày”. Request đã nhận đúng hạn tiếp tục qua seller duyệt, tạo nhãn, receipt/refund hoặc tranh chấp sau khi cửa sổ mở request hết. Replay đúng key/payload sau hạn trả cùng request, không tạo hồ sơ mới.
 
-**Receipt vẫn riêng:** Returns:ReceiptSeconds mặc định 172800 giây/Development 45 giây từ **Return Delivered**. Không đổi khóa này thành 300. Hold seller 30/15 giây ở Development và Level 3 Instant không bị đổi bởi RT1.
+**Receipt vẫn riêng:** Returns:ReceiptSeconds mặc định 172800 giây/Development 45 giây từ **Return Delivered**. Không đổi khóa này thành 300. RT1 không thay hold seller. Theo cập nhật demo 23/10/2026, hold Development Level 1/2 là 300/180 giây (5/3 phút); Level 3 vẫn Instant.
 
 ## Worker, quyền phản đối và UI
 

@@ -1,6 +1,6 @@
 # Đặc tả nghiệp vụ G4_Project
 
-**Phiên bản 2.0 — cập nhật ngày 18/10/2026.** Đây là đặc tả nghiệp vụ mục tiêu dùng để code và nghiệm thu, đã cập nhật theo các xác nhận của người dùng và các đề xuất được đồng ý trong báo cáo phiên bản 2.0. Không phải xác nhận mọi chức năng đã triển khai.
+**Phiên bản 2.0 — chốt nghiệp vụ ngày 18/10/2026, cập nhật mốc demo ngày 23/10/2026.** Đây là đặc tả nghiệp vụ mục tiêu dùng để code và nghiệm thu, đã cập nhật theo các xác nhận của người dùng và các đề xuất được đồng ý trong báo cáo phiên bản 2.0. Không phải xác nhận mọi chức năng đã triển khai.
 
 **Thứ tự áp dụng:** yêu cầu mới nhất của người dùng → tài liệu này → tiêu chí/hiện trạng trong [IMPLEMENTATION_BACKLOG.md](IMPLEMENTATION_BACKLOG.md) → các hướng dẫn module. [Phạm vi 17/10](APPROVED_SCOPE_2026-10-17.md) và [bốn task ưu tiên](FOUR_TASK_REQUIREMENTS_2026-10-17.md) tiếp tục áp dụng cho B1/B2/S1/S2/A1/A2/N1, trừ phần đã được đặc tả 18/10 này thay thế. Mã nguồn cũ là bằng chứng hiện trạng, không tự thay đổi quy tắc đã chốt.
 
@@ -24,6 +24,8 @@ Hệ thống có bốn vai trò `buyer`, `seller`, `shipper`, `admin`. API kiể
 | Admin | Policy phí, hạn mức riêng seller, promotion theo quyền, tra cứu order/payment/refund, phán quyết và yêu cầu trả hàng trước phán quyết, theo dõi cấp/nợ/write-off/blacklist. Không sửa tay số dư/payment/tracking hoặc tùy ý nhập seller level. |
 
 ## 3. Giỏ hàng, checkout và đơn hàng
+
+**Giao diện demo được duyệt 23/10/2026:** hiển thị đồng hồ tại các thao tác có deadline thực tế (payment, return, receipt, dispute, đổi địa chỉ, giữ tiền, xét cấp và nợ). Ví Seller tách Processing/OnHold còn lại theo từng đơn, dùng snapshot đã lưu và nêu lý do còn bị giữ. Hết đếm ngược chỉ là đến hạn; chỉ kết quả server mới xác nhận refund/mở khóa/đổi trạng thái. Không thêm timer giả cho bước chưa có deadline, không thay đổi chính sách hoặc quyền xử lý tiền. [Phạm vi và nguồn deadline](DEMO_COUNTDOWNS.md).
 
 1. Nút **Random** chọn 2–5 sản phẩm còn tồn kho từ đúng hai seller, không phải hàng đấu giá. Giỏ lưu theo buyer trong database; buyer được sửa số lượng, xóa sản phẩm và chọn/sửa địa chỉ trước khi tạo đơn. Nếu xóa hết hàng của một seller, giỏ còn lại được checkout bình thường. Không cần trang danh sách/chi tiết sản phẩm.
 2. Checkout nhóm sản phẩm theo seller và hiển thị số lượng, giá, khối lượng, giảm giá theo từng promotion, phí ship và tổng riêng mỗi nhóm. Mã giảm giá nhập riêng theo seller. Server tính lại toàn bộ khi buyer đổi giỏ/địa chỉ/mã; client không quyết định giá.
@@ -97,7 +99,7 @@ Buyer được **đổi địa chỉ thành công tối đa một lần**, trư�
 
 Trong lúc chờ, địa chỉ cũ còn hiệu lực; chặn bắt đầu giao tới buyer khi yêu cầu còn chờ xác nhận. Có deadline chờ cấu hình được; hết hạn hoặc bị từ chối giữ địa chỉ cũ và không tiêu thụ lượt đổi thành công. Chỉ một yêu cầu đang chờ/đơn. Ngay trước áp dụng đọc lại trạng thái, shipper, cap/báo giá; thay đổi quan trọng phải xác nhận lại. Cập nhật địa chỉ/chi phí/refund/bộ đếm atomic, có lịch sử và chống trùng. Không tự sửa đơn cũ theo sổ địa chỉ. Đây là ngoại lệ mô phỏng, không phải quy trình eBay tiêu chuẩn.
 
-Làm rõ AD1 ngày 20/10: hạn chờ tổng từ khi buyer gửi yêu cầu là 24 giờ mặc định/60 giây Development (`AddressChanges:ConfirmationSeconds`), snapshot theo request, không gia hạn khi chuyển bước. Seller chấp thuận nhưng đã có shipper thì AwaitingShipper; chỉ Approved mới có hiệu lực. Cap/revision, shipper hoặc quote thay đổi quan trọng làm yêu cầu cũ bị từ chối để buyer xem và xác nhận báo giá mới; chưa mất lượt thành công. Request Approved lịch sử giữ nguyên kết quả, không áp lại phí/refund hoặc gán actor cũ không có bằng chứng.
+Làm rõ AD1 ngày 20/10, cập nhật thời gian demo ngày 23/10/2026: hạn chờ tổng từ khi buyer gửi yêu cầu là 24 giờ mặc định/120 giây (2 phút) Development (`AddressChanges:ConfirmationSeconds`), snapshot theo request, không gia hạn khi chuyển bước. Seller chấp thuận nhưng đã có shipper thì AwaitingShipper; chỉ Approved mới có hiệu lực. Cap/revision, shipper hoặc quote thay đổi quan trọng làm yêu cầu cũ bị từ chối để buyer xem và xác nhận báo giá mới; chưa mất lượt thành công. Request Approved lịch sử giữ nguyên kết quả, không áp lại phí/refund hoặc gán actor cũ không có bằng chứng.
 
 ## 7. Trả hàng và refund
 
@@ -166,7 +168,7 @@ Phí nền tảng mặc định là **12% SellerGross + 0,30 USD/đơn**, có gi
 
 Level 1/2 chuyển `Processing → Available` khi đã Delivered chiều đi và hết hold snapshot; trước Delivered chưa có hạn mở khóa. Return/dispute cản trở release. Không dùng Delivered HOẶC hết timer, điều kiện nào đến trước. Level 3 tự ghi net sau phí/bù nợ vào Available ngay khi payment thành công; không chờ giao và không tạo payout tự động.
 
-Cửa sổ return demo 5 phút dài hơn hold 30/15 giây là chủ ý: buyer vẫn được return trong hạn sau release/payout; giữ/thu hồi phần còn có thể dùng, thiếu nguồn bù thực tế thì ghi nợ. Available không đồng nghĩa hết quyền return hoặc chắc chắn được rút; payout kiểm tra riêng `Negative = 0` và trạng thái hạn chế.
+Cập nhật demo 23/10/2026: cửa sổ return 5 phút bằng hold Level 1 (5 phút) và dài hơn hold Level 2 (3 phút). Buyer vẫn được return trong hạn sau release/payout nếu đủ điều kiện; yêu cầu return/dispute đã mở hợp lệ tiếp tục được xử lý sau cửa sổ. Giữ/thu hồi phần còn có thể dùng, thiếu nguồn bù thực tế thì ghi nợ. Available không đồng nghĩa hết quyền return hoặc chắc chắn được rút; payout kiểm tra riêng `Negative = 0` và trạng thái hạn chế.
 
 **Payout chung mọi level:** seller yêu cầu rút thủ công, trừ Available và tạo payout/ledger atomic. Worker/ngân hàng ảo chuyển `Created → InProgress → FundsSent → Completed`; `FundsSent` chưa phải ngân hàng xác nhận hoàn tất. Lỗi ngân hàng đi `FundsSent → Returned`, hoàn hệ thống đúng một lần rồi bù nợ nếu có. Bỏ nhánh Level 3 tạo Completed tức thời trong code cũ. Đích ngân hàng giả lập được che; không tích hợp tiền production.
 
@@ -186,11 +188,11 @@ Reservation capture phải được ghi cùng trạng thái đang xử lý trư�
 
 | Level | Hạn mức mặc định/tháng | Khi Net vào ví | Development | Điều kiện lên cấp |
 | --- | ---: | ---: | ---: | --- |
-| 1 – New | 5.000 USD | 21 ngày sau giao thành công | 30 giây sau Delivered | Mặc định. |
-| 2 – Verified | 10.000 USD | 7 ngày sau giao thành công | 15 giây sau Delivered | ≥20 đơn hoàn tất; feedback tốt ≥90%; giao đúng hạn ≥90%; hoạt động ≥30 ngày; không có nợ âm. |
+| 1 – New | 5.000 USD | 21 ngày sau giao thành công | 5 phút (300 giây) sau Delivered | Mặc định. |
+| 2 – Verified | 10.000 USD | 7 ngày sau giao thành công | 3 phút (180 giây) sau Delivered | ≥20 đơn hoàn tất; feedback tốt ≥90%; giao đúng hạn ≥90%; hoạt động ≥30 ngày; không có nợ âm. |
 | 3 – Trusted / Instant | 1.000.000 USD | Ngay khi thanh toán thành công | 0 giây, không chờ Delivered | ≥100 đơn hoàn tất; feedback tốt ≥97%; giao đúng hạn ≥95%; hoạt động ≥90 ngày; không có nợ âm. |
 
-Tỷ lệ hủy/trả/tranh chấp được hiển thị trong đánh giá và là điều kiện giữ cấp: Level 2 lần lượt không quá 5%/10%/2%; Level 3 không quá 2%/5%/1% trên các order đã thanh toán trong 90 ngày gần nhất. Nếu mẫu dưới 20 order trong cửa sổ 90 ngày, giữ cấp hiện tại trừ khi có nợ hoặc tài khoản bị hạn chế. Số đơn hoàn tất tính cộng dồn theo đơn đã thanh toán có trạng thái Delivered/Closed hoặc bằng chứng giao thành công chiều đi; feedback và đúng hạn dùng các order trong cửa sổ có dữ liệu tương ứng; không coi thiếu feedback là đánh giá xấu. Worker đánh giá định kỳ và seller có nút yêu cầu đánh giá lại; thay đổi level/hold chỉ áp dụng cho settlement mới, không đổi lịch tiền của order cũ.
+Tỷ lệ hủy/trả/tranh chấp được hiển thị trong đánh giá và là điều kiện giữ cấp: Level 2 lần lượt không quá 5%/10%/2%; Level 3 không quá 2%/5%/1% trên các order đã thanh toán trong 90 ngày gần nhất. Nếu mẫu dưới 20 order trong cửa sổ 90 ngày, giữ cấp hiện tại trừ khi có nợ hoặc tài khoản bị hạn chế. Số đơn hoàn tất tính cộng dồn theo đơn đã thanh toán có trạng thái Delivered/Closed hoặc bằng chứng giao thành công chiều đi; feedback và đúng hạn dùng các order trong cửa sổ có dữ liệu tương ứng; không coi thiếu feedback là đánh giá xấu. Worker đánh giá định kỳ (mặc định mỗi giờ, Development mỗi 60 giây/1 phút từ 23/10/2026) và seller có nút yêu cầu đánh giá lại; thay đổi level/hold chỉ áp dụng cho settlement mới, không đổi lịch tiền của order cũ.
 
 **Instant ở Level 3** nghĩa là Net sau phí và bù nợ tự vào số dư ví `Available` ngay khi payment thành công; không tạo `SellerPayout` và không ghi khoản nhận vào ví là `PaidOut`. Return/dispute/refund phát sinh sau đó vẫn khóa hoặc thu hồi tiền theo nghiệp vụ. Đây là quy ước mô phỏng đã được xác nhận ngày 14/10/2026, không phải cam kết eBay thật xử lý thanh toán tức thời.
 
@@ -217,7 +219,7 @@ Các kịch bản tối thiểu để nghiệm thu:
 3. Seller tạo vận đơn; một shipper nhận; tracking giao thành công và giao thất bại/chuyển hoàn đều đúng thứ tự.
 4. Return được duyệt khóa tiền, có tracking chiều về; seller xác nhận thì tự refund; không phản hồi 48 giờ thì worker tự refund một lần.
 5. Seller từ chối return; buyer mở dispute trong 3 ngày; Admin xử lý thắng/thua/hoàn một phần, tiền OnHold và fee credit khớp refund.
-6. Level 3 tự nhận Net vào ví khi payment thành công, không cần payout. Level 1/2 chờ đúng thời gian tính từ Delivered; Development dùng 30/15 giây. Payout `Returned` trả tiền lại một lần. Mức phí admin theo thời điểm hiệu lực và fee snapshot của đơn cũ được giữ nguyên.
+6. Level 3 tự nhận Net vào ví khi payment thành công, không cần payout. Level 1/2 chờ đúng thời gian tính từ Delivered; Development dùng 300/180 giây (5/3 phút). Payout `Returned` trả tiền lại một lần. Mức phí admin theo thời điểm hiệu lực và fee snapshot của đơn cũ được giữ nguyên.
 7. Refund gây `Negative`, khóa payout, doanh thu mới bù nợ; quá 7 ngày bật cảnh báo, đình chỉ; trả hết nợ gỡ đình chỉ hoặc worker tự write-off và blacklist khi đủ tiêu chí.
 
 ### 12.1. Bảng thời hạn làm căn cứ triển khai
@@ -230,7 +232,9 @@ Các kịch bản tối thiểu để nghiệm thu:
 | Buyer phản đối từ RejectedAt | 3 ngày | **45 giây**, cấu hình riêng |
 | Seller/buyer trả lời phương án dispute | Theo chính sách hồ sơ hiện có | 45 giây mỗi lượt |
 | Buyer mở INR từ ngày giao dự kiến | 30 ngày | **300 giây**, cửa sổ riêng |
-| Hold Level 1/2 từ Delivered chiều đi | 21/7 ngày | 30/15 giây |
+| Hold Level 1/2 từ Delivered chiều đi | 21/7 ngày | 300/180 giây (5/3 phút) |
+| Tự đánh giá seller level | 1 giờ/lần | 60 giây (1 phút)/lần |
+| Xác nhận đổi địa chỉ từ lúc gửi yêu cầu | 24 giờ | 120 giây (2 phút), chung deadline seller/shipper |
 | Nợ quá hạn từ bắt đầu nợ liên tục | 7 ngày | 60 giây, cảnh báo trước 15 giây |
 | Write-off / không có thu hồi | 30 ngày / 7 ngày | 300 / 60 giây |
 

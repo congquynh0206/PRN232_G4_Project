@@ -2,9 +2,11 @@
 
 **Căn cứ mới 18/10/2026:** [đặc tả §10](BUSINESS_REQUIREMENTS.md#10-seller-level-và-hạn-mức) và [LIM1](IMPLEMENTATION_BACKLOG.md#9-lim1--admin-hạn-mức-riêng-seller). Giữ tự xét cấp và các ngưỡng hiện có; bổ sung admin override hạn mức riêng seller có lịch sử/hiệu lực. Quyền mới không cho nhập level tùy ý, không reset hold/fee settlement cũ và không tự xóa override khi đổi cấp. UI cấu hình override chưa có chỉ từ tài liệu này.
 
-Seller và admin có tab **Cấp seller**. Hệ thống tự xét theo dữ liệu đơn; seller có thể yêu cầu xét lại, admin chỉ xem tiêu chí, kết quả và lịch sử. Worker kiểm tra mỗi 5 giây và chỉ xét seller đến hạn: mặc định mỗi **3.600 giây**, Development mỗi **15 giây**, tối đa 50 seller mỗi lượt. Seller mới sạch giữ cấp 1, Active và không bị khóa chỉ vì chưa có dữ liệu.
+Seller và admin có tab **Cấp seller**. Hệ thống tự xét theo dữ liệu đơn; seller có thể yêu cầu xét lại, admin chỉ xem tiêu chí, kết quả và lịch sử. Worker kiểm tra mỗi 5 giây và chỉ xét seller đến hạn: mặc định mỗi **3.600 giây**, Development mỗi **60 giây (1 phút)**, tối đa 50 seller mỗi lượt. Seller mới sạch giữ cấp 1, Active và không bị khóa chỉ vì chưa có dữ liệu.
 
 ## Buyer đánh giá seller
+
+Giao diện 23/10/2026 hiển thị đếm ngược tới NextEvaluationAt trên chi tiết cấp seller của Seller/Admin; tới hạn ghi đang chờ hệ thống đánh giá, chỉ dữ liệu mới từ server mới thay level/kết quả. Không đếm lại từ đầu khi tải trang và không đặt deadline giả nếu chưa có lượt xét đầu tiên. [Hướng dẫn chung](DEMO_COUNTDOWNS.md).
 
 Trong chi tiết đơn trên trang Buyer, nút **Đánh giá seller** xuất hiện khi đơn đã thanh toán thành công và đang Delivered hoặc Closed. Chỉ buyer của đơn được gửi; cấm tự đánh giá. Chọn 1–5 sao, nhận xét không bắt buộc, tối đa 2.000 ký tự. Mỗi đơn có một đánh giá bất biến; 4–5 sao là tích cực, 1–3 sao không tích cực. Không tính đơn chưa được đánh giá thành phản hồi xấu.
 
@@ -36,7 +38,7 @@ Các mức dưới đây là giá trị mặc định cho bộ tiêu chí mở r
 
 ## Tài chính, đồng thời và lịch sử
 
-Cấp 1/2/3 mặc định có hạn mức tháng 5.000/10.000/1.000.000 USD và giữ tiền 21/7/0 ngày; Development 30/15/0 giây. Đổi cấp chỉ cập nhật chính sách tài khoản dùng cho settlement **tạo mới**. Không đổi LevelSnapshot, HoldSecondsSnapshot, ReleaseAt, phí, số dư, doanh số đã ghi nhận hoặc payout của giao dịch cũ. Nếu hạ cấp làm doanh số đã dùng vượt hạn mức mới, seller phải chờ tháng mới hoặc đủ điều kiện nâng cấp trước khi nhận thêm doanh số.
+Cấp 1/2/3 mặc định có hạn mức tháng 5.000/10.000/1.000.000 USD và giữ tiền 21/7/0 ngày; Development 300/180/0 giây (5 phút/3 phút/tức thời), cập nhật ngày 23/10/2026. Đổi cấp chỉ cập nhật chính sách tài khoản dùng cho settlement **tạo mới**. Không đổi LevelSnapshot, HoldSecondsSnapshot, ReleaseAt, phí, số dư, doanh số đã ghi nhận hoặc payout của giao dịch cũ. Nếu hạ cấp làm doanh số đã dùng vượt hạn mức mới, seller phải chờ tháng mới hoặc đủ điều kiện nâng cấp trước khi nhận thêm doanh số.
 
 Worker và thao tác seller cùng khóa tài chính với thanh toán, đọc lại cấp/nợ/hạn chế trước khi lưu. Worker kiểm tra lại thời điểm xét dưới khóa nên hai worker không ghi hai lần cho cùng lượt đến hạn. Đọc dữ liệu hiệu suất trước khi lấy khóa tài chính để tránh đảo thứ tự khóa với payment. Dữ liệu nhiều truy vấn có thể thay đổi khi có đơn/feedback đồng thời; lần xét kế tiếp cập nhật các sự kiện mới. Nợ/hạn chế quyết định tại lúc ghi luôn được đọc lại dưới khóa.
 

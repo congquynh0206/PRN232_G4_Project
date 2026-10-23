@@ -1,5 +1,7 @@
 # Trả hàng tự hoàn tiền, phí ship theo kg và shipper nhận vận đơn
 
+**Đồng hồ 23/10/2026:** receipt hiện ở chi tiết đơn Buyer/Seller và tab trả hàng Seller; Shipper xem đồng hồ xác nhận địa chỉ trong thông báo địa chỉ. Tất cả dùng deadline server; về 0 vẫn chờ kết quả xử lý, không tự coi hàng đã được giao hoặc tiền đã hoàn. [Hướng dẫn chung](DEMO_COUNTDOWNS.md).
+
 **Căn cứ mới 18/10/2026:** [đặc tả §6–8](BUSINESS_REQUIREMENTS.md). SH1 và RT1 đã triển khai/nghiệm thu source ngày 20/10, cần migration trước khi chạy. [RT1](RETURN_WINDOW_POLICY.md) dùng deadline snapshot từ Outbound Delivered: mặc định 7 ngày/Development 300 giây cho delivery mới; legacy đã giao giữ 7 ngày. Receipt mặc định 48 giờ/Development 45 giây từ Return Delivered vẫn riêng. RT2/INR1/free returns theo item chưa hoàn thành; không thay khóa receipt để làm cửa sổ mở request.
 
 ## SH1 — Lên lịch giao lại và actor 20/10/2026

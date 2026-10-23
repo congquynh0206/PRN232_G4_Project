@@ -9,14 +9,14 @@ internal static class FinancePolicyChecks
 {
     public static async Task RunAsync()
     {
-        await DeliveryHoldsAsync(1, 30);
-        await DeliveryHoldsAsync(2, 15);
+        await DeliveryHoldsAsync(1, 300);
+        await DeliveryHoldsAsync(2, 180);
         await InstantWalletAsync();
         await ProductionAndUnconfirmedAsync();
         await FeeChangesAsync();
         await LegacyAsync();
         Console.WriteLine(
-            "Finance policy: delivery-based holds, 30/15/0 seconds, Instant wallet, fee effective dates, audit and snapshots passed"
+            "Finance policy: delivery-based holds, 300/180/0 seconds, Instant wallet, fee effective dates, audit and snapshots passed"
         );
     }
 
@@ -432,8 +432,8 @@ internal static class FinancePolicyChecks
                 .AddInMemoryCollection(
                     new Dictionary<string, string?>
                     {
-                        ["Finance:Levels:1:HoldSeconds"] = "30",
-                        ["Finance:Levels:2:HoldSeconds"] = "15",
+                        ["Finance:Levels:1:HoldSeconds"] = "300",
+                        ["Finance:Levels:2:HoldSeconds"] = "180",
                     }
                 )
                 .Build();
