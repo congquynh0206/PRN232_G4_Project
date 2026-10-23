@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
 namespace G4.Infrastructure.Persistence;
+
 public partial class ApplicationDbContext
 {
     public DbSet<IntegrationLog> IntegrationLogs => Set<IntegrationLog>();
@@ -14,8 +15,14 @@ public partial class ApplicationDbContext
             e.Property(x => x.LastErrorCode).HasMaxLength(64);
             e.Property(x => x.LastErrorSummary).HasMaxLength(300);
             e.HasIndex(x => new { x.RecipientUserId, x.CreatedAt });
-            e.HasOne<User>().WithMany().HasForeignKey(x => x.RecipientUserId).OnDelete(DeleteBehavior.NoAction);
-            e.HasOne<SellerPayout>().WithMany().HasForeignKey(x => x.PayoutId).OnDelete(DeleteBehavior.NoAction);
+            e.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(x => x.RecipientUserId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasOne<SellerPayout>()
+                .WithMany()
+                .HasForeignKey(x => x.PayoutId)
+                .OnDelete(DeleteBehavior.NoAction);
             e.HasIndex(x => new { x.Status, x.NextAttemptAt });
             e.HasIndex(x => new { x.Status, x.ProcessingUntil });
         });
@@ -32,9 +39,24 @@ public partial class ApplicationDbContext
             e.Property(x => x.ProviderReference).HasMaxLength(200);
             e.Property(x => x.ErrorCode).HasMaxLength(64);
             e.Property(x => x.ErrorSummary).HasMaxLength(300);
-            e.HasIndex(x => new { x.OrderId, x.CreatedAt, x.Id });
-            e.HasIndex(x => new { x.Service, x.CreatedAt, x.Id });
-            e.HasIndex(x => new { x.NotificationId, x.CreatedAt, x.Id });
+            e.HasIndex(x => new
+            {
+                x.OrderId,
+                x.CreatedAt,
+                x.Id,
+            });
+            e.HasIndex(x => new
+            {
+                x.Service,
+                x.CreatedAt,
+                x.Id,
+            });
+            e.HasIndex(x => new
+            {
+                x.NotificationId,
+                x.CreatedAt,
+                x.Id,
+            });
         });
     }
 }

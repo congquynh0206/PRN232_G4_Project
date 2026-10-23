@@ -21,6 +21,8 @@ Yêu cầu mới nhất của người dùng ưu tiên hơn tài liệu. Nếu t
 
 ## Khi triển khai và hoàn tất
 
+- Trình bày code dễ đọc: thụt lề nhất quán (C#/Razor 4 dấu cách, JavaScript/CSS 2 dấu cách), ưu tiên dòng tối đa 100 ký tự. Xuống dòng cho danh sách tham số, chuỗi gọi hàm, điều kiện và thuộc tính HTML dài; không dồn nhiều câu lệnh hoặc cả khối xử lý lên một dòng. Giữ nguyên nội dung chuỗi khi format, không đổi logic chỉ để rút ngắn dòng. Tuân theo `.editorconfig` và cấu hình formatter trong repo.
+
 - Giữ một seller/order, cart tối đa hai seller, return toàn bộ, một kiện mỗi chiều; không tự thêm chat/COD/catalog đầy đủ.
 - Dùng migration giữ dữ liệu, snapshot và lịch sử cũ; không chạy lại baseline trên database có dữ liệu. Không suy diễn trạng thái database chính từ QA/source.
 - Mọi thay đổi tiền phải kiểm tra quyền server, idempotency, transaction, tính đồng thời và retry/rollback. Không giả Succeeded khi provider còn pending/Verifying.

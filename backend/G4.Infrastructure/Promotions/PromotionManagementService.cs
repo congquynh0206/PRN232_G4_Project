@@ -1,10 +1,11 @@
-using G4.Contracts.Checkout;
-using Microsoft.EntityFrameworkCore;
+using System.Data;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Data;
+using G4.Contracts.Checkout;
+using Microsoft.EntityFrameworkCore;
 
 namespace G4.Infrastructure.Promotions;
+
 public sealed class PromotionManagementService(ApplicationDbContext db)
 {
     public async Task<PromotionView> SaveAsync(
@@ -15,13 +16,24 @@ public sealed class PromotionManagementService(ApplicationDbContext db)
         CancellationToken ct = default
     )
     {
-        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction == null ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct) : null;
+        await using var tx =
+            db.Database.IsRelational() && db.Database.CurrentTransaction == null
+                ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct)
+                : null;
         await PromotionLifecycle.LockReservationsAsync(db, ct);
         if (id.HasValue && db.Database.IsRelational())
-            await db.Promotions.FromSqlInterpolated($"SELECT * FROM Promotion WITH (UPDLOCK,HOLDLOCK) WHERE Id={id.Value}")
+            await db
+                .Promotions.FromSqlInterpolated(
+                    $"SELECT * FROM Promotion WITH (UPDLOCK,HOLDLOCK) WHERE Id={id.Value}"
+                )
                 .AsNoTracking()
                 .ToListAsync(ct);
-        var p = id.HasValue ? await db.Promotions.Include(x => x.Targets).Include(x => x.Tiers).SingleOrDefaultAsync(x => x.Id == id, ct) : null;
+        var p = id.HasValue
+            ? await db
+                .Promotions.Include(x => x.Targets)
+                .Include(x => x.Tiers)
+                .SingleOrDefaultAsync(x => x.Id == id, ct)
+            : null;
         if (id.HasValue && p == null)
             throw new KeyNotFoundException("Không tìm thấy khuyến mãi.");
         if (p != null)
@@ -33,44 +45,66 @@ public sealed class PromotionManagementService(ApplicationDbContext db)
                 throw new ArgumentException("Không thể đổi loại khuyến mãi.");
         }
 
-        if (!new[]
-        {
-            "Sale",
-            "Volume",
-            "Order",
-            "Coupon",
-            "Shipping"
-        }.Contains(input.Type) || admin && input.Type != "Coupon")
+        if (
+            !new[] { "Sale", "Volume", "Order", "Coupon", "Shipping" }.Contains(input.Type)
+            || admin && input.Type != "Coupon"
+        )
             throw new ArgumentException("Loại khuyến mãi không hợp lệ.");
         var code = input.Type == "Coupon" ? NormalizeCode(input.Code) : null;
         if (p != null && p.Code != code)
             throw new ArgumentException("Không thể đổi mã coupon.");
-        if (code != null && await db.Promotions.AnyAsync(x => x.Code == code && x.Id != (id ?? 0), ct))
+        if (
+            code != null
+            && await db.Promotions.AnyAsync(x => x.Code == code && x.Id != (id ?? 0), ct)
+        )
             throw new InvalidOperationException("Mã coupon đã tồn tại.");
         Validate(input);
         var owner = admin ? input.SellerId : actor;
         if (p != null && p.SellerId != owner)
             throw new ArgumentException("Không thể đổi shop của khuyến mãi.");
-        if (owner.HasValue && !await db.Users.AnyAsync(x => x.Id == owner && x.Role == "seller", ct))
+        if (
+            owner.HasValue && !await db.Users.AnyAsync(x => x.Id == owner && x.Role == "seller", ct)
+        )
             throw new ArgumentException("Shop không hợp lệ.");
         var products = input.ProductIds.Distinct().ToArray();
         var categories = input.CategoryIds.Distinct().ToArray();
         if (products.Length > 0 && categories.Length > 0)
             throw new ArgumentException("Chọn sản phẩm hoặc danh mục.");
-        if (await db.Products.CountAsync(x => products.Contains(x.Id) && (!owner.HasValue || x.SellerId == owner), ct) != products.Length)
+        if (
+            await db.Products.CountAsync(
+                x => products.Contains(x.Id) && (!owner.HasValue || x.SellerId == owner),
+                ct
+            ) != products.Length
+        )
             throw new UnauthorizedAccessException("Có sản phẩm không thuộc shop được chọn.");
-        if (await db.Categories.CountAsync(
-            x => categories.Contains(x.Id) && (!owner.HasValue || db.Products.Any(p => p.CategoryId == x.Id && p.SellerId == owner)),
-            ct
-        ) != categories.Length)
+        if (
+            await db.Categories.CountAsync(
+                x =>
+                    categories.Contains(x.Id)
+                    && (
+                        !owner.HasValue
+                        || db.Products.Any(p => p.CategoryId == x.Id && p.SellerId == owner)
+                    ),
+                ct
+            ) != categories.Length
+        )
             throw new ArgumentException("Danh mục không hợp lệ hoặc không có sản phẩm thuộc shop.");
         if (p != null)
         {
             if (!admin && p.AdminPaused && !input.IsPaused)
                 throw new UnauthorizedAccessException("Khuyến mãi đang bị admin đình chỉ.");
-            var usage = await db.PromotionUsages.Where(x => x.PromotionId == p.Id && x.State != "Released").ToListAsync(ct);
-            if (input.MaxUsage.HasValue && input.MaxUsage < usage.Count || input.Budget.HasValue && input.Budget < usage.Sum(x => x.Amount) || input.MaxUsagePerBuyer.HasValue && usage.GroupBy(x => x.BuyerId).Any(g => g.Count() > input.MaxUsagePerBuyer))
-                throw new ArgumentException("Giới hạn mới thấp hơn lượt dùng hoặc ngân sách đang được giữ.");
+            var usage = await db
+                .PromotionUsages.Where(x => x.PromotionId == p.Id && x.State != "Released")
+                .ToListAsync(ct);
+            if (
+                input.MaxUsage.HasValue && input.MaxUsage < usage.Count
+                || input.Budget.HasValue && input.Budget < usage.Sum(x => x.Amount)
+                || input.MaxUsagePerBuyer.HasValue
+                    && usage.GroupBy(x => x.BuyerId).Any(g => g.Count() > input.MaxUsagePerBuyer)
+            )
+                throw new ArgumentException(
+                    "Giới hạn mới thấp hơn lượt dùng hoặc ngân sách đang được giữ."
+                );
             db.PromotionTargets.RemoveRange(p.Targets);
             db.PromotionTiers.RemoveRange(p.Tiers);
             p.Targets = [];
@@ -84,7 +118,7 @@ public sealed class PromotionManagementService(ApplicationDbContext db)
                 SellerId = owner,
                 FundingSource = admin ? "Platform" : "Seller",
                 CreatedById = actor,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
             };
             db.Promotions.Add(p);
         }
@@ -114,9 +148,24 @@ public sealed class PromotionManagementService(ApplicationDbContext db)
         p.Targets.AddRange(products.Select(x => new PromotionTarget { ProductId = x }));
         p.Targets.AddRange(categories.Select(x => new PromotionTarget { CategoryId = x }));
         if (input.Type == "Volume")
-            p.Tiers.AddRange(input.Tiers.Select(x => new PromotionTier { MinQuantity = x.MinQuantity, Percent = x.Percent }));
+            p.Tiers.AddRange(
+                input.Tiers.Select(x => new PromotionTier
+                {
+                    MinQuantity = x.MinQuantity,
+                    Percent = x.Percent,
+                })
+            );
         await db.SaveChangesAsync(ct);
-        db.PromotionAudits.Add(new PromotionAudit { PromotionId = p.Id, ActorId = actor, Action = id.HasValue ? "Edit" : "Create", ChangesJson = JsonSerializer.Serialize(input), CreatedAt = DateTime.UtcNow });
+        db.PromotionAudits.Add(
+            new PromotionAudit
+            {
+                PromotionId = p.Id,
+                ActorId = actor,
+                Action = id.HasValue ? "Edit" : "Create",
+                ChangesJson = JsonSerializer.Serialize(input),
+                CreatedAt = DateTime.UtcNow,
+            }
+        );
         await db.SaveChangesAsync(ct);
         if (tx != null)
             await tx.CommitAsync(ct);
@@ -131,18 +180,31 @@ public sealed class PromotionManagementService(ApplicationDbContext db)
         CancellationToken ct = default
     )
     {
-        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction == null ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct) : null;
+        await using var tx =
+            db.Database.IsRelational() && db.Database.CurrentTransaction == null
+                ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct)
+                : null;
         await PromotionLifecycle.LockReservationsAsync(db, ct);
         if (db.Database.IsRelational())
-            await db.Promotions.FromSqlInterpolated($"SELECT * FROM Promotion WITH (UPDLOCK,HOLDLOCK) WHERE Id={id}")
+            await db
+                .Promotions.FromSqlInterpolated(
+                    $"SELECT * FROM Promotion WITH (UPDLOCK,HOLDLOCK) WHERE Id={id}"
+                )
                 .AsNoTracking()
                 .ToListAsync(ct);
-        var p = await db.Promotions.Include(x => x.Targets).Include(x => x.Tiers).SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new KeyNotFoundException("Không tìm thấy khuyến mãi.");
+        var p =
+            await db
+                .Promotions.Include(x => x.Targets)
+                .Include(x => x.Tiers)
+                .SingleOrDefaultAsync(x => x.Id == id, ct)
+            ?? throw new KeyNotFoundException("Không tìm thấy khuyến mãi.");
         EnsureOwner(p, actor, admin);
         if (p.Version != input.Version)
             throw new InvalidOperationException("Khuyến mãi đã thay đổi. Hãy tải lại.");
         if (!admin && p.AdminPaused && !input.Paused)
-            throw new UnauthorizedAccessException("Khuyến mãi bị admin đình chỉ. Cần gỡ đình chỉ trước khi seller kích hoạt lại.");
+            throw new UnauthorizedAccessException(
+                "Khuyến mãi bị admin đình chỉ. Cần gỡ đình chỉ trước khi seller kích hoạt lại."
+            );
         if (input.Reason?.Length > 1000)
             throw new ArgumentException("Lý do tối đa 1000 ký tự.");
         p.IsPaused = input.Paused;
@@ -152,7 +214,16 @@ public sealed class PromotionManagementService(ApplicationDbContext db)
             p.PauseReason = input.Paused ? input.Reason?.Trim() : null;
         p.Version++;
         p.UpdatedAt = DateTime.UtcNow;
-        db.PromotionAudits.Add(new PromotionAudit { PromotionId = id, ActorId = actor, Action = input.Paused ? "Pause" : "Resume", Reason = input.Reason, CreatedAt = DateTime.UtcNow });
+        db.PromotionAudits.Add(
+            new PromotionAudit
+            {
+                PromotionId = id,
+                ActorId = actor,
+                Action = input.Paused ? "Pause" : "Resume",
+                Reason = input.Reason,
+                CreatedAt = DateTime.UtcNow,
+            }
+        );
         await db.SaveChangesAsync(ct);
         if (tx != null)
             await tx.CommitAsync(ct);
@@ -167,51 +238,107 @@ public sealed class PromotionManagementService(ApplicationDbContext db)
     )
     {
         if (!await db.Users.AnyAsync(x => x.Id == actor && x.Role == "admin", ct))
-            throw new UnauthorizedAccessException("Chỉ admin được đình chỉ hoặc gỡ đình chỉ khuyến mãi shop.");
+            throw new UnauthorizedAccessException(
+                "Chỉ admin được đình chỉ hoặc gỡ đình chỉ khuyến mãi shop."
+            );
         if (string.IsNullOrWhiteSpace(input.Reason) || input.Reason.Length > 1000)
             throw new ArgumentException("Cần lý do đình chỉ hoặc gỡ đình chỉ, tối đa 1000 ký tự.");
-        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction == null ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct) : null;
+        await using var tx =
+            db.Database.IsRelational() && db.Database.CurrentTransaction == null
+                ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct)
+                : null;
         await PromotionLifecycle.LockReservationsAsync(db, ct);
         if (db.Database.IsRelational())
-            await db.Promotions.FromSqlInterpolated($"SELECT * FROM Promotion WITH (UPDLOCK,HOLDLOCK) WHERE Id={id}")
+            await db
+                .Promotions.FromSqlInterpolated(
+                    $"SELECT * FROM Promotion WITH (UPDLOCK,HOLDLOCK) WHERE Id={id}"
+                )
                 .AsNoTracking()
                 .ToListAsync(ct);
-        var p = await db.Promotions.Include(x => x.Targets).Include(x => x.Tiers).SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new KeyNotFoundException("Không tìm thấy khuyến mãi.");
+        var p =
+            await db
+                .Promotions.Include(x => x.Targets)
+                .Include(x => x.Tiers)
+                .SingleOrDefaultAsync(x => x.Id == id, ct)
+            ?? throw new KeyNotFoundException("Không tìm thấy khuyến mãi.");
         if (p.FundingSource != "Seller")
-            throw new UnauthorizedAccessException("Mã nền tảng dùng quyền bật/tắt của admin, không dùng đình chỉ shop.");
+            throw new UnauthorizedAccessException(
+                "Mã nền tảng dùng quyền bật/tắt của admin, không dùng đình chỉ shop."
+            );
         if (p.Version != input.Version)
             throw new InvalidOperationException("Khuyến mãi đã thay đổi. Hãy tải lại.");
         if (p.AdminPaused == input.Suspended)
-            throw new InvalidOperationException(input.Suspended ? "Khuyến mãi đã bị đình chỉ." : "Khuyến mãi không bị đình chỉ.");
+            throw new InvalidOperationException(
+                input.Suspended ? "Khuyến mãi đã bị đình chỉ." : "Khuyến mãi không bị đình chỉ."
+            );
         p.AdminPaused = input.Suspended;
         p.IsPaused = true;
         p.PauseReason = input.Suspended ? input.Reason.Trim() : null;
         p.Version++;
         p.UpdatedAt = DateTime.UtcNow;
-        db.PromotionAudits.Add(new PromotionAudit { PromotionId = id, ActorId = actor, Action = input.Suspended ? "Suspend" : "ReleaseSuspension", Reason = input.Reason.Trim(), CreatedAt = DateTime.UtcNow });
+        db.PromotionAudits.Add(
+            new PromotionAudit
+            {
+                PromotionId = id,
+                ActorId = actor,
+                Action = input.Suspended ? "Suspend" : "ReleaseSuspension",
+                Reason = input.Reason.Trim(),
+                CreatedAt = DateTime.UtcNow,
+            }
+        );
         await db.SaveChangesAsync(ct);
         if (tx != null)
             await tx.CommitAsync(ct);
         return await ViewAsync(p, ct);
     }
 
-    public async Task<PromotionView> ReadAsync(int actor, bool admin, int id, CancellationToken ct = default)
+    public async Task<PromotionView> ReadAsync(
+        int actor,
+        bool admin,
+        int id,
+        CancellationToken ct = default
+    )
     {
-        var p = await db.Promotions.AsNoTracking().Include(x => x.Targets).Include(x => x.Tiers).SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new KeyNotFoundException("Không tìm thấy khuyến mãi.");
+        var p =
+            await db
+                .Promotions.AsNoTracking()
+                .Include(x => x.Targets)
+                .Include(x => x.Tiers)
+                .SingleOrDefaultAsync(x => x.Id == id, ct)
+            ?? throw new KeyNotFoundException("Không tìm thấy khuyến mãi.");
         if (!admin)
             EnsureOwner(p, actor, false);
         return await ViewAsync(p, ct);
     }
 
-    public async Task<object> AuditsAsync(int actor, bool admin, int id, CancellationToken ct = default)
+    public async Task<object> AuditsAsync(
+        int actor,
+        bool admin,
+        int id,
+        CancellationToken ct = default
+    )
     {
         await ReadAsync(actor, admin, id, ct);
-        return await db.PromotionAudits.AsNoTracking().Where(x => x.PromotionId == id).OrderByDescending(x => x.Id).Join(
-            db.Users,
-            x => x.ActorId,
-            u => u.Id,
-            (x, u) => new { x.Id, x.ActorId, actorName = u.Username, x.Action, x.Reason, x.CreatedAt, x.ChangesJson }
-        )
+        return await db
+            .PromotionAudits.AsNoTracking()
+            .Where(x => x.PromotionId == id)
+            .OrderByDescending(x => x.Id)
+            .Join(
+                db.Users,
+                x => x.ActorId,
+                u => u.Id,
+                (x, u) =>
+                    new
+                    {
+                        x.Id,
+                        x.ActorId,
+                        actorName = u.Username,
+                        x.Action,
+                        x.Reason,
+                        x.CreatedAt,
+                        x.ChangesJson,
+                    }
+            )
             .ToListAsync(ct);
     }
 
@@ -229,7 +356,9 @@ public sealed class PromotionManagementService(ApplicationDbContext db)
     )
     {
         var now = DateTime.UtcNow;
-        var scope = db.Promotions.AsNoTracking().Where(x => admin || x.SellerId == actor && x.FundingSource == "Seller");
+        var scope = db
+            .Promotions.AsNoTracking()
+            .Where(x => admin || x.SellerId == actor && x.FundingSource == "Seller");
         if (admin && sellerId.HasValue)
             scope = scope.Where(x => x.SellerId == sellerId);
         if (fundingSource != "all")
@@ -237,17 +366,22 @@ public sealed class PromotionManagementService(ApplicationDbContext db)
         var counts = new PromotionCounts(
             await scope.CountAsync(ct),
             await scope.CountAsync(x => !x.IsPaused && !x.AdminPaused && x.StartAt > now, ct),
-            await scope.CountAsync(x => !x.IsPaused && !x.AdminPaused && x.StartAt <= now && x.EndAt > now, ct),
+            await scope.CountAsync(
+                x => !x.IsPaused && !x.AdminPaused && x.StartAt <= now && x.EndAt > now,
+                ct
+            ),
             await scope.CountAsync(x => x.IsPaused || x.AdminPaused, ct),
             await scope.CountAsync(x => !x.IsPaused && !x.AdminPaused && x.EndAt <= now, ct)
         );
         scope = filter switch
         {
             "scheduled" => scope.Where(x => !x.IsPaused && !x.AdminPaused && x.StartAt > now),
-            "active" => scope.Where(x => !x.IsPaused && !x.AdminPaused && x.StartAt <= now && x.EndAt > now),
+            "active" => scope.Where(x =>
+                !x.IsPaused && !x.AdminPaused && x.StartAt <= now && x.EndAt > now
+            ),
             "paused" => scope.Where(x => x.IsPaused || x.AdminPaused),
             "ended" => scope.Where(x => !x.IsPaused && !x.AdminPaused && x.EndAt <= now),
-            _ => scope
+            _ => scope,
         };
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -260,7 +394,11 @@ public sealed class PromotionManagementService(ApplicationDbContext db)
         pageSize = Math.Clamp(pageSize, 1, 50);
         var total = await scope.CountAsync(ct);
         page = Math.Clamp(page, 1, Math.Max(1, (total + pageSize - 1) / pageSize));
-        var rows = await scope.Include(x => x.Targets).Include(x => x.Tiers).OrderByDescending(x => x.Id).Skip((page - 1) * pageSize)
+        var rows = await scope
+            .Include(x => x.Targets)
+            .Include(x => x.Tiers)
+            .OrderByDescending(x => x.Id)
+            .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(ct);
         var views = new List<PromotionView>();
@@ -269,19 +407,36 @@ public sealed class PromotionManagementService(ApplicationDbContext db)
         return new(page, pageSize, total, counts, views);
     }
 
-    public async Task<object> OptionsAsync(int actor, bool admin, CancellationToken ct = default) => new
-    {
-        products = await db.Products.Where(x => admin || x.SellerId == actor).Select(x => new { x.Id, x.Title, x.CategoryId, x.SellerId })
-            .ToListAsync(ct),
-        categories = await db.Categories.Where(x => admin || db.Products.Any(p => p.SellerId == actor && p.CategoryId == x.Id))
-            .Select(x => new { x.Id, name = x.Name })
-            .ToListAsync(ct),
-        sellers = await db.Users.Where(x => x.Role == "seller" && (admin || x.Id == actor)).Select(x => new { x.Id, name = x.Username })
-            .ToListAsync(ct)
-    };
+    public async Task<object> OptionsAsync(int actor, bool admin, CancellationToken ct = default) =>
+        new
+        {
+            products = await db
+                .Products.Where(x => admin || x.SellerId == actor)
+                .Select(x => new
+                {
+                    x.Id,
+                    x.Title,
+                    x.CategoryId,
+                    x.SellerId,
+                })
+                .ToListAsync(ct),
+            categories = await db
+                .Categories.Where(x =>
+                    admin || db.Products.Any(p => p.SellerId == actor && p.CategoryId == x.Id)
+                )
+                .Select(x => new { x.Id, name = x.Name })
+                .ToListAsync(ct),
+            sellers = await db
+                .Users.Where(x => x.Role == "seller" && (admin || x.Id == actor))
+                .Select(x => new { x.Id, name = x.Username })
+                .ToListAsync(ct),
+        };
+
     private async Task<PromotionView> ViewAsync(Promotion p, CancellationToken ct)
     {
-        var usage = await db.PromotionUsages.AsNoTracking().Where(x => x.PromotionId == p.Id && x.State != "Released")
+        var usage = await db
+            .PromotionUsages.AsNoTracking()
+            .Where(x => x.PromotionId == p.Id && x.State != "Released")
             .ToListAsync(ct);
         var now = DateTime.UtcNow;
         return new()
@@ -307,21 +462,37 @@ public sealed class PromotionManagementService(ApplicationDbContext db)
             MaxUsage = p.MaxUsage,
             MaxUsagePerBuyer = p.MaxUsagePerBuyer,
             Budget = p.Budget,
-            ProductIds = p.Targets.Where(x => x.ProductId.HasValue).Select(x => x.ProductId!.Value).ToArray(),
-            CategoryIds = p.Targets.Where(x => x.CategoryId.HasValue).Select(x => x.CategoryId!.Value).ToArray(),
-            Tiers = p.Tiers.OrderBy(x => x.MinQuantity).Select(x => new PromotionTierInput(x.MinQuantity, x.Percent))
+            ProductIds = p
+                .Targets.Where(x => x.ProductId.HasValue)
+                .Select(x => x.ProductId!.Value)
                 .ToArray(),
-            Status = p.IsPaused || p.AdminPaused ? "Paused" : p.StartAt > now ? "Scheduled" : p.EndAt <= now ? "Ended" : "Active",
+            CategoryIds = p
+                .Targets.Where(x => x.CategoryId.HasValue)
+                .Select(x => x.CategoryId!.Value)
+                .ToArray(),
+            Tiers = p
+                .Tiers.OrderBy(x => x.MinQuantity)
+                .Select(x => new PromotionTierInput(x.MinQuantity, x.Percent))
+                .ToArray(),
+            Status =
+                p.IsPaused || p.AdminPaused ? "Paused"
+                : p.StartAt > now ? "Scheduled"
+                : p.EndAt <= now ? "Ended"
+                : "Active",
             UsedCount = usage.Count(x => x.State == "Consumed"),
             ReservedCount = usage.Count(x => x.State == "Reserved"),
             Spent = usage.Where(x => x.State == "Consumed").Sum(x => x.Amount),
-            ReservedAmount = usage.Where(x => x.State == "Reserved").Sum(x => x.Amount)
+            ReservedAmount = usage.Where(x => x.State == "Reserved").Sum(x => x.Amount),
         };
     }
 
     private static void EnsureOwner(Promotion p, int actor, bool admin)
     {
-        if (admin ? p.FundingSource != "Platform" : p.SellerId != actor || p.FundingSource != "Seller")
+        if (
+            admin
+                ? p.FundingSource != "Platform"
+                : p.SellerId != actor || p.FundingSource != "Seller"
+        )
             throw new UnauthorizedAccessException("Bạn không có quyền sửa khuyến mãi này.");
     }
 
@@ -333,32 +504,47 @@ public sealed class PromotionManagementService(ApplicationDbContext db)
         return value;
     }
 
-    private static DateTime AsUtc(DateTime d) => d.Kind == DateTimeKind.Local ? d.ToUniversalTime() : DateTime.SpecifyKind(d, DateTimeKind.Utc);
+    private static DateTime AsUtc(DateTime d) =>
+        d.Kind == DateTimeKind.Local
+            ? d.ToUniversalTime()
+            : DateTime.SpecifyKind(d, DateTimeKind.Utc);
+
     private static void Validate(PromotionInput x)
     {
         if (x.ProductIds == null || x.CategoryIds == null || x.Tiers == null)
             throw new ArgumentException("Phạm vi khuyến mãi không hợp lệ.");
-        if (new[]
-        {
-            x.Value,
-            x.MinSubtotal,
-            x.Cap ?? 0,
-            x.Budget ?? 0
-        }.Any(v => v > 999999999999m || decimal.Round(v, 2) != v))
-            throw new ArgumentException("Giá trị có tối đa 2 chữ số thập phân và không vượt 999999999999.");
+        if (
+            new[] { x.Value, x.MinSubtotal, x.Cap ?? 0, x.Budget ?? 0 }.Any(v =>
+                v > 999999999999m || decimal.Round(v, 2) != v
+            )
+        )
+            throw new ArgumentException(
+                "Giá trị có tối đa 2 chữ số thập phân và không vượt 999999999999."
+            );
         if (x.MaxUsage.HasValue && x.MaxUsagePerBuyer > x.MaxUsage)
             throw new ArgumentException("Giới hạn mỗi buyer không được vượt tổng lượt.");
         if (string.IsNullOrWhiteSpace(x.Name) || x.Name.Trim().Length > 150)
             throw new ArgumentException("Tên khuyến mãi dài 1–150 ký tự.");
         if (x.StartAt == default || x.EndAt <= x.StartAt)
             throw new ArgumentException("Thời gian kết thúc phải sau thời gian bắt đầu.");
-        if (x.MinSubtotal < 0 || x.MinQuantity < 1 || x.Cap <= 0 || x.Budget <= 0 || x.MaxUsage <= 0 || x.MaxUsagePerBuyer <= 0)
+        if (
+            x.MinSubtotal < 0
+            || x.MinQuantity < 1
+            || x.Cap <= 0
+            || x.Budget <= 0
+            || x.MaxUsage <= 0
+            || x.MaxUsagePerBuyer <= 0
+        )
             throw new ArgumentException("Điều kiện và giới hạn không hợp lệ.");
         if (x.FreeShipping && x.Type != "Shipping")
             throw new ArgumentException("Miễn phí vận chuyển chỉ áp dụng cho loại Shipping.");
         if (x.Type == "Volume")
         {
-            if (x.Tiers.Length == 0 || x.Tiers.Any(t => t.MinQuantity < 1 || t.Percent <= 0 || t.Percent > 100) || x.Tiers.Select(t => t.MinQuantity).Distinct().Count() != x.Tiers.Length)
+            if (
+                x.Tiers.Length == 0
+                || x.Tiers.Any(t => t.MinQuantity < 1 || t.Percent <= 0 || t.Percent > 100)
+                || x.Tiers.Select(t => t.MinQuantity).Distinct().Count() != x.Tiers.Length
+            )
                 throw new ArgumentException("Các mức số lượng và phần trăm không hợp lệ.");
             var tiers = x.Tiers.OrderBy(t => t.MinQuantity).ToArray();
             if (tiers.Zip(tiers.Skip(1), (a, b) => b.Percent < a.Percent).Any(v => v))

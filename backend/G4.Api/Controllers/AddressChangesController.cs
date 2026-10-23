@@ -2,26 +2,44 @@ using G4.Contracts.Checkout;
 using Microsoft.AspNetCore.Mvc;
 
 namespace G4.Api.Controllers;
+
 [ApiController]
 [Route("api")]
-public sealed class AddressChangesController(IAddressChangeService changes, IHostEnvironment environment) : ApiControllerBase(environment)
+public sealed class AddressChangesController(
+    IAddressChangeService changes,
+    IHostEnvironment environment
+) : ApiControllerBase(environment)
 {
     [HttpPost("orders/{orderId:int}/address-changes/quote")]
-    public async Task<IActionResult> Quote(int orderId, AddressChangeInput input, CancellationToken ct)
+    public async Task<IActionResult> Quote(
+        int orderId,
+        AddressChangeInput input,
+        CancellationToken ct
+    )
     {
-        if (!IsAvailable || !HasRole("buyer")) return StatusCode(403);
+        if (!IsAvailable || !HasRole("buyer"))
+            return StatusCode(403);
         return Ok(await changes.QuoteAsync(orderId, CurrentUserId, input, ct));
     }
 
     [HttpPost("shipper/shipments/{id:int}/address-change/decision")]
-    public async Task<IActionResult> ShipperDecision(int id, AddressChangeShipperDecision input, CancellationToken ct)
+    public async Task<IActionResult> ShipperDecision(
+        int id,
+        AddressChangeShipperDecision input,
+        CancellationToken ct
+    )
     {
-        if (!IsAvailable || !HasRole("shipper")) return StatusCode(403);
+        if (!IsAvailable || !HasRole("shipper"))
+            return StatusCode(403);
         return Ok(await changes.DecideShipperAsync(id, CurrentUserId, input, ct));
     }
 
     [HttpPost("orders/{orderId:int}/address-changes")]
-    public async Task<IActionResult> RequestChange(int orderId, AddressChangeInput input, CancellationToken ct)
+    public async Task<IActionResult> RequestChange(
+        int orderId,
+        AddressChangeInput input,
+        CancellationToken ct
+    )
     {
         if (!IsAvailable || !HasRole("buyer"))
             return StatusCode(403);
@@ -29,7 +47,11 @@ public sealed class AddressChangesController(IAddressChangeService changes, IHos
     }
 
     [HttpPost("seller/address-changes/{id:int}/decision")]
-    public async Task<IActionResult> Decide(int id, AddressChangeDecision input, CancellationToken ct)
+    public async Task<IActionResult> Decide(
+        int id,
+        AddressChangeDecision input,
+        CancellationToken ct
+    )
     {
         if (!IsAvailable || !HasRole("seller"))
             return StatusCode(403);

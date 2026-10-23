@@ -1,4 +1,5 @@
 namespace G4.Contracts.Checkout;
+
 public record PromotionInput
 {
     public string Name { get; init; } = "";
@@ -24,8 +25,11 @@ public record PromotionInput
 }
 
 public record PromotionTierInput(int MinQuantity, decimal Percent);
+
 public record PromotionStateInput(bool Paused, string? Reason, int Version);
+
 public record PromotionSuspensionInput(bool Suspended, string Reason, int Version);
+
 public record PromotionView : PromotionInput
 {
     public int Id { get; init; }
@@ -40,6 +44,7 @@ public record PromotionView : PromotionInput
 }
 
 public record PromotionCounts(int All, int Scheduled, int Active, int Paused, int Ended);
+
 public record PromotionPage(
     int Page,
     int PageSize,

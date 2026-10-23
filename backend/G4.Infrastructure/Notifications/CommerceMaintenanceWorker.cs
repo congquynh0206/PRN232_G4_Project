@@ -8,7 +8,11 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace G4.Infrastructure.Notifications;
-public sealed class CommerceMaintenanceWorker(IServiceScopeFactory scopes, ILogger<CommerceMaintenanceWorker> logger) : BackgroundService
+
+public sealed class CommerceMaintenanceWorker(
+    IServiceScopeFactory scopes,
+    ILogger<CommerceMaintenanceWorker> logger
+) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -19,7 +23,13 @@ public sealed class CommerceMaintenanceWorker(IServiceScopeFactory scopes, ILogg
             {
                 await using var scope = scopes.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var verifyingOrderIds = await db.Payments.Where(p => p.Method == "PayPal" && p.Status == "Verifying" && p.PayPalCheckoutId == null).Select(p => p.OrderId)
+                var verifyingOrderIds = await db
+                    .Payments.Where(p =>
+                        p.Method == "PayPal"
+                        && p.Status == "Verifying"
+                        && p.PayPalCheckoutId == null
+                    )
+                    .Select(p => p.OrderId)
                     .Distinct()
                     .OrderBy(x => x)
                     .Take(20)
@@ -33,23 +43,39 @@ public sealed class CommerceMaintenanceWorker(IServiceScopeFactory scopes, ILogg
                     {
                         await paypal.ReconcileAsync(orderId.Value, stoppingToken);
                     }
-                    catch (Exception ex)when (ex is HttpRequestException or TaskCanceledException)
+                    catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
                     {
-                        logger.LogWarning(ex, "PayPal reconciliation pending for order {OrderId}", orderId);
+                        logger.LogWarning(
+                            ex,
+                            "PayPal reconciliation pending for order {OrderId}",
+                            orderId
+                        );
                     }
                 }
 
                 var checkout = scope.ServiceProvider.GetRequiredService<ICheckoutService>();
-                await scope.ServiceProvider.GetRequiredService<IAddressChangeService>().MaintainAsync(stoppingToken);
-                await scope.ServiceProvider.GetRequiredService<IPayPalCartPaymentService>().MaintainAsync(stoppingToken);
+                await scope
+                    .ServiceProvider.GetRequiredService<IAddressChangeService>()
+                    .MaintainAsync(stoppingToken);
+                await scope
+                    .ServiceProvider.GetRequiredService<IPayPalCartPaymentService>()
+                    .MaintainAsync(stoppingToken);
                 await checkout.ExpirePendingAsync(stoppingToken);
                 await checkout.CloseDeliveredOutsideReturnWindowAsync(stoppingToken);
                 var finance = scope.ServiceProvider.GetRequiredService<ISellerFinanceService>();
                 await finance.MaintainDebtsAsync(stoppingToken);
                 await finance.BackfillAsync(stoppingToken);
-                await scope.ServiceProvider.GetRequiredService<IReturnService>().MaintainAsync(stoppingToken);
-                await scope.ServiceProvider.GetRequiredService<IDisputeService>().MaintainAsync(stoppingToken);
-                var pendingDisputeRefunds = await db.SellerSettlements.Where(x => x.Status == "RefundPending" && !db.Disputes.Any(d => d.OrderId == x.OrderId && d.WorkflowEnabled))
+                await scope
+                    .ServiceProvider.GetRequiredService<IReturnService>()
+                    .MaintainAsync(stoppingToken);
+                await scope
+                    .ServiceProvider.GetRequiredService<IDisputeService>()
+                    .MaintainAsync(stoppingToken);
+                var pendingDisputeRefunds = await db
+                    .SellerSettlements.Where(x =>
+                        x.Status == "RefundPending"
+                        && !db.Disputes.Any(d => d.OrderId == x.OrderId && d.WorkflowEnabled)
+                    )
                     .Select(x => x.OrderId)
                     .OrderBy(x => x)
                     .Take(20)
@@ -61,9 +87,13 @@ public sealed class CommerceMaintenanceWorker(IServiceScopeFactory scopes, ILogg
                     {
                         await returns.RefundAsync(orderId, "dispute", null, stoppingToken);
                     }
-                    catch (Exception ex)when (ex is not OperationCanceledException)
+                    catch (Exception ex) when (ex is not OperationCanceledException)
                     {
-                        logger.LogWarning(ex, "Dispute refund pending for order {OrderId}", orderId);
+                        logger.LogWarning(
+                            ex,
+                            "Dispute refund pending for order {OrderId}",
+                            orderId
+                        );
                     }
                 }
 
@@ -71,10 +101,12 @@ public sealed class CommerceMaintenanceWorker(IServiceScopeFactory scopes, ILogg
                 await finance.AdvancePayoutsAsync(stoppingToken);
                 await finance.MaintainWriteOffsAsync(stoppingToken);
                 await finance.MaintainLevelsAsync(stoppingToken);
-                await scope.ServiceProvider.GetRequiredService<NotificationProcessor>().ProcessDueAsync(20, stoppingToken);
+                await scope
+                    .ServiceProvider.GetRequiredService<NotificationProcessor>()
+                    .ProcessDueAsync(20, stoppingToken);
                 await db.SaveChangesAsync(stoppingToken);
             }
-            catch (OperationCanceledException)when (stoppingToken.IsCancellationRequested)
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
                 break;
             }
@@ -82,7 +114,6 @@ public sealed class CommerceMaintenanceWorker(IServiceScopeFactory scopes, ILogg
             {
                 logger.LogWarning(ex, "Commerce maintenance cycle failed");
             }
-        }
-        while (await timer.WaitForNextTickAsync(stoppingToken));
+        } while (await timer.WaitForNextTickAsync(stoppingToken));
     }
 }

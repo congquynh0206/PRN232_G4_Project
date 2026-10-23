@@ -8,7 +8,9 @@ public sealed class FakeSmtpServer : IAsyncDisposable
     private readonly CancellationTokenSource stop = new();
     private readonly Task server;
     private readonly string behavior;
-    private readonly TaskCompletionSource<string> message = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource<string> message = new(
+        TaskCreationOptions.RunContinuationsAsynchronously
+    );
     public int Port => ((IPEndPoint)listener.LocalEndpoint).Port;
     public Task<string> Received => message.Task;
 
@@ -29,7 +31,7 @@ public sealed class FakeSmtpServer : IAsyncDisposable
             await using var writer = new StreamWriter(stream, Encoding.ASCII)
             {
                 AutoFlush = true,
-                NewLine = "\r\n"
+                NewLine = "\r\n",
             };
             await writer.WriteLineAsync("220 localhost test SMTP");
             while (!stop.IsCancellationRequested)
@@ -39,7 +41,11 @@ public sealed class FakeSmtpServer : IAsyncDisposable
                     break;
                 if (line.StartsWith("EHLO") || line.StartsWith("HELO"))
                     await writer.WriteLineAsync("250 localhost");
-                else if (line.StartsWith("MAIL") || line.StartsWith("RCPT") || line.StartsWith("RSET"))
+                else if (
+                    line.StartsWith("MAIL")
+                    || line.StartsWith("RCPT")
+                    || line.StartsWith("RSET")
+                )
                     await writer.WriteLineAsync("250 OK");
                 else if (line == "DATA")
                 {
@@ -67,7 +73,7 @@ public sealed class FakeSmtpServer : IAsyncDisposable
                     await writer.WriteLineAsync("250 OK");
             }
         }
-        catch (Exception ex)when (stop.IsCancellationRequested)
+        catch (Exception ex) when (stop.IsCancellationRequested)
         {
             _ = ex;
         }

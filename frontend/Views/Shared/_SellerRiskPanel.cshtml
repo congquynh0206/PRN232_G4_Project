@@ -1,10 +1,30 @@
 <section id="seller-risk" class="panel tab-panel diagnostics-panel">
-    <div class="section-head"><div><span class="eyebrow">Giám sát tự động</span><h1>Nợ khó thu và blacklist</h1><p>Worker tự đánh giá tiêu chí. Admin theo dõi quyết định, thu hồi và định danh đã chặn.</p></div><button type="button" id="refresh-seller-risk">Làm mới</button></div>
+    <div class="section-head">
+        <div>
+            <span class="eyebrow">Giám sát tự động</span>
+            <h1>Nợ khó thu và blacklist</h1>
+            <p>Worker tự đánh giá tiêu chí. Admin theo dõi quyết định, thu hồi và định danh đã chặn.</p>
+        </div>
+        <button type="button" id="refresh-seller-risk">Làm mới</button>
+    </div>
     <p id="seller-risk-policy" class="diagnostics-note"></p>
-    <form id="seller-risk-filters" class="diagnostics-filters"><label for="seller-risk-seller">Mã seller<input id="seller-risk-seller" type="number" min="1" step="1" /></label><button type="submit" class="primary">Lọc hồ sơ</button></form>
+    <form id="seller-risk-filters" class="diagnostics-filters">
+        <label for="seller-risk-seller">Mã seller
+            <input id="seller-risk-seller" type="number" min="1" step="1" />
+        </label>
+        <button type="submit" class="primary">Lọc hồ sơ</button>
+    </form>
     <div id="seller-risk-summary" class="finance-grid" role="status" aria-live="polite"></div>
-    <div class="finance-block"><h2>Quyết định nợ khó thu</h2><p class="small">Write-off giữ nguyên số nợ và ledger. Số thu hồi chỉ tính sau quyết định; trả hết không tự gỡ khóa bán vĩnh viễn.</p>
-        <div id="seller-write-offs" aria-busy="false"></div><div id="seller-write-offs-pagination" class="pagination"></div></div>
-    <div class="finance-block"><h2>Blacklist định danh</h2><p class="small">Chỉ hiển thị phần đã che. Bản ghi dữ liệu mẫu Development có nhãn riêng; không phát sinh từ tài khoản mới hợp lệ.</p>
-        <div id="seller-blacklist" aria-busy="false"></div><div id="seller-blacklist-pagination" class="pagination"></div></div>
+    <div class="finance-block">
+        <h2>Quyết định nợ khó thu</h2>
+        <p class="small">Write-off giữ nguyên số nợ và ledger. Số thu hồi chỉ tính sau quyết định; trả hết không tự gỡ khóa bán vĩnh viễn.</p>
+        <div id="seller-write-offs" aria-busy="false"></div>
+        <div id="seller-write-offs-pagination" class="pagination"></div>
+    </div>
+    <div class="finance-block">
+        <h2>Blacklist định danh</h2>
+        <p class="small">Chỉ hiển thị phần đã che. Bản ghi dữ liệu mẫu Development có nhãn riêng; không phát sinh từ tài khoản mới hợp lệ.</p>
+        <div id="seller-blacklist" aria-busy="false"></div>
+        <div id="seller-blacklist-pagination" class="pagination"></div>
+    </div>
 </section>

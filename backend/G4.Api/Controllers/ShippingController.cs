@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace G4.Api.Controllers;
+
 [ApiController]
 [Route("api")]
 public sealed class ShippingController(
@@ -20,7 +21,14 @@ public sealed class ShippingController(
         if (!await db.OrderTables.AnyAsync(o => o.Id == id && o.SellerId == CurrentUserId, ct))
             return StatusCode(403);
         var shipment = await shipping.CreateOutboundAsync(id, ct);
-        return Ok(new { shipment.Id, shipment.Status, shipment.TrackingNumber });
+        return Ok(
+            new
+            {
+                shipment.Id,
+                shipment.Status,
+                shipment.TrackingNumber,
+            }
+        );
     }
 
     [HttpPost("carrier/fail-next")]
@@ -32,30 +40,61 @@ public sealed class ShippingController(
             return StatusCode(403);
         if (request.Direction is not ("Outbound" or "Return"))
             return BadRequest();
-        carrierState.FailNext($"ship-{request.OrderId}-{request.Direction.ToLowerInvariant()}", request.Count);
+        carrierState.FailNext(
+            $"ship-{request.OrderId}-{request.Direction.ToLowerInvariant()}",
+            request.Count
+        );
         return Ok();
     }
 
     [HttpPost("seller/orders/{id:int}/ship/simulate-failure")]
     public async Task<IActionResult> SimulateOutboundFailure(int id, CancellationToken ct)
     {
-        if (!IsAvailable || !HasRole("seller")) return StatusCode(403);
-        await using var tx = await G4.Infrastructure.Promotions.PromotionLifecycle.LockOrderAsync(db, id, ct);
-        if (!await db.OrderTables.AnyAsync(o => o.Id == id && o.SellerId == CurrentUserId, ct)) return StatusCode(403);
-        if (await db.ShippingInfos.AnyAsync(s => s.OrderId == id && s.Direction == "Outbound" && s.TrackingNumber != null, ct))
-            throw new InvalidOperationException("Đã có vận đơn hợp lệ; không thể giả lập lỗi tạo lại nhãn.");
+        if (!IsAvailable || !HasRole("seller"))
+            return StatusCode(403);
+        await using var tx = await G4.Infrastructure.Promotions.PromotionLifecycle.LockOrderAsync(
+            db,
+            id,
+            ct
+        );
+        if (!await db.OrderTables.AnyAsync(o => o.Id == id && o.SellerId == CurrentUserId, ct))
+            return StatusCode(403);
+        if (
+            await db.ShippingInfos.AnyAsync(
+                s => s.OrderId == id && s.Direction == "Outbound" && s.TrackingNumber != null,
+                ct
+            )
+        )
+            throw new InvalidOperationException(
+                "Đã có vận đơn hợp lệ; không thể giả lập lỗi tạo lại nhãn."
+            );
         carrierState.FailNext($"ship-{id}-outbound", 3);
         try
         {
             var shipment = await shipping.CreateOutboundAsync(id, ct);
-            if (tx != null) await tx.CommitAsync(ct);
-            return Ok(new { shipment.Id, shipment.Status, shipment.TrackingNumber });
+            if (tx != null)
+                await tx.CommitAsync(ct);
+            return Ok(
+                new
+                {
+                    shipment.Id,
+                    shipment.Status,
+                    shipment.TrackingNumber,
+                }
+            );
         }
-        finally { carrierState.FailNext($"ship-{id}-outbound", 0); }
+        finally
+        {
+            carrierState.FailNext($"ship-{id}-outbound", 0);
+        }
     }
 
     [HttpPost("shipments/{id:int}/events")]
-    public async Task<IActionResult> AddEvent(int id, ShippingEventRequest request, CancellationToken ct)
+    public async Task<IActionResult> AddEvent(
+        int id,
+        ShippingEventRequest request,
+        CancellationToken ct
+    )
     {
         if (!IsAvailable || !HasRole("shipper"))
             return StatusCode(403);
@@ -79,7 +118,18 @@ public sealed class ShippingController(
     {
         if (!IsAvailable || !HasRole("shipper"))
             return StatusCode(403);
-        return Ok((await G4.Infrastructure.Shipping.ShipperShipmentList.ReadAsync(db, CurrentUserId, "mine", 1, 50, ct)).Items);
+        return Ok(
+            (
+                await G4.Infrastructure.Shipping.ShipperShipmentList.ReadAsync(
+                    db,
+                    CurrentUserId,
+                    "mine",
+                    1,
+                    50,
+                    ct
+                )
+            ).Items
+        );
     }
 
     [HttpGet("shipper/shipments/page")]
@@ -97,9 +147,37 @@ public sealed class ShippingController(
             return StatusCode(403);
         if (filter is not ("pending" or "mine"))
             return BadRequest(new { error = "Bộ lọc vận đơn không hợp lệ." });
-        if (search?.Length > 100 || direction is not ("all" or "Outbound" or "Return") || status is not ("all" or "LabelCreated" or "PickedUp" or "InTransit" or "OutForDelivery" or "Delivered" or "DeliveryFailed" or "ReattemptScheduled" or "ReturningToSender" or "ReturnedToSeller"))
+        if (
+            search?.Length > 100
+            || direction is not ("all" or "Outbound" or "Return")
+            || status
+                is not (
+                    "all"
+                    or "LabelCreated"
+                    or "PickedUp"
+                    or "InTransit"
+                    or "OutForDelivery"
+                    or "Delivered"
+                    or "DeliveryFailed"
+                    or "ReattemptScheduled"
+                    or "ReturningToSender"
+                    or "ReturnedToSeller"
+                )
+        )
             return BadRequest(new { error = "Thông tin tìm kiếm hoặc bộ lọc không hợp lệ." });
-        return Ok(await G4.Infrastructure.Shipping.ShipperShipmentList.ReadAsync(db, CurrentUserId, filter, page, pageSize, ct, search, status, direction));
+        return Ok(
+            await G4.Infrastructure.Shipping.ShipperShipmentList.ReadAsync(
+                db,
+                CurrentUserId,
+                filter,
+                page,
+                pageSize,
+                ct,
+                search,
+                status,
+                direction
+            )
+        );
     }
 
     [HttpPost("shipper/shipments/{id:int}/claim")]
@@ -108,6 +186,13 @@ public sealed class ShippingController(
         if (!IsAvailable || !HasRole("shipper"))
             return StatusCode(403);
         var result = await shipping.ClaimAsync(id, CurrentUserId, ct);
-        return Ok(new { result.Id, result.ShipperId, result.ClaimedAt });
+        return Ok(
+            new
+            {
+                result.Id,
+                result.ShipperId,
+                result.ClaimedAt,
+            }
+        );
     }
 }

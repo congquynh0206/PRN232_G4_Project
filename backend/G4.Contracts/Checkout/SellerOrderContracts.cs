@@ -1,5 +1,7 @@
 namespace G4.Contracts.Checkout;
+
 public sealed record SellerOrderCaseBadge(int Id, string Status, bool IsOpen, string? Outcome);
+
 public sealed record SellerOrderCard(
     int Id,
     DateTime? OrderDate,
@@ -16,6 +18,7 @@ public sealed record SellerOrderCard(
     SellerOrderCaseBadge? Dispute,
     string? ImageUrl = null
 );
+
 public sealed record SellerOrderListPage(
     int Page,
     int PageSize,

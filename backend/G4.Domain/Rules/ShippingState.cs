@@ -1,4 +1,5 @@
 namespace G4.Domain.Rules;
+
 public static class ShippingState
 {
     private static readonly Dictionary<(string, string), string> Allowed = new()
@@ -12,8 +13,14 @@ public static class ShippingState
         [("DeliveryFailed", "ReattemptScheduled")] = "ReattemptScheduled",
         [("ReattemptScheduled", "OutForDelivery")] = "OutForDelivery",
         [("DeliveryFailed", "ReturningToSender")] = "ReturningToSender",
-        [("ReturningToSender", "ReturnedToSeller")] = "ReturnedToSeller"
+        [("ReturningToSender", "ReturnedToSeller")] = "ReturnedToSeller",
     };
-    public static bool TryNext(string current, string nextEvent, out string next) => Allowed.TryGetValue((current, nextEvent), out next!);
-    public static string Next(string current, string nextEvent) => TryNext(current, nextEvent, out var next) ? next : throw new InvalidOperationException($"Cannot move from {current} to {nextEvent}");
+
+    public static bool TryNext(string current, string nextEvent, out string next) =>
+        Allowed.TryGetValue((current, nextEvent), out next!);
+
+    public static string Next(string current, string nextEvent) =>
+        TryNext(current, nextEvent, out var next)
+            ? next
+            : throw new InvalidOperationException($"Cannot move from {current} to {nextEvent}");
 }

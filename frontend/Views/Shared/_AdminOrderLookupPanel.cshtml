@@ -1,28 +1,99 @@
 <section id="order-lookup" class="panel tab-panel diagnostics-panel">
     <header class="section-head lookup-heading">
-        <div><span class="eyebrow">Hỗ trợ đơn hàng</span><h1>Tra cứu đơn hàng</h1><p>Tìm đúng đơn, kiểm tra thanh toán và theo dõi quá trình xử lý.</p></div>
+        <div>
+            <span class="eyebrow">Hỗ trợ đơn hàng</span>
+            <h1>Tra cứu đơn hàng</h1>
+            <p>Tìm đúng đơn, kiểm tra thanh toán và theo dõi quá trình xử lý.</p>
+        </div>
         <button type="button" id="refresh-order-lookup">Làm mới kết quả</button>
     </header>
     <form id="order-lookup-filters" class="lookup-search-form">
         <div class="lookup-search-bar">
             <label for="lookup-search-type">Tìm theo
-                <select id="lookup-search-type" name="searchType"><option value="Auto">Tự nhận diện mã</option><option value="Order">Mã đơn hàng</option><option value="Payment">Mã thanh toán nội bộ</option><option value="Refund">Mã hoàn tiền nội bộ</option><option value="Provider">Mã giao dịch cổng thanh toán</option></select>
+                <select id="lookup-search-type" name="searchType">
+                    <option value="Auto">Tự nhận diện mã</option>
+                    <option value="Order">Mã đơn hàng</option>
+                    <option value="Payment">Mã thanh toán nội bộ</option>
+                    <option value="Refund">Mã hoàn tiền nội bộ</option>
+                    <option value="Provider">Mã giao dịch cổng thanh toán</option>
+                </select>
             </label>
-            <label class="lookup-search-input" for="lookup-search">Mã cần tìm<input id="lookup-search" name="search" type="search" maxlength="100" placeholder="Ví dụ: #125 hoặc mã giao dịch đầy đủ" aria-describedby="lookup-search-help" /></label>
+            <label class="lookup-search-input" for="lookup-search">Mã cần tìm
+                <input
+                    id="lookup-search"
+                    name="search"
+                    type="search"
+                    maxlength="100"
+                    placeholder="Ví dụ: #125 hoặc mã giao dịch đầy đủ"
+                    aria-describedby="lookup-search-help"
+                />
+            </label>
             <button type="submit" class="primary">Tìm kiếm</button>
         </div>
         <p id="lookup-search-help" class="lookup-help">Nhập số hoặc #125 để tìm đơn hàng. Với mã giao dịch, nhập đầy đủ để tìm chính xác.</p>
         <details id="lookup-advanced" class="lookup-advanced">
             <summary>Bộ lọc nâng cao <span id="lookup-filter-count"></span></summary>
             <div class="lookup-filter-grid">
-                <label for="lookup-buyer">Người mua<input id="lookup-buyer" name="buyer" maxlength="100" placeholder="Tên, email hoặc ID" /></label>
-                <label for="lookup-seller">Người bán<input id="lookup-seller" name="seller" maxlength="100" placeholder="Tên, email hoặc ID" /></label>
-                <label for="lookup-status">Trạng thái đơn<select id="lookup-status" name="status"><option value="">Tất cả trạng thái</option><option value="AwaitingPayment">Chờ thanh toán</option><option value="Paid">Đã thanh toán</option><option value="Preparing">Đang chuẩn bị hàng</option><option value="Shipping">Đang giao hàng</option><option value="Delivered">Đã giao hàng</option><option value="Closed">Hoàn tất</option><option value="Cancelled">Đã hủy</option><option value="Expired">Hết hạn</option><option value="CancelRequested">Chờ duyệt hủy</option></select></label>
-                <label for="lookup-payment-status">Lịch sử thanh toán<select id="lookup-payment-status" name="paymentStatus"><option value="">Tất cả thanh toán</option><option value="Succeeded">Có lần thành công</option><option value="Failed">Có lần thất bại</option><option value="Pending">Có lần đang chờ</option><option value="Verifying">Có lần đang xác minh</option><option value="NotAttempted">Chưa thử thanh toán</option></select></label>
-                <label for="lookup-refund-status">Lịch sử hoàn tiền<select id="lookup-refund-status" name="refundStatus"><option value="">Tất cả hoàn tiền</option><option value="Pending">Có khoản đang chờ</option><option value="Succeeded">Có khoản thành công</option><option value="Failed">Có khoản thất bại</option></select></label>
-                <div class="lookup-date-range"><label for="lookup-from">Đơn tạo từ<input id="lookup-from" name="from" type="datetime-local" /></label><label for="lookup-to">Đến<input id="lookup-to" name="to" type="datetime-local" /></label></div>
+                <label for="lookup-buyer">Người mua
+                    <input
+                        id="lookup-buyer"
+                        name="buyer"
+                        maxlength="100"
+                        placeholder="Tên, email hoặc ID"
+                    />
+                </label>
+                <label for="lookup-seller">Người bán
+                    <input
+                        id="lookup-seller"
+                        name="seller"
+                        maxlength="100"
+                        placeholder="Tên, email hoặc ID"
+                    />
+                </label>
+                <label for="lookup-status">Trạng thái đơn
+                    <select id="lookup-status" name="status">
+                        <option value="">Tất cả trạng thái</option>
+                        <option value="AwaitingPayment">Chờ thanh toán</option>
+                        <option value="Paid">Đã thanh toán</option>
+                        <option value="Preparing">Đang chuẩn bị hàng</option>
+                        <option value="Shipping">Đang giao hàng</option>
+                        <option value="Delivered">Đã giao hàng</option>
+                        <option value="Closed">Hoàn tất</option>
+                        <option value="Cancelled">Đã hủy</option>
+                        <option value="Expired">Hết hạn</option>
+                        <option value="CancelRequested">Chờ duyệt hủy</option>
+                    </select>
+                </label>
+                <label for="lookup-payment-status">Lịch sử thanh toán
+                    <select id="lookup-payment-status" name="paymentStatus">
+                        <option value="">Tất cả thanh toán</option>
+                        <option value="Succeeded">Có lần thành công</option>
+                        <option value="Failed">Có lần thất bại</option>
+                        <option value="Pending">Có lần đang chờ</option>
+                        <option value="Verifying">Có lần đang xác minh</option>
+                        <option value="NotAttempted">Chưa thử thanh toán</option>
+                    </select>
+                </label>
+                <label for="lookup-refund-status">Lịch sử hoàn tiền
+                    <select id="lookup-refund-status" name="refundStatus">
+                        <option value="">Tất cả hoàn tiền</option>
+                        <option value="Pending">Có khoản đang chờ</option>
+                        <option value="Succeeded">Có khoản thành công</option>
+                        <option value="Failed">Có khoản thất bại</option>
+                    </select>
+                </label>
+                <div class="lookup-date-range">
+                    <label for="lookup-from">Đơn tạo từ
+                        <input id="lookup-from" name="from" type="datetime-local" />
+                    </label>
+                    <label for="lookup-to">Đến
+                        <input id="lookup-to" name="to" type="datetime-local" />
+                    </label>
+                </div>
             </div>
-            <div class="lookup-filter-footer"><span>Chọn điều kiện rồi bấm Áp dụng bộ lọc.</span><button type="submit">Áp dụng bộ lọc</button></div>
+            <div class="lookup-filter-footer">
+                <span>Chọn điều kiện rồi bấm Áp dụng bộ lọc.</span><button type="submit">Áp dụng bộ lọc</button>
+            </div>
         </details>
     </form>
     <div class="lookup-quick-heading">Xem nhanh</div>
@@ -33,12 +104,40 @@
         <button type="button" data-lookup-quick="HasRefund" aria-pressed="false">Có hoàn tiền</button>
         <button type="button" data-lookup-quick="HasDispute" aria-pressed="false">Có tranh chấp</button>
     </div>
-    <div class="lookup-applied-row"><div id="lookup-applied-filters" class="lookup-applied-filters" aria-label="Bộ lọc đang áp dụng"></div><button type="button" id="clear-order-lookup-filters" class="lookup-clear" hidden>Xóa tất cả bộ lọc</button></div>
-    <div class="lookup-results-head"><h2>Kết quả tra cứu</h2><p id="order-lookup-summary" role="status" aria-live="polite">Mở tab để tải đơn mới nhất.</p></div>
+    <div class="lookup-applied-row">
+        <div
+            id="lookup-applied-filters"
+            class="lookup-applied-filters"
+            aria-label="Bộ lọc đang áp dụng"
+        ></div>
+        <button type="button" id="clear-order-lookup-filters" class="lookup-clear" hidden>Xóa tất cả bộ lọc</button>
+    </div>
+    <div class="lookup-results-head">
+        <h2>Kết quả tra cứu</h2>
+        <p id="order-lookup-summary" role="status" aria-live="polite">Mở tab để tải đơn mới nhất.</p>
+    </div>
     <p id="lookup-timezone" class="lookup-help"></p>
     <div class="order-lookup-table-wrap" aria-busy="false">
-        <table class="order-lookup-table"><caption class="lookup-sr-only">Đơn hàng phù hợp với bộ lọc đang áp dụng</caption><thead><tr><th scope="col">Đơn hàng</th><th scope="col">Người mua / Người bán</th><th scope="col">Tổng đơn</th><th scope="col">Thanh toán</th><th scope="col">Hoàn tiền</th><th scope="col">Vận chuyển</th><th scope="col"><span class="lookup-sr-only">Thao tác</span></th></tr></thead><tbody id="order-lookup-rows"></tbody></table>
+        <table class="order-lookup-table"><caption class="lookup-sr-only">Đơn hàng phù hợp với bộ lọc đang áp dụng</caption><thead>
+                <tr>
+                    <th scope="col">Đơn hàng</th>
+                    <th scope="col">Người mua / Người bán</th>
+                    <th scope="col">Tổng đơn</th>
+                    <th scope="col">Thanh toán</th>
+                    <th scope="col">Hoàn tiền</th>
+                    <th scope="col">Vận chuyển</th>
+                    <th scope="col">
+                        <span class="lookup-sr-only">Thao tác</span>
+                    </th>
+                </tr>
+            </thead>
+            <tbody id="order-lookup-rows"></tbody>
+        </table>
     </div>
-    <div id="order-lookup-empty" class="lookup-empty" hidden><strong id="lookup-empty-title">Không tìm thấy đơn phù hợp</strong><p id="lookup-empty-message">Kiểm tra loại mã, nhập đầy đủ mã giao dịch hoặc bớt điều kiện lọc.</p><button type="button" id="lookup-empty-action">Xem tất cả đơn</button></div>
+    <div id="order-lookup-empty" class="lookup-empty" hidden>
+        <strong id="lookup-empty-title">Không tìm thấy đơn phù hợp</strong>
+        <p id="lookup-empty-message">Kiểm tra loại mã, nhập đầy đủ mã giao dịch hoặc bớt điều kiện lọc.</p>
+        <button type="button" id="lookup-empty-action">Xem tất cả đơn</button>
+    </div>
     <div id="order-lookup-pagination" class="pagination"></div>
 </section>

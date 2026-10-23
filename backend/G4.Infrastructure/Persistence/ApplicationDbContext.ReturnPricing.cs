@@ -5,12 +5,27 @@ namespace G4.Infrastructure.Persistence;
 public partial class ApplicationDbContext
 {
     private static readonly string[] ReturnPriceProperties =
-    [nameof(ReturnRequest.PricingPolicyVersion), nameof(ReturnRequest.ReasonCode), nameof(ReturnRequest.Description),
-     nameof(ReturnRequest.RequestKey), nameof(ReturnRequest.PricingFingerprint), nameof(ReturnRequest.ShippingPayer),
-     nameof(ReturnRequest.GoodsPaidSnapshot), nameof(ReturnRequest.OutboundShippingRetained), nameof(ReturnRequest.ReturnShippingFee),
-     nameof(ReturnRequest.BuyerReturnShippingFee), nameof(ReturnRequest.BuyerRefundAmount), nameof(ReturnRequest.PlatformSubsidyReversal),
-     nameof(ReturnRequest.SellerGrossRefund), nameof(ReturnRequest.WeightKgSnapshot), nameof(ReturnRequest.PickupAddressSnapshot),
-     nameof(ReturnRequest.DeliveryAddressSnapshot), nameof(ReturnRequest.Reason), nameof(ReturnRequest.OrderId), nameof(ReturnRequest.UserId)];
+    [
+        nameof(ReturnRequest.PricingPolicyVersion),
+        nameof(ReturnRequest.ReasonCode),
+        nameof(ReturnRequest.Description),
+        nameof(ReturnRequest.RequestKey),
+        nameof(ReturnRequest.PricingFingerprint),
+        nameof(ReturnRequest.ShippingPayer),
+        nameof(ReturnRequest.GoodsPaidSnapshot),
+        nameof(ReturnRequest.OutboundShippingRetained),
+        nameof(ReturnRequest.ReturnShippingFee),
+        nameof(ReturnRequest.BuyerReturnShippingFee),
+        nameof(ReturnRequest.BuyerRefundAmount),
+        nameof(ReturnRequest.PlatformSubsidyReversal),
+        nameof(ReturnRequest.SellerGrossRefund),
+        nameof(ReturnRequest.WeightKgSnapshot),
+        nameof(ReturnRequest.PickupAddressSnapshot),
+        nameof(ReturnRequest.DeliveryAddressSnapshot),
+        nameof(ReturnRequest.Reason),
+        nameof(ReturnRequest.OrderId),
+        nameof(ReturnRequest.UserId),
+    ];
 
     private static void ConfigureReturnPricing(ModelBuilder model)
     {
@@ -25,8 +40,18 @@ public partial class ApplicationDbContext
             e.Property(x => x.DeliveryAddressSnapshot).HasMaxLength(500);
             e.Property(x => x.WeightKgSnapshot).HasPrecision(18, 3);
             e.HasIndex(x => x.RequestKey).IsUnique().HasFilter("[RequestKey] IS NOT NULL");
-            foreach (var name in new[] { "GoodsPaidSnapshot", "OutboundShippingRetained", "ReturnShippingFee",
-                "BuyerReturnShippingFee", "BuyerRefundAmount", "PlatformSubsidyReversal", "SellerGrossRefund" })
+            foreach (
+                var name in new[]
+                {
+                    "GoodsPaidSnapshot",
+                    "OutboundShippingRetained",
+                    "ReturnShippingFee",
+                    "BuyerReturnShippingFee",
+                    "BuyerRefundAmount",
+                    "PlatformSubsidyReversal",
+                    "SellerGrossRefund",
+                }
+            )
                 e.Property<decimal>(name).HasPrecision(18, 2);
         });
         model.Entity<Refund>(e =>
@@ -44,9 +69,17 @@ public partial class ApplicationDbContext
 
     private void GuardReturnPriceSnapshots()
     {
-        foreach (var entry in ChangeTracker.Entries<ReturnRequest>().Where(e => e.State == EntityState.Modified))
-            if (entry.OriginalValues.GetValue<int>(nameof(ReturnRequest.PricingPolicyVersion)) == 1
-                && ReturnPriceProperties.Any(name => entry.Property(name).IsModified))
-                throw new InvalidOperationException("Báo giá trả hàng đã xác nhận không thể thay đổi.");
+        foreach (
+            var entry in ChangeTracker
+                .Entries<ReturnRequest>()
+                .Where(e => e.State == EntityState.Modified)
+        )
+            if (
+                entry.OriginalValues.GetValue<int>(nameof(ReturnRequest.PricingPolicyVersion)) == 1
+                && ReturnPriceProperties.Any(name => entry.Property(name).IsModified)
+            )
+                throw new InvalidOperationException(
+                    "Báo giá trả hàng đã xác nhận không thể thay đổi."
+                );
     }
 }

@@ -1,4 +1,5 @@
 namespace G4.Domain.Entities;
+
 public class Promotion
 {
     public int Id { get; set; }

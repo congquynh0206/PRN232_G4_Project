@@ -61,7 +61,11 @@
   }
   function actions(s) {
     const waitingForAddress = G4.AddressChanges.blocksDelivery?.(s, order),
-      next = G4.AddressChanges.requiresAck(s) ? [] : ui.next(s).filter(x => x !== 'OutForDelivery' || !G4.AddressChanges.blocksDelivery?.(s, order)),
+      next = G4.AddressChanges.requiresAck(s)
+        ? []
+        : ui
+            .next(s)
+            .filter((x) => x !== 'OutForDelivery' || !G4.AddressChanges.blocksDelivery?.(s, order)),
       disabled = busy.has(s.id) ? 'disabled' : '';
     return `<section class="vn-next"><h3>${G4.AddressChanges.requiresAck(s) ? 'Cần xác nhận địa chỉ mới' : waitingForAddress && !next.length ? 'Chờ xác nhận đổi địa chỉ' : next.length ? 'Thao tác tiếp theo' : 'Vận đơn đã kết thúc'}</h3>${s.status === 'ReattemptScheduled' ? `<p>Dự kiến giao lại: <strong>${esc(localDate(s.reattemptAt))}</strong></p><p>Lý do: ${esc(s.reattemptReason || 'Chưa có')}</p><p>Lên lịch chưa tiêu lượt giao. Bấm Bắt đầu giao hàng khi thực sự xuất phát.</p>` : ''}${s.status === 'DeliveryFailed' ? `<p>Đã giao ${Number(s.deliveryAttempts || 0)}/2 lần. ${s.deliveryAttempts >= 2 ? 'Đã hết lượt giao lại. Hãy chuyển hoàn về nơi gửi.' : 'Cần lên lịch trước khi bắt đầu giao lại, hoặc chuyển hoàn về nơi gửi.'}</p>` : ''}${next.map((value) => `<div class="vn-action-row"><button ${disabled} class="${value === 'DeliveryFailed' ? 'vn-fail' : 'primary'}" data-event="${value}" data-shipment="${s.id}">${esc(ui.actionLabels[value])}</button>${!['DeliveryFailed', 'ReattemptScheduled'].includes(value) ? `<button ${disabled} class="vn-other" data-event="${value}" data-shipment="${s.id}" data-custom="true" aria-label="Nhập thông tin khác: ${esc(ui.actionLabels[value])}">Nhập thông tin khác</button>` : ''}<small>${value === 'ReattemptScheduled' ? 'Thời gian dự kiến và lý do là bắt buộc; địa điểm tùy chọn.' : `Địa điểm: ${esc(ui.location(s, value))}`}</small></div>`).join('')}<p class="vn-save-state" role="status" aria-live="polite">${busy.has(s.id) ? 'Đang lưu cập nhật…' : next.length ? 'Địa điểm được điền sẵn. Bạn có thể đổi nếu cần.' : 'Bạn vẫn có thể xem thông tin và hành trình bên dưới.'}</p></section>`;
   }
@@ -156,17 +160,41 @@
           title: 'Lên lịch giao lại',
           description: `${s.trackingNumber} · Đơn #${orderId}. Lịch dự kiến chưa bắt đầu giao và chưa tăng số lượt.`,
           fields: [
-            { name: 'reattemptAt', type: 'datetime-local', label: 'Thời gian dự kiến (giờ trên thiết bị)', required: true,
-              validate: value => Number.isFinite(Date.parse(value)) && Date.parse(value) > Date.now() ? '' : 'Chọn thời gian trong tương lai.' },
-            { name: 'note', type: 'textarea', label: 'Lý do lên lịch giao lại', required: true, maxLength: 1000,
-              validate: value => value.trim() ? '' : 'Vui lòng nhập lý do giao lại.' },
-            { name: 'location', type: 'textarea', rows: 2, label: 'Địa điểm (không bắt buộc)', maxLength: 100,
-              help: 'Tối đa 100 ký tự. Có thể để trống khi chưa có địa điểm cập nhật.' },
+            {
+              name: 'reattemptAt',
+              type: 'datetime-local',
+              label: 'Thời gian dự kiến (giờ trên thiết bị)',
+              required: true,
+              validate: (value) =>
+                Number.isFinite(Date.parse(value)) && Date.parse(value) > Date.now()
+                  ? ''
+                  : 'Chọn thời gian trong tương lai.',
+            },
+            {
+              name: 'note',
+              type: 'textarea',
+              label: 'Lý do lên lịch giao lại',
+              required: true,
+              maxLength: 1000,
+              validate: (value) => (value.trim() ? '' : 'Vui lòng nhập lý do giao lại.'),
+            },
+            {
+              name: 'location',
+              type: 'textarea',
+              rows: 2,
+              label: 'Địa điểm (không bắt buộc)',
+              maxLength: 100,
+              help: 'Tối đa 100 ký tự. Có thể để trống khi chưa có địa điểm cập nhật.',
+            },
           ],
           confirm: 'Lưu lịch giao lại',
         });
         if (!input) return;
-        input = { location: input.location.trim(), note: input.note.trim(), reattemptAt: new Date(input.reattemptAt).toISOString() };
+        input = {
+          location: input.location.trim(),
+          note: input.note.trim(),
+          reattemptAt: new Date(input.reattemptAt).toISOString(),
+        };
       } else if (!retry && (event === 'DeliveryFailed' || button.dataset.custom === 'true')) {
         const failed = event === 'DeliveryFailed';
         const fields = failed
@@ -266,18 +294,22 @@
   }
   document.body.addEventListener('click', (e) => {
     const addressDecision = e.target.closest('[data-address-shipper]');
-    if (addressDecision) return safe(async () => {
-      const id = Number(addressDecision.dataset.shipment);
-      if (busy.has(id)) return;
-      busy.add(id);
-      $('detail-content').querySelectorAll('[data-address-shipper]').forEach(b => b.disabled = true);
-      try { await G4.AddressChanges.decideShipper(addressDecision); }
-      finally {
-        busy.delete(id);
-        await load();
-        if (active) await detail(active.orderId, id, true);
-      }
-    });
+    if (addressDecision)
+      return safe(async () => {
+        const id = Number(addressDecision.dataset.shipment);
+        if (busy.has(id)) return;
+        busy.add(id);
+        $('detail-content')
+          .querySelectorAll('[data-address-shipper]')
+          .forEach((b) => (b.disabled = true));
+        try {
+          await G4.AddressChanges.decideShipper(addressDecision);
+        } finally {
+          busy.delete(id);
+          await load();
+          if (active) await detail(active.orderId, id, true);
+        }
+      });
     const ack = e.target.closest('[data-ack-address]');
     if (ack)
       return safe(async () => {
@@ -367,7 +399,8 @@
   safe(load);
   G4.Realtime?.subscribe(['shipments', 'orders'], async () => {
     await load();
-    if (active && $('detail-dialog').open && !busy.has(active.shipmentId)) await detail(active.orderId, active.shipmentId, true);
+    if (active && $('detail-dialog').open && !busy.has(active.shipmentId))
+      await detail(active.orderId, active.shipmentId, true);
   });
   setInterval(() => {
     if (

@@ -3,9 +3,13 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace G4.Api.Controllers;
+
 [ApiController]
 [Route("api/seller/shipping")]
-public sealed class SellerShippingSettingsController(ApplicationDbContext db, IHostEnvironment environment) : ApiControllerBase(environment)
+public sealed class SellerShippingSettingsController(
+    ApplicationDbContext db,
+    IHostEnvironment environment
+) : ApiControllerBase(environment)
 {
     [HttpGet("settings")]
     public async Task<IActionResult> Settings(
@@ -16,53 +20,115 @@ public sealed class SellerShippingSettingsController(ApplicationDbContext db, IH
     {
         if (!IsAvailable || !HasRole("seller"))
             return StatusCode(403);
-        var query = db.Products.AsNoTracking().Where(p => p.SellerId == CurrentUserId && p.IsAuction != true);
+        var query = db
+            .Products.AsNoTracking()
+            .Where(p => p.SellerId == CurrentUserId && p.IsAuction != true);
         var count = await query.CountAsync(ct);
         pageSize = Math.Clamp(pageSize, 1, 50);
         page = Math.Clamp(page, 1, Math.Max(1, (count + pageSize - 1) / pageSize));
-        var pickup = await db.Addresses.AsNoTracking().Where(a => a.UserId == CurrentUserId && a.IsDefault == true).OrderBy(a => a.Id)
-            .Select(a => new { a.FullName, a.Street, a.City, a.State, a.Country })
+        var pickup = await db
+            .Addresses.AsNoTracking()
+            .Where(a => a.UserId == CurrentUserId && a.IsDefault == true)
+            .OrderBy(a => a.Id)
+            .Select(a => new
+            {
+                a.FullName,
+                a.Street,
+                a.City,
+                a.State,
+                a.Country,
+            })
             .FirstOrDefaultAsync(ct);
-        var items = await query.OrderBy(p => p.Id).Skip((page - 1) * pageSize).Take(pageSize).Select(p => new { p.Id, p.Title, p.WeightKg })
+        var items = await query
+            .OrderBy(p => p.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(p => new
+            {
+                p.Id,
+                p.Title,
+                p.WeightKg,
+            })
             .ToListAsync(ct);
-        var addressChangeCap = await db.SellerShippingPreferences.Where(x => x.SellerId == CurrentUserId).Select(x => (decimal? )x.AddressChangeCap)
-            .SingleOrDefaultAsync(ct) ?? 0m;
-        return Ok(new { pickup, addressChangeCap, page, pageSize, totalCount = count, items });
+        var addressChangeCap =
+            await db
+                .SellerShippingPreferences.Where(x => x.SellerId == CurrentUserId)
+                .Select(x => (decimal?)x.AddressChangeCap)
+                .SingleOrDefaultAsync(ct)
+            ?? 0m;
+        return Ok(
+            new
+            {
+                pickup,
+                addressChangeCap,
+                page,
+                pageSize,
+                totalCount = count,
+                items,
+            }
+        );
     }
 
     [HttpPost("address-change-cap")]
-    public async Task<IActionResult> AddressChangeCap(AddressChangeCapInput input, CancellationToken ct)
+    public async Task<IActionResult> AddressChangeCap(
+        AddressChangeCapInput input,
+        CancellationToken ct
+    )
     {
         if (!IsAvailable || !HasRole("seller"))
             return StatusCode(403);
-        if (input.Amount < 0 || input.Amount > 10000 || decimal.Round(input.Amount, 2) != input.Amount)
-            return BadRequest(new { error = "Mức chịu phí cần từ 0 đến 10.000 USD, tối đa 2 chữ số thập phân." });
-        await using var tx = await G4.Infrastructure.Promotions.PromotionLifecycle.LockOrderAsync(db, 0, ct);
-        var preference = await db.SellerShippingPreferences.SingleOrDefaultAsync(x => x.SellerId == CurrentUserId, ct);
+        if (
+            input.Amount < 0
+            || input.Amount > 10000
+            || decimal.Round(input.Amount, 2) != input.Amount
+        )
+            return BadRequest(
+                new { error = "Mức chịu phí cần từ 0 đến 10.000 USD, tối đa 2 chữ số thập phân." }
+            );
+        await using var tx = await G4.Infrastructure.Promotions.PromotionLifecycle.LockOrderAsync(
+            db,
+            0,
+            ct
+        );
+        var preference = await db.SellerShippingPreferences.SingleOrDefaultAsync(
+            x => x.SellerId == CurrentUserId,
+            ct
+        );
         if (preference == null)
         {
-            preference = new SellerShippingPreference
-            {
-                SellerId = CurrentUserId
-            };
+            preference = new SellerShippingPreference { SellerId = CurrentUserId };
             db.SellerShippingPreferences.Add(preference);
         }
 
-        if (preference.AddressChangeCap != input.Amount) preference.Revision++;
+        if (preference.AddressChangeCap != input.Amount)
+            preference.Revision++;
         preference.AddressChangeCap = input.Amount;
         await db.SaveChangesAsync(ct);
-        if (tx != null) await tx.CommitAsync(ct);
+        if (tx != null)
+            await tx.CommitAsync(ct);
         return Ok(new { addressChangeCap = preference.AddressChangeCap });
     }
 
     [HttpPost("products/{id:int}/weight")]
-    public async Task<IActionResult> Weight(int id, ProductWeightRequest request, CancellationToken ct)
+    public async Task<IActionResult> Weight(
+        int id,
+        ProductWeightRequest request,
+        CancellationToken ct
+    )
     {
         if (!IsAvailable || !HasRole("seller"))
             return StatusCode(403);
-        if (request.WeightKg is < .001m or > 10000m || decimal.Round(request.WeightKg, 3) != request.WeightKg)
-            return BadRequest(new { error = "Khối lượng cần từ 0,001 đến 10.000 kg, tối đa 3 chữ số thập phân." });
-        var product = await db.Products.SingleOrDefaultAsync(p => p.Id == id && p.SellerId == CurrentUserId, ct);
+        if (
+            request.WeightKg is < .001m or > 10000m
+            || decimal.Round(request.WeightKg, 3) != request.WeightKg
+        )
+            return BadRequest(
+                new { error = "Khối lượng cần từ 0,001 đến 10.000 kg, tối đa 3 chữ số thập phân." }
+            );
+        var product = await db.Products.SingleOrDefaultAsync(
+            p => p.Id == id && p.SellerId == CurrentUserId,
+            ct
+        );
         if (product is null)
             return StatusCode(403);
         product.WeightKg = request.WeightKg;
@@ -75,24 +141,34 @@ public sealed class SellerShippingSettingsController(ApplicationDbContext db, IH
     {
         if (!IsAvailable || !HasRole("seller"))
             return StatusCode(403);
-        if (new[]
-        {
-            request.FullName,
-            request.Street,
-            request.City,
-            request.State,
-            request.Country
-        }.Any(string.IsNullOrWhiteSpace) || request.FullName.Length > 100 || request.Street.Length > 100 || request.City.Length > 50 || request.State.Length > 50 || request.Country.Length > 50)
-            return BadRequest(new { error = "Nhập đầy đủ địa chỉ lấy hàng; tên/đường tối đa 100 ký tự, thành phố/tỉnh/quốc gia tối đa 50 ký tự." });
-        var pickup = await db.Addresses.Where(a => a.UserId == CurrentUserId && a.IsDefault == true).OrderBy(a => a.Id)
+        if (
+            new[]
+            {
+                request.FullName,
+                request.Street,
+                request.City,
+                request.State,
+                request.Country,
+            }.Any(string.IsNullOrWhiteSpace)
+            || request.FullName.Length > 100
+            || request.Street.Length > 100
+            || request.City.Length > 50
+            || request.State.Length > 50
+            || request.Country.Length > 50
+        )
+            return BadRequest(
+                new
+                {
+                    error = "Nhập đầy đủ địa chỉ lấy hàng; tên/đường tối đa 100 ký tự, thành phố/tỉnh/quốc gia tối đa 50 ký tự.",
+                }
+            );
+        var pickup = await db
+            .Addresses.Where(a => a.UserId == CurrentUserId && a.IsDefault == true)
+            .OrderBy(a => a.Id)
             .FirstOrDefaultAsync(ct);
         if (pickup is null)
         {
-            pickup = new Address
-            {
-                UserId = CurrentUserId,
-                IsDefault = true
-            };
+            pickup = new Address { UserId = CurrentUserId, IsDefault = true };
             db.Addresses.Add(pickup);
         }
 

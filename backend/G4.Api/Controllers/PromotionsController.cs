@@ -3,11 +3,15 @@ using G4.Infrastructure.Promotions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace G4.Api.Controllers;
+
 [ApiController]
 [Route("api/{role}/promotions")]
-public sealed class PromotionsController(ApplicationDbContext db, IHostEnvironment environment) : ApiControllerBase(environment)
+public sealed class PromotionsController(ApplicationDbContext db, IHostEnvironment environment)
+    : ApiControllerBase(environment)
 {
-    private bool Allowed(string role) => IsAvailable && (role == "seller" || role == "admin") && HasRole(role);
+    private bool Allowed(string role) =>
+        IsAvailable && (role == "seller" || role == "admin") && HasRole(role);
+
     [HttpGet("page")]
     public async Task<IActionResult> Page(
         string role,
@@ -23,7 +27,20 @@ public sealed class PromotionsController(ApplicationDbContext db, IHostEnvironme
     {
         if (!Allowed(role))
             return StatusCode(403);
-        return Ok(await new PromotionManagementService(db).ListAsync(CurrentUserId, role == "admin", page, pageSize, filter, search, type, sellerId, fundingSource, ct));
+        return Ok(
+            await new PromotionManagementService(db).ListAsync(
+                CurrentUserId,
+                role == "admin",
+                page,
+                pageSize,
+                filter,
+                search,
+                type,
+                sellerId,
+                fundingSource,
+                ct
+            )
+        );
     }
 
     [HttpGet("options")]
@@ -31,7 +48,13 @@ public sealed class PromotionsController(ApplicationDbContext db, IHostEnvironme
     {
         if (!Allowed(role))
             return StatusCode(403);
-        return Ok(await new PromotionManagementService(db).OptionsAsync(CurrentUserId, role == "admin", ct));
+        return Ok(
+            await new PromotionManagementService(db).OptionsAsync(
+                CurrentUserId,
+                role == "admin",
+                ct
+            )
+        );
     }
 
     [HttpGet("{id:int}")]
@@ -39,7 +62,14 @@ public sealed class PromotionsController(ApplicationDbContext db, IHostEnvironme
     {
         if (!Allowed(role))
             return StatusCode(403);
-        return Ok(await new PromotionManagementService(db).ReadAsync(CurrentUserId, role == "admin", id, ct));
+        return Ok(
+            await new PromotionManagementService(db).ReadAsync(
+                CurrentUserId,
+                role == "admin",
+                id,
+                ct
+            )
+        );
     }
 
     [HttpGet("{id:int}/audits")]
@@ -47,7 +77,14 @@ public sealed class PromotionsController(ApplicationDbContext db, IHostEnvironme
     {
         if (!Allowed(role))
             return StatusCode(403);
-        return Ok(await new PromotionManagementService(db).AuditsAsync(CurrentUserId, role == "admin", id, ct));
+        return Ok(
+            await new PromotionManagementService(db).AuditsAsync(
+                CurrentUserId,
+                role == "admin",
+                id,
+                ct
+            )
+        );
     }
 
     [HttpPost]
@@ -55,30 +92,76 @@ public sealed class PromotionsController(ApplicationDbContext db, IHostEnvironme
     {
         if (!Allowed(role))
             return StatusCode(403);
-        return Ok(await new PromotionManagementService(db).SaveAsync(CurrentUserId, role == "admin", input, null, ct));
+        return Ok(
+            await new PromotionManagementService(db).SaveAsync(
+                CurrentUserId,
+                role == "admin",
+                input,
+                null,
+                ct
+            )
+        );
     }
 
     [HttpPost("{id:int}/edit")]
-    public async Task<IActionResult> Edit(string role, int id, PromotionInput input, CancellationToken ct)
+    public async Task<IActionResult> Edit(
+        string role,
+        int id,
+        PromotionInput input,
+        CancellationToken ct
+    )
     {
         if (!Allowed(role))
             return StatusCode(403);
-        return Ok(await new PromotionManagementService(db).SaveAsync(CurrentUserId, role == "admin", input, id, ct));
+        return Ok(
+            await new PromotionManagementService(db).SaveAsync(
+                CurrentUserId,
+                role == "admin",
+                input,
+                id,
+                ct
+            )
+        );
     }
 
     [HttpPost("{id:int}/state")]
-    public async Task<IActionResult> State(string role, int id, PromotionStateInput input, CancellationToken ct)
+    public async Task<IActionResult> State(
+        string role,
+        int id,
+        PromotionStateInput input,
+        CancellationToken ct
+    )
     {
         if (!Allowed(role))
             return StatusCode(403);
-        return Ok(await new PromotionManagementService(db).SetStateAsync(CurrentUserId, role == "admin", id, input, ct));
+        return Ok(
+            await new PromotionManagementService(db).SetStateAsync(
+                CurrentUserId,
+                role == "admin",
+                id,
+                input,
+                ct
+            )
+        );
     }
 
     [HttpPost("{id:int}/suspension")]
-    public async Task<IActionResult> Suspension(string role, int id, PromotionSuspensionInput input, CancellationToken ct)
+    public async Task<IActionResult> Suspension(
+        string role,
+        int id,
+        PromotionSuspensionInput input,
+        CancellationToken ct
+    )
     {
         if (role != "admin" || !Allowed(role))
             return StatusCode(403);
-        return Ok(await new PromotionManagementService(db).SetSuspensionAsync(CurrentUserId, id, input, ct));
+        return Ok(
+            await new PromotionManagementService(db).SetSuspensionAsync(
+                CurrentUserId,
+                id,
+                input,
+                ct
+            )
+        );
     }
 }

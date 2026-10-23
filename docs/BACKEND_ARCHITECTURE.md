@@ -89,6 +89,13 @@ Các endpoint backend bắt đầu bằng `/api`. Frontend chuyển tiếp reque
 - Mỗi controller/service chỉ xử lý một nhóm nghiệp vụ. Nếu file tăng quá lớn, tách theo use case thay vì thêm hậu tố phiên bản.
 - Migration đã áp dụng không đổi migration ID. Chuỗi lịch sử `20260924112602_AddCheckoutShippingMvp` vẫn được giữ trong metadata và script SQL để database cũ không chạy lại migration; tên file và tên class đã đổi thành `AddCheckoutShipping`.
 
+## Trình bày mã nguồn
+
+- Dùng 4 dấu cách cho C#/Razor/project XML, 2 dấu cách cho JavaScript/CSS. Mục tiêu 100 ký tự/dòng; tách tham số, chuỗi gọi hàm, điều kiện dài và thuộc tính HTML ra nhiều dòng. Không dồn nhiều câu lệnh hoặc cả khối xử lý trên một dòng.
+- `.editorconfig` lưu quy tắc chung; CSharpier 1.3.0 dùng `.csharpierrc.json`, Prettier 3.6.2 dùng `.prettierrc.json`. Giữ nguyên giá trị chuỗi/template literal khi format, kể cả khi chúng dài hơn mục tiêu; không sửa logic hoặc nội dung hiển thị để rút ngắn dòng.
+- Chỉ format mã tự viết; bỏ qua `bin`, `obj`, `artifacts`, thư viện bên thứ ba và migration đã có. Razor cần giữ nguyên biểu thức, thuộc tính, nội dung và phần tử rỗng (tránh ảnh hưởng selector `:empty`).
+- Sau format, kiểm tra diff, build và chạy bộ test liên quan. Đợt 23/10/2026: solution build sang thư mục riêng đạt 0 warning/error, backend mặc định và Node 128/128 đạt; không tạo hoặc áp migration. Chi tiết phạm vi ở mục FORMAT của backlog.
+
 ## Chạy và tạo migration
 
 ```powershell

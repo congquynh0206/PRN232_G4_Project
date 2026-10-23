@@ -7,9 +7,21 @@ internal static class DisputeWorkflowChecks
 {
     public static async Task RunAsync()
     {
-        await using var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options);
-        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Disputes:SellerResponseSeconds"] = "45", ["Disputes:BuyerResponseSeconds"] = "45", ["Disputes:ReturnReceiptSeconds"] = "45", ["Disputes:ExecutionTimeoutSeconds"] = "1" })
+        await using var db = new ApplicationDbContext(
+            new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString())
+                .Options
+        );
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["Disputes:SellerResponseSeconds"] = "45",
+                    ["Disputes:BuyerResponseSeconds"] = "45",
+                    ["Disputes:ReturnReceiptSeconds"] = "45",
+                    ["Disputes:ExecutionTimeoutSeconds"] = "1",
+                }
+            )
             .Build();
         var clock = new DisputeClock();
         var finance = new SellerFinanceService(db, config);
@@ -18,41 +30,98 @@ internal static class DisputeWorkflowChecks
         var returns = new ReturnService(db, gateway, carrier, finance);
         var service = new DisputeService(db, finance, returns, config, clock);
         db.Users.AddRange(
-            new User { Id = 1, Email = "buyer@test", Role = "buyer" },
-            new User { Id = 2, Email = "seller@test", Role = "seller" },
-            new User { Id = 3, Email = "admin@test", Role = "admin" }
+            new User
+            {
+                Id = 1,
+                Email = "buyer@test",
+                Role = "buyer",
+            },
+            new User
+            {
+                Id = 2,
+                Email = "seller@test",
+                Role = "seller",
+            },
+            new User
+            {
+                Id = 3,
+                Email = "admin@test",
+                Role = "admin",
+            }
         );
         for (var id = 601; id <= 610; id++)
         {
-            db.OrderTables.Add(new OrderTable { Id = id, BuyerId = 1, SellerId = 2, Status = "Delivered", OrderDate = clock.GetUtcNow().UtcDateTime, TotalPrice = 100m });
-            db.Payments.Add(new Payment { Id = id, OrderId = id, Method = "Card", Status = "Succeeded", Amount = 100m });
-            db.ShippingInfos.Add(new ShippingInfo { OrderId = id, Direction = "Outbound", Status = "Delivered", DeliveredAt = clock.GetUtcNow().UtcDateTime });
+            db.OrderTables.Add(
+                new OrderTable
+                {
+                    Id = id,
+                    BuyerId = 1,
+                    SellerId = 2,
+                    Status = "Delivered",
+                    OrderDate = clock.GetUtcNow().UtcDateTime,
+                    TotalPrice = 100m,
+                }
+            );
+            db.Payments.Add(
+                new Payment
+                {
+                    Id = id,
+                    OrderId = id,
+                    Method = "Card",
+                    Status = "Succeeded",
+                    Amount = 100m,
+                }
+            );
+            db.ShippingInfos.Add(
+                new ShippingInfo
+                {
+                    OrderId = id,
+                    Direction = "Outbound",
+                    Status = "Delivered",
+                    DeliveredAt = clock.GetUtcNow().UtcDateTime,
+                }
+            );
         }
 
         await db.SaveChangesAsync();
         for (var id = 601; id <= 610; id++)
             await finance.RecordSuccessfulPaymentAsync(id, id);
-        var links = new[]
-        {
-            "https://example.test/evidence"
-        };
+        var links = new[] { "https://example.test/evidence" };
         await Reject<ArgumentException>(() => service.OpenAsync(601, 1, new("Mô tả", [])));
         await Reject<ArgumentException>(() => service.OpenAsync(601, 1, new(" ", links)));
-        await Reject<ArgumentException>(() => service.OpenAsync(601, 1, new("Mô tả", ["javascript:alert(1)"])));
-        await Reject<UnauthorizedAccessException>(() => service.OpenAsync(601, 9, new("Mô tả", links)));
+        await Reject<ArgumentException>(() =>
+            service.OpenAsync(601, 1, new("Mô tả", ["javascript:alert(1)"]))
+        );
+        await Reject<UnauthorizedAccessException>(() =>
+            service.OpenAsync(601, 9, new("Mô tả", links))
+        );
         Check(0, await db.Disputes.CountAsync(), "invalid request creates no case");
         var first = await service.OpenAsync(601, 1, new("Hàng bị lỗi", links));
         Check("AwaitingSeller", first.Status, "opening awaits seller");
-        Check(clock.GetUtcNow().UtcDateTime.AddSeconds(45), first.SellerResponseDueAt, "seller deadline");
-        Check(first.Id, (await service.OpenAsync(601, 1, new("Hàng bị lỗi", links))).Id, "duplicate opening");
+        Check(
+            clock.GetUtcNow().UtcDateTime.AddSeconds(45),
+            first.SellerResponseDueAt,
+            "seller deadline"
+        );
+        Check(
+            first.Id,
+            (await service.OpenAsync(601, 1, new("Hàng bị lỗi", links))).Id,
+            "duplicate opening"
+        );
         Check(
             1,
             await db.DisputeEntries.CountAsync(x => x.DisputeId == first.Id),
             "opening evidence saved once"
         );
-        await Reject<InvalidOperationException>(() => service.ResolveAsync(first.Id, 3, new(true, "Buyer wins")));
-        await Reject<UnauthorizedAccessException>(() => service.GetDetailAsync(first.Id, 9, "buyer"));
-        await Reject<UnauthorizedAccessException>(() => service.GetDetailAsync(first.Id, 3, "admin"));
+        await Reject<InvalidOperationException>(() =>
+            service.ResolveAsync(first.Id, 3, new(true, "Buyer wins"))
+        );
+        await Reject<UnauthorizedAccessException>(() =>
+            service.GetDetailAsync(first.Id, 9, "buyer")
+        );
+        await Reject<UnauthorizedAccessException>(() =>
+            service.GetDetailAsync(first.Id, 3, "admin")
+        );
         var namedDetail = await service.GetDetailAsync(first.Id, 1, "buyer");
         Check("buyer@test", namedDetail.BuyerName, "buyer display name falls back to email");
         Check("seller@test", namedDetail.SellerName, "seller display name falls back to email");
@@ -60,7 +129,9 @@ internal static class DisputeWorkflowChecks
         var buyerDeadline = first.BuyerResponseDueAt;
         await service.AddEvidenceAsync(first.Id, 1, "buyer", new("Ảnh bổ sung", links));
         Check(buyerDeadline, first.BuyerResponseDueAt, "evidence does not extend deadline");
-        await Reject<InvalidOperationException>(() => service.ProposeAsync(first.Id, 2, new("Refund", "Đổi phương án", links)));
+        await Reject<InvalidOperationException>(() =>
+            service.ProposeAsync(first.Id, 2, new("Refund", "Đổi phương án", links))
+        );
         clock.Advance(45);
         await service.MaintainAsync();
         Check("Closed", first.Status, "buyer silence closes");
@@ -70,7 +141,9 @@ internal static class DisputeWorkflowChecks
             (await db.SellerSettlements.SingleAsync(x => x.OrderId == 601)).Status,
             "normal hold still applies"
         );
-        await Reject<InvalidOperationException>(() => service.AddEvidenceAsync(first.Id, 1, "buyer", new("Muộn", links)));
+        await Reject<InvalidOperationException>(() =>
+            service.AddEvidenceAsync(first.Id, 1, "buyer", new("Muộn", links))
+        );
         var reopened = await service.OpenAsync(601, 1, new("Vấn đề vẫn còn", links));
         if (reopened.Id == first.Id)
             throw new Exception("closed case reused");
@@ -101,17 +174,29 @@ internal static class DisputeWorkflowChecks
         Check("Closed", refundCase.Status, "successful refund closes agreement");
         Check("AgreedRefund", refundCase.Outcome, "agreed refund outcome");
         await service.MaintainAsync();
-        Check(1, await db.Refunds.CountAsync(x => x.OrderId == 602 && x.Status == "Succeeded"), "refund once");
+        Check(
+            1,
+            await db.Refunds.CountAsync(x => x.OrderId == 602 && x.Status == "Succeeded"),
+            "refund once"
+        );
         var adminCase = await service.OpenAsync(603, 1, new("Sai sản phẩm", links));
         await service.ProposeAsync(adminCase.Id, 2, new("KeepOrder", "Không đồng ý", links));
         await service.RespondAsync(adminCase.Id, 1, new(false, "Chưa giải quyết được"));
         Check("Escalated", adminCase.Status, "disagreement escalates");
-        await Reject<ArgumentException>(() => service.ResolveAsync(adminCase.Id, 3, new(true, " ")));
+        await Reject<ArgumentException>(() =>
+            service.ResolveAsync(adminCase.Id, 3, new(true, " "))
+        );
         await service.ResolveAsync(adminCase.Id, 3, new(true, "Ảnh chứng minh hàng sai"));
         Check("BuyerWins", adminCase.Outcome, "admin refund outcome");
         var returnCase = await service.OpenAsync(604, 1, new("Cần trả hàng", links));
-        await service.ProposeAsync(returnCase.Id, 2, new("ReturnRefund", "Trả hàng để hoàn tiền", links));
-        var outbound = await db.ShippingInfos.SingleAsync(x => x.OrderId == 604 && x.Direction == "Outbound");
+        await service.ProposeAsync(
+            returnCase.Id,
+            2,
+            new("ReturnRefund", "Trả hàng để hoàn tiền", links)
+        );
+        var outbound = await db.ShippingInfos.SingleAsync(x =>
+            x.OrderId == 604 && x.Direction == "Outbound"
+        );
         outbound.DeliveredAt = DateTime.UtcNow.AddDays(-8);
         await db.SaveChangesAsync();
         Check(
@@ -123,8 +208,14 @@ internal static class DisputeWorkflowChecks
         await service.RespondAsync(returnCase.Id, 1, new(true, "Đồng ý trả"));
         Check("ExecutingAgreement", returnCase.Status, "return not prematurely closed");
         var request = await db.ReturnRequests.SingleAsync(x => x.OrderId == 604);
-        var parcel = await db.ShippingInfos.SingleAsync(x => x.OrderId == 604 && x.Direction == "Return");
-        Check("ShipmentCreationFailed", parcel.Status, "carrier timeout keeps accepted agreement for retry");
+        var parcel = await db.ShippingInfos.SingleAsync(x =>
+            x.OrderId == 604 && x.Direction == "Return"
+        );
+        Check(
+            "ShipmentCreationFailed",
+            parcel.Status,
+            "carrier timeout keeps accepted agreement for retry"
+        );
         Check(
             "OnHold",
             (await db.SellerSettlements.SingleAsync(x => x.OrderId == 604)).Status,
@@ -132,7 +223,11 @@ internal static class DisputeWorkflowChecks
         );
         clock.Advance(45);
         await service.MaintainAsync();
-        Check("ExecutingAgreement", returnCase.Status, "accepted agreement never becomes buyer silence");
+        Check(
+            "ExecutingAgreement",
+            returnCase.Status,
+            "accepted agreement never becomes buyer silence"
+        );
         carrier.Timeout = false;
         await service.MaintainAsync();
         Check("LabelCreated", parcel.Status, "carrier timeout retries label successfully");
@@ -147,12 +242,18 @@ internal static class DisputeWorkflowChecks
         Check("AgreedReturn", returnCase.Outcome, "return agreement outcome");
         var lateCase = await service.OpenAsync(605, 1, new("Kiểm tra hết hạn", links));
         clock.Advance(45);
-        await Reject<InvalidOperationException>(() => service.ProposeAsync(lateCase.Id, 2, new("Refund", "Muộn", links)));
+        await Reject<InvalidOperationException>(() =>
+            service.ProposeAsync(lateCase.Id, 2, new("Refund", "Muộn", links))
+        );
         await service.MaintainAsync();
         Check("Escalated", lateCase.Status, "late reply cannot bypass deadline");
         var page = await service.GetPageAsync(1, "buyer", 1, 2, "all");
         Check(2, page.Items.Count, "server pagination");
-        Check(0, (await service.GetPageAsync(9, "seller", 1, 10, "all")).TotalCount, "ownership filter");
+        Check(
+            0,
+            (await service.GetPageAsync(9, "seller", 1, 10, "all")).TotalCount,
+            "ownership filter"
+        );
         Check(
             1,
             (await service.GetPageAsync(3, "admin", 1, 10, "open")).TotalCount,
@@ -167,9 +268,17 @@ internal static class DisputeWorkflowChecks
         db.Entry(evidence).State = EntityState.Unchanged;
         // A large admin queue must not prevent a later negotiation deadline from being processed.
         for (var i = 0; i < 100; i++)
-            db.Disputes.Add(new Dispute { WorkflowEnabled = true, IsOpen = true, Status = "Escalated", UpdatedAt = clock.GetUtcNow().UtcDateTime.AddDays(-1) });
+            db.Disputes.Add(
+                new Dispute
+                {
+                    WorkflowEnabled = true,
+                    IsOpen = true,
+                    Status = "Escalated",
+                    UpdatedAt = clock.GetUtcNow().UtcDateTime.AddDays(-1),
+                }
+            );
         await db.SaveChangesAsync();
-        var longDescription = new string ('a', 600);
+        var longDescription = new string('a', 600);
         var queuedCase = await service.OpenAsync(606, 1, new(longDescription, links));
         Check(
             longDescription,
@@ -178,13 +287,23 @@ internal static class DisputeWorkflowChecks
         );
         Check(
             500,
-            (await db.FinancialTransactions.SingleAsync(x => x.OrderId == 606 && x.Type == "FundHold")).Description!.Length,
+            (
+                await db.FinancialTransactions.SingleAsync(x =>
+                    x.OrderId == 606 && x.Type == "FundHold"
+                )
+            )
+                .Description!
+                .Length,
             "finance summary fits SQL column"
         );
         clock.Advance(45);
         await service.MaintainAsync();
         Check("Escalated", queuedCase.Status, "admin queue cannot starve overdue negotiation");
-        var faultCase = await service.OpenAsync(607, 1, new("Kiểm tra cách ly lỗi thực hiện", links));
+        var faultCase = await service.OpenAsync(
+            607,
+            1,
+            new("Kiểm tra cách ly lỗi thực hiện", links)
+        );
         await service.ProposeAsync(faultCase.Id, 2, new("ReturnRefund", "Đồng ý trả", links));
         carrier.UnexpectedFailure = true;
         await service.RespondAsync(faultCase.Id, 1, new(true, "Đồng ý"));
@@ -193,7 +312,11 @@ internal static class DisputeWorkflowChecks
             (await db.Disputes.SingleAsync(x => x.Id == faultCase.Id)).Status,
             "execution error cannot undo acceptance"
         );
-        var followingCase = await service.OpenAsync(608, 1, new("Kiểm tra yêu cầu tiếp theo", links));
+        var followingCase = await service.OpenAsync(
+            608,
+            1,
+            new("Kiểm tra yêu cầu tiếp theo", links)
+        );
         await service.ProposeAsync(followingCase.Id, 2, new("Refund", "Đồng ý hoàn", links));
         gateway.FailuresRemaining = 1;
         await service.RespondAsync(followingCase.Id, 1, new(true, "Đồng ý"));
@@ -214,7 +337,11 @@ internal static class DisputeWorkflowChecks
         var slowCase = await service.OpenAsync(609, 1, new("Kiểm tra cổng vận chuyển treo", links));
         await service.ProposeAsync(slowCase.Id, 2, new("ReturnRefund", "Đồng ý trả", links));
         await service.RespondAsync(slowCase.Id, 1, new(true, "Đồng ý"));
-        var expiringCase = await service.OpenAsync(610, 1, new("Kiểm tra deadline khi cổng ngoài treo", links));
+        var expiringCase = await service.OpenAsync(
+            610,
+            1,
+            new("Kiểm tra deadline khi cổng ngoài treo", links)
+        );
         clock.Advance(45);
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         await service.MaintainAsync();
@@ -268,7 +395,12 @@ internal sealed class DisputeTestCarrier : ICarrierGateway
     public bool UnexpectedFailure { get; set; }
     public bool Stall { get; set; }
 
-    public async Task<string> CreateLabelAsync(int orderId, string direction, string key, CancellationToken ct)
+    public async Task<string> CreateLabelAsync(
+        int orderId,
+        string direction,
+        string key,
+        CancellationToken ct
+    )
     {
         if (Timeout)
             throw new TaskCanceledException("Simulated HTTP timeout");
@@ -283,6 +415,8 @@ internal sealed class DisputeTestCarrier : ICarrierGateway
 internal sealed class DisputeClock : TimeProvider
 {
     private DateTimeOffset now = DateTimeOffset.UtcNow;
+
     public override DateTimeOffset GetUtcNow() => now;
+
     public void Advance(int seconds) => now = now.AddSeconds(seconds);
 }

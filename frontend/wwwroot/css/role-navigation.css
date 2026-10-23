@@ -1,49 +1,266 @@
-.workspace-shell { max-width: 1480px; margin: 24px auto; padding: 0 24px; }
-.workspace-shell.has-sidebar { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 24px; align-items: start; }
-.workspace-shell .workspace-main { width: 100%; min-width: 0; max-width: none; margin: 0; padding: 0 0 40px; }
-.workspace-shell .panel { padding: 28px; }
-.workspace-sidebar { position: sticky; top: 96px; max-height: calc(100dvh - 120px); overflow-y: auto; overscroll-behavior: contain; border: 1px solid #e2e8f0; background: #fff; border-radius: 16px; padding: 16px 10px; scrollbar-width: thin; }
-.workspace-nav.role-tabs { margin: 0; padding: 0; }
-.workspace-nav .navigation-group + .navigation-group { margin-top: 20px; }
-.navigation-group-label { margin: 0 12px 7px; color: #617087; font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
-.workspace-nav .navigation-item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 10px 12px; margin: 2px 0; border: 1px solid transparent; border-radius: 9px; background: transparent; color: #435771; font: inherit; font-size: 14px; font-weight: 600; text-align: left; line-height: 1.4; }
-.workspace-nav .navigation-item svg { width: 20px; height: 20px; flex: 0 0 20px; }
-.navigation-label { min-width: 0; overflow-wrap: anywhere; }
-.workspace-nav .navigation-item.active { background: #eaf1ff; border-color: #d1def9; color: #214fba; box-shadow: inset 3px 0 #315fc6; }
-.navigation-badge { flex: 0 0 auto; margin-left: auto; min-width: 22px; padding: 2px 5px; border-radius: 12px; background: #e6edf7; color: #244169; text-align: center; font-size: 11px; }
-.navigation-badge:empty { display: none; }
-.navigation-item.active .navigation-badge { color: #fff; background: #315fc6; }
-.workspace-mobile-bar { display: none; }
-.workspace-nav.buyer-nav { max-width: 1192px; margin: 0 auto 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; padding: 6px; }
-.buyer-nav .navigation-group { display: flex; gap: 8px; }
-.buyer-nav .navigation-item { justify-content: center; width: auto; margin: 0; padding-inline: 20px; }
-.buyer-nav .navigation-item.active { box-shadow: none; }
-.buyer-nav .navigation-badge { margin-left: 0; }
-.workspace-buyer .workspace-main { max-width: 1192px; margin-inline: auto; }
-.checkout-back { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 20px; }
-.workspace-shell .tab-panel :is(h1, h2):focus { outline: none; }
-dialog.navigation-drawer { box-sizing: border-box; position: fixed; inset: 0 auto 0 0; width: min(320px, calc(100vw - 40px)); height: 100dvh; max-height: 100dvh; max-width: none; margin: 0; padding: 0; border: 0; border-radius: 0 18px 18px 0; overflow-y: auto; overscroll-behavior: contain; background: #fff; color: #17243a; }
-dialog.navigation-drawer::backdrop { background: #0e213b99; }
-.navigation-drawer-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px; border-bottom: 1px solid #e2e8f0; background: #fff; }
-.navigation-drawer-head h2 { margin: 0; font-size: 18px; }
-#navigation-drawer-content { padding: 16px 12px max(24px, env(safe-area-inset-bottom)); }
-.workspace-nav button:focus-visible, .workspace-mobile-bar button:focus-visible { outline: 3px solid #ffb545; outline-offset: 2px; }
-html:has(.navigation-drawer[open]) { overflow: hidden; }
+.workspace-shell {
+  max-width: 1480px;
+  margin: 24px auto;
+  padding: 0 24px;
+}
+.workspace-shell.has-sidebar {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.workspace-shell .workspace-main {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+  padding: 0 0 40px;
+}
+.workspace-shell .panel {
+  padding: 28px;
+}
+.workspace-sidebar {
+  position: sticky;
+  top: 96px;
+  max-height: calc(100dvh - 120px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px 10px;
+  scrollbar-width: thin;
+}
+.workspace-nav.role-tabs {
+  margin: 0;
+  padding: 0;
+}
+.workspace-nav .navigation-group + .navigation-group {
+  margin-top: 20px;
+}
+.navigation-group-label {
+  margin: 0 12px 7px;
+  color: #617087;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.workspace-nav .navigation-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  margin: 2px 0;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: #435771;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  line-height: 1.4;
+}
+.workspace-nav .navigation-item svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+}
+.navigation-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.workspace-nav .navigation-item.active {
+  background: #eaf1ff;
+  border-color: #d1def9;
+  color: #214fba;
+  box-shadow: inset 3px 0 #315fc6;
+}
+.navigation-badge {
+  flex: 0 0 auto;
+  margin-left: auto;
+  min-width: 22px;
+  padding: 2px 5px;
+  border-radius: 12px;
+  background: #e6edf7;
+  color: #244169;
+  text-align: center;
+  font-size: 11px;
+}
+.navigation-badge:empty {
+  display: none;
+}
+.navigation-item.active .navigation-badge {
+  color: #fff;
+  background: #315fc6;
+}
+.workspace-mobile-bar {
+  display: none;
+}
+.workspace-nav.buyer-nav {
+  max-width: 1192px;
+  margin: 0 auto 24px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  padding: 6px;
+}
+.buyer-nav .navigation-group {
+  display: flex;
+  gap: 8px;
+}
+.buyer-nav .navigation-item {
+  justify-content: center;
+  width: auto;
+  margin: 0;
+  padding-inline: 20px;
+}
+.buyer-nav .navigation-item.active {
+  box-shadow: none;
+}
+.buyer-nav .navigation-badge {
+  margin-left: 0;
+}
+.workspace-buyer .workspace-main {
+  max-width: 1192px;
+  margin-inline: auto;
+}
+.checkout-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.workspace-shell .tab-panel :is(h1, h2):focus {
+  outline: none;
+}
+dialog.navigation-drawer {
+  box-sizing: border-box;
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: min(320px, calc(100vw - 40px));
+  height: 100dvh;
+  max-height: 100dvh;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0 18px 18px 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #fff;
+  color: #17243a;
+}
+dialog.navigation-drawer::backdrop {
+  background: #0e213b99;
+}
+.navigation-drawer-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
+}
+.navigation-drawer-head h2 {
+  margin: 0;
+  font-size: 18px;
+}
+#navigation-drawer-content {
+  padding: 16px 12px max(24px, env(safe-area-inset-bottom));
+}
+.workspace-nav button:focus-visible,
+.workspace-mobile-bar button:focus-visible {
+  outline: 3px solid #ffb545;
+  outline-offset: 2px;
+}
+html:has(.navigation-drawer[open]) {
+  overflow: hidden;
+}
 @media (max-width: 1000px) {
-  .workspace-shell.has-sidebar { display: block; }
-  .workspace-sidebar { display: none; }
-  .workspace-mobile-bar { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
-  .workspace-mobile-bar strong { min-width: 0; overflow-wrap: anywhere; font-size: 16px; }
-  #navigation-toggle { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; min-height: 44px; border-radius: 9px; background: #fff; }
-  #navigation-toggle svg { width: 20px; height: 20px; }
+  .workspace-shell.has-sidebar {
+    display: block;
+  }
+  .workspace-sidebar {
+    display: none;
+  }
+  .workspace-mobile-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  .workspace-mobile-bar strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: 16px;
+  }
+  #navigation-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    min-height: 44px;
+    border-radius: 9px;
+    background: #fff;
+  }
+  #navigation-toggle svg {
+    width: 20px;
+    height: 20px;
+  }
 }
 @media (max-width: 760px) {
-  .workspace-shell { margin: 16px auto; padding: 0 16px; }
-  .workspace-shell .panel { padding: 20px; }
-  .workspace-buyer .workspace-main { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
-  .workspace-nav.buyer-nav { position: fixed; inset: auto 0 0; z-index: 20; max-width: none; margin: 0; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); border-radius: 14px 14px 0 0; border-width: 1px 0 0; box-shadow: 0 -4px 20px #243b5c0c; }
-  .buyer-nav .navigation-group { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
-  .buyer-nav .navigation-item { position: relative; flex-direction: column; gap: 4px; width: 100%; min-height: 58px; padding: 6px 2px; font-size: 11px; text-align: center; }
-  .buyer-nav .navigation-badge { position: absolute; top: 0; right: 2px; max-width: 42px; overflow: hidden; }
-  .workspace-buyer .message.show { bottom: calc(88px + env(safe-area-inset-bottom)); }
+  .workspace-shell {
+    margin: 16px auto;
+    padding: 0 16px;
+  }
+  .workspace-shell .panel {
+    padding: 20px;
+  }
+  .workspace-buyer .workspace-main {
+    padding-bottom: calc(92px + env(safe-area-inset-bottom));
+  }
+  .workspace-nav.buyer-nav {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 20;
+    max-width: none;
+    margin: 0;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    border-radius: 14px 14px 0 0;
+    border-width: 1px 0 0;
+    box-shadow: 0 -4px 20px #243b5c0c;
+  }
+  .buyer-nav .navigation-group {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+  }
+  .buyer-nav .navigation-item {
+    position: relative;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    min-height: 58px;
+    padding: 6px 2px;
+    font-size: 11px;
+    text-align: center;
+  }
+  .buyer-nav .navigation-badge {
+    position: absolute;
+    top: 0;
+    right: 2px;
+    max-width: 42px;
+    overflow: hidden;
+  }
+  .workspace-buyer .message.show {
+    bottom: calc(88px + env(safe-area-inset-bottom));
+  }
 }

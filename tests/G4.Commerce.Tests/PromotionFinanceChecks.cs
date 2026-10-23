@@ -20,10 +20,13 @@ internal static class PromotionFinanceChecks
             ("zero promotion payment refunds internally", ZeroRefundAsync),
             ("fully seller-funded zero payment settles without fee", ZeroSellerFundedAsync),
             ("legacy and external zero payments are rejected", RejectInvalidZeroAsync),
-            ("mismatched payment and refund cannot affect another order", RejectForeignPaymentAsync)
+            (
+                "mismatched payment and refund cannot affect another order",
+                RejectForeignPaymentAsync
+            ),
         };
         var failures = new List<string>();
-        foreach (var(name, check)in checks)
+        foreach (var (name, check) in checks)
         {
             try
             {
@@ -37,7 +40,9 @@ internal static class PromotionFinanceChecks
 
         if (failures.Count > 0)
             throw new Exception(string.Join(Environment.NewLine, failures));
-        Console.WriteLine($"Promotion finance: {checks.Length} funding, cumulative refund and zero-payment checks passed");
+        Console.WriteLine(
+            $"Promotion finance: {checks.Length} funding, cumulative refund and zero-payment checks passed"
+        );
     }
 
     private static async Task FundingAndFullRefundAsync()
@@ -51,7 +56,10 @@ internal static class PromotionFinanceChecks
         Equal(83.30m, settlement.NetAmount);
         Equal(95m, (await db.SellerAccounts.SingleAsync()).MonthlySalesAmount);
         await finance.RecordSuccessfulPaymentAsync(1, 1);
-        Equal(5m, (await db.FinancialTransactions.SingleAsync(x => x.Type == "PlatformSubsidy")).Amount);
+        Equal(
+            5m,
+            (await db.FinancialTransactions.SingleAsync(x => x.Type == "PlatformSubsidy")).Amount
+        );
         Equal(90m, (await db.FinancialTransactions.SingleAsync(x => x.Type == "Sale")).Amount);
         await finance.PlaceHoldAsync(1, "return");
         var refund = await AddRefundAsync(db, 90);
@@ -62,7 +70,9 @@ internal static class PromotionFinanceChecks
         Equal("Refunded", settlement.Status);
         Equal(
             -5m,
-            (await db.FinancialTransactions.SingleAsync(x => x.Type == "PlatformSubsidyReversal")).Amount
+            (
+                await db.FinancialTransactions.SingleAsync(x => x.Type == "PlatformSubsidyReversal")
+            ).Amount
         );
         Equal(-90m, (await db.FinancialTransactions.SingleAsync(x => x.Type == "Refund")).Amount);
         var account = await db.SellerAccounts.SingleAsync();
@@ -75,7 +85,14 @@ internal static class PromotionFinanceChecks
     {
         await using var db = Database();
         await SeedAsync(db, 90, 5, 1);
-        db.SellerAccounts.Add(new SellerAccount { SellerId = 2, MonthlySalesLimit = 92, SalesMonth = DateTime.UtcNow });
+        db.SellerAccounts.Add(
+            new SellerAccount
+            {
+                SellerId = 2,
+                MonthlySalesLimit = 92,
+                SalesMonth = DateTime.UtcNow,
+            }
+        );
         await db.SaveChangesAsync();
         await RejectAsync(() => Finance(db).ValidateMonthlyLimitAsync(1));
         await RejectAsync(() => Finance(db).RecordSuccessfulPaymentAsync(1, 1));
@@ -93,14 +110,22 @@ internal static class PromotionFinanceChecks
         Equal(1.33m, settlement.RefundedAmount);
         Equal(
             -.33m,
-            (await db.FinancialTransactions.SingleAsync(x => x.RefundId == first.Id && x.Type == "PlatformSubsidyReversal")).Amount
+            (
+                await db.FinancialTransactions.SingleAsync(x =>
+                    x.RefundId == first.Id && x.Type == "PlatformSubsidyReversal"
+                )
+            ).Amount
         );
         var second = await AddRefundAsync(db, 1);
         await finance.ApplyRefundAsync(1, second.Id);
         Equal(2.67m, settlement.RefundedAmount);
         Equal(
             -.34m,
-            (await db.FinancialTransactions.SingleAsync(x => x.RefundId == second.Id && x.Type == "PlatformSubsidyReversal")).Amount
+            (
+                await db.FinancialTransactions.SingleAsync(x =>
+                    x.RefundId == second.Id && x.Type == "PlatformSubsidyReversal"
+                )
+            ).Amount
         );
         var third = await AddRefundAsync(db, 1);
         await finance.ApplyRefundAsync(1, third.Id);
@@ -108,7 +133,9 @@ internal static class PromotionFinanceChecks
         Equal(.78m, settlement.FeeCreditAmount);
         Equal(
             -1m,
-            await db.FinancialTransactions.Where(x => x.Type == "PlatformSubsidyReversal").SumAsync(x => x.Amount)
+            await db
+                .FinancialTransactions.Where(x => x.Type == "PlatformSubsidyReversal")
+                .SumAsync(x => x.Amount)
         );
         var fourth = await AddRefundAsync(db, .01m);
         await RejectAsync(() => finance.ApplyRefundAsync(1, fourth.Id));
@@ -127,7 +154,9 @@ internal static class PromotionFinanceChecks
         Equal(90m, settlement.RefundedAmount);
         Equal(
             0,
-            await db.FinancialTransactions.CountAsync(x => x.Type == "PlatformSubsidy" || x.Type == "PlatformSubsidyReversal")
+            await db.FinancialTransactions.CountAsync(x =>
+                x.Type == "PlatformSubsidy" || x.Type == "PlatformSubsidyReversal"
+            )
         );
     }
 
@@ -167,7 +196,9 @@ internal static class PromotionFinanceChecks
         Equal(1.50m, settlement.FeeCreditAmount);
         Equal(
             -10m,
-            (await db.FinancialTransactions.SingleAsync(x => x.Type == "PlatformSubsidyReversal")).Amount
+            (
+                await db.FinancialTransactions.SingleAsync(x => x.Type == "PlatformSubsidyReversal")
+            ).Amount
         );
         Equal(0m, (await db.SellerAccounts.SingleAsync()).ProcessingBalance);
         await RejectAsync(() => returns.RefundAsync(1, "dispute", null));
@@ -182,7 +213,11 @@ internal static class PromotionFinanceChecks
         Equal(0m, settlement.NetAmount);
         Equal(0m, settlement.PlatformFeeAmount);
         var gateway = new RefundGateway();
-        var refund = await new ReturnService(db, gateway, new Carrier(), finance).RefundAsync(1, "cancel", null);
+        var refund = await new ReturnService(db, gateway, new Carrier(), finance).RefundAsync(
+            1,
+            "cancel",
+            null
+        );
         Equal("Succeeded", refund.Status);
         Equal("Refunded", settlement.Status);
         Equal(0, gateway.Calls);
@@ -190,18 +225,14 @@ internal static class PromotionFinanceChecks
 
     private static async Task RejectInvalidZeroAsync()
     {
-        foreach (var(schema, method)in new[]
-        {
-            (0, "Promotion"),
-            (1, "Card")
-        }
-
-        )
+        foreach (var (schema, method) in new[] { (0, "Promotion"), (1, "Card") })
         {
             await using var db = Database();
             await SeedAsync(db, 0, 0, schema, method);
             var gateway = new RefundGateway();
-            await RejectAsync(() => new ReturnService(db, gateway, new Carrier()).RefundAsync(1, "cancel", null));
+            await RejectAsync(() =>
+                new ReturnService(db, gateway, new Carrier()).RefundAsync(1, "cancel", null)
+            );
             Equal(0, gateway.Calls);
             Equal(0, await db.Refunds.CountAsync());
         }
@@ -211,14 +242,30 @@ internal static class PromotionFinanceChecks
     {
         await using var db = Database();
         await SeedAsync(db, 90, 5, 1);
-        db.Payments.Add(new Payment { Id = 2, OrderId = 2, Amount = 90, Status = "Succeeded", Method = "Card" });
+        db.Payments.Add(
+            new Payment
+            {
+                Id = 2,
+                OrderId = 2,
+                Amount = 90,
+                Status = "Succeeded",
+                Method = "Card",
+            }
+        );
         await db.SaveChangesAsync();
         await RejectAsync(() => Finance(db).RecordSuccessfulPaymentAsync(1, 2));
     }
 
-    private static ApplicationDbContext Database() => new(new DbContextOptionsBuilder<ApplicationDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString())
-        .Options);
-    private static SellerFinanceService Finance(ApplicationDbContext db) => new(db, new ConfigurationBuilder().Build());
+    private static ApplicationDbContext Database() =>
+        new(
+            new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString())
+                .Options
+        );
+
+    private static SellerFinanceService Finance(ApplicationDbContext db) =>
+        new(db, new ConfigurationBuilder().Build());
+
     private static async Task SeedAsync(
         ApplicationDbContext db,
         decimal buyer,
@@ -230,8 +277,26 @@ internal static class PromotionFinanceChecks
         db.AddRange(
             new User { Id = 1, Role = "buyer" },
             new User { Id = 2, Role = "seller" },
-            new OrderTable { Id = 1, BuyerId = 1, SellerId = 2, Status = "Cancelled", TotalPrice = buyer, PricingSchemaVersion = schema, PlatformSubsidy = subsidy, SellerGrossSnapshot = buyer + subsidy },
-            new Payment { Id = 1, OrderId = 1, UserId = 1, Amount = buyer, Status = "Succeeded", Method = method }
+            new OrderTable
+            {
+                Id = 1,
+                BuyerId = 1,
+                SellerId = 2,
+                Status = "Cancelled",
+                TotalPrice = buyer,
+                PricingSchemaVersion = schema,
+                PlatformSubsidy = subsidy,
+                SellerGrossSnapshot = buyer + subsidy,
+            },
+            new Payment
+            {
+                Id = 1,
+                OrderId = 1,
+                UserId = 1,
+                Amount = buyer,
+                Status = "Succeeded",
+                Method = method,
+            }
         );
         await db.SaveChangesAsync();
     }
@@ -245,7 +310,7 @@ internal static class PromotionFinanceChecks
             Amount = amount,
             Status = "Succeeded",
             Reason = "test",
-            IdempotencyKey = Guid.NewGuid().ToString()
+            IdempotencyKey = Guid.NewGuid().ToString(),
         };
         db.Refunds.Add(refund);
         await db.SaveChangesAsync();
@@ -276,7 +341,12 @@ internal static class PromotionFinanceChecks
     {
         public int Calls { get; private set; }
 
-        public Task<string> RefundAsync(Payment payment, decimal amount, string key, CancellationToken ct)
+        public Task<string> RefundAsync(
+            Payment payment,
+            decimal amount,
+            string key,
+            CancellationToken ct
+        )
         {
             Calls++;
             return Task.FromResult(key);
@@ -285,6 +355,11 @@ internal static class PromotionFinanceChecks
 
     private sealed class Carrier : ICarrierGateway
     {
-        public Task<string> CreateLabelAsync(int orderId, string direction, string key, CancellationToken ct) => Task.FromResult("TEST");
+        public Task<string> CreateLabelAsync(
+            int orderId,
+            string direction,
+            string key,
+            CancellationToken ct
+        ) => Task.FromResult("TEST");
     }
 }

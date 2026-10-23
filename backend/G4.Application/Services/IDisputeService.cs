@@ -1,10 +1,21 @@
 using G4.Contracts.Checkout;
 
 namespace G4.Application.Services;
+
 public interface IDisputeService
 {
-    Task<AdminDecisionQuote> PreviewDecisionAsync(int id, int adminId, AdminDecisionPreviewInput input, CancellationToken ct = default);
-    Task<AdminDecisionView> ResolveDecisionAsync(int id, int adminId, AdminDecisionInput input, CancellationToken ct = default);
+    Task<AdminDecisionQuote> PreviewDecisionAsync(
+        int id,
+        int adminId,
+        AdminDecisionPreviewInput input,
+        CancellationToken ct = default
+    );
+    Task<AdminDecisionView> ResolveDecisionAsync(
+        int id,
+        int adminId,
+        AdminDecisionInput input,
+        CancellationToken ct = default
+    );
     Task<Dispute> OpenAsync(
         int orderId,
         int buyerId,
@@ -50,6 +61,11 @@ public interface IDisputeService
         string filter,
         CancellationToken ct = default
     );
-    Task<DisputeDetail> GetDetailAsync(int id, int actorId, string role, CancellationToken ct = default);
+    Task<DisputeDetail> GetDetailAsync(
+        int id,
+        int actorId,
+        string role,
+        CancellationToken ct = default
+    );
     Task MaintainAsync(CancellationToken ct = default);
 }

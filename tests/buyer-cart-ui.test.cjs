@@ -29,7 +29,9 @@ async function harness(handler, method = 'card') {
         classList: { toggle() {}, add() {}, remove() {} },
         setAttribute() {},
         addEventListener() {},
-        querySelectorAll() { return []; },
+        querySelectorAll() {
+          return [];
+        },
         focus() {},
       });
     return elements.get(id);
@@ -57,7 +59,18 @@ async function harness(handler, method = 'card') {
         .replace(/>/g, '&gt;'),
     api: async (route, verb, body) => {
       calls.push({ route, body });
-      if (route === 'addresses') return [{ id: 1, fullName: 'Buyer', street: '1 Road', city: 'Hanoi', state: 'Hanoi', country: 'Vietnam', isDefault: true }];
+      if (route === 'addresses')
+        return [
+          {
+            id: 1,
+            fullName: 'Buyer',
+            street: '1 Road',
+            city: 'Hanoi',
+            state: 'Hanoi',
+            country: 'Vietnam',
+            isDefault: true,
+          },
+        ];
       return handler(route, verb, body);
     },
     safe: (fn) => fn(),
@@ -71,10 +84,15 @@ async function harness(handler, method = 'card') {
     location: { assign: (url) => redirects.push(url) },
     document: { querySelectorAll: controls, querySelector: () => ({ value: method }) },
   };
-  G4.PayPalCart = { begin: async (checkoutKey) => {
-    const result = await G4.api('buyer/paypal-checkouts', 'POST', { checkoutKey, key: 'cart-payment-key' });
-    if (result.approvalUrl) context.location.assign(result.approvalUrl);
-  } };
+  G4.PayPalCart = {
+    begin: async (checkoutKey) => {
+      const result = await G4.api('buyer/paypal-checkouts', 'POST', {
+        checkoutKey,
+        key: 'cart-payment-key',
+      });
+      if (result.approvalUrl) context.location.assign(result.approvalUrl);
+    },
+  };
   vm.runInNewContext(fs.readFileSync('frontend/wwwroot/js/buyer-addresses.js', 'utf8'), context);
   vm.runInNewContext(fs.readFileSync('frontend/wwwroot/js/buyer-cart.js', 'utf8'), context);
   await G4.BuyerCart.init({ tab: noop, loadOrders: async () => {}, showOrder: async () => {} });
@@ -119,7 +137,9 @@ const quoted = {
         total: 12,
         totalWeightKg: 1,
         pricingFingerprint: 'fp-a',
-        shippingBase: 2, shippingDiscount: 0, promotions: [],
+        shippingBase: 2,
+        shippingDiscount: 0,
+        promotions: [],
       },
     },
     {
@@ -131,7 +151,9 @@ const quoted = {
         total: 25,
         totalWeightKg: 1,
         pricingFingerprint: 'fp-b',
-        shippingBase: 5, shippingDiscount: 0, promotions: [],
+        shippingBase: 5,
+        shippingDiscount: 0,
+        promotions: [],
       },
     },
   ],
@@ -267,7 +289,10 @@ test('PayPal starts one checkout for the whole cart and preserves the original c
   await h.element('pay').onclick();
   assert.equal(h.redirects.length, 1);
   assert.match(h.messages.at(-1).value, /cả giỏ/);
-  const call = h.calls.find(x => x.route === 'buyer/paypal-checkouts');
-  assert.equal(call.body.checkoutKey, h.calls.find(x => x.route === 'cart/checkout').body.checkoutKey);
+  const call = h.calls.find((x) => x.route === 'buyer/paypal-checkouts');
+  assert.equal(
+    call.body.checkoutKey,
+    h.calls.find((x) => x.route === 'cart/checkout').body.checkoutKey,
+  );
   assert.equal(h.calls.filter((x) => x.route.endsWith('/pay/paypal')).length, 0);
 });

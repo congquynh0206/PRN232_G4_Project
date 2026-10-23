@@ -15,9 +15,11 @@
         thái gửi được theo dõi riêng.
     </p>
     <form id="notification-filters" class="diagnostics-filters">
-        <label>Mã đơn<input name="orderId" type="number" min="1" step="1" placeholder="Ví dụ: 46"
-        /></label>
-        <label>Loại thông báo<select name="eventType">
+        <label>Mã đơn
+            <input name="orderId" type="number" min="1" step="1" placeholder="Ví dụ: 46" />
+        </label>
+        <label>Loại thông báo
+            <select name="eventType">
                 <option value="">Tất cả</option>
                 <option value="PaymentSucceeded">Thanh toán thành công</option>
                 <option value="PaymentFailed">Thanh toán chưa thành công</option>
@@ -49,15 +51,18 @@
                     <option value="DebtWriteOff">Nợ khó thu và khóa bán vĩnh viễn</option>
                     <option value="WriteOffRecovery">Thu hồi nợ sau write-off</option>
                 }
-            </select></label>
-        <label>Trạng thái<select name="status">
+            </select>
+        </label>
+        <label>Trạng thái
+            <select name="status">
                 <option value="">Tất cả</option>
                 <option value="Captured">Đã lưu để xem</option>
                 <option value="Sent">Đã gửi</option>
                 <option value="Pending">Chờ gửi / thử lại</option>
                 <option value="Processing">Đang xử lý</option>
                 <option value="Failed">Lỗi, cần kiểm tra</option>
-            </select></label>
+            </select>
+        </label>
         <div class="diagnostics-filter-actions">
             <button type="submit" class="primary">Lọc email</button><button type="button" id="clear-notification-filters">Xóa bộ lọc</button>
         </div>

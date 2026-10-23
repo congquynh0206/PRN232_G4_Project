@@ -10,44 +10,137 @@ internal static class AddressChangeChecks
         await DecreaseAsync();
         await DeliveryRaceAsync();
         await SupportAfterShippingRefundAsync();
-        Console.WriteLine("Address changes: cap, ownership, one successful change, stock/payment snapshots, shipper acknowledgement, shipping refunds and final refund passed");
+        Console.WriteLine(
+            "Address changes: cap, ownership, one successful change, stock/payment snapshots, shipper acknowledgement, shipping refunds and final refund passed"
+        );
     }
 
-    internal static async Task<(ApplicationDbContext Db, CheckoutService Checkout, AddressChangeService Changes, SellerFinanceService Finance, OrderTable Order)> Fixture(string state, bool freeShipping = false)
+    internal static async Task<(
+        ApplicationDbContext Db,
+        CheckoutService Checkout,
+        AddressChangeService Changes,
+        SellerFinanceService Finance,
+        OrderTable Order
+    )> Fixture(string state, bool freeShipping = false)
     {
-        var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options);
+        var db = new ApplicationDbContext(
+            new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString())
+                .Options
+        );
         db.Users.AddRange(
-            new User { Id = 1, Role = "buyer", Email = "buyer@example.test" },
-            new User { Id = 2, Role = "seller", Email = "seller@example.test" },
+            new User
+            {
+                Id = 1,
+                Role = "buyer",
+                Email = "buyer@example.test",
+            },
+            new User
+            {
+                Id = 2,
+                Role = "seller",
+                Email = "seller@example.test",
+            },
             new User { Id = 3, Role = "shipper" }
         );
         db.Addresses.AddRange(
-            new Address { Id = 1, UserId = 1, FullName = "Buyer", Street = "Original street", City = state, State = state, Country = "Vietnam" },
-            new Address { Id = 2, UserId = 2, FullName = "Seller", Street = "Pickup street", City = "Hanoi", State = "Hanoi", Country = "Vietnam", IsDefault = true }
+            new Address
+            {
+                Id = 1,
+                UserId = 1,
+                FullName = "Buyer",
+                Street = "Original street",
+                City = state,
+                State = state,
+                Country = "Vietnam",
+            },
+            new Address
+            {
+                Id = 2,
+                UserId = 2,
+                FullName = "Seller",
+                Street = "Pickup street",
+                City = "Hanoi",
+                State = "Hanoi",
+                Country = "Vietnam",
+                IsDefault = true,
+            }
         );
-        db.Products.Add(new Product { Id = 1, SellerId = 2, Title = "Camera", Price = 100, WeightKg = 1.2m });
-        db.Inventories.Add(new Inventory { Id = 1, ProductId = 1, Quantity = 10 });
-        if (freeShipping) db.Promotions.Add(new Promotion { Name = "Free delivery", Type = "Shipping", FundingSource = "Seller", SellerId = 2,
-            CreatedById = 2, FreeShipping = true, StartAt = DateTime.UtcNow.AddDays(-1), EndAt = DateTime.UtcNow.AddDays(1) });
+        db.Products.Add(
+            new Product
+            {
+                Id = 1,
+                SellerId = 2,
+                Title = "Camera",
+                Price = 100,
+                WeightKg = 1.2m,
+            }
+        );
+        db.Inventories.Add(
+            new Inventory
+            {
+                Id = 1,
+                ProductId = 1,
+                Quantity = 10,
+            }
+        );
+        if (freeShipping)
+            db.Promotions.Add(
+                new Promotion
+                {
+                    Name = "Free delivery",
+                    Type = "Shipping",
+                    FundingSource = "Seller",
+                    SellerId = 2,
+                    CreatedById = 2,
+                    FreeShipping = true,
+                    StartAt = DateTime.UtcNow.AddDays(-1),
+                    EndAt = DateTime.UtcNow.AddDays(1),
+                }
+            );
         await db.SaveChangesAsync();
-        var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Finance:Levels:1:HoldSeconds"] = "1" })
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?> { ["Finance:Levels:1:HoldSeconds"] = "1" }
+            )
             .Build();
         var finance = new SellerFinanceService(db, config);
         var checkout = new CheckoutService(db, finance);
-        var order = await checkout.CreateOrderAsync(1, new(1, [new(1, 1)], null, Guid.NewGuid().ToString()));
-        await checkout.PayCardAsync(order.Id, "4111111111111111", "12/30", Guid.NewGuid().ToString());
+        var order = await checkout.CreateOrderAsync(
+            1,
+            new(1, [new(1, 1)], null, Guid.NewGuid().ToString())
+        );
+        await checkout.PayCardAsync(
+            order.Id,
+            "4111111111111111",
+            "12/30",
+            Guid.NewGuid().ToString()
+        );
         return (db, checkout, new AddressChangeService(db, finance), finance, order);
     }
 
-    internal static async Task<AddressChangeView> SendAsync(AddressChangeService service, ApplicationDbContext db, int order, int buyer, AddressChangeInput input)
+    internal static async Task<AddressChangeView> SendAsync(
+        AddressChangeService service,
+        ApplicationDbContext db,
+        int order,
+        int buyer,
+        AddressChangeInput input
+    )
     {
-        var existing = await db.AddressChangeRequests.AsNoTracking().SingleOrDefaultAsync(x => x.RequestKey == input.Key);
+        var existing = await db
+            .AddressChangeRequests.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.RequestKey == input.Key);
         var token = existing?.QuoteToken ?? (await service.QuoteAsync(order, buyer, input)).Token;
         return await service.RequestAsync(order, buyer, input with { QuoteToken = token });
     }
 
-    private static AddressChangeInput Input(string state, string key) => new(new("Buyer", "New street", state, state, "Vietnam"), "Change delivery destination", key);
+    private static AddressChangeInput Input(string state, string key) =>
+        new(
+            new("Buyer", "New street", state, state, "Vietnam"),
+            "Change delivery destination",
+            key
+        );
+
     private static async Task IncreaseAsync()
     {
         var f = await Fixture("Hanoi");
@@ -56,36 +149,55 @@ internal static class AddressChangeChecks
         var total = f.Order.TotalPrice;
         var rejected = await SendAsync(f.Changes, db, f.Order.Id, 1, Input("HCM", "cap-zero"));
         Check(
-            rejected.Status == "Rejected" && f.Order.AddressChangeCount == 0 && f.Order.AddressSnapshot == original,
+            rejected.Status == "Rejected"
+                && f.Order.AddressChangeCount == 0
+                && f.Order.AddressSnapshot == original,
             "cap rejection leaves order unchanged"
         );
-        await Reject(() => SendAsync(f.Changes, db, f.Order.Id, 99, Input("HCM", "intruder")), "buyer ownership");
-        db.SellerShippingPreferences.Add(new SellerShippingPreference { SellerId = 2, AddressChangeCap = 3.1m });
+        await Reject(
+            () => SendAsync(f.Changes, db, f.Order.Id, 99, Input("HCM", "intruder")),
+            "buyer ownership"
+        );
+        db.SellerShippingPreferences.Add(
+            new SellerShippingPreference { SellerId = 2, AddressChangeCap = 3.1m }
+        );
         await db.SaveChangesAsync();
         var pending = await SendAsync(f.Changes, db, f.Order.Id, 1, Input("HCM", "within-cap"));
         Check(
-            pending.Status == "Pending" && pending.NewShippingCost == 5.2m && pending.OldShippingCost == 2.1m,
+            pending.Status == "Pending"
+                && pending.NewShippingCost == 5.2m
+                && pending.OldShippingCost == 2.1m,
             "fractional ship cost and exact cap"
         );
         Check(
-            (await SendAsync(f.Changes, db, f.Order.Id, 1, Input("HCM", "within-cap"))).Id == pending.Id,
+            (await SendAsync(f.Changes, db, f.Order.Id, 1, Input("HCM", "within-cap"))).Id
+                == pending.Id,
             "request retry"
         );
         await Reject(
             () => SendAsync(f.Changes, db, f.Order.Id, 1, Input("Hanoi", "another-pending")),
             "one pending request"
         );
-        await Reject(() => f.Changes.DecideAsync(pending.Id, 99, new(true, null)), "seller ownership");
+        await Reject(
+            () => f.Changes.DecideAsync(pending.Id, 99, new(true, null)),
+            "seller ownership"
+        );
         var balance = (await db.SellerAccounts.SingleAsync()).ProcessingBalance;
         var approved = await f.Changes.DecideAsync(pending.Id, 2, new(true, null));
         await f.Changes.DecideAsync(pending.Id, 2, new(true, null));
-        Check(approved.Status == "Approved" && f.Order.AddressChangeCount == 1, "approval and decision retry");
         Check(
-            f.Order.TotalPrice == total && f.Order.ShippingFee == 2.1m && (await db.Addresses.FindAsync(1))!.Street == "Original street",
+            approved.Status == "Approved" && f.Order.AddressChangeCount == 1,
+            "approval and decision retry"
+        );
+        Check(
+            f.Order.TotalPrice == total
+                && f.Order.ShippingFee == 2.1m
+                && (await db.Addresses.FindAsync(1))!.Street == "Original street",
             "payment and profile snapshots preserved"
         );
         Check(
-            (await db.SellerAccounts.SingleAsync()).ProcessingBalance == balance - 3.1m && (await db.SellerSettlements.SingleAsync()).ShippingAdjustmentCost == 3.1m,
+            (await db.SellerAccounts.SingleAsync()).ProcessingBalance == balance - 3.1m
+                && (await db.SellerSettlements.SingleAsync()).ShippingAdjustmentCost == 3.1m,
             "seller cost charged once"
         );
         Check(
@@ -99,11 +211,15 @@ internal static class AddressChangeChecks
         var shipping = new ShipmentService(db, new Carrier());
         var shipment = await shipping.CreateOutboundAsync(f.Order.Id);
         Check(
-            shipment.DeliveryAddressSnapshot == approved.NewAddress && shipment.AddressChangeRequestId == approved.Id,
+            shipment.DeliveryAddressSnapshot == approved.NewAddress
+                && shipment.AddressChangeRequestId == approved.Id,
             "new label uses approved address"
         );
         await shipping.ClaimAsync(shipment.Id, 3);
-        Check(shipment.AddressChangeAcknowledgedAt != null, "no assigned shipper at approval requires no later acknowledgement");
+        Check(
+            shipment.AddressChangeAcknowledgedAt != null,
+            "no assigned shipper at approval requires no later acknowledgement"
+        );
         await Reject(() => f.Changes.AcknowledgeAsync(shipment.Id, 99), "shipper ownership");
         await f.Changes.AcknowledgeAsync(shipment.Id, 3);
         await f.Changes.AcknowledgeAsync(shipment.Id, 3);
@@ -112,7 +228,8 @@ internal static class AddressChangeChecks
             "acknowledged shipper continues"
         );
         Check(
-            (await db.Inventories.SingleAsync()).Quantity == 9 && await db.Payments.CountAsync() == 1,
+            (await db.Inventories.SingleAsync()).Quantity == 9
+                && await db.Payments.CountAsync() == 1,
             "address change never reserves stock or charges buyer again"
         );
     }
@@ -129,19 +246,24 @@ internal static class AddressChangeChecks
         await f.Changes.DecideAsync(request.Id, 2, new(true, null));
         var refund = await db.Refunds.SingleAsync();
         Check(
-            refund.Amount == 3.1m && refund.Reason == "shipping-adjustment" && refund.ProviderRefundId!.StartsWith("SIM-SHIP-"),
+            refund.Amount == 3.1m
+                && refund.Reason == "shipping-adjustment"
+                && refund.ProviderRefundId!.StartsWith("SIM-SHIP-"),
             "internal simulated refund once"
         );
         var settlement = await db.SellerSettlements.SingleAsync();
         Check(
-            settlement.Status == "Processing" && settlement.FeeCreditAmount == 0 && (await db.SellerAccounts.SingleAsync()).ProcessingBalance == balance - 3.1m,
+            settlement.Status == "Processing"
+                && settlement.FeeCreditAmount == 0
+                && (await db.SellerAccounts.SingleAsync()).ProcessingBalance == balance - 3.1m,
             "shipping refund keeps release schedule and fee snapshots"
         );
         var returns = new ReturnService(db, new Refunds(), new Carrier(), f.Finance);
         await returns.RequestCancelAsync(f.Order.Id);
         await returns.DecideCancelAsync(f.Order.Id, true, null);
         Check(
-            await db.Refunds.Where(x => x.Status == "Succeeded").SumAsync(x => x.Amount) == payment.Amount,
+            await db.Refunds.Where(x => x.Status == "Succeeded").SumAsync(x => x.Amount)
+                == payment.Amount,
             "later cancellation refunds remaining captured amount"
         );
         Check(
@@ -157,42 +279,63 @@ internal static class AddressChangeChecks
         var shipping = new ShipmentService(db, new Carrier());
         var shipment = await shipping.CreateOutboundAsync(f.Order.Id);
         await shipping.ClaimAsync(shipment.Id, 3);
-        var request = await SendAsync(f.Changes, db,
+        var request = await SendAsync(
+            f.Changes,
+            db,
             f.Order.Id,
             1,
             new(new("Buyer", "Other street", "Hanoi", "Hanoi", "Vietnam"), "Move house", "same-fee")
         );
         await shipping.RecordEventAsync(shipment.Id, "pickup", "PickedUp", shipperId: 3);
         await shipping.RecordEventAsync(shipment.Id, "transit", "InTransit", shipperId: 3);
-        await Reject(() => shipping.RecordEventAsync(shipment.Id, "delivery", "OutForDelivery", shipperId: 3), "pending change blocks delivery start");
-        Check((await db.AddressChangeRequests.FindAsync(request.Id))!.Status == "Pending" && shipment.Status == "InTransit", "blocked start keeps request and route unchanged");
+        await Reject(
+            () =>
+                shipping.RecordEventAsync(shipment.Id, "delivery", "OutForDelivery", shipperId: 3),
+            "pending change blocks delivery start"
+        );
+        Check(
+            (await db.AddressChangeRequests.FindAsync(request.Id))!.Status == "Pending"
+                && shipment.Status == "InTransit",
+            "blocked start keeps request and route unchanged"
+        );
         await f.Changes.DecideAsync(request.Id, 2, new(true, null));
-        Check((await db.AddressChangeRequests.FindAsync(request.Id))!.Status == "AwaitingShipper", "seller approval waits for assigned shipper");
+        Check(
+            (await db.AddressChangeRequests.FindAsync(request.Id))!.Status == "AwaitingShipper",
+            "seller approval waits for assigned shipper"
+        );
         await f.Changes.DecideShipperAsync(shipment.Id, 3, new(request.Id, true, null));
-        Check(await shipping.RecordEventAsync(shipment.Id, "delivery", "OutForDelivery", shipperId: 3), "delivery follows final confirmation");
-        await Reject(() => SendAsync(f.Changes, db, f.Order.Id, 1, Input("Hanoi", "too-late")), "cannot request once delivery started");
-
+        Check(
+            await shipping.RecordEventAsync(
+                shipment.Id,
+                "delivery",
+                "OutForDelivery",
+                shipperId: 3
+            ),
+            "delivery follows final confirmation"
+        );
+        await Reject(
+            () => SendAsync(f.Changes, db, f.Order.Id, 1, Input("Hanoi", "too-late")),
+            "cannot request once delivery started"
+        );
     }
 
     private static async Task SupportAfterShippingRefundAsync()
     {
         var f = await Fixture("HCM");
         await using var db = f.Db;
-        var change = await SendAsync(f.Changes, db, f.Order.Id, 1, Input("Hanoi", "support-shipping-refund"));
+        var change = await SendAsync(
+            f.Changes,
+            db,
+            f.Order.Id,
+            1,
+            Input("Hanoi", "support-shipping-refund")
+        );
         await f.Changes.DecideAsync(change.Id, 2, new(true, null));
         var shipping = new ShipmentService(db, new Carrier());
         var shipment = await shipping.CreateOutboundAsync(f.Order.Id);
         await shipping.ClaimAsync(shipment.Id, 3);
         await f.Changes.AcknowledgeAsync(shipment.Id, 3);
-        foreach (var status in new[]
-        {
-            "PickedUp",
-            "InTransit",
-            "OutForDelivery",
-            "Delivered"
-        }
-
-        )
+        foreach (var status in new[] { "PickedUp", "InTransit", "OutForDelivery", "Delivered" })
             await shipping.RecordEventAsync(shipment.Id, "support-" + status, status, shipperId: 3);
         var settlement = await db.SellerSettlements.SingleAsync();
         var proceeds = settlement.ProcessingAmount;
@@ -205,23 +348,34 @@ internal static class AddressChangeChecks
         );
         var config = new ConfigurationBuilder().Build();
         var returns = new ReturnService(db, new Refunds(), new Carrier(), f.Finance);
-        var disputes = new G4.Infrastructure.Disputes.DisputeService(db, f.Finance, returns, config, TimeProvider.System);
-        var links = new[]
-        {
-            "https://example.test/evidence"
-        };
+        var disputes = new G4.Infrastructure.Disputes.DisputeService(
+            db,
+            f.Finance,
+            returns,
+            config,
+            TimeProvider.System
+        );
+        var links = new[] { "https://example.test/evidence" };
         var dispute = await disputes.OpenAsync(f.Order.Id, 1, new("Item has a defect", links));
         await disputes.MaintainAsync();
         Check(dispute.IsOpen, "shipping-only refund never auto closes support case");
-        await disputes.ProposeAsync(dispute.Id, 2, new("Refund", "Refund remaining payment", links));
+        await disputes.ProposeAsync(
+            dispute.Id,
+            2,
+            new("Refund", "Refund remaining payment", links)
+        );
         await disputes.RespondAsync(dispute.Id, 1, new(true, "Agree to refund"));
         Check(
-            !dispute.IsOpen && await db.Refunds.Where(x => x.Status == "Succeeded").SumAsync(x => x.Amount) == f.Order.TotalPrice,
+            !dispute.IsOpen
+                && await db.Refunds.Where(x => x.Status == "Succeeded").SumAsync(x => x.Amount)
+                    == f.Order.TotalPrice,
             "support refunds remaining amount after shipping refund"
         );
     }
 
-    private static void Check(bool condition, string message) => ReturnAutomationChecks.Check(condition, message);
+    private static void Check(bool condition, string message) =>
+        ReturnAutomationChecks.Check(condition, message);
+
     private static async Task Reject(Func<Task> work, string message)
     {
         try
@@ -246,11 +400,21 @@ internal static class AddressChangeChecks
 
     private sealed class Carrier : ICarrierGateway
     {
-        public Task<string> CreateLabelAsync(int id, string direction, string key, CancellationToken ct) => Task.FromResult($"TEST-{id}-{direction}");
+        public Task<string> CreateLabelAsync(
+            int id,
+            string direction,
+            string key,
+            CancellationToken ct
+        ) => Task.FromResult($"TEST-{id}-{direction}");
     }
 
     private sealed class Refunds : IRefundGateway
     {
-        public Task<string> RefundAsync(Payment payment, decimal amount, string key, CancellationToken ct) => Task.FromResult("REFUND-" + key);
+        public Task<string> RefundAsync(
+            Payment payment,
+            decimal amount,
+            string key,
+            CancellationToken ct
+        ) => Task.FromResult("REFUND-" + key);
     }
 }

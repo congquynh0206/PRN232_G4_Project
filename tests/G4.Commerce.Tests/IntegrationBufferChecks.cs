@@ -9,11 +9,15 @@ public static class IntegrationBufferChecks
 {
     public static async Task RunAsync()
     {
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString())
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
         var factory = new BlockingFactory(options);
         var services = new ServiceCollection();
-        services.AddScoped(_ => new IntegrationLogWriter(factory, NullLogger<IntegrationLogWriter>.Instance));
+        services.AddScoped(_ => new IntegrationLogWriter(
+            factory,
+            NullLogger<IntegrationLogWriter>.Instance
+        ));
         using var provider = services.BuildServiceProvider();
         using var buffer = new BufferedIntegrationLogWriter(
             provider.GetRequiredService<IServiceScopeFactory>(),
@@ -52,14 +56,23 @@ public static class IntegrationBufferChecks
         await using var db = new ApplicationDbContext(options);
         if (await db.IntegrationLogs.CountAsync() != 513)
             throw new Exception("Log queue did not drain bounded entries at shutdown");
-        Console.WriteLine("Bounded diagnostic queue nonblocking SQL/saturation and graceful drain passed");
+        Console.WriteLine(
+            "Bounded diagnostic queue nonblocking SQL/saturation and graceful drain passed"
+        );
     }
 
-    private sealed class BlockingFactory(DbContextOptions<ApplicationDbContext> options) : IDbContextFactory<ApplicationDbContext>
+    private sealed class BlockingFactory(DbContextOptions<ApplicationDbContext> options)
+        : IDbContextFactory<ApplicationDbContext>
     {
-        public TaskCompletionSource Entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        public TaskCompletionSource Release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Entered = new(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        public TaskCompletionSource Release = new(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+
         public ApplicationDbContext CreateDbContext() => new(options);
+
         public async Task<ApplicationDbContext> CreateDbContextAsync(CancellationToken ct = default)
         {
             Entered.TrySetResult();

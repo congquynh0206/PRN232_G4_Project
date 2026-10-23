@@ -1,0 +1,8 @@
+artifacts/
+**/bin/
+**/obj/
+**/node_modules/
+frontend/wwwroot/lib/
+**/Migrations/
+*.min.js
+*.min.css

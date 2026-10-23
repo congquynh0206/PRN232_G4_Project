@@ -4,26 +4,57 @@
   margin: 0;
   min-width: 0;
 }
-#seller-identity-fields { border: 0; margin: 0; padding: 0; min-width: 0; }
-#seller-identity [hidden] { display: none; }
-#seller-identity input, #seller-identity select { max-width: 100%; min-height: 44px; }
-#seller-identity-error:empty, #seller-identity-result:empty { display: none; }
-#seller-risk .finance-row > div { min-width: 0; overflow-wrap: anywhere; }
-#seller-risk .finance-block { margin-top: 16px; }
+#seller-identity-fields {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+#seller-identity [hidden] {
+  display: none;
+}
+#seller-identity input,
+#seller-identity select {
+  max-width: 100%;
+  min-height: 44px;
+}
+#seller-identity-error:empty,
+#seller-identity-result:empty {
+  display: none;
+}
+#seller-risk .finance-row > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+#seller-risk .finance-block {
+  margin-top: 16px;
+}
 #debt-repayment-form .actions {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
 }
 #debt-repayment-error:empty,
-#debt-repayment-result:empty { display: none; }
+#debt-repayment-result:empty {
+  display: none;
+}
 #seller-debt-history,
 #admin-debt-history,
 #admin-debt-list,
-#debt-repayment-result { overflow-wrap: anywhere; }
-#admin-debt-detail { scroll-margin-top: 88px; }
-#seller-debts [hidden] { display: none; }
+#debt-repayment-result {
+  overflow-wrap: anywhere;
+}
+#admin-debt-detail {
+  scroll-margin-top: 88px;
+}
+#seller-debts [hidden] {
+  display: none;
+}
 #seller-debts button,
-#debt-repayment-form button { min-height: 44px; }
+#debt-repayment-form button {
+  min-height: 44px;
+}
 #seller-debts .finance-row > div,
-#seller-debt-history .finance-row > div { min-width: 0; }
+#seller-debt-history .finance-row > div {
+  min-width: 0;
+}

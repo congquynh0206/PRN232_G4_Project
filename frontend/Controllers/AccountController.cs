@@ -7,8 +7,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace frontend.Controllers;
+
 [AllowAnonymous]
-public sealed class AccountController(IHttpClientFactory factory, IConfiguration configuration, IHostEnvironment environment) : Controller
+public sealed class AccountController(
+    IHttpClientFactory factory,
+    IConfiguration configuration,
+    IHostEnvironment environment
+) : Controller
 {
     [HttpGet]
     public IActionResult RegisterSeller() => environment.IsDevelopment() ? View() : NotFound();
@@ -17,25 +22,55 @@ public sealed class AccountController(IHttpClientFactory factory, IConfiguration
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<IActionResult> RegistrationSamples(CancellationToken ct)
     {
-        if (!environment.IsDevelopment()) return NotFound();
-        using var reply = await factory.CreateClient().GetAsync(BackendUrl("api/auth/seller-registration-samples"), ct);
-        return new ContentResult { StatusCode = (int)reply.StatusCode, ContentType = "application/json", Content = await reply.Content.ReadAsStringAsync(ct) };
+        if (!environment.IsDevelopment())
+            return NotFound();
+        using var reply = await factory
+            .CreateClient()
+            .GetAsync(BackendUrl("api/auth/seller-registration-samples"), ct);
+        return new ContentResult
+        {
+            StatusCode = (int)reply.StatusCode,
+            ContentType = "application/json",
+            Content = await reply.Content.ReadAsStringAsync(ct),
+        };
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RegisterSeller([FromBody] JsonElement input, CancellationToken ct)
+    public async Task<IActionResult> RegisterSeller(
+        [FromBody] JsonElement input,
+        CancellationToken ct
+    )
     {
-        if (!environment.IsDevelopment()) return NotFound();
+        if (!environment.IsDevelopment())
+            return NotFound();
         try
         {
-            using var reply = await factory.CreateClient().PostAsync(BackendUrl("api/auth/register-seller"),
-                new StringContent(input.GetRawText(), Encoding.UTF8, "application/json"), ct);
-            return new ContentResult { StatusCode = (int)reply.StatusCode, ContentType = "application/json", Content = await reply.Content.ReadAsStringAsync(ct) };
+            using var reply = await factory
+                .CreateClient()
+                .PostAsync(
+                    BackendUrl("api/auth/register-seller"),
+                    new StringContent(input.GetRawText(), Encoding.UTF8, "application/json"),
+                    ct
+                );
+            return new ContentResult
+            {
+                StatusCode = (int)reply.StatusCode,
+                ContentType = "application/json",
+                Content = await reply.Content.ReadAsStringAsync(ct),
+            };
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested)
+        catch (Exception ex)
+            when (ex is HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested
+            )
         {
-            return StatusCode(503, new { error = "Chưa xác định được kết quả đăng ký. Hãy kiểm tra kết nối rồi gửi lại đúng thông tin." });
+            return StatusCode(
+                503,
+                new
+                {
+                    error = "Chưa xác định được kết quả đăng ký. Hãy kiểm tra kết nối rồi gửi lại đúng thông tin.",
+                }
+            );
         }
     }
 
@@ -50,13 +85,24 @@ public sealed class AccountController(IHttpClientFactory factory, IConfiguration
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Login(string email, string password, string? returnUrl, CancellationToken ct)
+    public async Task<IActionResult> Login(
+        string email,
+        string password,
+        string? returnUrl,
+        CancellationToken ct
+    )
     {
-        using var response = await factory.CreateClient().PostAsync(
-            BackendUrl("api/auth/login"),
-            new StringContent(JsonSerializer.Serialize(new { email, password }), Encoding.UTF8, "application/json"),
-            ct
-        );
+        using var response = await factory
+            .CreateClient()
+            .PostAsync(
+                BackendUrl("api/auth/login"),
+                new StringContent(
+                    JsonSerializer.Serialize(new { email, password }),
+                    Encoding.UTF8,
+                    "application/json"
+                ),
+                ct
+            );
         if (!response.IsSuccessStatusCode)
         {
             ModelState.AddModelError("", "Email hoặc mật khẩu không đúng.");
@@ -64,17 +110,21 @@ public sealed class AccountController(IHttpClientFactory factory, IConfiguration
             return View();
         }
 
-        var result = await response.Content.ReadFromJsonAsync<LoginResult>(cancellationToken: ct) ?? throw new InvalidOperationException("Login response is empty");
+        var result =
+            await response.Content.ReadFromJsonAsync<LoginResult>(cancellationToken: ct)
+            ?? throw new InvalidOperationException("Login response is empty");
         var claims = new[]
         {
             new Claim(ClaimTypes.NameIdentifier, result.UserId.ToString()),
             new Claim(ClaimTypes.Name, result.Username),
             new Claim(ClaimTypes.Role, result.Role),
-            new Claim("access_token", result.Token)
+            new Claim("access_token", result.Token),
         };
         await HttpContext.SignInAsync(
             CookieAuthenticationDefaults.AuthenticationScheme,
-            new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)),
+            new ClaimsPrincipal(
+                new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)
+            ),
             new AuthenticationProperties { IsPersistent = false, ExpiresUtc = result.ExpiresAt }
         );
         if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
@@ -93,13 +143,25 @@ public sealed class AccountController(IHttpClientFactory factory, IConfiguration
 
     [HttpGet]
     public IActionResult AccessDenied() => View();
-    private IActionResult RedirectForRole(string? role) => role switch
-    {
-        "buyer" => RedirectToAction("Index", "Buyer"),
-        "seller" => RedirectToAction("Index", "Seller"),
-        "shipper" => RedirectToAction("Index", "Shipper"),
-        "admin" => RedirectToAction("Index", "Admin"),
-        _ => RedirectToAction(nameof(AccessDenied))};
-    private string BackendUrl(string path) => (configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5251").TrimEnd('/') + "/" + path;
-    private sealed record LoginResult(string Token, DateTime ExpiresAt, int UserId, string Username, string Role);
+
+    private IActionResult RedirectForRole(string? role) =>
+        role switch
+        {
+            "buyer" => RedirectToAction("Index", "Buyer"),
+            "seller" => RedirectToAction("Index", "Seller"),
+            "shipper" => RedirectToAction("Index", "Shipper"),
+            "admin" => RedirectToAction("Index", "Admin"),
+            _ => RedirectToAction(nameof(AccessDenied)),
+        };
+
+    private string BackendUrl(string path) =>
+        (configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5251").TrimEnd('/') + "/" + path;
+
+    private sealed record LoginResult(
+        string Token,
+        DateTime ExpiresAt,
+        int UserId,
+        string Username,
+        string Role
+    );
 }

@@ -203,7 +203,10 @@
         needsReason = ['reject-cancel', 'reject-return'].includes(k);
       const input = await modal({
         title,
-        description: k === 'fail-carrier' || k === 'approve-return-failure' ? `Đơn #${id}: hệ thống sẽ thử tạo vận đơn và giả lập cả 3 lần gọi đều lỗi. Sau đó bạn có thể tạo lại vận đơn bình thường.` : `Bạn đang cập nhật đơn bán hàng #${id}.`,
+        description:
+          k === 'fail-carrier' || k === 'approve-return-failure'
+            ? `Đơn #${id}: hệ thống sẽ thử tạo vận đơn và giả lập cả 3 lần gọi đều lỗi. Sau đó bạn có thể tạo lại vận đơn bình thường.`
+            : `Bạn đang cập nhật đơn bán hàng #${id}.`,
         fields: needsReason ? [{ name: 'reason', label: 'Lý do từ chối', required: true }] : [],
         confirm: 'Lưu thay đổi',
       });
@@ -218,7 +221,8 @@
         path = `seller/orders/${id}/cancel/decision`;
         body = { approve: k === 'accept-cancel', reason: needsReason ? input.reason : null };
       } else if (k === 'approve-return') path = `seller/returns/${b.dataset.return}/approve`;
-      else if (k === 'approve-return-failure') path = `seller/returns/${b.dataset.return}/approve/simulate-failure`;
+      else if (k === 'approve-return-failure')
+        path = `seller/returns/${b.dataset.return}/approve/simulate-failure`;
       else if (k === 'retry-return') path = `seller/returns/${b.dataset.return}/ship`;
       else if (k === 'reject-return') {
         path = `seller/returns/${b.dataset.return}/reject`;
@@ -229,8 +233,15 @@
         body = { reason: 'delivery-failed' };
       } else return;
       const result = await api(path, 'POST', body);
-      const labelFailed = result?.status === 'ShipmentCreationFailed' || result?.shipmentStatus === 'ShipmentCreationFailed';
-      message(labelFailed ? 'Tạo vận đơn thất bại sau 3 lần thử. Chưa thu phí nhãn; bấm Tạo lại vận đơn để thử lại.' : 'Đã lưu thay đổi cho đơn hàng.', !labelFailed);
+      const labelFailed =
+        result?.status === 'ShipmentCreationFailed' ||
+        result?.shipmentStatus === 'ShipmentCreationFailed';
+      message(
+        labelFailed
+          ? 'Tạo vận đơn thất bại sau 3 lần thử. Chưa thu phí nhãn; bấm Tạo lại vận đơn để thử lại.'
+          : 'Đã lưu thay đổi cho đơn hàng.',
+        !labelFailed,
+      );
     }
     await loadOrders(orderPage, true);
     await G4.SellerReturns.load();
@@ -293,7 +304,8 @@
         : 'Tiền được giữ để xử lý tranh chấp';
     return transactionDescriptions[x.type] || 'Số dư đã thay đổi';
   }
-  const financeDate = (value) => date(typeof value === 'string' && !/(Z|[+-]\d{2}:\d{2})$/i.test(value) ? value + 'Z' : value);
+  const financeDate = (value) =>
+    date(typeof value === 'string' && !/(Z|[+-]\d{2}:\d{2})$/i.test(value) ? value + 'Z' : value);
   async function loadTransactions(page = transactionPage) {
     const result = await api(`seller/finance/transactions/page?page=${page}&pageSize=10`);
     transactionPage = result.page;
@@ -356,24 +368,28 @@
       await loadFinance();
       message('Đã cập nhật cấp người bán.', true);
     });
-  $('request-payout').onclick = () => safe(async () => {
-    const button = $('request-payout');
-    if (button.disabled) return;
-    button.disabled = true;
-    $('payout-amount').disabled = $('payout-failure').disabled = true;
-    button.textContent = 'Đang gửi yêu cầu…';
-    try {
-      const result = await G4.Payouts.request(Number($('payout-amount').value), $('payout-failure').checked);
-      if (!result) return;
-      payoutPage = 1;
-      await loadFinance();
-      message('Đã tạo yêu cầu rút tiền. Khoản tiền đang qua quy trình ngân hàng giả lập.', true);
-    } finally {
-      button.disabled = false;
-      $('payout-amount').disabled = $('payout-failure').disabled = false;
-      button.textContent = 'Rút tiền';
-    }
-  });
+  $('request-payout').onclick = () =>
+    safe(async () => {
+      const button = $('request-payout');
+      if (button.disabled) return;
+      button.disabled = true;
+      $('payout-amount').disabled = $('payout-failure').disabled = true;
+      button.textContent = 'Đang gửi yêu cầu…';
+      try {
+        const result = await G4.Payouts.request(
+          Number($('payout-amount').value),
+          $('payout-failure').checked,
+        );
+        if (!result) return;
+        payoutPage = 1;
+        await loadFinance();
+        message('Đã tạo yêu cầu rút tiền. Khoản tiền đang qua quy trình ngân hàng giả lập.', true);
+      } finally {
+        button.disabled = false;
+        $('payout-amount').disabled = $('payout-failure').disabled = false;
+        button.textContent = 'Rút tiền';
+      }
+    });
   G4.Disputes.init('seller', () => loadOrders(orderPage, true));
   G4.SellerDebt.init('seller', loadFinance);
   G4.SellerIdentity.init();
@@ -387,16 +403,20 @@
     const b = e.target.closest('[data-action]');
     if (b) return safe(() => action(b));
   });
-  G4.Realtime?.subscribe(['orders', 'returns', 'shipments', 'disputes', 'finance', 'levels', 'notifications'], async () => {
-    const active = document.querySelector('.tab-panel.active')?.id;
-    if (active === 'orders') await loadOrders(orderPage, true);
-    if (active === 'finance') await loadFinance();
-    if (active === 'finance-report') await G4.SellerReport.load();
-    if (active === 'seller-levels') await G4.SellerLevels.load();
-    if (active === 'notifications') await G4.Notifications.load();
-    await G4.SellerReturns.load();
-    if ($('detail-dialog')?.open && document.querySelector('#detail-content [data-order-detail]')) await showOrder(detailOrderId, true);
-  });
+  G4.Realtime?.subscribe(
+    ['orders', 'returns', 'shipments', 'disputes', 'finance', 'levels', 'notifications'],
+    async () => {
+      const active = document.querySelector('.tab-panel.active')?.id;
+      if (active === 'orders') await loadOrders(orderPage, true);
+      if (active === 'finance') await loadFinance();
+      if (active === 'finance-report') await G4.SellerReport.load();
+      if (active === 'seller-levels') await G4.SellerLevels.load();
+      if (active === 'notifications') await G4.Notifications.load();
+      await G4.SellerReturns.load();
+      if ($('detail-dialog')?.open && document.querySelector('#detail-content [data-order-detail]'))
+        await showOrder(detailOrderId, true);
+    },
+  );
   setInterval(() => {
     if (
       document.visibilityState === 'visible' &&
@@ -418,5 +438,6 @@
   G4.Navigation.init(tab);
   const notificationLink = new URLSearchParams(location.search);
   const linkedOrder = Number(notificationLink.get('orderId'));
-  if (Number.isInteger(linkedOrder) && linkedOrder > 0 && G4.Navigation.current === 'orders') safe(() => showOrder(linkedOrder));
+  if (Number.isInteger(linkedOrder) && linkedOrder > 0 && G4.Navigation.current === 'orders')
+    safe(() => showOrder(linkedOrder));
 })();

@@ -1,4 +1,5 @@
 namespace G4.Contracts.Checkout;
+
 public sealed record IntegrationLogQueryOptions(
     int? OrderId = null,
     string? Service = null,
@@ -8,6 +9,7 @@ public sealed record IntegrationLogQueryOptions(
     int Page = 1,
     int PageSize = 20
 );
+
 public sealed record IntegrationLogView(
     long Id,
     int? OrderId,

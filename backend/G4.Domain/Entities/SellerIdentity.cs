@@ -1,4 +1,5 @@
 namespace G4.Domain.Entities;
+
 public sealed class SellerIdentity
 {
     public long Id { get; set; }
@@ -11,11 +12,13 @@ public sealed class SellerIdentity
     public string RequestFingerprint { get; set; } = "";
     public DateTime VerifiedAt { get; set; }
 }
+
 public sealed class SellerIdentityKey
 {
     public string Id { get; set; } = "";
     public string Verifier { get; set; } = "";
 }
+
 public sealed class SellerRegistration
 {
     public long Id { get; set; }

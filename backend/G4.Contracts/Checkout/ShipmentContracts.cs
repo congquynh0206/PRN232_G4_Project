@@ -1,4 +1,5 @@
 namespace G4.Contracts.Checkout;
+
 public sealed record ShipperShipmentCard(
     int Id,
     int OrderId,
@@ -15,6 +16,7 @@ public sealed record ShipperShipmentCard(
     DateTimeOffset? ReattemptAt = null,
     string? ReattemptReason = null
 );
+
 public sealed record ShipperShipmentPage(
     int Page,
     int PageSize,
@@ -23,4 +25,5 @@ public sealed record ShipperShipmentPage(
     int MineCount,
     IReadOnlyList<ShipperShipmentCard> Items
 );
+
 public sealed record ProductWeightRequest(decimal WeightKg);

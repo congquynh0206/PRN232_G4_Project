@@ -7,10 +7,19 @@ public static class ReturnWindowPolicy
 {
     public const int LegacySeconds = 604800;
 
-    public static void SnapshotDelivery(OrderTable order, DateTime deliveredAt, IConfiguration? config)
+    public static void SnapshotDelivery(
+        OrderTable order,
+        DateTime deliveredAt,
+        IConfiguration? config
+    )
     {
-        if (order.ReturnWindowClosesAt != null) return;
-        var seconds = Math.Clamp(config?.GetValue("Returns:WindowSeconds", LegacySeconds) ?? LegacySeconds, 1, 31536000);
+        if (order.ReturnWindowClosesAt != null)
+            return;
+        var seconds = Math.Clamp(
+            config?.GetValue("Returns:WindowSeconds", LegacySeconds) ?? LegacySeconds,
+            1,
+            31536000
+        );
         order.ReturnWindowPolicyVersion = 1;
         order.ReturnWindowSeconds = seconds;
         order.ReturnWindowStartedAt = DateTime.SpecifyKind(deliveredAt, DateTimeKind.Utc);
@@ -23,9 +32,13 @@ public static class ReturnWindowPolicy
         order.ReturnWindowClosesAt ?? deliveredAt?.AddSeconds(LegacySeconds);
 
     public static bool IsOpen(OrderTable order, DateTime? deliveredAt, DateTime now) =>
-        deliveredAt != null && now >= (order.ReturnWindowStartedAt ?? deliveredAt.Value)
+        deliveredAt != null
+        && now >= (order.ReturnWindowStartedAt ?? deliveredAt.Value)
         && now < Deadline(order, deliveredAt);
 
-    public static bool TimelyReturn(OrderTable order, DateTime? deliveredAt, DateTime? requestedAt) =>
-        requestedAt != null && IsOpen(order, deliveredAt, requestedAt.Value);
+    public static bool TimelyReturn(
+        OrderTable order,
+        DateTime? deliveredAt,
+        DateTime? requestedAt
+    ) => requestedAt != null && IsOpen(order, deliveredAt, requestedAt.Value);
 }

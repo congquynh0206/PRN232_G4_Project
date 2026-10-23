@@ -1,4 +1,5 @@
 namespace G4.Domain.Entities;
+
 public sealed class FinancialTransaction
 {
     public long Id { get; set; }

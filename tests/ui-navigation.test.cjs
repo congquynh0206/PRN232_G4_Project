@@ -22,11 +22,32 @@ function loadCommon() {
 
 test('tracking giữ actor, lịch UTC và lịch sử riêng cho từng chiều, không render HTML ghi chú', () => {
   const { G4 } = loadCommon();
-  const order = { events: [
-    { shippingInfoId: 1, status: 'LabelCreated', occurredAt: '2026-10-20T10:00:00Z', actorRole: 'system' },
-    { shippingInfoId: 1, status: 'ReattemptScheduled', occurredAt: '2026-10-20T11:00:00Z', reattemptAt: '2026-10-21T10:00:00+00:00', actorRole: 'shipper', actorUserId: 7, note: '<img src=x>', location: '<script>' },
-    { shippingInfoId: 2, status: 'ReturnedToSeller', occurredAt: '2026-10-20T12:00:00Z', note: 'Return-only history' },
-  ] };
+  const order = {
+    events: [
+      {
+        shippingInfoId: 1,
+        status: 'LabelCreated',
+        occurredAt: '2026-10-20T10:00:00Z',
+        actorRole: 'system',
+      },
+      {
+        shippingInfoId: 1,
+        status: 'ReattemptScheduled',
+        occurredAt: '2026-10-20T11:00:00Z',
+        reattemptAt: '2026-10-21T10:00:00+00:00',
+        actorRole: 'shipper',
+        actorUserId: 7,
+        note: '<img src=x>',
+        location: '<script>',
+      },
+      {
+        shippingInfoId: 2,
+        status: 'ReturnedToSeller',
+        occurredAt: '2026-10-20T12:00:00Z',
+        note: 'Return-only history',
+      },
+    ],
+  };
   const outbound = G4.shipmentHtml(order, { id: 1, status: 'ReattemptScheduled' }, 'Outbound');
   assert.match(outbound, /Hệ thống/);
   assert.match(outbound, /Shipper #7/);

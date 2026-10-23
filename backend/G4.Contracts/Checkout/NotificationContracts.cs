@@ -1,4 +1,5 @@
 namespace G4.Contracts.Checkout;
+
 public sealed record NotificationQuery(
     int? OrderId = null,
     string? EventType = null,
@@ -6,7 +7,14 @@ public sealed record NotificationQuery(
     int Page = 1,
     int PageSize = 20
 );
-public sealed record DiagnosticsPage<T>(int Page, int PageSize, int TotalCount, IReadOnlyList<T> Items);
+
+public sealed record DiagnosticsPage<T>(
+    int Page,
+    int PageSize,
+    int TotalCount,
+    IReadOnlyList<T> Items
+);
+
 public sealed record EmailNotificationView(
     int Id,
     int? OrderId,
@@ -27,6 +35,7 @@ public sealed record EmailNotificationView(
     string? LastErrorSummary,
     int? PayoutId = null
 );
+
 public sealed record EmailNotificationDetail(
     EmailNotificationView Summary,
     string Body,

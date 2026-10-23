@@ -1,4 +1,5 @@
 namespace G4.Domain.Entities;
+
 public sealed class PayPalCheckout
 {
     public long Id { get; set; }
@@ -12,6 +13,7 @@ public sealed class PayPalCheckout
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
+
 public partial class Payment
 {
     public long? PayPalCheckoutId { get; set; }

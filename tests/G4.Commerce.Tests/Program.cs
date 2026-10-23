@@ -1,31 +1,111 @@
-using G4.Domain.Entities;
 using G4.Contracts.Checkout;
+using G4.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
-if (args.Contains("--seller-finance-report-sql")) { await SellerFinanceReportSqlChecks.RunAsync(); return; }
-if (args.Contains("--seller-finance-report")) { await SellerFinanceReportChecks.RunAsync(); return; }
-if (args.Contains("--admin-order-lookup")) { await AdminOrderLookupChecks.RunAsync(); return; }
-if (args.Contains("--buyer-address-book")) { await BuyerAddressBookChecks.RunAsync(); return; }
-if (args.Contains("--checkout-limits")) { await CheckoutLimitChecks.RunAsync(); return; }
-if (args.Contains("--paypal-reservations")) { await PayPalReservationChecks.RunAsync(); return; }
-if (args.Contains("--paypal-reservations-sql")) { await PayPalReservationSqlChecks.RunAsync(); return; }
-if (args.Contains("--shipping-reattempts")) { await ShipmentReattemptChecks.RunAsync(); return; }
-if (args.Contains("--address-confirmations")) { await AddressConfirmationChecks.RunAsync(); return; }
-if (args.Contains("--return-window")) { await ReturnWindowChecks.RunAsync(); return; }
-if (args.Contains("--payout-workflow")) { await PayoutWorkflowChecks.RunAsync(); return; }
-if (args.Contains("--return-payout-sql")) { await ReturnPayoutSqlChecks.RunAsync(); return; }
-if (args.Contains("--address-confirmations-sql")) { await AddressConfirmationSqlChecks.RunAsync(); return; }
-if (args.Contains("--shipping-reattempts-sql")) { await ShipmentReattemptSqlChecks.RunAsync(); return; }
+if (args.Contains("--seller-finance-report-sql"))
+{
+    await SellerFinanceReportSqlChecks.RunAsync();
+    return;
+}
+if (args.Contains("--seller-finance-report"))
+{
+    await SellerFinanceReportChecks.RunAsync();
+    return;
+}
+if (args.Contains("--admin-order-lookup"))
+{
+    await AdminOrderLookupChecks.RunAsync();
+    return;
+}
+if (args.Contains("--buyer-address-book"))
+{
+    await BuyerAddressBookChecks.RunAsync();
+    return;
+}
+if (args.Contains("--checkout-limits"))
+{
+    await CheckoutLimitChecks.RunAsync();
+    return;
+}
+if (args.Contains("--paypal-reservations"))
+{
+    await PayPalReservationChecks.RunAsync();
+    return;
+}
+if (args.Contains("--paypal-reservations-sql"))
+{
+    await PayPalReservationSqlChecks.RunAsync();
+    return;
+}
+if (args.Contains("--shipping-reattempts"))
+{
+    await ShipmentReattemptChecks.RunAsync();
+    return;
+}
+if (args.Contains("--address-confirmations"))
+{
+    await AddressConfirmationChecks.RunAsync();
+    return;
+}
+if (args.Contains("--return-window"))
+{
+    await ReturnWindowChecks.RunAsync();
+    return;
+}
+if (args.Contains("--payout-workflow"))
+{
+    await PayoutWorkflowChecks.RunAsync();
+    return;
+}
+if (args.Contains("--return-payout-sql"))
+{
+    await ReturnPayoutSqlChecks.RunAsync();
+    return;
+}
+if (args.Contains("--address-confirmations-sql"))
+{
+    await AddressConfirmationSqlChecks.RunAsync();
+    return;
+}
+if (args.Contains("--shipping-reattempts-sql"))
+{
+    await ShipmentReattemptSqlChecks.RunAsync();
+    return;
+}
 
-if (args.Contains("--business-notifications")) { await BusinessNotificationChecks.RunAsync(); return; }
-if (args.Contains("--business-notifications-sql")) { await BusinessNotificationSqlChecks.RunAsync(); return; }
+if (args.Contains("--business-notifications"))
+{
+    await BusinessNotificationChecks.RunAsync();
+    return;
+}
+if (args.Contains("--business-notifications-sql"))
+{
+    await BusinessNotificationSqlChecks.RunAsync();
+    return;
+}
 
-if (args.Contains("--product-feedback")) { await ProductFeedbackChecks.RunAsync(); return; }
-if (args.Contains("--product-feedback-sql")) { await ProductFeedbackSqlChecks.RunAsync(); return; }
+if (args.Contains("--product-feedback"))
+{
+    await ProductFeedbackChecks.RunAsync();
+    return;
+}
+if (args.Contains("--product-feedback-sql"))
+{
+    await ProductFeedbackSqlChecks.RunAsync();
+    return;
+}
 
-if (args.Contains("--paypal-cart")) { await PayPalCartChecks.RunAsync(); return; }
-if (args.Contains("--commerce-refresh-sql")) { await CommerceRefreshSqlChecks.RunAsync(); return; }
+if (args.Contains("--paypal-cart"))
+{
+    await PayPalCartChecks.RunAsync();
+    return;
+}
+if (args.Contains("--commerce-refresh-sql"))
+{
+    await CommerceRefreshSqlChecks.RunAsync();
+    return;
+}
 
 if (args.Contains("--levels-sql"))
 {
@@ -105,7 +185,11 @@ static void Equal<T>(T expected, T actual, string name)
         throw new Exception($"{name}: expected {expected}, got {actual}");
 }
 
-var quote = OrderPricing.Calculate(new[] { new PriceLine(10m, 2, .3m), new PriceLine(5m, 1, .4m) }, 10m, sameState: false);
+var quote = OrderPricing.Calculate(
+    new[] { new PriceLine(10m, 2, .3m), new PriceLine(5m, 1, .4m) },
+    10m,
+    sameState: false
+);
 Equal(25m, quote.Subtotal, "subtotal");
 Equal(2.50m, quote.Discount, "discount");
 Equal(5m, quote.Shipping, "shipping");
@@ -146,9 +230,7 @@ try
     OrderPricing.Calculate(new[] { new PriceLine(10m, 0) }, 0m, true);
     throw new Exception("zero quantity accepted");
 }
-catch (ArgumentOutOfRangeException)
-{
-}
+catch (ArgumentOutOfRangeException) { }
 
 Equal("Succeeded", CardPaymentSimulator.Outcome("4111111111111111", "12/30"), "valid card");
 Equal("Declined", CardPaymentSimulator.Outcome("4000000000000002", "12/30"), "declined card");
@@ -158,7 +240,8 @@ Equal("Delivered", ShippingState.Next("OutForDelivery", "Delivered"), "delivery"
 if (ShippingState.TryNext("Delivered", "InTransit", out _))
     throw new Exception("late shipment event rolled back status");
 Console.WriteLine("8 domain checks passed");
-var options = new DbContextOptionsBuilder<ApplicationDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString())
+var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+    .UseInMemoryDatabase(Guid.NewGuid().ToString())
     .Options;
 await using var db = new ApplicationDbContext(options);
 var buyer = new User
@@ -166,14 +249,14 @@ var buyer = new User
     Id = 11,
     Username = "buyer",
     Role = "buyer",
-    Email = "buyer@example.test"
+    Email = "buyer@example.test",
 };
 var seller = new User
 {
     Id = 22,
     Username = "seller",
     Role = "seller",
-    Email = "seller@example.test"
+    Email = "seller@example.test",
 };
 var product = new Product
 {
@@ -182,13 +265,13 @@ var product = new Product
     Price = 10m,
     SellerId = 22,
     IsAuction = false,
-    WeightKg = .5m
+    WeightKg = .5m,
 };
 var inventory = new Inventory
 {
     Id = 10,
     ProductId = 10,
-    Quantity = 3
+    Quantity = 3,
 };
 var address = new Address
 {
@@ -198,14 +281,25 @@ var address = new Address
     State = "Hanoi",
     City = "Hanoi",
     Country = "Vietnam",
-    Street = "1 Example St"
+    Street = "1 Example St",
 };
 db.Users.AddRange(buyer, seller);
 db.Users.Add(new User { Id = 900, Role = "shipper" });
 db.Products.Add(product);
 db.Inventories.Add(inventory);
 db.Addresses.Add(address);
-db.Addresses.Add(new Address { Id = 22, UserId = 22, FullName = "Seller", Street = "2 Seller St", State = "Hanoi", Country = "Vietnam", IsDefault = true });
+db.Addresses.Add(
+    new Address
+    {
+        Id = 22,
+        UserId = 22,
+        FullName = "Seller",
+        Street = "2 Seller St",
+        State = "Hanoi",
+        Country = "Vietnam",
+        IsDefault = true,
+    }
+);
 await db.SaveChangesAsync();
 var service = new CheckoutService(db);
 var request = new CheckoutRequest(11, new[] { new CartLine(10, 2) }, null, "checkout-one");
@@ -214,12 +308,16 @@ var again = await service.CreateOrderAsync(buyer.Id, request);
 Equal(first.Id, again.Id, "duplicate checkout ID");
 try
 {
-    await service.CreateOrderAsync(buyer.Id, request with { Items = new[] { new CartLine(10, 1) } });
+    await service.CreateOrderAsync(
+        buyer.Id,
+        request with
+        {
+            Items = new[] { new CartLine(10, 1) },
+        }
+    );
     throw new Exception("checkout key accepted different cart");
 }
-catch (InvalidOperationException)
-{
-}
+catch (InvalidOperationException) { }
 
 Equal(1, inventory.Quantity, "inventory reserved once");
 Equal(22m, first.TotalPrice, "server computes total");
@@ -254,20 +352,20 @@ try
     await returns.MarkReceivedAsync(requestReturn.Id);
     throw new Exception("seller received return before tracking delivery");
 }
-catch (InvalidOperationException)
-{
-}
+catch (InvalidOperationException) { }
 
-var returnShipment = await db.ShippingInfos.SingleAsync(s => s.OrderId == first.Id && s.Direction == "Return");
+var returnShipment = await db.ShippingInfos.SingleAsync(s =>
+    s.OrderId == first.Id && s.Direction == "Return"
+);
 await shipmentService.ClaimAsync(returnShipment.Id, 900);
-foreach (var(eventId, status)in new[]
-{
-    ("return-1", "PickedUp"),
-    ("return-2", "InTransit"),
-    ("return-3", "OutForDelivery"),
-    ("return-4", "Delivered")
-}
-
+foreach (
+    var (eventId, status) in new[]
+    {
+        ("return-1", "PickedUp"),
+        ("return-2", "InTransit"),
+        ("return-3", "OutForDelivery"),
+        ("return-4", "Delivered"),
+    }
 )
     await shipmentService.RecordEventAsync(returnShipment.Id, eventId, status, shipperId: 900);
 Equal("ReturnShipping", requestReturn.Status, "tracking does not confirm seller receipt");
@@ -287,7 +385,7 @@ var oldPurchase = new OrderTable
     Status = "Delivered",
     OrderDate = DateTime.UtcNow.AddDays(-10),
     TotalPrice = 12m,
-    Currency = "USD"
+    Currency = "USD",
 };
 var oldDelivery = new OrderTable
 {
@@ -297,12 +395,24 @@ var oldDelivery = new OrderTable
     Status = "Delivered",
     OrderDate = DateTime.UtcNow.AddDays(-11),
     TotalPrice = 12m,
-    Currency = "USD"
+    Currency = "USD",
 };
 db.OrderTables.AddRange(oldPurchase, oldDelivery);
 db.ShippingInfos.AddRange(
-    new ShippingInfo { OrderId = oldPurchase.Id, Direction = "Outbound", Status = "Delivered", DeliveredAt = DateTime.UtcNow },
-    new ShippingInfo { OrderId = oldDelivery.Id, Direction = "Outbound", Status = "Delivered", DeliveredAt = DateTime.UtcNow.AddDays(-8) }
+    new ShippingInfo
+    {
+        OrderId = oldPurchase.Id,
+        Direction = "Outbound",
+        Status = "Delivered",
+        DeliveredAt = DateTime.UtcNow,
+    },
+    new ShippingInfo
+    {
+        OrderId = oldDelivery.Id,
+        Direction = "Outbound",
+        Status = "Delivered",
+        DeliveredAt = DateTime.UtcNow.AddDays(-8),
+    }
 );
 await db.SaveChangesAsync();
 await returns.RequestReturnAsync(oldPurchase.Id, "Delivered recently");
@@ -311,9 +421,7 @@ try
     await returns.RequestReturnAsync(oldDelivery.Id, "Delivered too long ago");
     throw new Exception("return accepted beyond delivery window");
 }
-catch (InvalidOperationException)
-{
-}
+catch (InvalidOperationException) { }
 
 Equal(
     1,
@@ -322,10 +430,7 @@ Equal(
 );
 Equal("Closed", oldDelivery.Status, "old delivered order closed");
 Console.WriteLine("Shipping and return checks passed");
-var retryCarrier = new ReturnRetryCarrier
-{
-    FailuresRemaining = 3
-};
+var retryCarrier = new ReturnRetryCarrier { FailuresRemaining = 3 };
 var retryReturns = new ReturnService(db, new TestRefundGateway(), retryCarrier);
 var retryRequest = await db.ReturnRequests.SingleAsync(r => r.OrderId == oldPurchase.Id);
 try
@@ -333,13 +438,17 @@ try
     await retryReturns.RetryShipmentAsync(retryRequest.Id);
     throw new Exception("return shipment created before seller approval");
 }
-catch (InvalidOperationException)
-{
-}
+catch (InvalidOperationException) { }
 
 await retryReturns.ApproveAsync(retryRequest.Id);
-var failedReturnShipment = await db.ShippingInfos.SingleAsync(s => s.OrderId == oldPurchase.Id && s.Direction == "Return");
-Equal("ShipmentCreationFailed", failedReturnShipment.Status, "return label fails after carrier retries");
+var failedReturnShipment = await db.ShippingInfos.SingleAsync(s =>
+    s.OrderId == oldPurchase.Id && s.Direction == "Return"
+);
+Equal(
+    "ShipmentCreationFailed",
+    failedReturnShipment.Status,
+    "return label fails after carrier retries"
+);
 Equal("Approved", retryRequest.Status, "failed label keeps return approved");
 var failedReturnId = failedReturnShipment.Id;
 await retryReturns.RetryShipmentAsync(retryRequest.Id);
@@ -359,11 +468,16 @@ Equal(
 );
 Equal(
     "Delivered",
-    (await db.ShippingInfos.SingleAsync(s => s.OrderId == oldPurchase.Id && s.Direction == "Outbound")).Status,
+    (
+        await db.ShippingInfos.SingleAsync(s =>
+            s.OrderId == oldPurchase.Id && s.Direction == "Outbound"
+        )
+    ).Status,
     "return retry leaves outbound shipment unchanged"
 );
 Console.WriteLine("Return shipment retry checks passed");
-var seedOptions = new DbContextOptionsBuilder<ApplicationDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString())
+var seedOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+    .UseInMemoryDatabase(Guid.NewGuid().ToString())
     .Options;
 await using var seedDb = new ApplicationDbContext(seedOptions);
 var fixtureBuyer = new User
@@ -371,14 +485,14 @@ var fixtureBuyer = new User
     Id = 201,
     Username = "buyer",
     Email = "buyer@example.test",
-    Role = "buyer"
+    Role = "buyer",
 };
 var fixtureSeller = new User
 {
     Id = 202,
     Username = "seller",
     Email = "seller@example.test",
-    Role = "seller"
+    Role = "seller",
 };
 var seededProduct = new Product
 {
@@ -387,7 +501,7 @@ var seededProduct = new Product
     Title = "Fixture product",
     Price = 25m,
     IsAuction = false,
-    WeightKg = .5m
+    WeightKg = .5m,
 };
 var seededAddress = new Address
 {
@@ -398,23 +512,39 @@ var seededAddress = new Address
     City = "Hanoi",
     State = "Hanoi",
     Country = "Vietnam",
-    IsDefault = true
+    IsDefault = true,
 };
 var seededStock = new Inventory
 {
     Id = 201,
     ProductId = seededProduct.Id,
     Quantity = 20,
-    LastUpdated = DateTime.UtcNow
+    LastUpdated = DateTime.UtcNow,
 };
 seedDb.AddRange(fixtureBuyer, fixtureSeller, seededProduct, seededAddress, seededStock);
-seedDb.Addresses.Add(new Address { Id = 202, UserId = fixtureSeller.Id, FullName = "Seller", Street = "2 Seller St", State = "Hanoi", Country = "Vietnam", IsDefault = true });
+seedDb.Addresses.Add(
+    new Address
+    {
+        Id = 202,
+        UserId = fixtureSeller.Id,
+        FullName = "Seller",
+        Street = "2 Seller St",
+        State = "Hanoi",
+        Country = "Vietnam",
+        IsDefault = true,
+    }
+);
 await seedDb.SaveChangesAsync();
 var initialStock = seededStock.Quantity;
 var seededCheckout = new CheckoutService(seedDb);
 var expiring = await seededCheckout.CreateOrderAsync(
     fixtureBuyer.Id,
-    new CheckoutRequest(seededAddress.Id, new[] { new CartLine(seededProduct.Id, 1) }, null, "expire-test")
+    new CheckoutRequest(
+        seededAddress.Id,
+        new[] { new CartLine(seededProduct.Id, 1) },
+        null,
+        "expire-test"
+    )
 );
 expiring.PaymentExpiresAt = DateTime.UtcNow.AddSeconds(-1);
 await seedDb.SaveChangesAsync();
@@ -426,23 +556,35 @@ try
     await seededCheckout.PayCardAsync(expiring.Id, "4111111111111111", "12/30", "late-card");
     throw new Exception("expired order accepted payment");
 }
-catch (InvalidOperationException)
-{
-}
+catch (InvalidOperationException) { }
 
 var cardOrder = await seededCheckout.CreateOrderAsync(
     fixtureBuyer.Id,
-    new CheckoutRequest(seededAddress.Id, new[] { new CartLine(seededProduct.Id, 1) }, null, "card-retry")
+    new CheckoutRequest(
+        seededAddress.Id,
+        new[] { new CartLine(seededProduct.Id, 1) },
+        null,
+        "card-retry"
+    )
 );
 Equal(
     "Declined",
-    (await seededCheckout.PayCardAsync(cardOrder.Id, "4000000000000002", "12/30", "declined-card")).Status,
+    (
+        await seededCheckout.PayCardAsync(
+            cardOrder.Id,
+            "4000000000000002",
+            "12/30",
+            "declined-card"
+        )
+    ).Status,
     "declined card attempt"
 );
 Equal("AwaitingPayment", cardOrder.Status, "failed card leaves order payable");
 Equal(
     "Succeeded",
-    (await seededCheckout.PayCardAsync(cardOrder.Id, "4111111111111111", "12/30", "good-card")).Status,
+    (
+        await seededCheckout.PayCardAsync(cardOrder.Id, "4111111111111111", "12/30", "good-card")
+    ).Status,
     "card retry succeeds"
 );
 var cancelService = new ReturnService(seedDb, new TestRefundGateway(), new TestCarrier());
@@ -452,19 +594,26 @@ try
     await cancelService.DecideCancelAsync(cardOrder.Id, false);
     throw new Exception("seller rejected cancel without reason");
 }
-catch (ArgumentException)
-{
-}
+catch (ArgumentException) { }
 
 await cancelService.DecideCancelAsync(cardOrder.Id, false, "Already packed");
 Equal("Paid", cardOrder.Status, "rejected cancel restores prior status");
 Equal("Already packed", cardOrder.CancelDecisionReason, "cancel rejection reason saved");
 var paypalOrder = await seededCheckout.CreateOrderAsync(
     fixtureBuyer.Id,
-    new CheckoutRequest(seededAddress.Id, new[] { new CartLine(seededProduct.Id, 1) }, null, "paypal-test")
+    new CheckoutRequest(
+        seededAddress.Id,
+        new[] { new CartLine(seededProduct.Id, 1) },
+        null,
+        "paypal-test"
+    )
 );
 var paypalGateway = new TestPayPalGateway();
-var paypalService = new PayPalPaymentService(seedDb, paypalGateway, new ConfigurationBuilder().Build());
+var paypalService = new PayPalPaymentService(
+    seedDb,
+    paypalGateway,
+    new ConfigurationBuilder().Build()
+);
 var paypalStart = await paypalService.StartAsync(paypalOrder.Id, "paypal-key");
 Equal("PAYPAL-ORDER", paypalStart.Id, "PayPal create");
 paypalGateway.TimeoutCapture = true;
@@ -476,7 +625,11 @@ Equal(
 Equal("AwaitingPayment", paypalOrder.Status, "timeout does not mark paid");
 paypalOrder.PaymentExpiresAt = DateTime.UtcNow.AddSeconds(-1);
 await seedDb.SaveChangesAsync();
-Equal(0, await seededCheckout.ExpirePendingAsync(), "uncertain PayPal capture waits for reconciliation");
+Equal(
+    0,
+    await seededCheckout.ExpirePendingAsync(),
+    "uncertain PayPal capture waits for reconciliation"
+);
 paypalGateway.TimeoutCapture = false;
 var reconciled = await paypalService.ReconcileAsync(paypalOrder.Id);
 Equal("Succeeded", reconciled.Status, "PayPal reconcile success");
@@ -487,12 +640,28 @@ Equal(
     "one PayPal capture"
 );
 var paypalHttp = new TestPayPalHttpHandler();
-var paypalConfig = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["PayPal:ClientId"] = "sandbox-client", ["PayPal:ClientSecret"] = "sandbox-secret" })
+var paypalConfig = new ConfigurationBuilder()
+    .AddInMemoryCollection(
+        new Dictionary<string, string?>
+        {
+            ["PayPal:ClientId"] = "sandbox-client",
+            ["PayPal:ClientSecret"] = "sandbox-secret",
+        }
+    )
     .Build();
 var restGateway = new PayPalSandboxGateway(new HttpClient(paypalHttp), paypalConfig);
 Equal(
     "REST-ORDER",
-    (await restGateway.CreateAsync(12.34m, "USD", "create-key", "http://localhost/return", "http://localhost/cancel", default)).Id,
+    (
+        await restGateway.CreateAsync(
+            12.34m,
+            "USD",
+            "create-key",
+            "http://localhost/return",
+            "http://localhost/cancel",
+            default
+        )
+    ).Id,
     "PayPal REST create response"
 );
 Equal(
@@ -512,7 +681,8 @@ Equal(
 );
 Equal(4, paypalHttp.AuthRequests, "PayPal authenticates REST operations");
 Console.WriteLine("Expiry, card, and PayPal checks passed");
-var financeOptions = new DbContextOptionsBuilder<ApplicationDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString())
+var financeOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+    .UseInMemoryDatabase(Guid.NewGuid().ToString())
     .Options;
 await using var financeDb = new ApplicationDbContext(financeOptions);
 var financeSeller = new User
@@ -520,14 +690,14 @@ var financeSeller = new User
     Id = 301,
     Username = "finance-seller",
     Email = "seller@example.test",
-    Role = "seller"
+    Role = "seller",
 };
 var financeBuyer = new User
 {
     Id = 302,
     Username = "finance-buyer",
     Email = "buyer@example.test",
-    Role = "buyer"
+    Role = "buyer",
 };
 var financeOrder = new OrderTable
 {
@@ -537,7 +707,7 @@ var financeOrder = new OrderTable
     Status = "Delivered",
     OrderDate = DateTime.UtcNow,
     TotalPrice = 100m,
-    Currency = "USD"
+    Currency = "USD",
 };
 var financePayment = new Payment
 {
@@ -547,15 +717,37 @@ var financePayment = new Payment
     Amount = 100m,
     Method = "Card",
     Status = "Succeeded",
-    PaidAt = DateTime.UtcNow
+    PaidAt = DateTime.UtcNow,
 };
-financeDb.AddRange(financeSeller, financeBuyer, financeOrder, financePayment,
-    new ShippingInfo { OrderId = financeOrder.Id, Direction = "Outbound", Status = "Delivered", DeliveredAt = DateTime.UtcNow });
+financeDb.AddRange(
+    financeSeller,
+    financeBuyer,
+    financeOrder,
+    financePayment,
+    new ShippingInfo
+    {
+        OrderId = financeOrder.Id,
+        Direction = "Outbound",
+        Status = "Delivered",
+        DeliveredAt = DateTime.UtcNow,
+    }
+);
 await financeDb.SaveChangesAsync();
-var financeConfig = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Finance:PlatformFeePercent"] = "12", ["Finance:FixedOrderFee"] = "0.30", ["Finance:Levels:1:HoldSeconds"] = "1" })
+var financeConfig = new ConfigurationBuilder()
+    .AddInMemoryCollection(
+        new Dictionary<string, string?>
+        {
+            ["Finance:PlatformFeePercent"] = "12",
+            ["Finance:FixedOrderFee"] = "0.30",
+            ["Finance:Levels:1:HoldSeconds"] = "1",
+        }
+    )
     .Build();
 var financeService = new SellerFinanceService(financeDb, financeConfig);
-var settlement = await financeService.RecordSuccessfulPaymentAsync(financeOrder.Id, financePayment.Id);
+var settlement = await financeService.RecordSuccessfulPaymentAsync(
+    financeOrder.Id,
+    financePayment.Id
+);
 Equal(12.30m, settlement.PlatformFeeAmount, "platform fee");
 Equal(87.70m, settlement.NetAmount, "seller net amount");
 Equal(
@@ -583,15 +775,18 @@ try
     await financeService.RequestPayoutAsync(financeSeller.Id, 39m, "payout-one", false);
     throw new Exception("payout key accepted a different amount");
 }
-catch (InvalidOperationException)
-{
-}
+catch (InvalidOperationException) { }
 
 await financeService.AdvancePayoutsAsync();
 await financeService.AdvancePayoutsAsync();
 await financeService.AdvancePayoutsAsync();
 Equal("Completed", payout.Status, "payout completed");
-var returnedPayout = await financeService.RequestPayoutAsync(financeSeller.Id, 7.70m, "payout-returned", true);
+var returnedPayout = await financeService.RequestPayoutAsync(
+    financeSeller.Id,
+    7.70m,
+    "payout-returned",
+    true
+);
 await financeService.AdvancePayoutsAsync();
 await financeService.AdvancePayoutsAsync();
 await financeService.AdvancePayoutsAsync();
@@ -607,7 +802,7 @@ var financeRefund = new Refund
     Reason = "return",
     IdempotencyKey = "finance-refund",
     Status = "Succeeded",
-    CreatedAt = DateTime.UtcNow
+    CreatedAt = DateTime.UtcNow,
 };
 financeDb.Refunds.Add(financeRefund);
 await financeDb.SaveChangesAsync();
@@ -621,7 +816,7 @@ var recoveryOrder = new OrderTable
     Status = "Paid",
     OrderDate = DateTime.UtcNow,
     TotalPrice = 50m,
-    Currency = "USD"
+    Currency = "USD",
 };
 var recoveryPayment = new Payment
 {
@@ -631,20 +826,26 @@ var recoveryPayment = new Payment
     Amount = 50m,
     Method = "Card",
     Status = "Succeeded",
-    PaidAt = DateTime.UtcNow
+    PaidAt = DateTime.UtcNow,
 };
 financeDb.AddRange(recoveryOrder, recoveryPayment);
 await financeDb.SaveChangesAsync();
-var recoverySettlement = await financeService.RecordSuccessfulPaymentAsync(recoveryOrder.Id, recoveryPayment.Id);
+var recoverySettlement = await financeService.RecordSuccessfulPaymentAsync(
+    recoveryOrder.Id,
+    recoveryPayment.Id
+);
 Equal(0m, financeAccount.NegativeBalance, "later sale recovers negative balance");
 Equal(3.70m, recoverySettlement.ProcessingAmount, "remaining proceeds after debt recovery");
 Equal(
     1,
-    await financeDb.FinancialTransactions.CountAsync(x => x.Type == "PlatformFee" && x.OrderId == financeOrder.Id),
+    await financeDb.FinancialTransactions.CountAsync(x =>
+        x.Type == "PlatformFee" && x.OrderId == financeOrder.Id
+    ),
     "single platform fee entry"
 );
 Console.WriteLine("Seller finance checks passed");
-var disputeOptions = new DbContextOptionsBuilder<ApplicationDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString())
+var disputeOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+    .UseInMemoryDatabase(Guid.NewGuid().ToString())
     .Options;
 await using var disputeDb = new ApplicationDbContext(disputeOptions);
 var disputeSeller = new User
@@ -652,38 +853,56 @@ var disputeSeller = new User
     Id = 501,
     Username = "dispute-seller",
     Email = "dispute-seller@example.test",
-    Role = "seller"
+    Role = "seller",
 };
 var disputeBuyer = new User
 {
     Id = 502,
     Username = "dispute-buyer",
     Email = "dispute-buyer@example.test",
-    Role = "buyer"
+    Role = "buyer",
 };
 disputeDb.AddRange(disputeSeller, disputeBuyer);
-foreach (var id in new[]
+foreach (var id in new[] { 501, 502 })
 {
-    501,
-    502
-}
-
-)
-{
-    disputeDb.OrderTables.Add(new OrderTable { Id = id, BuyerId = disputeBuyer.Id, SellerId = disputeSeller.Id, Status = "Delivered", OrderDate = DateTime.UtcNow, TotalPrice = 100m, Currency = "USD" });
-    disputeDb.Payments.Add(new Payment { Id = id, OrderId = id, UserId = disputeBuyer.Id, Amount = 100m, Method = "Card", Status = "Succeeded", PaidAt = DateTime.UtcNow });
-    disputeDb.ShippingInfos.Add(new ShippingInfo { OrderId = id, Direction = "Outbound", Status = "Delivered", DeliveredAt = DateTime.UtcNow });
+    disputeDb.OrderTables.Add(
+        new OrderTable
+        {
+            Id = id,
+            BuyerId = disputeBuyer.Id,
+            SellerId = disputeSeller.Id,
+            Status = "Delivered",
+            OrderDate = DateTime.UtcNow,
+            TotalPrice = 100m,
+            Currency = "USD",
+        }
+    );
+    disputeDb.Payments.Add(
+        new Payment
+        {
+            Id = id,
+            OrderId = id,
+            UserId = disputeBuyer.Id,
+            Amount = 100m,
+            Method = "Card",
+            Status = "Succeeded",
+            PaidAt = DateTime.UtcNow,
+        }
+    );
+    disputeDb.ShippingInfos.Add(
+        new ShippingInfo
+        {
+            OrderId = id,
+            Direction = "Outbound",
+            Status = "Delivered",
+            DeliveredAt = DateTime.UtcNow,
+        }
+    );
 }
 
 await disputeDb.SaveChangesAsync();
 var disputeFinance = new SellerFinanceService(disputeDb, financeConfig);
-foreach (var id in new[]
-{
-    501,
-    502
-}
-
-)
+foreach (var id in new[] { 501, 502 })
 {
     var paidSettlement = await disputeFinance.RecordSuccessfulPaymentAsync(id, id);
     paidSettlement.ReleaseAt = DateTime.UtcNow.AddSeconds(-1);
@@ -702,10 +921,7 @@ Equal(
     (await disputeDb.SellerSettlements.SingleAsync(x => x.OrderId == 501)).Status,
     "buyer decision awaits refund"
 );
-var flakyRefunds = new FlakyRefundGateway
-{
-    FailuresRemaining = 1
-};
+var flakyRefunds = new FlakyRefundGateway { FailuresRemaining = 1 };
 var disputeReturns = new ReturnService(disputeDb, flakyRefunds, new TestCarrier(), disputeFinance);
 Equal(
     "Failed",
@@ -730,7 +946,9 @@ Equal(
 Equal(2, flakyRefunds.Calls, "successful refund is not sent twice");
 Equal(
     1,
-    await disputeDb.FinancialTransactions.CountAsync(x => x.EntryKey == $"refund:{completedDisputeRefund.Id}:applied"),
+    await disputeDb.FinancialTransactions.CountAsync(x =>
+        x.EntryKey == $"refund:{completedDisputeRefund.Id}:applied"
+    ),
     "dispute refund affects ledger once"
 );
 await disputeFinance.ResolveHoldAsync(502, true);
@@ -744,7 +962,7 @@ var undeliveredOrder = new OrderTable
     Status = "Paid",
     OrderDate = DateTime.UtcNow,
     TotalPrice = 100m,
-    Currency = "USD"
+    Currency = "USD",
 };
 var undeliveredPayment = new Payment
 {
@@ -754,7 +972,7 @@ var undeliveredPayment = new Payment
     Amount = 100m,
     Method = "Card",
     Status = "Succeeded",
-    PaidAt = DateTime.UtcNow
+    PaidAt = DateTime.UtcNow,
 };
 disputeDb.AddRange(undeliveredOrder, undeliveredPayment);
 await disputeDb.SaveChangesAsync();
@@ -771,7 +989,7 @@ var legacyOrder = new OrderTable
     Status = "Delivered",
     OrderDate = DateTime.UtcNow,
     TotalPrice = 100m,
-    Currency = "USD"
+    Currency = "USD",
 };
 var legacyPayment = new Payment
 {
@@ -781,7 +999,7 @@ var legacyPayment = new Payment
     Amount = 100m,
     Method = "Card",
     Status = "Succeeded",
-    PaidAt = DateTime.UtcNow
+    PaidAt = DateTime.UtcNow,
 };
 disputeDb.AddRange(legacyOrder, legacyPayment);
 await disputeDb.SaveChangesAsync();
@@ -792,7 +1010,19 @@ await disputeFinance.ReleaseDueFundsAsync();
 await disputeFinance.PlaceHoldAsync(504, "Legacy buyer decision");
 disputeAccount.OnHoldBalance -= 87.70m;
 legacySettlement.Status = "RefundPending";
-disputeDb.FinancialTransactions.Add(new FinancialTransaction { SellerAccountId = disputeAccount.Id, SettlementId = legacySettlement.Id, OrderId = legacyOrder.Id, Type = "HoldReserved", Bucket = "OnHold", Amount = 0m, EntryKey = "order:504:hold:buyer", CreatedAt = DateTime.UtcNow });
+disputeDb.FinancialTransactions.Add(
+    new FinancialTransaction
+    {
+        SellerAccountId = disputeAccount.Id,
+        SettlementId = legacySettlement.Id,
+        OrderId = legacyOrder.Id,
+        Type = "HoldReserved",
+        Bucket = "OnHold",
+        Amount = 0m,
+        EntryKey = "order:504:hold:buyer",
+        CreatedAt = DateTime.UtcNow,
+    }
+);
 await disputeDb.SaveChangesAsync();
 var legacyRefund = await disputeReturns.RefundAsync(504, "dispute", null);
 Equal("Succeeded", legacyRefund.Status, "legacy pending dispute refunds successfully");
@@ -800,14 +1030,27 @@ Equal(0m, disputeAccount.OnHoldBalance, "legacy missing hold is restored then co
 Equal(0m, disputeAccount.NegativeBalance, "legacy pending dispute does not create false debt");
 Equal(
     1,
-    await disputeDb.FinancialTransactions.CountAsync(x => x.EntryKey == "order:504:hold:correction"),
+    await disputeDb.FinancialTransactions.CountAsync(x =>
+        x.EntryKey == "order:504:hold:correction"
+    ),
     "legacy correction is audited once"
 );
 Console.WriteLine("Dispute refund and hold checks passed");
-var authOptions = new DbContextOptionsBuilder<ApplicationDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString())
+var authOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+    .UseInMemoryDatabase(Guid.NewGuid().ToString())
     .Options;
 await using var authDb = new ApplicationDbContext(authOptions);
-authDb.Users.Add(new User { Id = 401, Username = "buyer", Email = "buyer@example.test", Role = "buyer", Password = "PBKDF2$100000$ZzQtYnV5ZXItYXV0aC1zYWx0LTIwMjY=$Wgm3b6IizRGo8CDLurHUJAAlcbSLY1ASzgQLLysRq6Q=" });
+authDb.Users.Add(
+    new User
+    {
+        Id = 401,
+        Username = "buyer",
+        Email = "buyer@example.test",
+        Role = "buyer",
+        Password =
+            "PBKDF2$100000$ZzQtYnV5ZXItYXV0aC1zYWx0LTIwMjY=$Wgm3b6IizRGo8CDLurHUJAAlcbSLY1ASzgQLLysRq6Q=",
+    }
+);
 await authDb.SaveChangesAsync();
 var authService = new AuthenticationService(authDb);
 Equal(
@@ -826,11 +1069,17 @@ await SellerOrderListChecks.RunAsync();
 await BuyerOrderListChecks.RunAsync();
 await AdminOrderLookupChecks.RunAsync();
 await BuyerAddressBookChecks.RunAsync();
+
 sealed class TestCarrier : ICarrierGateway
 {
     public int Attempts { get; private set; }
 
-    public Task<string> CreateLabelAsync(int orderId, string direction, string key, CancellationToken ct)
+    public Task<string> CreateLabelAsync(
+        int orderId,
+        string direction,
+        string key,
+        CancellationToken ct
+    )
     {
         Attempts++;
         if (Attempts < 3)
@@ -843,7 +1092,12 @@ sealed class TestRefundGateway : IRefundGateway
 {
     public int Calls { get; private set; }
 
-    public Task<string> RefundAsync(Payment payment, decimal amount, string key, CancellationToken ct)
+    public Task<string> RefundAsync(
+        Payment payment,
+        decimal amount,
+        string key,
+        CancellationToken ct
+    )
     {
         Calls++;
         return Task.FromResult("REFUND-" + payment.Id);
@@ -855,7 +1109,12 @@ sealed class FlakyRefundGateway : IRefundGateway
     public int FailuresRemaining { get; set; }
     public int Calls { get; private set; }
 
-    public Task<string> RefundAsync(Payment payment, decimal amount, string key, CancellationToken ct)
+    public Task<string> RefundAsync(
+        Payment payment,
+        decimal amount,
+        string key,
+        CancellationToken ct
+    )
     {
         Calls++;
         if (FailuresRemaining-- > 0)
@@ -869,7 +1128,12 @@ sealed class ReturnRetryCarrier : ICarrierGateway
     public int FailuresRemaining { get; set; }
     public int Attempts { get; private set; }
 
-    public Task<string> CreateLabelAsync(int orderId, string direction, string key, CancellationToken ct)
+    public Task<string> CreateLabelAsync(
+        int orderId,
+        string direction,
+        string key,
+        CancellationToken ct
+    )
     {
         Attempts++;
         if (FailuresRemaining-- > 0)
@@ -883,6 +1147,7 @@ sealed class TestPayPalGateway : IPayPalGateway
     public bool TimeoutCapture { get; set; }
 
     private decimal _amount;
+
     public Task<PayPalCreated> CreateAsync(
         decimal amount,
         string currency,
@@ -896,8 +1161,15 @@ sealed class TestPayPalGateway : IPayPalGateway
         return Task.FromResult(new PayPalCreated("PAYPAL-ORDER", "https://example.test/approve"));
     }
 
-    public Task<PayPalCaptured> CaptureAsync(string orderId, string requestId, CancellationToken ct) => TimeoutCapture ? throw new TaskCanceledException("timeout") : GetAsync(orderId, ct);
-    public Task<PayPalCaptured> GetAsync(string orderId, CancellationToken ct) => Task.FromResult(new PayPalCaptured("COMPLETED", "PAYPAL-CAPTURE", _amount, "USD"));
+    public Task<PayPalCaptured> CaptureAsync(
+        string orderId,
+        string requestId,
+        CancellationToken ct
+    ) => TimeoutCapture ? throw new TaskCanceledException("timeout") : GetAsync(orderId, ct);
+
+    public Task<PayPalCaptured> GetAsync(string orderId, CancellationToken ct) =>
+        Task.FromResult(new PayPalCaptured("COMPLETED", "PAYPAL-CAPTURE", _amount, "USD"));
+
     public Task<string> RefundAsync(
         string captureId,
         decimal amount,
@@ -911,7 +1183,10 @@ sealed class TestPayPalHttpHandler : HttpMessageHandler
 {
     public int AuthRequests { get; private set; }
 
-    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    protected override Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken
+    )
     {
         string json;
         var path = request.RequestUri?.AbsolutePath ?? "";
@@ -926,12 +1201,21 @@ sealed class TestPayPalHttpHandler : HttpMessageHandler
                 throw new Exception("PayPal request lacks Bearer token");
             json = path switch
             {
-                "/v2/checkout/orders" => "{\"id\":\"REST-ORDER\",\"links\":[{\"rel\":\"approve\",\"href\":\"https://example.test/approve\"}]}",
-                "/v2/checkout/orders/REST-ORDER/capture" or "/v2/checkout/orders/REST-ORDER" => "{\"status\":\"COMPLETED\",\"purchase_units\":[{\"payments\":{\"captures\":[{\"id\":\"REST-CAPTURE\",\"amount\":{\"value\":\"12.34\",\"currency_code\":\"USD\"}}]}}]}",
-                "/v2/payments/captures/REST-CAPTURE/refund" => "{\"id\":\"REST-REFUND\",\"status\":\"COMPLETED\"}",
-                _ => throw new Exception("Unexpected PayPal URL: " + path)};
+                "/v2/checkout/orders" =>
+                    "{\"id\":\"REST-ORDER\",\"links\":[{\"rel\":\"approve\",\"href\":\"https://example.test/approve\"}]}",
+                "/v2/checkout/orders/REST-ORDER/capture" or "/v2/checkout/orders/REST-ORDER" =>
+                    "{\"status\":\"COMPLETED\",\"purchase_units\":[{\"payments\":{\"captures\":[{\"id\":\"REST-CAPTURE\",\"amount\":{\"value\":\"12.34\",\"currency_code\":\"USD\"}}]}}]}",
+                "/v2/payments/captures/REST-CAPTURE/refund" =>
+                    "{\"id\":\"REST-REFUND\",\"status\":\"COMPLETED\"}",
+                _ => throw new Exception("Unexpected PayPal URL: " + path),
+            };
         }
 
-        return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json") });
+        return Task.FromResult(
+            new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json"),
+            }
+        );
     }
 }

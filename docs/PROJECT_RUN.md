@@ -1,5 +1,7 @@
 # Chạy dự án checkout & giao hàng (nhóm 4)
 
+**Format mã nguồn 23/10/2026:** căn lề/xuống dòng C#/JavaScript/CSS/Razor và test, không đổi nghiệp vụ hoặc schema; không có migration mới và không thay database. Quy tắc 100 ký tự/dòng và cấu hình formatter ở [BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md#trình-bày-mã-nguồn). Solution build đầu ra riêng, backend mặc định và Node 128/128 đạt. API/frontend đang chạy khóa file build mặc định nên đợt này xuất build sang `artifacts/format-build/`, dùng `OutputPath` riêng và `UseAppHost=false` để xác minh mà không dừng ứng dụng.
+
 **Đọc trước khi phát triển (18/10/2026):** [mục lục tài liệu](README.md), [đặc tả mục tiêu phiên bản 2.0](BUSINESS_REQUIREMENTS.md) và [backlog triển khai](IMPLEMENTATION_BACKLOG.md). Trang này mô tả cách chạy và cấu hình/source hiện có; ghi nhận migration/test bên dưới là theo từng đợt, không chứng minh các thay đổi mới đã triển khai.
 
 **Khoảng cách cấu hình/workflow cần nhớ:** RT1 và PAY1 đã có source ngày 20/10. Return mới snapshot 7 ngày/Development 300 giây từ Outbound Delivered; `Returns:ReceiptSeconds = 45` vẫn là receipt chiều trả. Mọi level rút tiền qua workflow ngân hàng mô phỏng, Level 3 vẫn vào ví ngay. Chưa hoàn thành RT2 deadline/auto-close từ chối return, INR, free returns theo item, hạn mức riêng admin và LED1 bảo vệ/đối soát ledger. SH1/AD1/RT1/PAY1 đều cần migration tương ứng; không dùng ghi nhận QA để suy ra database chính đã nâng.

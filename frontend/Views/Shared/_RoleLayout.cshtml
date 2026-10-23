@@ -23,7 +23,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>@ViewData["Title"] - Sàn G4</title>
+        <title>@ViewData["Title"] - Group 4</title>
         <link rel="stylesheet" href="~/css/checkout.css" asp-append-version="true" />
         <link rel="stylesheet" href="~/css/roles.css" asp-append-version="true" />
         <link rel="stylesheet" href="~/css/ui-refresh.css" asp-append-version="true" />
@@ -108,8 +108,20 @@
                     @if (role != "buyer")
                     {
                         <div class="workspace-mobile-bar">
-                            <button type="button" id="navigation-toggle" aria-controls="navigation-drawer" aria-expanded="false" aria-haspopup="dialog">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+                            <button
+                                type="button"
+                                id="navigation-toggle"
+                                aria-controls="navigation-drawer"
+                                aria-expanded="false"
+                                aria-haspopup="dialog"
+                            >
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    aria-hidden="true"
+                                ><path d="M4 6h16M4 12h16M4 18h16" /></svg>
                                 Menu @(role == "admin" ? "quản trị" : "người bán")
                             </button>
                             <strong id="navigation-current">@(role == "admin" ? "Tranh chấp" : "Đơn hàng")</strong>
@@ -120,7 +132,11 @@
             </div>
             @if (role != "buyer")
             {
-                <dialog id="navigation-drawer" class="navigation-drawer" aria-labelledby="navigation-drawer-title">
+                <dialog
+                    id="navigation-drawer"
+                    class="navigation-drawer"
+                    aria-labelledby="navigation-drawer-title"
+                >
                     <div class="navigation-drawer-head">
                         <h2 id="navigation-drawer-title">Menu @(role == "admin" ? "quản trị" : "người bán")</h2>
                         <button type="button" id="navigation-close" aria-label="Đóng menu">Đóng</button>

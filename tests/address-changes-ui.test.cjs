@@ -97,7 +97,10 @@ test('legacy approved shipment retains acknowledgement without approving a pendi
   const h = helpers(),
     shipment = { id: 5, addressChangeRequestId: 2, addressChangeAcknowledgedAt: null };
   assert.equal(h.requiresAck(shipment), true);
-  assert.match(h.shipperNotice(shipment, { addressChanges: [{ ...row, status: 'Approved' }] }), /data-ack-address="5"/);
+  assert.match(
+    h.shipperNotice(shipment, { addressChanges: [{ ...row, status: 'Approved' }] }),
+    /data-ack-address="5"/,
+  );
   assert.equal(h.requiresAck({ ...shipment, addressChangeAcknowledgedAt: '2026-10-13' }), false);
   assert.match(
     h.shipperNotice(
@@ -109,8 +112,11 @@ test('legacy approved shipment retains acknowledgement without approving a pendi
 });
 
 test('awaiting shipper shows accept/refuse before application; only outbound delivery start is blocked', () => {
-  const h = helpers(), shipment = { id: 5, direction: 'Outbound' };
-  const order = { addressChanges: [{ ...row, status: 'AwaitingShipper', expiresAt: '2026-10-20T10:00:00Z' }] };
+  const h = helpers(),
+    shipment = { id: 5, direction: 'Outbound' };
+  const order = {
+    addressChanges: [{ ...row, status: 'AwaitingShipper', expiresAt: '2026-10-20T10:00:00Z' }],
+  };
   const html = h.shipperNotice(shipment, order);
   assert.match(html, /chưa có hiệu lực/);
   assert.match(html, /data-address-shipper="approve"/);
@@ -125,31 +131,58 @@ test('awaiting shipper shows accept/refuse before application; only outbound del
 });
 
 test('buyer confirms a server quote before submit; unknown response reuses key and confirmed quote', async () => {
-  const calls = [], modals = [];
-  const input = { fullName: 'Buyer', street: 'New', city: 'Hanoi', state: 'Hanoi', country: 'Vietnam', reason: 'Move' };
+  const calls = [],
+    modals = [];
+  const input = {
+    fullName: 'Buyer',
+    street: 'New',
+    city: 'Hanoi',
+    state: 'Hanoi',
+    country: 'Vietnam',
+    reason: 'Move',
+  };
   let fail = true;
   const h = helpers({
-    modal: async options => { modals.push(options); return options.fields ? input : {}; },
+    modal: async (options) => {
+      modals.push(options);
+      return options.fields ? input : {};
+    },
     api: async (route, method, body) => {
       calls.push({ route, body });
       if (route === 'addresses') return [];
-      if (route.endsWith('/quote')) return { token: 'server-quote', oldAddress: 'Old', newAddress: 'New', oldShippingCost: 5.2, newShippingCost: 2.1, sellerCap: 0, buyerRefund: 3.1, withinCap: true, shipperId: 3 };
-      if (fail) { fail = false; throw new Error('network'); }
+      if (route.endsWith('/quote'))
+        return {
+          token: 'server-quote',
+          oldAddress: 'Old',
+          newAddress: 'New',
+          oldShippingCost: 5.2,
+          newShippingCost: 2.1,
+          sellerCap: 0,
+          buyerRefund: 3.1,
+          withinCap: true,
+          shipperId: 3,
+        };
+      if (fail) {
+        fail = false;
+        throw new Error('network');
+      }
       return { status: 'Pending' };
     },
   });
   h.init('buyer', async () => {});
-  const event = { target: { closest: () => ({ dataset: { addressChange: 'request', addressOrder: '8' } }) } };
+  const event = {
+    target: { closest: () => ({ dataset: { addressChange: 'request', addressOrder: '8' } }) },
+  };
   await assert.rejects(h.listeners[0](event), /network/);
   await h.listeners[0](event);
   assert.equal(modals.length, 2);
   assert.match(modals[1].description, /Buyer không trả thêm/);
   assert.match(modals[1].description, /\$3.10/);
-  const sends = calls.filter(x => x.route === 'orders/8/address-changes');
+  const sends = calls.filter((x) => x.route === 'orders/8/address-changes');
   assert.equal(sends.length, 2);
   assert.deepEqual(sends[0].body, sends[1].body);
   assert.equal(sends[0].body.quoteToken, 'server-quote');
-  assert.equal(calls.filter(x => x.route.endsWith('/quote')).length, 1);
+  assert.equal(calls.filter((x) => x.route.endsWith('/quote')).length, 1);
 });
 
 test('shipper decision includes request identity and a reason when refusing', async () => {

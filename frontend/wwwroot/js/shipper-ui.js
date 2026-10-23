@@ -32,7 +32,11 @@
         ReattemptScheduled: ['OutForDelivery'],
         ReturningToSender: ['ReturnedToSeller'],
       })[s.status] || []
-    ).filter((x) => !['OutForDelivery', 'ReattemptScheduled'].includes(x) || Number(s.deliveryAttempts || 0) < 2);
+    ).filter(
+      (x) =>
+        !['OutForDelivery', 'ReattemptScheduled'].includes(x) ||
+        Number(s.deliveryAttempts || 0) < 2,
+    );
   const reverse = (s) => ['ReturningToSender', 'ReturnedToSeller'].includes(s.status);
   const direction = (s) =>
     reverse(s)

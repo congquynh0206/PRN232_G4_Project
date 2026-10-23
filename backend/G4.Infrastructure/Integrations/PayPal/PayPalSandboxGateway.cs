@@ -3,10 +3,11 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
-using Microsoft.Extensions.Configuration;
 using G4.Infrastructure.Diagnostics;
+using Microsoft.Extensions.Configuration;
 
 namespace G4.Infrastructure.Integrations.PayPal;
+
 public sealed class PayPalSandboxGateway(
     HttpClient http,
     IConfiguration configuration,
@@ -15,40 +16,130 @@ public sealed class PayPalSandboxGateway(
 {
     private readonly string clientId = configuration["PayPal:ClientId"] ?? "";
     private readonly string clientSecret = configuration["PayPal:ClientSecret"] ?? "";
-    private readonly string baseUrl = configuration["PayPal:BaseUrl"] ?? "https://api-m.sandbox.paypal.com";
-    public Task<PayPalCreated> CreateBatchAsync(IReadOnlyList<PayPalPurchaseUnit> units, string requestId, string returnUrl, string cancelUrl, CancellationToken ct)
+    private readonly string baseUrl =
+        configuration["PayPal:BaseUrl"] ?? "https://api-m.sandbox.paypal.com";
+
+    public Task<PayPalCreated> CreateBatchAsync(
+        IReadOnlyList<PayPalPurchaseUnit> units,
+        string requestId,
+        string returnUrl,
+        string cancelUrl,
+        CancellationToken ct
+    )
     {
-        if (units.Count is < 1 or > 10 || units.Any(x => x.Amount <= 0) || units.Select(x => x.ReferenceId).Distinct().Count() != units.Count)
+        if (
+            units.Count is < 1 or > 10
+            || units.Any(x => x.Amount <= 0)
+            || units.Select(x => x.ReferenceId).Distinct().Count() != units.Count
+        )
             throw new ArgumentException("PayPal cart purchase units are invalid");
-        var body = new { intent = "CAPTURE", purchase_units = units.Select(x => new {
-            reference_id = x.ReferenceId, custom_id = x.ReferenceId,
-            description = "G4 " + x.ReferenceId,
-            amount = new { currency_code = x.Currency, value = x.Amount.ToString("F2", CultureInfo.InvariantCulture) } }),
-            payment_source = new { paypal = new { experience_context = new { return_url = returnUrl, cancel_url = cancelUrl, user_action = "PAY_NOW" } } } };
-        return SendAsync(HttpMethod.Post, "/v2/checkout/orders", "CreateCartOrder", requestId, body, ParseCreated, x => x.Id, ct);
+        var body = new
+        {
+            intent = "CAPTURE",
+            purchase_units = units.Select(x => new
+            {
+                reference_id = x.ReferenceId,
+                custom_id = x.ReferenceId,
+                description = "G4 " + x.ReferenceId,
+                amount = new
+                {
+                    currency_code = x.Currency,
+                    value = x.Amount.ToString("F2", CultureInfo.InvariantCulture),
+                },
+            }),
+            payment_source = new
+            {
+                paypal = new
+                {
+                    experience_context = new
+                    {
+                        return_url = returnUrl,
+                        cancel_url = cancelUrl,
+                        user_action = "PAY_NOW",
+                    },
+                },
+            },
+        };
+        return SendAsync(
+            HttpMethod.Post,
+            "/v2/checkout/orders",
+            "CreateCartOrder",
+            requestId,
+            body,
+            ParseCreated,
+            x => x.Id,
+            ct
+        );
     }
-    public Task<PayPalBatchCaptured> CaptureBatchAsync(string providerOrderId, string requestId, CancellationToken ct) =>
-        SendAsync(HttpMethod.Post, $"/v2/checkout/orders/{Uri.EscapeDataString(providerOrderId)}/capture", "CaptureCart", requestId, new { }, ParseBatchCapture, x => x.ProviderOrderId, ct);
+
+    public Task<PayPalBatchCaptured> CaptureBatchAsync(
+        string providerOrderId,
+        string requestId,
+        CancellationToken ct
+    ) =>
+        SendAsync(
+            HttpMethod.Post,
+            $"/v2/checkout/orders/{Uri.EscapeDataString(providerOrderId)}/capture",
+            "CaptureCart",
+            requestId,
+            new { },
+            ParseBatchCapture,
+            x => x.ProviderOrderId,
+            ct
+        );
+
     public Task<PayPalBatchCaptured> GetBatchAsync(string providerOrderId, CancellationToken ct) =>
-        SendAsync(HttpMethod.Get, $"/v2/checkout/orders/{Uri.EscapeDataString(providerOrderId)}", "QueryCartOrder", null, null, ParseBatchCapture, x => x.ProviderOrderId, ct);
+        SendAsync(
+            HttpMethod.Get,
+            $"/v2/checkout/orders/{Uri.EscapeDataString(providerOrderId)}",
+            "QueryCartOrder",
+            null,
+            null,
+            ParseBatchCapture,
+            x => x.ProviderOrderId,
+            ct
+        );
 
     public static PayPalBatchCaptured ParseBatchCapture(JsonElement root)
     {
-        var id = root.GetProperty("id").GetString() ?? throw new HttpRequestException("Missing PayPal order ID");
+        var id =
+            root.GetProperty("id").GetString()
+            ?? throw new HttpRequestException("Missing PayPal order ID");
         var status = root.GetProperty("status").GetString() ?? "UNKNOWN";
         var result = new List<PayPalUnitCapture>();
-        if (root.TryGetProperty("purchase_units", out var units)) foreach (var unit in units.EnumerateArray()) {
-            var reference = unit.TryGetProperty("reference_id", out var r) ? r.GetString() ?? "" : "";
-            if (!unit.TryGetProperty("payments", out var payments) || !payments.TryGetProperty("captures", out var captures)) continue;
-            foreach (var capture in captures.EnumerateArray()) {
-                var money = capture.GetProperty("amount");
-                result.Add(new(reference, capture.GetProperty("status").GetString() ?? "UNKNOWN",
-                    capture.TryGetProperty("id", out var captureId) ? captureId.GetString() : null,
-                    decimal.Parse(money.GetProperty("value").GetString()!, CultureInfo.InvariantCulture), money.GetProperty("currency_code").GetString() ?? ""));
+        if (root.TryGetProperty("purchase_units", out var units))
+            foreach (var unit in units.EnumerateArray())
+            {
+                var reference = unit.TryGetProperty("reference_id", out var r)
+                    ? r.GetString() ?? ""
+                    : "";
+                if (
+                    !unit.TryGetProperty("payments", out var payments)
+                    || !payments.TryGetProperty("captures", out var captures)
+                )
+                    continue;
+                foreach (var capture in captures.EnumerateArray())
+                {
+                    var money = capture.GetProperty("amount");
+                    result.Add(
+                        new(
+                            reference,
+                            capture.GetProperty("status").GetString() ?? "UNKNOWN",
+                            capture.TryGetProperty("id", out var captureId)
+                                ? captureId.GetString()
+                                : null,
+                            decimal.Parse(
+                                money.GetProperty("value").GetString()!,
+                                CultureInfo.InvariantCulture
+                            ),
+                            money.GetProperty("currency_code").GetString() ?? ""
+                        )
+                    );
+                }
             }
-        }
         return new(id, status, result);
     }
+
     public Task<PayPalCreated> CreateAsync(
         decimal amount,
         string currency,
@@ -68,9 +159,9 @@ public sealed class PayPalSandboxGateway(
                     amount = new
                     {
                         currency_code = currency,
-                        value = amount.ToString("F2", CultureInfo.InvariantCulture)
-                    }
-                }
+                        value = amount.ToString("F2", CultureInfo.InvariantCulture),
+                    },
+                },
             },
             payment_source = new
             {
@@ -80,10 +171,10 @@ public sealed class PayPalSandboxGateway(
                     {
                         return_url = returnUrl,
                         cancel_url = cancelUrl,
-                        user_action = "PAY_NOW"
-                    }
-                }
-            }
+                        user_action = "PAY_NOW",
+                    },
+                },
+            },
         };
         return SendAsync(
             HttpMethod.Post,
@@ -97,42 +188,59 @@ public sealed class PayPalSandboxGateway(
         );
     }
 
-    public Task<PayPalCaptured> CaptureAsync(string orderId, string requestId, CancellationToken ct) => SendAsync(
-        HttpMethod.Post,
-        $"/v2/checkout/orders/{Uri.EscapeDataString(orderId)}/capture",
-        "Capture",
-        requestId,
-        new { },
-        ParseCapture,
-        x => x.CaptureId,
-        ct
-    );
-    public Task<PayPalCaptured> GetAsync(string orderId, CancellationToken ct) => SendAsync(
-        HttpMethod.Get,
-        $"/v2/checkout/orders/{Uri.EscapeDataString(orderId)}",
-        "QueryOrder",
-        null,
-        null,
-        ParseCapture,
-        x => x.CaptureId,
-        ct
-    );
+    public Task<PayPalCaptured> CaptureAsync(
+        string orderId,
+        string requestId,
+        CancellationToken ct
+    ) =>
+        SendAsync(
+            HttpMethod.Post,
+            $"/v2/checkout/orders/{Uri.EscapeDataString(orderId)}/capture",
+            "Capture",
+            requestId,
+            new { },
+            ParseCapture,
+            x => x.CaptureId,
+            ct
+        );
+
+    public Task<PayPalCaptured> GetAsync(string orderId, CancellationToken ct) =>
+        SendAsync(
+            HttpMethod.Get,
+            $"/v2/checkout/orders/{Uri.EscapeDataString(orderId)}",
+            "QueryOrder",
+            null,
+            null,
+            ParseCapture,
+            x => x.CaptureId,
+            ct
+        );
+
     public Task<string> RefundAsync(
         string captureId,
         decimal amount,
         string currency,
         string requestId,
         CancellationToken ct
-    ) => SendAsync(
-        HttpMethod.Post,
-        $"/v2/payments/captures/{Uri.EscapeDataString(captureId)}/refund",
-        "Refund",
-        requestId,
-        new { amount = new { currency_code = currency, value = amount.ToString("F2", CultureInfo.InvariantCulture) } },
-        ParseRefund,
-        x => x,
-        ct
-    );
+    ) =>
+        SendAsync(
+            HttpMethod.Post,
+            $"/v2/payments/captures/{Uri.EscapeDataString(captureId)}/refund",
+            "Refund",
+            requestId,
+            new
+            {
+                amount = new
+                {
+                    currency_code = currency,
+                    value = amount.ToString("F2", CultureInfo.InvariantCulture),
+                },
+            },
+            ParseRefund,
+            x => x,
+            ct
+        );
+
     private async Task<T> SendAsync<T>(
         HttpMethod method,
         string path,
@@ -159,13 +267,23 @@ public sealed class PayPalSandboxGateway(
     {
         if (string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(clientSecret))
             throw new InvalidOperationException("PayPal sandbox credentials are not configured");
-        using var request = new HttpRequestMessage(HttpMethod.Post, baseUrl.TrimEnd('/') + "/v1/oauth2/token");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.UTF8.GetBytes(clientId + ":" + clientSecret)));
-        request.Content = new FormUrlEncodedContent(new Dictionary<string, string> { ["grant_type"] = "client_credentials" });
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            baseUrl.TrimEnd('/') + "/v1/oauth2/token"
+        );
+        request.Headers.Authorization = new AuthenticationHeaderValue(
+            "Basic",
+            Convert.ToBase64String(Encoding.UTF8.GetBytes(clientId + ":" + clientSecret))
+        );
+        request.Content = new FormUrlEncodedContent(
+            new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+        );
         return await RequestAsync(
             request,
             "OAuth",
-            root => root.GetProperty("access_token").GetString() ?? throw new HttpRequestException("PayPal token missing"),
+            root =>
+                root.GetProperty("access_token").GetString()
+                ?? throw new HttpRequestException("PayPal token missing"),
             _ => null,
             ct
         );
@@ -179,16 +297,35 @@ public sealed class PayPalSandboxGateway(
         CancellationToken ct
     )
     {
-        await using var call = new IntegrationCallRecorder(logs).Start("PayPal", operation, "Sandbox");
+        await using var call = new IntegrationCallRecorder(logs).Start(
+            "PayPal",
+            operation,
+            "Sandbox"
+        );
         try
         {
             using var response = await http.SendAsync(request, ct);
             call.HttpStatus = (int)response.StatusCode;
             if (!response.IsSuccessStatusCode)
-                throw new HttpRequestException($"PayPal API returned {response.StatusCode}", null, response.StatusCode);
-            using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
+                throw new HttpRequestException(
+                    $"PayPal API returned {response.StatusCode}",
+                    null,
+                    response.StatusCode
+                );
+            using var json = await JsonDocument.ParseAsync(
+                await response.Content.ReadAsStreamAsync(ct),
+                cancellationToken: ct
+            );
             var result = parse(json.RootElement);
-            if (result is PayPalCaptured capture && capture.Status == "COMPLETED" && (string.IsNullOrWhiteSpace(capture.CaptureId) || capture.Amount <= 0 || string.IsNullOrWhiteSpace(capture.Currency)))
+            if (
+                result is PayPalCaptured capture
+                && capture.Status == "COMPLETED"
+                && (
+                    string.IsNullOrWhiteSpace(capture.CaptureId)
+                    || capture.Amount <= 0
+                    || string.IsNullOrWhiteSpace(capture.Currency)
+                )
+            )
                 throw new HttpRequestException("Completed PayPal response lacks capture details");
             await call.CompleteAsync("Succeeded", providerReference: reference(result), ct: ct);
             return result;
@@ -202,9 +339,16 @@ public sealed class PayPalSandboxGateway(
 
     private static PayPalCreated ParseCreated(JsonElement root)
     {
-        var id = root.GetProperty("id").GetString() ?? throw new HttpRequestException("PayPal order ID missing");
-        var approve = root.GetProperty("links").EnumerateArray().FirstOrDefault(x => x.GetProperty("rel").GetString()is "approve" or "payer-action");
-        var url = approve.ValueKind == JsonValueKind.Undefined ? null : approve.GetProperty("href").GetString();
+        var id =
+            root.GetProperty("id").GetString()
+            ?? throw new HttpRequestException("PayPal order ID missing");
+        var approve = root.GetProperty("links")
+            .EnumerateArray()
+            .FirstOrDefault(x => x.GetProperty("rel").GetString() is "approve" or "payer-action");
+        var url =
+            approve.ValueKind == JsonValueKind.Undefined
+                ? null
+                : approve.GetProperty("href").GetString();
         return new(id, url ?? throw new HttpRequestException("PayPal approval URL missing"));
     }
 
@@ -212,7 +356,8 @@ public sealed class PayPalSandboxGateway(
     {
         if (root.GetProperty("status").GetString() != "COMPLETED")
             throw new HttpRequestException("PayPal refund is not completed");
-        return root.GetProperty("id").GetString() ?? throw new HttpRequestException("PayPal refund ID missing");
+        return root.GetProperty("id").GetString()
+            ?? throw new HttpRequestException("PayPal refund ID missing");
     }
 
     private static PayPalCaptured ParseCapture(JsonElement root)
@@ -221,7 +366,10 @@ public sealed class PayPalSandboxGateway(
         if (!root.TryGetProperty("purchase_units", out var units))
             return new(status, null, 0m, "");
         var unit = units.EnumerateArray().First();
-        if (!unit.TryGetProperty("payments", out var payments) || !payments.TryGetProperty("captures", out var captures))
+        if (
+            !unit.TryGetProperty("payments", out var payments)
+            || !payments.TryGetProperty("captures", out var captures)
+        )
             return new(status, null, 0m, "");
         var capture = captures.EnumerateArray().FirstOrDefault();
         if (capture.ValueKind == JsonValueKind.Undefined)

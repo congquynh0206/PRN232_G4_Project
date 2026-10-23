@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 
 namespace G4.Domain.Entities;
+
 public partial class ReturnRequest
 {
     public int Id { get; set; }

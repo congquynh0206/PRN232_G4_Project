@@ -1,13 +1,29 @@
 <section id="seller-identity" class="panel tab-panel">
-    <div class="section-head"><div><span class="eyebrow">Hồ sơ người bán</span><h1>Định danh seller</h1><p>Xác minh giả lập để đối chiếu blacklist khi đăng ký và cập nhật hồ sơ.</p></div><button type="button" id="refresh-seller-identity">Làm mới</button></div>
+    <div class="section-head">
+        <div>
+            <span class="eyebrow">Hồ sơ người bán</span>
+            <h1>Định danh seller</h1>
+            <p>Xác minh giả lập để đối chiếu blacklist khi đăng ký và cập nhật hồ sơ.</p>
+        </div>
+        <button type="button" id="refresh-seller-identity">Làm mới</button>
+    </div>
     <div id="seller-identity-summary" role="status" aria-live="polite"></div>
     <div id="seller-identity-history"></div>
     <form id="seller-identity-form" class="finance-block">
-        <h2>Cập nhật định danh</h2><p class="small">Chỉ dùng dữ liệu giả lập. Thông tin mới được xác minh và kiểm tra blacklist; lịch sử cũ được giữ nguyên.</p>
+        <h2>Cập nhật định danh</h2>
+        <p class="small">Chỉ dùng dữ liệu giả lập. Thông tin mới được xác minh và kiểm tra blacklist; lịch sử cũ được giữ nguyên.</p>
         <fieldset id="seller-identity-fields">
-            <label for="seller-identity-kind">Loại định danh</label><select id="seller-identity-kind"><option value="CCCD">CCCD</option><option value="PASSPORT">Passport</option><option value="BANK">Tài khoản nhận payout</option></select>
-            <label id="seller-identity-bank-label" for="seller-identity-bank" hidden>Mã ngân hàng<input id="seller-identity-bank" maxlength="12" autocomplete="off" /></label>
-            <label for="seller-identity-value">Giá trị định danh</label><input id="seller-identity-value" required maxlength="100" autocomplete="off" />
+            <label for="seller-identity-kind">Loại định danh</label>
+            <select id="seller-identity-kind">
+                <option value="CCCD">CCCD</option>
+                <option value="PASSPORT">Passport</option>
+                <option value="BANK">Tài khoản nhận payout</option>
+            </select>
+            <label id="seller-identity-bank-label" for="seller-identity-bank" hidden>Mã ngân hàng
+                <input id="seller-identity-bank" maxlength="12" autocomplete="off" />
+            </label>
+            <label for="seller-identity-value">Giá trị định danh</label>
+            <input id="seller-identity-value" required maxlength="100" autocomplete="off" />
         </fieldset>
         <p id="seller-identity-error" class="diagnostic-error" role="alert" tabindex="-1"></p>
         <p id="seller-identity-result" role="status" aria-live="polite"></p>

@@ -1,5 +1,12 @@
 # Backlog triển khai theo đặc tả ngày 18/10/2026
 
+## FORMAT — Trình bày mã nguồn ngày 23/10/2026
+
+- Format C#, project XML, JavaScript, CSS, Razor và mã kiểm thử: căn lề, tách khối và xuống dòng tham số/điều kiện/thuộc tính dài. Mục tiêu 100 ký tự/dòng; giữ nguyên giá trị chuỗi và template literal dài. Không đổi nghiệp vụ, API hoặc cấu trúc dữ liệu; giữ thay đổi tên trang `Group 4` đã có trước phiên làm việc.
+- Thêm `.editorconfig`, cấu hình CSharpier/Prettier và quy tắc trong `AGENTS.md` để các lần viết sau giữ cùng cách trình bày. Bỏ qua thư viện bên thứ ba, mã sinh tự động và migration lịch sử.
+- Kiểm tra: CSharpier xác thực cây cú pháp khi format và kiểm tra lại 278 file; đối chiếu cây cú pháp JavaScript và CSS chuẩn hóa trên 83 file; Razor chỉ thay khoảng trắng. Build solution sang `artifacts/format-build/` đạt 0 warning/error; Node 128/128 và bộ backend mặc định đạt (SMTP loopback chạy ngoài sandbox). Build vào thư mục mặc định bị khóa file bởi ứng dụng đang chạy, nên dùng đầu ra riêng.
+- Không tạo/áp migration, không seed hoặc thay database chính/QA; chưa chạy lại browser E2E hoặc SQL/provider. Hướng dẫn duy trì format ở [BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md#trình-bày-mã-nguồn).
+
 ## UI-NAV — Điều hướng Buyer/Seller/Admin ngày 21/10/2026
 
 - Hoàn thành source theo yêu cầu người dùng: Buyer 4 mục, Thanh toán từ giỏ và có nút quay lại; Seller/Admin sidebar 230px có nhóm, ≤1000px dùng drawer; Buyer ≤760px dùng bottom navigation. Shipper giữ nguyên. Badge giữ ID duy nhất; native dialog quản lý focus/Escape, chọn mục đóng menu, resize chuyển cùng nav. URL fragment hỗ trợ Back/Forward/tải lại, link query cũ/PayPal return và fallback fragment không hợp lệ.

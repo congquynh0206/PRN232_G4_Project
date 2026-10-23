@@ -1,9 +1,19 @@
 namespace G4.Contracts.Checkout;
+
 public sealed record OpenDisputeRequest(string Description, string[] EvidenceLinks);
+
 public sealed record DisputeEvidenceRequest(string Description, string[] EvidenceLinks);
-public sealed record DisputeProposalRequest(string Proposal, string Description, string[] EvidenceLinks);
+
+public sealed record DisputeProposalRequest(
+    string Proposal,
+    string Description,
+    string[] EvidenceLinks
+);
+
 public sealed record DisputeResponseRequest(bool Accept, string Description);
+
 public sealed record DisputeResolutionRequest(bool BuyerWins, string Reason);
+
 public sealed record DisputeSummary(
     int Id,
     int OrderId,
@@ -21,6 +31,7 @@ public sealed record DisputeSummary(
     decimal TotalPrice,
     decimal HeldAmount
 );
+
 public sealed record DisputeEntryView(
     int Id,
     int? ActorId,
@@ -30,6 +41,7 @@ public sealed record DisputeEntryView(
     string[] EvidenceLinks,
     DateTime CreatedAt
 );
+
 public sealed record DisputeDetail(
     DisputeSummary Case,
     IReadOnlyList<DisputeEntryView> Entries,
@@ -37,6 +49,7 @@ public sealed record DisputeDetail(
     string? SellerName = null,
     AdminDecisionView? Decision = null
 );
+
 public sealed record DisputePage(
     int Page,
     int PageSize,

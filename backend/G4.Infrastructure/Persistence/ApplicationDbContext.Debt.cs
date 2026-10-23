@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+
 namespace G4.Infrastructure.Persistence;
+
 public partial class ApplicationDbContext
 {
     public DbSet<SellerDebtCycle> SellerDebtCycles => Set<SellerDebtCycle>();
@@ -14,7 +16,10 @@ public partial class ApplicationDbContext
             e.ToTable("SellerDebtCycle");
             e.Property(x => x.OpeningBalance).HasPrecision(18, 2);
             e.HasIndex(x => new { x.SellerAccountId, x.Number }).IsUnique();
-            e.HasOne<SellerAccount>().WithMany().HasForeignKey(x => x.SellerAccountId).OnDelete(DeleteBehavior.NoAction);
+            e.HasOne<SellerAccount>()
+                .WithMany()
+                .HasForeignKey(x => x.SellerAccountId)
+                .OnDelete(DeleteBehavior.NoAction);
         });
         model.Entity<SellerDebtRepayment>(e =>
         {
@@ -27,7 +32,10 @@ public partial class ApplicationDbContext
             e.Property(x => x.Status).HasMaxLength(20);
             e.Property(x => x.BankReferenceId).HasMaxLength(100);
             e.HasIndex(x => new { x.SellerAccountId, x.RequestKey }).IsUnique();
-            e.HasOne<SellerAccount>().WithMany().HasForeignKey(x => x.SellerAccountId).OnDelete(DeleteBehavior.NoAction);
+            e.HasOne<SellerAccount>()
+                .WithMany()
+                .HasForeignKey(x => x.SellerAccountId)
+                .OnDelete(DeleteBehavior.NoAction);
         });
         model.Entity<SellerDebtEvent>(e =>
         {
@@ -38,13 +46,19 @@ public partial class ApplicationDbContext
             e.Property(x => x.Description).HasMaxLength(1000);
             e.HasIndex(x => x.EntryKey).IsUnique();
             e.HasIndex(x => new { x.SellerAccountId, x.Id });
-            e.HasOne<SellerAccount>().WithMany().HasForeignKey(x => x.SellerAccountId).OnDelete(DeleteBehavior.NoAction);
+            e.HasOne<SellerAccount>()
+                .WithMany()
+                .HasForeignKey(x => x.SellerAccountId)
+                .OnDelete(DeleteBehavior.NoAction);
         });
         model.Entity<NotificationOutbox>(e =>
         {
             e.Property(x => x.EventKey).HasMaxLength(100);
             e.HasIndex(x => x.EventKey).IsUnique().HasFilter("[EventKey] IS NOT NULL");
-            e.HasOne<User>().WithMany().HasForeignKey(x => x.SellerId).OnDelete(DeleteBehavior.NoAction);
+            e.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(x => x.SellerId)
+                .OnDelete(DeleteBehavior.NoAction);
         });
     }
 }

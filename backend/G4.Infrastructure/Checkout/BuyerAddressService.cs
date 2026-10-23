@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace G4.Infrastructure.Checkout;
+
 /// <summary>
 /// Buyer address book. Rules: first address becomes default, at most one default per buyer,
 /// deleting the default promotes a remaining address. Orders keep their own address snapshot,
@@ -11,14 +12,39 @@ namespace G4.Infrastructure.Checkout;
 /// </summary>
 public sealed class BuyerAddressService(ApplicationDbContext db) : IBuyerAddressService
 {
-    private static BuyerAddressView View(Address a) => new(a.Id, a.FullName ?? "", a.Phone, a.Street ?? "", a.City ?? "", a.State ?? "", a.Country ?? "", a.IsDefault == true);
+    private static BuyerAddressView View(Address a) =>
+        new(
+            a.Id,
+            a.FullName ?? "",
+            a.Phone,
+            a.Street ?? "",
+            a.City ?? "",
+            a.State ?? "",
+            a.Country ?? "",
+            a.IsDefault == true
+        );
 
-    private async Task<IReadOnlyList<BuyerAddressView>> ReadAsync(int buyerId, CancellationToken ct) => (await db.Addresses.AsNoTracking().Where(a => a.UserId == buyerId).OrderBy(a => a.Id)
-        .ToListAsync(ct)).OrderByDescending(a => a.IsDefault == true)
-        .ThenBy(a => a.Id)
-        .Select(View)
-        .ToArray();
-    public Task<IReadOnlyList<BuyerAddressView>> ListAsync(int buyerId, CancellationToken ct = default) => ReadAsync(buyerId, ct);
+    private async Task<IReadOnlyList<BuyerAddressView>> ReadAsync(
+        int buyerId,
+        CancellationToken ct
+    ) =>
+        (
+            await db
+                .Addresses.AsNoTracking()
+                .Where(a => a.UserId == buyerId)
+                .OrderBy(a => a.Id)
+                .ToListAsync(ct)
+        )
+            .OrderByDescending(a => a.IsDefault == true)
+            .ThenBy(a => a.Id)
+            .Select(View)
+            .ToArray();
+
+    public Task<IReadOnlyList<BuyerAddressView>> ListAsync(
+        int buyerId,
+        CancellationToken ct = default
+    ) => ReadAsync(buyerId, ct);
+
     // Serialize every write of one buyer's address book so two tabs cannot create two defaults.
     private async Task<IDbContextTransaction?> LockAsync(int buyerId, CancellationToken ct)
     {
@@ -28,7 +54,12 @@ public sealed class BuyerAddressService(ApplicationDbContext db) : IBuyerAddress
         try
         {
             if (db.Database.IsSqlServer())
-                await db.Users.FromSqlInterpolated($"SELECT * FROM [User] WITH (UPDLOCK,HOLDLOCK) WHERE [id]={buyerId}").AsNoTracking().ToListAsync(ct);
+                await db
+                    .Users.FromSqlInterpolated(
+                        $"SELECT * FROM [User] WITH (UPDLOCK,HOLDLOCK) WHERE [id]={buyerId}"
+                    )
+                    .AsNoTracking()
+                    .ToListAsync(ct);
             return tx;
         }
         catch
@@ -52,8 +83,10 @@ public sealed class BuyerAddressService(ApplicationDbContext db) : IBuyerAddress
     {
         if (book.Count == 0)
             return;
-        var keep = book.FirstOrDefault(a => a.Id == preferred && preferred != null) ?? book.Where(a => a.IsDefault == true).OrderBy(a => a.Id)
-            .FirstOrDefault() ?? book.OrderBy(a => a.Id).First();
+        var keep =
+            book.FirstOrDefault(a => a.Id == preferred && preferred != null)
+            ?? book.Where(a => a.IsDefault == true).OrderBy(a => a.Id).FirstOrDefault()
+            ?? book.OrderBy(a => a.Id).First();
         foreach (var a in book)
         {
             var value = ReferenceEquals(a, keep);
@@ -69,14 +102,20 @@ public sealed class BuyerAddressService(ApplicationDbContext db) : IBuyerAddress
             throw new ArgumentException(errors.First().Value);
     }
 
-    public async Task<BuyerAddressBook> CreateAsync(int buyerId, BuyerAddressInput input, CancellationToken ct = default)
+    public async Task<BuyerAddressBook> CreateAsync(
+        int buyerId,
+        BuyerAddressInput input,
+        CancellationToken ct = default
+    )
     {
         EnsureValid(input);
         input = BuyerAddressRules.Normalize(input);
         await using var tx = await LockAsync(buyerId, ct);
         var book = await db.Addresses.Where(a => a.UserId == buyerId).ToListAsync(ct);
         if (book.Count >= BuyerAddressRules.MaxAddresses)
-            throw new InvalidOperationException($"Mỗi tài khoản chỉ lưu tối đa {BuyerAddressRules.MaxAddresses} địa chỉ. Hãy xóa bớt địa chỉ không dùng.");
+            throw new InvalidOperationException(
+                $"Mỗi tài khoản chỉ lưu tối đa {BuyerAddressRules.MaxAddresses} địa chỉ. Hãy xóa bớt địa chỉ không dùng."
+            );
         var address = new Address { UserId = buyerId, IsDefault = false };
         Apply(address, input);
         db.Addresses.Add(address);
@@ -90,13 +129,20 @@ public sealed class BuyerAddressService(ApplicationDbContext db) : IBuyerAddress
         return new(address.Id, await ReadAsync(buyerId, ct));
     }
 
-    public async Task<BuyerAddressBook> UpdateAsync(int buyerId, int id, BuyerAddressInput input, CancellationToken ct = default)
+    public async Task<BuyerAddressBook> UpdateAsync(
+        int buyerId,
+        int id,
+        BuyerAddressInput input,
+        CancellationToken ct = default
+    )
     {
         EnsureValid(input);
         input = BuyerAddressRules.Normalize(input);
         await using var tx = await LockAsync(buyerId, ct);
         var book = await db.Addresses.Where(a => a.UserId == buyerId).ToListAsync(ct);
-        var address = book.SingleOrDefault(a => a.Id == id) ?? throw new KeyNotFoundException("Không tìm thấy địa chỉ.");
+        var address =
+            book.SingleOrDefault(a => a.Id == id)
+            ?? throw new KeyNotFoundException("Không tìm thấy địa chỉ.");
         Apply(address, input);
         NormalizeDefault(book, input.IsDefault ? id : null);
         await db.SaveChangesAsync(ct);
@@ -105,7 +151,11 @@ public sealed class BuyerAddressService(ApplicationDbContext db) : IBuyerAddress
         return new(id, await ReadAsync(buyerId, ct));
     }
 
-    public async Task<BuyerAddressBook> SetDefaultAsync(int buyerId, int id, CancellationToken ct = default)
+    public async Task<BuyerAddressBook> SetDefaultAsync(
+        int buyerId,
+        int id,
+        CancellationToken ct = default
+    )
     {
         await using var tx = await LockAsync(buyerId, ct);
         var book = await db.Addresses.Where(a => a.UserId == buyerId).ToListAsync(ct);
@@ -118,11 +168,17 @@ public sealed class BuyerAddressService(ApplicationDbContext db) : IBuyerAddress
         return new(id, await ReadAsync(buyerId, ct));
     }
 
-    public async Task<BuyerAddressBook> DeleteAsync(int buyerId, int id, CancellationToken ct = default)
+    public async Task<BuyerAddressBook> DeleteAsync(
+        int buyerId,
+        int id,
+        CancellationToken ct = default
+    )
     {
         await using var tx = await LockAsync(buyerId, ct);
         var book = await db.Addresses.Where(a => a.UserId == buyerId).ToListAsync(ct);
-        var address = book.SingleOrDefault(a => a.Id == id) ?? throw new KeyNotFoundException("Không tìm thấy địa chỉ.");
+        var address =
+            book.SingleOrDefault(a => a.Id == id)
+            ?? throw new KeyNotFoundException("Không tìm thấy địa chỉ.");
         // Retain referenced rows as historical addresses. Checkout retries compare the original
         // AddressId, so clearing that FK would invalidate an otherwise identical idempotent request.
         // Unowned addresses cannot be selected, listed or edited by any buyer. No schema change.

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace G4.Infrastructure.Promotions;
+
 public static class PromotionLifecycle
 {
     public static async Task LockReservationsAsync(ApplicationDbContext db, CancellationToken ct)
@@ -14,7 +15,11 @@ public static class PromotionLifecycle
             );
     }
 
-    public static async Task<IDbContextTransaction?> LockOrderAsync(ApplicationDbContext db, int orderId, CancellationToken ct)
+    public static async Task<IDbContextTransaction?> LockOrderAsync(
+        ApplicationDbContext db,
+        int orderId,
+        CancellationToken ct
+    )
     {
         if (!db.Database.IsRelational() || db.Database.CurrentTransaction != null)
             return null;
@@ -40,9 +45,15 @@ public static class PromotionLifecycle
         }
     }
 
-    public static async Task ConsumeAsync(ApplicationDbContext db, int orderId, CancellationToken ct)
+    public static async Task ConsumeAsync(
+        ApplicationDbContext db,
+        int orderId,
+        CancellationToken ct
+    )
     {
-        var usages = await db.PromotionUsages.Where(x => x.OrderId == orderId && x.State == "Reserved").ToListAsync(ct);
+        var usages = await db
+            .PromotionUsages.Where(x => x.OrderId == orderId && x.State == "Reserved")
+            .ToListAsync(ct);
         foreach (var usage in usages)
         {
             usage.State = "Consumed";
@@ -50,9 +61,15 @@ public static class PromotionLifecycle
         }
     }
 
-    public static async Task ReleaseAsync(ApplicationDbContext db, int orderId, CancellationToken ct)
+    public static async Task ReleaseAsync(
+        ApplicationDbContext db,
+        int orderId,
+        CancellationToken ct
+    )
     {
-        var usages = await db.PromotionUsages.Where(x => x.OrderId == orderId && x.State == "Reserved").ToListAsync(ct);
+        var usages = await db
+            .PromotionUsages.Where(x => x.OrderId == orderId && x.State == "Reserved")
+            .ToListAsync(ct);
         foreach (var usage in usages)
         {
             usage.State = "Released";

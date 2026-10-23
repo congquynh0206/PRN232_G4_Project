@@ -1,10 +1,30 @@
 namespace G4.Contracts.Checkout;
-public sealed record AddressChangeInput(AddressUpdateRequest Address, string Reason, string Key, string? QuoteToken = null);
+
+public sealed record AddressChangeInput(
+    AddressUpdateRequest Address,
+    string Reason,
+    string Key,
+    string? QuoteToken = null
+);
+
 public sealed record AddressChangeDecision(bool Approve, string? Reason);
+
 public sealed record AddressChangeShipperDecision(int RequestId, bool Approve, string? Reason);
-public sealed record AddressChangeQuoteView(string Token, string OldAddress, string NewAddress,
-    decimal OldShippingCost, decimal NewShippingCost, decimal SellerCap, decimal BuyerRefund, int? ShipperId, bool WithinCap);
+
+public sealed record AddressChangeQuoteView(
+    string Token,
+    string OldAddress,
+    string NewAddress,
+    decimal OldShippingCost,
+    decimal NewShippingCost,
+    decimal SellerCap,
+    decimal BuyerRefund,
+    int? ShipperId,
+    bool WithinCap
+);
+
 public sealed record AddressChangeCapInput(decimal Amount);
+
 public sealed record AddressChangeView(
     int Id,
     int OrderId,

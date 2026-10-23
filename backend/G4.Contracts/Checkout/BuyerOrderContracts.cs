@@ -1,4 +1,5 @@
 namespace G4.Contracts.Checkout;
+
 public sealed record BuyerOrderCard(
     int Id,
     DateTime? OrderDate,
@@ -15,6 +16,7 @@ public sealed record BuyerOrderCard(
     string? Attention,
     SellerOrderCaseBadge? Dispute
 );
+
 public sealed record BuyerOrderListPage(
     int Page,
     int PageSize,

@@ -99,23 +99,43 @@ test('đã hoàn tiền lấy số tiền và phương thức từ giao dịch t
 
 test('refund ship cũ không làm phán quyết đang chờ thành hoàn tất; refund 0 thành công vẫn được nhận diện', () => {
   const { data, order } = detailFixture('ExecutingAgreement', 'AdminPartialRefund');
-  order.refunds = [{ status: 'Succeeded', reason: 'shipping-adjustment', amount: 3 }, { status: 'Failed', reason: 'dispute', amount: 40 }];
+  order.refunds = [
+    { status: 'Succeeded', reason: 'shipping-adjustment', amount: 3 },
+    { status: 'Failed', reason: 'dispute', amount: 40 },
+  ];
   let html = helpers().renderDetail(data, order, 'buyer');
-  assert.match(html, /Hoàn tiền chưa thành công/); assert.doesNotMatch(html, /Đã hoàn \$3.00 cho bạn/);
+  assert.match(html, /Hoàn tiền chưa thành công/);
+  assert.doesNotMatch(html, /Đã hoàn \$3.00 cho bạn/);
   order.refunds[1] = { status: 'Succeeded', reason: 'dispute', amount: 0 };
-  html = helpers().renderDetail(data, order, 'buyer'); assert.match(html, /Đã hoàn \$0.00 cho bạn/);
+  html = helpers().renderDetail(data, order, 'buyer');
+  assert.match(html, /Đã hoàn \$0.00 cho bạn/);
 });
 
 test('phán quyết lưu riêng và không dùng số tiền dự kiến làm tiền đã hoàn', () => {
   const { data, order } = detailFixture('ExecutingAgreement', 'AdminPartialRefund');
-  data.decision = { adminName: '<Admin>', reason: '<script>bad</script>', responsibility: 'Buyer', shippingPayer: 'Buyer',
-    evidenceEntryIds: [5], outcome: 'PartialRefund', buyerRefund: 40, buyerShippingRecovery: 5, feeCredit: 6.14,
-    subsidyReversal: 5, refundStatus: 'Failed', actualRefund: null };
+  data.decision = {
+    adminName: '<Admin>',
+    reason: '<script>bad</script>',
+    responsibility: 'Buyer',
+    shippingPayer: 'Buyer',
+    evidenceEntryIds: [5],
+    outcome: 'PartialRefund',
+    buyerRefund: 40,
+    buyerShippingRecovery: 5,
+    feeCredit: 6.14,
+    subsidyReversal: 5,
+    refundStatus: 'Failed',
+    actualRefund: null,
+  };
   let html = helpers().renderDetail(data, order, 'seller');
-  assert.match(html, /&lt;Admin&gt;/); assert.match(html, /&lt;script&gt;/); assert.match(html, /Khoản hoàn chưa hoàn tất/);
+  assert.match(html, /&lt;Admin&gt;/);
+  assert.match(html, /&lt;script&gt;/);
+  assert.match(html, /Khoản hoàn chưa hoàn tất/);
   assert.doesNotMatch(html, /Đã hoàn thành công:.*\$40.00/);
-  data.decision.refundStatus = 'Succeeded'; data.decision.actualRefund = 40;
-  html = helpers().renderDetail(data, order, 'buyer'); assert.match(html, /Đã hoàn thành công:.*\$40.00/);
+  data.decision.refundStatus = 'Succeeded';
+  data.decision.actualRefund = 40;
+  html = helpers().renderDetail(data, order, 'buyer');
+  assert.match(html, /Đã hoàn thành công:.*\$40.00/);
 });
 
 test('phương án trả hàng không hứa hoàn ngay; giữ thao tác phản hồi và bằng chứng', () => {

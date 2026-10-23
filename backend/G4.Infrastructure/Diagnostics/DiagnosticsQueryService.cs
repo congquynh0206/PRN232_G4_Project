@@ -1,56 +1,94 @@
+using System.Linq.Expressions;
 using G4.Contracts.Checkout;
 using Microsoft.EntityFrameworkCore;
-using System.Linq.Expressions;
 
 namespace G4.Infrastructure.Diagnostics;
+
 public sealed class DiagnosticsQueryService(ApplicationDbContext db)
 {
-    private static readonly Expression<Func<NotificationOutbox, EmailNotificationView>> MailView = x => new(
-        x.Id,
-        x.OrderId,
-        x.EventType,
-        x.Recipient,
-        x.From,
-        x.Subject,
-        x.Status,
-        x.Attempts,
-        x.AttemptsInCycle,
-        x.Cycle,
-        x.CreatedAt,
-        x.LastAttemptAt,
-        x.NextAttemptAt,
-        x.SentAt,
-        x.CapturedAt,
-        x.LastErrorCode,
-        x.LastErrorSummary,
-        x.PayoutId
-    );
-    private static readonly Expression<Func<IntegrationLog, IntegrationLogView>> LogView = x => new(
-        x.Id,
-        x.OrderId,
-        x.CorrelationId,
-        x.Service,
-        x.Operation,
-        x.Mode,
-        x.EntityId,
-        x.Attempt,
-        x.Outcome,
-        x.HttpStatus,
-        x.DurationMs,
-        x.ProviderReference,
-        x.ErrorCode,
-        x.ErrorSummary,
-        x.NotificationId,
-        x.Cycle,
-        x.CreatedAt
-    );
-    public async Task<DiagnosticsPage<EmailNotificationView>> NotificationsAsync(int actorId, string role, NotificationQuery options, CancellationToken ct)
+    private static readonly Expression<Func<NotificationOutbox, EmailNotificationView>> MailView =
+        x =>
+            new(
+                x.Id,
+                x.OrderId,
+                x.EventType,
+                x.Recipient,
+                x.From,
+                x.Subject,
+                x.Status,
+                x.Attempts,
+                x.AttemptsInCycle,
+                x.Cycle,
+                x.CreatedAt,
+                x.LastAttemptAt,
+                x.NextAttemptAt,
+                x.SentAt,
+                x.CapturedAt,
+                x.LastErrorCode,
+                x.LastErrorSummary,
+                x.PayoutId
+            );
+    private static readonly Expression<Func<IntegrationLog, IntegrationLogView>> LogView = x =>
+        new(
+            x.Id,
+            x.OrderId,
+            x.CorrelationId,
+            x.Service,
+            x.Operation,
+            x.Mode,
+            x.EntityId,
+            x.Attempt,
+            x.Outcome,
+            x.HttpStatus,
+            x.DurationMs,
+            x.ProviderReference,
+            x.ErrorCode,
+            x.ErrorSummary,
+            x.NotificationId,
+            x.Cycle,
+            x.CreatedAt
+        );
+
+    public async Task<DiagnosticsPage<EmailNotificationView>> NotificationsAsync(
+        int actorId,
+        string role,
+        NotificationQuery options,
+        CancellationToken ct
+    )
     {
         ValidatePage(options.Page, options.PageSize, options.OrderId);
-        ValidateFilter(options.EventType, ["PaymentSucceeded", "Delivered", "DeliveryFailed", "ReattemptScheduled", "Refunded",
-            "AddressChangePending", "AddressChangeAwaitingShipper", "AddressChangeApproved", "AddressChangeRejected", "AddressChangeExpired",
-            "PaymentFailed", "OrderCancelled", "CancellationRequested", "ReturnRequested", "ReturnApproved", "ReturnRejected", "PayoutCompleted", "PayoutReturned",
-            "DebtStarted", "DebtWarning", "DebtOverdue", "DebtCleared", "DebtRestored", "DebtRepaymentSucceeded", "DebtRepaymentFailed", "DebtWriteOff", "WriteOffRecovery"]);
+        ValidateFilter(
+            options.EventType,
+            [
+                "PaymentSucceeded",
+                "Delivered",
+                "DeliveryFailed",
+                "ReattemptScheduled",
+                "Refunded",
+                "AddressChangePending",
+                "AddressChangeAwaitingShipper",
+                "AddressChangeApproved",
+                "AddressChangeRejected",
+                "AddressChangeExpired",
+                "PaymentFailed",
+                "OrderCancelled",
+                "CancellationRequested",
+                "ReturnRequested",
+                "ReturnApproved",
+                "ReturnRejected",
+                "PayoutCompleted",
+                "PayoutReturned",
+                "DebtStarted",
+                "DebtWarning",
+                "DebtOverdue",
+                "DebtCleared",
+                "DebtRestored",
+                "DebtRepaymentSucceeded",
+                "DebtRepaymentFailed",
+                "DebtWriteOff",
+                "WriteOffRecovery",
+            ]
+        );
         ValidateFilter(options.Status, ["Pending", "Processing", "Sent", "Captured", "Failed"]);
         var query = VisibleNotifications(actorId, role);
         if (options.OrderId != null)
@@ -68,12 +106,21 @@ public sealed class DiagnosticsQueryService(ApplicationDbContext db)
         );
     }
 
-    public async Task<EmailNotificationDetail> NotificationAsync(int id, int actorId, string role, CancellationToken ct)
+    public async Task<EmailNotificationDetail> NotificationAsync(
+        int id,
+        int actorId,
+        string role,
+        CancellationToken ct
+    )
     {
         if (id <= 0)
             throw new ArgumentException("Mã thông báo chưa hợp lệ.");
-        var mail = await VisibleNotifications(actorId, role).SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new KeyNotFoundException("Không tìm thấy thông báo.");
-        var attempts = await db.IntegrationLogs.AsNoTracking().Where(x => x.NotificationId == id && x.Service == "Email")
+        var mail =
+            await VisibleNotifications(actorId, role).SingleOrDefaultAsync(x => x.Id == id, ct)
+            ?? throw new KeyNotFoundException("Không tìm thấy thông báo.");
+        var attempts = await db
+            .IntegrationLogs.AsNoTracking()
+            .Where(x => x.NotificationId == id && x.Service == "Email")
             .OrderByDescending(x => x.CreatedAt)
             .ThenByDescending(x => x.Id)
             .Select(LogView)
@@ -97,7 +144,9 @@ public sealed class DiagnosticsQueryService(ApplicationDbContext db)
             throw new ArgumentException("Khoảng thời gian chưa hợp lệ.");
         var query = db.IntegrationLogs.AsNoTracking();
         if (role != "admin")
-            query = query.Where(x => db.OrderTables.Any(o => o.Id == x.OrderId && o.SellerId == actorId));
+            query = query.Where(x =>
+                db.OrderTables.Any(o => o.Id == x.OrderId && o.SellerId == actorId)
+            );
         if (options.OrderId != null)
             query = query.Where(x => x.OrderId == options.OrderId);
         if (!string.IsNullOrEmpty(options.Service))
@@ -123,9 +172,20 @@ public sealed class DiagnosticsQueryService(ApplicationDbContext db)
             throw new UnauthorizedAccessException("Tài khoản không có quyền xem email.");
         var query = db.NotificationOutbox.AsNoTracking();
         if (role == "buyer")
-            return query.Where(x => x.RecipientUserId == actorId || x.RecipientUserId == null && db.OrderTables.Any(o => o.Id == x.OrderId && o.BuyerId == actorId));
+            return query.Where(x =>
+                x.RecipientUserId == actorId
+                || x.RecipientUserId == null
+                    && db.OrderTables.Any(o => o.Id == x.OrderId && o.BuyerId == actorId)
+            );
         if (role == "seller")
-            return query.Where(x => x.RecipientUserId == actorId || x.RecipientUserId == null && (x.SellerId == actorId || db.OrderTables.Any(o => o.Id == x.OrderId && o.SellerId == actorId)));
+            return query.Where(x =>
+                x.RecipientUserId == actorId
+                || x.RecipientUserId == null
+                    && (
+                        x.SellerId == actorId
+                        || db.OrderTables.Any(o => o.Id == x.OrderId && o.SellerId == actorId)
+                    )
+            );
         return query;
     }
 

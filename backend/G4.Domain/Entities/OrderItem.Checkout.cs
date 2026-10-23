@@ -1,4 +1,5 @@
 namespace G4.Domain.Entities;
+
 public partial class OrderItem
 {
     public decimal SellerDiscountSnapshot { get; set; }

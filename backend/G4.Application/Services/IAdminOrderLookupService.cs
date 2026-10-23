@@ -4,6 +4,9 @@ namespace G4.Application.Services;
 
 public interface IAdminOrderLookupService
 {
-    Task<AdminOrderLookupPage> SearchAsync(AdminOrderLookupQuery query, CancellationToken ct = default);
+    Task<AdminOrderLookupPage> SearchAsync(
+        AdminOrderLookupQuery query,
+        CancellationToken ct = default
+    );
     Task<AdminOrderLookupDetail> DetailAsync(int orderId, CancellationToken ct = default);
 }

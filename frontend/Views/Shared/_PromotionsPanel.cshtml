@@ -31,7 +31,8 @@
     </div>
     <form id="promotion-search-form" class="promotion-search">
         <div>
-            <label for="promotion-search">Tên hoặc mã</label><input
+            <label for="promotion-search">Tên hoặc mã</label>
+            <input
                 id="promotion-search"
                 type="search"
                 maxlength="150"
@@ -39,7 +40,8 @@
             />
         </div>
         <div>
-            <label for="promotion-type-filter">Loại</label><select id="promotion-type-filter">
+            <label for="promotion-type-filter">Loại</label>
+            <select id="promotion-type-filter">
                 <option value="all">Tất cả loại</option>
                 <option value="Sale">Giảm giá sản phẩm</option>
                 <option value="Volume">Giảm theo số lượng</option>
@@ -51,12 +53,14 @@
         @if (Model)
         {
             <div>
-                <label for="promotion-seller-filter">Shop</label><select id="promotion-seller-filter">
+                <label for="promotion-seller-filter">Shop</label>
+                <select id="promotion-seller-filter">
                     <option value="">Tất cả shop và nền tảng</option>
                 </select>
             </div>
             <div>
-                <label for="promotion-source-filter">Nguồn tài trợ</label><select id="promotion-source-filter">
+                <label for="promotion-source-filter">Nguồn tài trợ</label>
+                <select id="promotion-source-filter">
                     <option value="all">Tất cả nguồn</option>
                     <option value="Seller">Shop</option>
                     <option value="Platform">Nền tảng</option>
@@ -80,12 +84,7 @@
             </button>
         </div>
         <div class="promotion-dialog-body">
-            <div
-                id="promotion-errors"
-                class="promotion-errors"
-                role="alert"
-                tabindex="-1"
-                hidden></div>
+            <div id="promotion-errors" class="promotion-errors" role="alert" tabindex="-1" hidden></div>
             <div id="promotion-fields"></div>
             <div id="promotion-preview" class="promotion-preview" aria-live="polite"></div>
             <section

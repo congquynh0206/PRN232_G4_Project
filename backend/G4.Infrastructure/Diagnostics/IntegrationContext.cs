@@ -1,4 +1,5 @@
 namespace G4.Infrastructure.Diagnostics;
+
 public sealed record IntegrationCallContext(
     int? OrderId,
     string CorrelationId,
@@ -6,10 +7,12 @@ public sealed record IntegrationCallContext(
     int? NotificationId = null,
     int? Cycle = null
 );
+
 public static class IntegrationContext
 {
     private static readonly AsyncLocal<IntegrationCallContext?> Context = new();
-    public static IntegrationCallContext Current => Context.Value ?? new(null, Guid.NewGuid().ToString("N"));
+    public static IntegrationCallContext Current =>
+        Context.Value ?? new(null, Guid.NewGuid().ToString("N"));
 
     public static IDisposable Begin(
         int? orderId,
@@ -33,7 +36,13 @@ public static class IntegrationContext
     public static IDisposable ForOrder(int? orderId, int attempt = 1)
     {
         var current = Current;
-        return Begin(orderId, current.CorrelationId, attempt, current.NotificationId, current.Cycle);
+        return Begin(
+            orderId,
+            current.CorrelationId,
+            attempt,
+            current.NotificationId,
+            current.Cycle
+        );
     }
 
     private sealed class Restore(IntegrationCallContext? previous) : IDisposable

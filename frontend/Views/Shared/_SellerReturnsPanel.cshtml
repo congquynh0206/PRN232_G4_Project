@@ -1,5 +1,26 @@
 <section id="seller-returns" class="panel tab-panel">
-    <div class="section-head"><div><span class="eyebrow">Sau bán hàng</span><h1>Trả hàng / Hoàn tiền</h1><p>Duyệt yêu cầu, theo dõi hàng trả và kiểm tra khoản hoàn của từng đơn.</p></div><button type="button" id="refresh-seller-returns">Làm mới</button></div>
-    <div class="return-list-tools"><label for="seller-return-filter">Trạng thái xử lý<select id="seller-return-filter"><option value="approval">Chờ duyệt</option><option value="shipping">Đang vận chuyển trả</option><option value="receipt">Chờ kiểm tra hàng nhận</option><option value="refund">Chờ hoàn tiền / hoàn lỗi</option><option value="disputed">Đang tranh chấp</option><option value="closed">Đã kết thúc</option><option value="all">Tất cả</option></select></label></div>
-    <p id="seller-return-summary" role="status" aria-live="polite"></p><div id="seller-return-list" aria-busy="false"></div><div id="seller-return-pagination" class="pagination"></div>
+    <div class="section-head">
+        <div>
+            <span class="eyebrow">Sau bán hàng</span>
+            <h1>Trả hàng / Hoàn tiền</h1>
+            <p>Duyệt yêu cầu, theo dõi hàng trả và kiểm tra khoản hoàn của từng đơn.</p>
+        </div>
+        <button type="button" id="refresh-seller-returns">Làm mới</button>
+    </div>
+    <div class="return-list-tools">
+        <label for="seller-return-filter">Trạng thái xử lý
+            <select id="seller-return-filter">
+                <option value="approval">Chờ duyệt</option>
+                <option value="shipping">Đang vận chuyển trả</option>
+                <option value="receipt">Chờ kiểm tra hàng nhận</option>
+                <option value="refund">Chờ hoàn tiền / hoàn lỗi</option>
+                <option value="disputed">Đang tranh chấp</option>
+                <option value="closed">Đã kết thúc</option>
+                <option value="all">Tất cả</option>
+            </select>
+        </label>
+    </div>
+    <p id="seller-return-summary" role="status" aria-live="polite"></p>
+    <div id="seller-return-list" aria-busy="false"></div>
+    <div id="seller-return-pagination" class="pagination"></div>
 </section>

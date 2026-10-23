@@ -17,7 +17,12 @@
     date(typeof value === 'string' && !/(Z|[+-]\d{2}:\d{2})$/i.test(value) ? value + 'Z' : value);
   const tone = (status) =>
     ['Sent', 'Captured'].includes(status) ? 'success' : status === 'Failed' ? 'error' : 'pending';
-  const contextLabel = (mail) => mail.orderId ? `Đơn #${Number(mail.orderId)}` : mail.payoutId ? `Lần rút tiền #${Number(mail.payoutId)}` : 'Khoản nợ người bán';
+  const contextLabel = (mail) =>
+    mail.orderId
+      ? `Đơn #${Number(mail.orderId)}`
+      : mail.payoutId
+        ? `Lần rút tiền #${Number(mail.payoutId)}`
+        : 'Khoản nợ người bán';
   const retryHtml = (mail, actor) =>
     actor === 'admin' && mail.status === 'Failed'
       ? `<button type="button" data-retry-notification="${Number(mail.id)}">Thử gửi lại</button>`

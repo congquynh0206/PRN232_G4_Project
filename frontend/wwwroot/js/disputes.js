@@ -50,7 +50,10 @@
 
   function statusText(status, outcome) {
     if (status === 'Closed') return outcomes[outcome] || 'Đã giải quyết';
-    if (status === 'ExecutingAgreement' && ['BuyerWins', 'AdminFullRefund', 'AdminPartialRefund'].includes(outcome))
+    if (
+      status === 'ExecutingAgreement' &&
+      ['BuyerWins', 'AdminFullRefund', 'AdminPartialRefund'].includes(outcome)
+    )
       return 'Đang hoàn tiền theo quyết định';
     return (
       {
@@ -188,7 +191,9 @@
       seller = actorRole === 'seller';
     const recipient = buyer ? 'bạn' : 'người mua';
     const paid = order.payments.findLast((p) => p.status === 'Succeeded');
-    const refunds = order.refunds.filter((r) => r.status === 'Succeeded' && r.reason !== 'shipping-adjustment');
+    const refunds = order.refunds.filter(
+      (r) => r.status === 'Succeeded' && r.reason !== 'shipping-adjustment',
+    );
     const amount = refunds.reduce((sum, r) => sum + Number(r.amount || 0), 0);
     const completed = refunds
       .map((r) => r.completedAt)
@@ -296,7 +301,9 @@
       buttons.push(`<button type="button" class="primary" data-case-action="accept" data-case-id="${c.id}" ${canRespond ? '' : 'disabled'}>Chấp nhận phương án</button>
         <button type="button" data-case-action="reject" data-case-id="${c.id}" ${canRespond ? '' : 'disabled'}>Không đồng ý, nhờ admin xử lý</button>`);
     if (actorRole === 'admin' && c.status === 'Escalated')
-      buttons.push(`<button type="button" class="primary" data-case-action="decision" data-case-id="${c.id}">Xem xét và đưa ra phán quyết</button>`);
+      buttons.push(
+        `<button type="button" class="primary" data-case-action="decision" data-case-id="${c.id}">Xem xét và đưa ra phán quyết</button>`,
+      );
     if (actorRole !== 'admin' && c.status === 'ExecutingAgreement' && c.outcome === 'AgreedReturn')
       buttons.push(
         `<button type="button" data-open-order="${c.orderId}">Xem đơn để theo dõi trả hàng</button>`,
@@ -384,7 +391,7 @@
   }
 
   function decisionHtml(d) {
-    return `<section class="decision-saved"><h3>Phán quyết của admin</h3><p>${esc(d.adminName)} · ${esc(caseDate(d.createdAt))}</p><p>${esc(d.reason)}</p><p>Kết luận trách nhiệm: <strong>${d.responsibility === 'Seller' ? 'Người bán' : 'Người mua'}</strong>${d.shippingPayer ? ` · Phí trả hàng theo kết luận: người ${d.shippingPayer === 'Seller' ? 'bán' : 'mua'}` : ''}</p><p>Căn cứ trong Trao đổi: ${d.evidenceEntryIds.map(x => '#' + x).join(', ')}</p><dl><div><dt>Khoản buyer nhận theo quyết định</dt><dd>${money(d.buyerRefund)}</dd></div><div><dt>Phí trả trừ vào khoản hoàn</dt><dd>${money(d.buyerShippingRecovery)}</dd></div><div><dt>Phí nền tảng credit cho seller</dt><dd>${money(d.feeCredit)}</dd></div><div><dt>Tài trợ coupon đảo riêng</dt><dd>${money(d.subsidyReversal)}</dd></div></dl><p>${d.outcome === 'SellerWins' ? 'Không hoàn thêm theo phán quyết này.' : d.refundStatus === 'Succeeded' ? `Đã hoàn thành công: <strong>${money(d.actualRefund)}</strong>` : 'Khoản hoàn chưa hoàn tất; hệ thống tiếp tục xử lý và retry khi cần.'}</p></section>`;
+    return `<section class="decision-saved"><h3>Phán quyết của admin</h3><p>${esc(d.adminName)} · ${esc(caseDate(d.createdAt))}</p><p>${esc(d.reason)}</p><p>Kết luận trách nhiệm: <strong>${d.responsibility === 'Seller' ? 'Người bán' : 'Người mua'}</strong>${d.shippingPayer ? ` · Phí trả hàng theo kết luận: người ${d.shippingPayer === 'Seller' ? 'bán' : 'mua'}` : ''}</p><p>Căn cứ trong Trao đổi: ${d.evidenceEntryIds.map((x) => '#' + x).join(', ')}</p><dl><div><dt>Khoản buyer nhận theo quyết định</dt><dd>${money(d.buyerRefund)}</dd></div><div><dt>Phí trả trừ vào khoản hoàn</dt><dd>${money(d.buyerShippingRecovery)}</dd></div><div><dt>Phí nền tảng credit cho seller</dt><dd>${money(d.feeCredit)}</dd></div><div><dt>Tài trợ coupon đảo riêng</dt><dd>${money(d.subsidyReversal)}</dd></div></dl><p>${d.outcome === 'SellerWins' ? 'Không hoàn thêm theo phán quyết này.' : d.refundStatus === 'Succeeded' ? `Đã hoàn thành công: <strong>${money(d.actualRefund)}</strong>` : 'Khoản hoàn chưa hoàn tất; hệ thống tiếp tục xử lý và retry khi cần.'}</p></section>`;
   }
 
   async function open(id, preserve = false) {
@@ -481,10 +488,11 @@
   async function action(button) {
     const id = Number(button.dataset.caseId),
       kind = button.dataset.caseAction;
-    if (kind === 'decision') return G4.DisputeDecisions.open(id, async () => {
-      await load(page, true);
-      await open(id, true);
-    });
+    if (kind === 'decision')
+      return G4.DisputeDecisions.open(id, async () => {
+        await load(page, true);
+        await open(id, true);
+      });
     let input, path, body;
     if (kind === 'evidence' || kind === 'proposal') {
       const fields = evidenceFields();
@@ -593,13 +601,28 @@
     safe(() => load());
     setInterval(updateCountdowns, 1000);
     const refresh = async () => {
-      if (busy || loading || document.hidden || $('action-dialog').open || $('decision-dialog')?.open
-          || document.querySelector('dialog[open]:not(#detail-dialog)') || document.activeElement?.closest('.pagination')) return false;
+      if (
+        busy ||
+        loading ||
+        document.hidden ||
+        $('action-dialog').open ||
+        $('decision-dialog')?.open ||
+        document.querySelector('dialog[open]:not(#detail-dialog)') ||
+        document.activeElement?.closest('.pagination')
+      )
+        return false;
       await load(page, true);
-      if (activeId && $('detail-dialog').open && document.querySelector(`[data-dispute-detail="${activeId}"]`)) await open(activeId, true);
+      if (
+        activeId &&
+        $('detail-dialog').open &&
+        document.querySelector(`[data-dispute-detail="${activeId}"]`)
+      )
+        await open(activeId, true);
     };
     G4.Realtime?.subscribe(['disputes', 'returns', 'orders'], refresh);
-    setInterval(() => { if (!G4.Realtime?.connected) safe(refresh); }, 10000);
+    setInterval(() => {
+      if (!G4.Realtime?.connected) safe(refresh);
+    }, 10000);
   }
 
   G4.Disputes = { init, load, open, openNew, statusText, parseLinks, countdown, renderDetail };

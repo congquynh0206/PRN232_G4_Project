@@ -1,9 +1,10 @@
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using G4.Contracts.Checkout;
 using G4.Infrastructure.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace G4.Api.Controllers;
+
 [ApiController]
 [Route("api")]
 public sealed class NotificationsController(
@@ -12,14 +13,28 @@ public sealed class NotificationsController(
     NotificationProcessor processor
 ) : ApiControllerBase(environment)
 {
-    private string ActorRole => HasRole("admin") ? "admin" : HasRole("seller") ? "seller" : HasRole("buyer") ? "buyer" : "shipper";
+    private string ActorRole =>
+        HasRole("admin") ? "admin"
+        : HasRole("seller") ? "seller"
+        : HasRole("buyer") ? "buyer"
+        : "shipper";
 
     [HttpGet("notifications")]
-    public async Task<IActionResult> Notifications([FromQuery] NotificationQuery query, CancellationToken ct)
+    public async Task<IActionResult> Notifications(
+        [FromQuery] NotificationQuery query,
+        CancellationToken ct
+    )
     {
         if (!IsAvailable)
             return NotFound();
-        return Ok(await new DiagnosticsQueryService(db).NotificationsAsync(CurrentUserId, ActorRole, query, ct));
+        return Ok(
+            await new DiagnosticsQueryService(db).NotificationsAsync(
+                CurrentUserId,
+                ActorRole,
+                query,
+                ct
+            )
+        );
     }
 
     [HttpGet("notifications/{id:int}")]
@@ -27,7 +42,14 @@ public sealed class NotificationsController(
     {
         if (!IsAvailable)
             return NotFound();
-        return Ok(await new DiagnosticsQueryService(db).NotificationAsync(id, CurrentUserId, ActorRole, ct));
+        return Ok(
+            await new DiagnosticsQueryService(db).NotificationAsync(
+                id,
+                CurrentUserId,
+                ActorRole,
+                ct
+            )
+        );
     }
 
     [HttpPost("admin/notifications/{id:int}/retry")]
@@ -51,8 +73,23 @@ public sealed class NotificationsController(
             return NotFound();
         if (!HasRole("admin"))
             return StatusCode(403);
-        return Ok(await db.NotificationOutbox.AsNoTracking().OrderByDescending(n => n.Id).Select(n => new { n.Id, n.OrderId, n.EventType, n.Recipient, n.Subject, n.Body, n.Status, n.CreatedAt })
-            .ToListAsync(ct));
+        return Ok(
+            await db
+                .NotificationOutbox.AsNoTracking()
+                .OrderByDescending(n => n.Id)
+                .Select(n => new
+                {
+                    n.Id,
+                    n.OrderId,
+                    n.EventType,
+                    n.Recipient,
+                    n.Subject,
+                    n.Body,
+                    n.Status,
+                    n.CreatedAt,
+                })
+                .ToListAsync(ct)
+        );
     }
 
     [HttpGet("inbox/page")]
@@ -71,8 +108,30 @@ public sealed class NotificationsController(
         var query = db.NotificationOutbox.AsNoTracking();
         var totalCount = await query.CountAsync(ct);
         page = Math.Min(page, Math.Max(1, (totalCount + pageSize - 1) / pageSize));
-        var items = await query.OrderByDescending(n => n.Id).Skip((page - 1) * pageSize).Take(pageSize).Select(n => new { n.Id, n.OrderId, n.EventType, n.Recipient, n.Subject, n.Body, n.Status, n.CreatedAt })
+        var items = await query
+            .OrderByDescending(n => n.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(n => new
+            {
+                n.Id,
+                n.OrderId,
+                n.EventType,
+                n.Recipient,
+                n.Subject,
+                n.Body,
+                n.Status,
+                n.CreatedAt,
+            })
             .ToListAsync(ct);
-        return Ok(new { page, pageSize, totalCount, items });
+        return Ok(
+            new
+            {
+                page,
+                pageSize,
+                totalCount,
+                items,
+            }
+        );
     }
 }

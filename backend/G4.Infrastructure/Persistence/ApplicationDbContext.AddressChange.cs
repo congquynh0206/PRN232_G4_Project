@@ -1,10 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 
 namespace G4.Infrastructure.Persistence;
+
 public partial class ApplicationDbContext
 {
     public DbSet<AddressChangeRequest> AddressChangeRequests => Set<AddressChangeRequest>();
-    public DbSet<SellerShippingPreference> SellerShippingPreferences => Set<SellerShippingPreference>();
+    public DbSet<SellerShippingPreference> SellerShippingPreferences =>
+        Set<SellerShippingPreference>();
 
     private static void ConfigureAddressChanges(ModelBuilder model)
     {
@@ -23,16 +25,22 @@ public partial class ApplicationDbContext
             e.HasIndex(x => x.RequestKey).IsUnique();
             e.HasIndex(x => x.OrderId).IsUnique().HasFilter("[IsPending] = 1");
             e.HasIndex(x => new { x.IsPending, x.ExpiresAt });
-            e.HasOne<OrderTable>().WithMany().HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.NoAction);
-            e.HasOne<Refund>().WithMany().HasForeignKey(x => x.RefundId).OnDelete(DeleteBehavior.NoAction);
-            foreach (var name in new[]
-            {
-                nameof(AddressChangeRequest.OldShippingCost),
-                nameof(AddressChangeRequest.NewShippingCost),
-                nameof(AddressChangeRequest.SellerCap),
-                nameof(AddressChangeRequest.BuyerRefund)
-            }
-
+            e.HasOne<OrderTable>()
+                .WithMany()
+                .HasForeignKey(x => x.OrderId)
+                .OnDelete(DeleteBehavior.NoAction);
+            e.HasOne<Refund>()
+                .WithMany()
+                .HasForeignKey(x => x.RefundId)
+                .OnDelete(DeleteBehavior.NoAction);
+            foreach (
+                var name in new[]
+                {
+                    nameof(AddressChangeRequest.OldShippingCost),
+                    nameof(AddressChangeRequest.NewShippingCost),
+                    nameof(AddressChangeRequest.SellerCap),
+                    nameof(AddressChangeRequest.BuyerRefund),
+                }
             )
                 e.Property<decimal>(name).HasColumnType("decimal(18,2)");
         });
@@ -41,20 +49,30 @@ public partial class ApplicationDbContext
             e.ToTable("SellerShippingPreference");
             e.HasKey(x => x.SellerId);
             e.Property(x => x.AddressChangeCap).HasColumnType("decimal(18,2)");
-            e.HasOne<User>().WithMany().HasForeignKey(x => x.SellerId).OnDelete(DeleteBehavior.NoAction);
+            e.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(x => x.SellerId)
+                .OnDelete(DeleteBehavior.NoAction);
         });
-        foreach (var name in new[]
-        {
-            nameof(OrderTable.DeliveryStateSnapshot),
-            nameof(OrderTable.DeliveryCountrySnapshot),
-            nameof(OrderTable.PickupStateSnapshot),
-            nameof(OrderTable.PickupCountrySnapshot)
-        }
-
+        foreach (
+            var name in new[]
+            {
+                nameof(OrderTable.DeliveryStateSnapshot),
+                nameof(OrderTable.DeliveryCountrySnapshot),
+                nameof(OrderTable.PickupStateSnapshot),
+                nameof(OrderTable.PickupCountrySnapshot),
+            }
         )
             model.Entity<OrderTable>().Property<string>(name).HasMaxLength(50);
-        model.Entity<ShippingInfo>().HasOne<AddressChangeRequest>().WithMany().HasForeignKey(x => x.AddressChangeRequestId)
+        model
+            .Entity<ShippingInfo>()
+            .HasOne<AddressChangeRequest>()
+            .WithMany()
+            .HasForeignKey(x => x.AddressChangeRequestId)
             .OnDelete(DeleteBehavior.NoAction);
-        model.Entity<SellerSettlement>().Property(x => x.ShippingAdjustmentCost).HasColumnType("decimal(18,2)");
+        model
+            .Entity<SellerSettlement>()
+            .Property(x => x.ShippingAdjustmentCost)
+            .HasColumnType("decimal(18,2)");
     }
 }

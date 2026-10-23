@@ -1,22 +1,133 @@
-.decision-dialog { width: min(720px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 24px; border: 1px solid var(--line, #dbe1ea); border-radius: 18px; box-sizing: border-box; overflow-y: auto; }
-.decision-dialog::backdrop { background: rgba(24, 34, 58, .5); }
-.decision-dialog form, .decision-dialog fieldset { display: grid; gap: 12px; min-width: 0; }
-.decision-dialog fieldset { border: 0; padding: 0; margin: 0; }
-.decision-dialog select, .decision-dialog input:not([type=checkbox]), .decision-dialog textarea { box-sizing: border-box; width: 100%; min-height: 44px; font: inherit; }
-.decision-dialog textarea { border: 1px solid var(--line, #dbe1ea); border-radius: 8px; padding: 10px; resize: vertical; }
-.decision-dialog textarea:focus-visible { outline: 3px solid #ffb545; outline-offset: 3px; }
-.decision-dialog button { min-height: 44px; }
-.decision-dialog [hidden] { display: none !important; }
-.decision-dialog p, .decision-dialog h2, .decision-dialog h3 { margin: 0; overflow-wrap: anywhere; }
-.decision-evidence { display: grid; gap: 8px; max-height: 240px; overflow-y: auto; border: 1px solid var(--line, #dbe1ea); border-radius: 10px; padding: 10px; }
-.decision-evidence label { display: flex; gap: 10px; align-items: flex-start; min-height: 44px; padding: 6px; }
-.decision-evidence input { flex: 0 0 auto; width: 18px; height: 18px; min-height: 18px; padding: 0; margin-top: 5px; }
-.decision-evidence span { min-width: 0; overflow-wrap: anywhere; }
-.decision-quote, .decision-saved { border: 1px solid var(--line, #dbe1ea); border-radius: 12px; padding: 16px; display: grid; gap: 10px; }
-.decision-quote dl, .decision-saved dl { margin: 0; display: grid; gap: 8px; }
-.decision-quote dl div, .decision-saved dl div { display: flex; justify-content: space-between; gap: 16px; }
-.decision-quote dt, .decision-saved dt { overflow-wrap: anywhere; }
-.decision-quote dd, .decision-saved dd { margin: 0; font-weight: 600; white-space: nowrap; }
-.decision-error { color: var(--danger, #b42318); }
-.decision-actions { position: sticky; bottom: -24px; padding: 12px 0; background: var(--surface, #fff); }
-@media (max-width: 480px) { .decision-dialog { padding: 16px; } .decision-actions { bottom: -16px; } .decision-quote dl div, .decision-saved dl div { flex-wrap: wrap; gap: 4px 12px; } }
+.decision-dialog {
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 24px;
+  border: 1px solid var(--line, #dbe1ea);
+  border-radius: 18px;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+.decision-dialog::backdrop {
+  background: rgba(24, 34, 58, 0.5);
+}
+.decision-dialog form,
+.decision-dialog fieldset {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.decision-dialog fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.decision-dialog select,
+.decision-dialog input:not([type='checkbox']),
+.decision-dialog textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  font: inherit;
+}
+.decision-dialog textarea {
+  border: 1px solid var(--line, #dbe1ea);
+  border-radius: 8px;
+  padding: 10px;
+  resize: vertical;
+}
+.decision-dialog textarea:focus-visible {
+  outline: 3px solid #ffb545;
+  outline-offset: 3px;
+}
+.decision-dialog button {
+  min-height: 44px;
+}
+.decision-dialog [hidden] {
+  display: none !important;
+}
+.decision-dialog p,
+.decision-dialog h2,
+.decision-dialog h3 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.decision-evidence {
+  display: grid;
+  gap: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--line, #dbe1ea);
+  border-radius: 10px;
+  padding: 10px;
+}
+.decision-evidence label {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  min-height: 44px;
+  padding: 6px;
+}
+.decision-evidence input {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  padding: 0;
+  margin-top: 5px;
+}
+.decision-evidence span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.decision-quote,
+.decision-saved {
+  border: 1px solid var(--line, #dbe1ea);
+  border-radius: 12px;
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+}
+.decision-quote dl,
+.decision-saved dl {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+.decision-quote dl div,
+.decision-saved dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.decision-quote dt,
+.decision-saved dt {
+  overflow-wrap: anywhere;
+}
+.decision-quote dd,
+.decision-saved dd {
+  margin: 0;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.decision-error {
+  color: var(--danger, #b42318);
+}
+.decision-actions {
+  position: sticky;
+  bottom: -24px;
+  padding: 12px 0;
+  background: var(--surface, #fff);
+}
+@media (max-width: 480px) {
+  .decision-dialog {
+    padding: 16px;
+  }
+  .decision-actions {
+    bottom: -16px;
+  }
+  .decision-quote dl div,
+  .decision-saved dl div {
+    flex-wrap: wrap;
+    gap: 4px 12px;
+  }
+}

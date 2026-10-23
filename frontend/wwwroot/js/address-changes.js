@@ -1,10 +1,17 @@
 (() => {
   const { $, esc, money, date, api, message, modal, safe } = G4;
   const busy = new Set(),
-    drafts = new Map(), submissions = new Map();
+    drafts = new Map(),
+    submissions = new Map();
   const stamp = (value) =>
     date(typeof value === 'string' && !/(Z|[+-]\d{2}:\d{2})$/i.test(value) ? value + 'Z' : value);
-  const labels = { Pending: 'Chờ seller duyệt', AwaitingShipper: 'Chờ shipper chấp thuận', Approved: 'Địa chỉ mới đã có hiệu lực', Rejected: 'Đã từ chối', Expired: 'Hết hạn xác nhận' };
+  const labels = {
+    Pending: 'Chờ seller duyệt',
+    AwaitingShipper: 'Chờ shipper chấp thuận',
+    Approved: 'Địa chỉ mới đã có hiệu lực',
+    Rejected: 'Đã từ chối',
+    Expired: 'Hết hạn xác nhận',
+  };
   function summaryHtml(order, role) {
     const changes = order.addressChanges || [];
     if (!changes.length && !order.canRequestAddressChange) return '';
@@ -20,12 +27,17 @@
   }
   function pendingChange(shipment, order) {
     if (shipment.direction === 'Return') return null;
-    return (order.addressChanges || []).find(x => ['Pending', 'AwaitingShipper'].includes(x.status));
+    return (order.addressChanges || []).find((x) =>
+      ['Pending', 'AwaitingShipper'].includes(x.status),
+    );
   }
-  function blocksDelivery(shipment, order) { return !!pendingChange(shipment, order); }
+  function blocksDelivery(shipment, order) {
+    return !!pendingChange(shipment, order);
+  }
   function shipperNotice(shipment, order) {
     const pending = pendingChange(shipment, order);
-    const request = pending || (order.addressChanges || []).find(x => x.id === shipment.addressChangeRequestId);
+    const request =
+      pending || (order.addressChanges || []).find((x) => x.id === shipment.addressChangeRequestId);
     if (!request) return '';
     const awaiting = request.status === 'AwaitingShipper';
     const legacyAck = !pending && requiresAck(shipment);
@@ -33,14 +45,41 @@
   }
   async function decideShipper(button) {
     const approve = button.dataset.addressShipper === 'approve';
-    const input = await modal({ title: approve ? 'Chấp thuận khả năng giao' : 'Không thể giao địa chỉ mới',
-      description: approve ? 'Xác nhận bạn có thể giao địa chỉ mới đã hiển thị. Server kiểm tra lại điều kiện trước khi áp dụng.' : 'Địa chỉ cũ được giữ nguyên; yêu cầu này không dùng lượt đổi thành công.',
-      fields: approve ? [] : [{ name: 'reason', label: 'Lý do không thể giao', type: 'textarea', required: true, maxLength: 1000,
-        validate: value => value.trim() ? '' : 'Vui lòng nhập lý do.' }], confirm: approve ? 'Có thể giao' : 'Từ chối' });
+    const input = await modal({
+      title: approve ? 'Chấp thuận khả năng giao' : 'Không thể giao địa chỉ mới',
+      description: approve
+        ? 'Xác nhận bạn có thể giao địa chỉ mới đã hiển thị. Server kiểm tra lại điều kiện trước khi áp dụng.'
+        : 'Địa chỉ cũ được giữ nguyên; yêu cầu này không dùng lượt đổi thành công.',
+      fields: approve
+        ? []
+        : [
+            {
+              name: 'reason',
+              label: 'Lý do không thể giao',
+              type: 'textarea',
+              required: true,
+              maxLength: 1000,
+              validate: (value) => (value.trim() ? '' : 'Vui lòng nhập lý do.'),
+            },
+          ],
+      confirm: approve ? 'Có thể giao' : 'Từ chối',
+    });
     if (!input) return;
-    const result = await api(`shipper/shipments/${button.dataset.shipment}/address-change/decision`, 'POST',
-      { requestId: Number(button.dataset.request), approve, reason: approve ? null : input.reason.trim() });
-    message(result.status === 'Approved' ? 'Địa chỉ mới đã có hiệu lực.' : result.decisionReason || labels[result.status], result.status === 'Approved');
+    const result = await api(
+      `shipper/shipments/${button.dataset.shipment}/address-change/decision`,
+      'POST',
+      {
+        requestId: Number(button.dataset.request),
+        approve,
+        reason: approve ? null : input.reason.trim(),
+      },
+    );
+    message(
+      result.status === 'Approved'
+        ? 'Địa chỉ mới đã có hiệu lực.'
+        : result.decisionReason || labels[result.status],
+      result.status === 'Approved',
+    );
     return result;
   }
   function init(role, refresh) {
@@ -57,8 +96,13 @@
           .forEach((x) => (x.disabled = true));
         try {
           if (role === 'buyer' && action === 'request' && submissions.has(orderId)) {
-            const result = await api(`orders/${orderId}/address-changes`, 'POST', submissions.get(orderId));
-            submissions.delete(orderId); drafts.delete(orderId);
+            const result = await api(
+              `orders/${orderId}/address-changes`,
+              'POST',
+              submissions.get(orderId),
+            );
+            submissions.delete(orderId);
+            drafts.delete(orderId);
             message(labels[result.status] || result.status, result.status === 'Pending');
           } else if (role === 'buyer' && action === 'request') {
             const addresses = await api('addresses');
@@ -101,12 +145,21 @@
             const input = await pending;
             if (!input) return;
             drafts.set(orderId, input);
-            const payload = { address: Object.fromEntries(fields.filter(x => x.name !== 'reason').map(x => [x.name, input[x.name].trim()])),
-              reason: input.reason.trim(), key: crypto.randomUUID() };
+            const payload = {
+              address: Object.fromEntries(
+                fields
+                  .filter((x) => x.name !== 'reason')
+                  .map((x) => [x.name, input[x.name].trim()]),
+              ),
+              reason: input.reason.trim(),
+              key: crypto.randomUUID(),
+            };
             const quote = await api(`orders/${orderId}/address-changes/quote`, 'POST', payload);
-            const confirm = await modal({ title: 'Xác nhận báo giá đổi địa chỉ',
-              description: `Địa chỉ cũ: ${quote.oldAddress}\nĐịa chỉ yêu cầu: ${quote.newAddress}\nPhí tuyến: ${money(quote.oldShippingCost)} → ${money(quote.newShippingCost)}. Seller chịu thêm: ${money(Math.max(0, quote.newShippingCost - quote.oldShippingCost))}; cap ${money(quote.sellerCap)}.\nBuyer không trả thêm. Hoàn ship giả lập dự kiến nếu đủ xác nhận: ${money(quote.buyerRefund)}.\n${quote.withinCap ? quote.shipperId ? 'Cần seller và shipper đã nhận chấp thuận.' : 'Chưa có shipper: seller là bên duyệt cuối.' : 'Vượt cap seller: yêu cầu sẽ bị từ chối, giữ địa chỉ cũ.'}`,
-              confirm: 'Xác nhận và gửi yêu cầu' });
+            const confirm = await modal({
+              title: 'Xác nhận báo giá đổi địa chỉ',
+              description: `Địa chỉ cũ: ${quote.oldAddress}\nĐịa chỉ yêu cầu: ${quote.newAddress}\nPhí tuyến: ${money(quote.oldShippingCost)} → ${money(quote.newShippingCost)}. Seller chịu thêm: ${money(Math.max(0, quote.newShippingCost - quote.oldShippingCost))}; cap ${money(quote.sellerCap)}.\nBuyer không trả thêm. Hoàn ship giả lập dự kiến nếu đủ xác nhận: ${money(quote.buyerRefund)}.\n${quote.withinCap ? (quote.shipperId ? 'Cần seller và shipper đã nhận chấp thuận.' : 'Chưa có shipper: seller là bên duyệt cuối.') : 'Vượt cap seller: yêu cầu sẽ bị từ chối, giữ địa chỉ cũ.'}`,
+              confirm: 'Xác nhận và gửi yêu cầu',
+            });
             if (!confirm) return;
             payload.quoteToken = quote.token;
             submissions.set(orderId, payload);
@@ -146,9 +199,11 @@
               { approve, reason: approve ? null : input.reason.trim() },
             );
             message(
-              result.status === 'AwaitingShipper' ? 'Seller đã chấp thuận; đang chờ shipper. Địa chỉ cũ còn hiệu lực.' : result.status === 'Approved'
-                ? 'Địa chỉ mới đã có hiệu lực.'
-                : result.decisionReason || 'Đã từ chối đổi địa chỉ.',
+              result.status === 'AwaitingShipper'
+                ? 'Seller đã chấp thuận; đang chờ shipper. Địa chỉ cũ còn hiệu lực.'
+                : result.status === 'Approved'
+                  ? 'Địa chỉ mới đã có hiệu lực.'
+                  : result.decisionReason || 'Đã từ chối đổi địa chỉ.',
               ['Approved', 'AwaitingShipper'].includes(result.status),
             );
           }
@@ -166,5 +221,12 @@
       });
     });
   }
-  G4.AddressChanges = { init, summaryHtml, requiresAck, shipperNotice, blocksDelivery, decideShipper };
+  G4.AddressChanges = {
+    init,
+    summaryHtml,
+    requiresAck,
+    shipperNotice,
+    blocksDelivery,
+    decideShipper,
+  };
 })();

@@ -1,4 +1,5 @@
 namespace G4.Domain.Entities;
+
 public sealed class SellerDebtWriteOff
 {
     public long Id { get; set; }
@@ -15,6 +16,7 @@ public sealed class SellerDebtWriteOff
     public string Reason { get; set; } = "";
     public DateTime CreatedAt { get; set; }
 }
+
 public sealed class SellerWriteOffRecovery
 {
     public long Id { get; set; }
@@ -22,6 +24,7 @@ public sealed class SellerWriteOffRecovery
     public decimal Amount { get; set; }
     public DateTime CreatedAt { get; set; }
 }
+
 public sealed class SellerBlacklistEntry
 {
     public long Id { get; set; }

@@ -1,12 +1,20 @@
 (() => {
-  let nav, onNavigate, current, defaultId, historyMode = 'push', moveFocus = true;
+  let nav,
+    onNavigate,
+    current,
+    defaultId,
+    historyMode = 'push',
+    moveFocus = true;
   const $ = (id) => document.getElementById(id);
   const drawer = () => $('navigation-drawer');
   const hashId = () => location.hash.slice(1);
   function valid(id) {
-    return !!id && !!$(id)?.classList.contains('tab-panel') &&
+    return (
+      !!id &&
+      !!$(id)?.classList.contains('tab-panel') &&
       (!!nav?.querySelector(`[data-tab="${CSS.escape(id)}"]`) ||
-        (nav?.dataset.roleNavigation === 'buyer' && id === 'checkout'));
+        (nav?.dataset.roleNavigation === 'buyer' && id === 'checkout'))
+    );
   }
   function closeDrawer() {
     if (drawer()?.open) drawer().close();
@@ -45,8 +53,12 @@
   function visit(id, mode = 'push', focus = true) {
     historyMode = mode;
     moveFocus = focus;
-    try { onNavigate(valid(id) ? id : defaultId); }
-    finally { historyMode = 'push'; moveFocus = true; }
+    try {
+      onNavigate(valid(id) ? id : defaultId);
+    } finally {
+      historyMode = 'push';
+      moveFocus = true;
+    }
   }
   function init(navigate) {
     nav = document.querySelector('[data-role-navigation]');
@@ -81,8 +93,13 @@
       drawer().addEventListener('click', (event) => {
         if (event.target !== drawer()) return;
         const rect = drawer().getBoundingClientRect();
-        if (event.clientX < rect.left || event.clientX > rect.right ||
-            event.clientY < rect.top || event.clientY > rect.bottom) closeDrawer();
+        if (
+          event.clientX < rect.left ||
+          event.clientX > rect.right ||
+          event.clientY < rect.top ||
+          event.clientY > rect.bottom
+        )
+          closeDrawer();
       });
     }
     window.addEventListener('popstate', () => visit(hashId(), 'replace'));
@@ -91,8 +108,18 @@
     });
     const params = new URLSearchParams(location.search);
     const linkedOrders = params.has('orderId') || params.has('paypalCheckoutId');
-    const initial = valid(hashId()) ? hashId() : linkedOrders && valid('orders') ? 'orders' : params.get('tab');
+    const initial = valid(hashId())
+      ? hashId()
+      : linkedOrders && valid('orders')
+        ? 'orders'
+        : params.get('tab');
     visit(initial || defaultId, 'replace', false);
   }
-  G4.Navigation = { init, select, get current() { return current; } };
+  G4.Navigation = {
+    init,
+    select,
+    get current() {
+      return current;
+    },
+  };
 })();

@@ -1,6 +1,14 @@
 namespace G4.Application.Integrations;
+
 public sealed record PayPalCreated(string Id, string ApprovalUrl);
-public sealed record PayPalCaptured(string Status, string? CaptureId, decimal Amount, string Currency);
+
+public sealed record PayPalCaptured(
+    string Status,
+    string? CaptureId,
+    decimal Amount,
+    string Currency
+);
+
 public interface IPayPalGateway
 {
     Task<PayPalCreated> CreateAsync(

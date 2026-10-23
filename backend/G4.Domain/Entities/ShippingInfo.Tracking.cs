@@ -1,4 +1,5 @@
 namespace G4.Domain.Entities;
+
 public partial class ShippingInfo
 {
     public string Direction { get; set; } = "Outbound";

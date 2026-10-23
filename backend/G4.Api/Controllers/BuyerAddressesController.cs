@@ -2,14 +2,22 @@ using G4.Contracts.Checkout;
 using Microsoft.AspNetCore.Mvc;
 
 namespace G4.Api.Controllers;
+
 [ApiController]
 [Route("api/addresses")]
-public sealed class BuyerAddressesController(IBuyerAddressService addresses, IHostEnvironment environment) : ApiControllerBase(environment)
+public sealed class BuyerAddressesController(
+    IBuyerAddressService addresses,
+    IHostEnvironment environment
+) : ApiControllerBase(environment)
 {
     private IActionResult? Invalid(BuyerAddressInput input)
     {
         var fields = BuyerAddressRules.Validate(input);
-        return fields.Count == 0 ? null : BadRequest(new { error = "Vui lòng kiểm tra lại các trường địa chỉ được đánh dấu.", fields });
+        return fields.Count == 0
+            ? null
+            : BadRequest(
+                new { error = "Vui lòng kiểm tra lại các trường địa chỉ được đánh dấu.", fields }
+            );
     }
 
     [HttpGet]

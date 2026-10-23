@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 
 namespace G4.Domain.Entities;
+
 public partial class OrderTable
 {
     public int Id { get; set; }
@@ -15,6 +16,7 @@ public partial class OrderTable
     public virtual ICollection<Dispute> Disputes { get; set; } = new List<Dispute>();
     public virtual ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
     public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
-    public virtual ICollection<ReturnRequest> ReturnRequests { get; set; } = new List<ReturnRequest>();
+    public virtual ICollection<ReturnRequest> ReturnRequests { get; set; } =
+        new List<ReturnRequest>();
     public virtual ICollection<ShippingInfo> ShippingInfos { get; set; } = new List<ShippingInfo>();
 }

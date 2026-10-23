@@ -32,7 +32,12 @@ public sealed record AdminOrderLookupRow(
     bool HasDispute
 );
 
-public sealed record AdminOrderLookupPage(int Page, int PageSize, int TotalCount, IReadOnlyList<AdminOrderLookupRow> Items);
+public sealed record AdminOrderLookupPage(
+    int Page,
+    int PageSize,
+    int TotalCount,
+    IReadOnlyList<AdminOrderLookupRow> Items
+);
 
 public sealed record AdminOrderPaymentView(
     int PaymentId,
@@ -58,7 +63,15 @@ public sealed record AdminOrderRefundView(
     string? ProviderReference
 );
 
-public sealed record AdminOrderShipmentEventView(string Status, DateTime OccurredAt, int? ActorUserId = null, string? ActorRole = null, DateTimeOffset? ReattemptAt = null, string? Note = null);
+public sealed record AdminOrderShipmentEventView(
+    string Status,
+    DateTime OccurredAt,
+    int? ActorUserId = null,
+    string? ActorRole = null,
+    DateTimeOffset? ReattemptAt = null,
+    string? Note = null
+);
+
 public sealed record AdminOrderShipmentView(
     int ShipmentId,
     string Direction,
@@ -69,7 +82,9 @@ public sealed record AdminOrderShipmentView(
     DateTime? DeliveredAt,
     IReadOnlyList<AdminOrderShipmentEventView> Events
 );
+
 public sealed record AdminOrderDisputeView(int DisputeId, string? Status, DateTime CreatedAt);
+
 public sealed record AdminOrderItemView(string? Title, int Quantity, decimal UnitPrice);
 
 public sealed record AdminOrderLookupDetail(

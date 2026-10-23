@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 
 namespace G4.Domain.Entities;
+
 public partial class User
 {
     public int Id { get; set; }
@@ -19,7 +20,8 @@ public partial class User
     public virtual ICollection<OrderTable> OrderTables { get; set; } = new List<OrderTable>();
     public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
     public virtual ICollection<Product> Products { get; set; } = new List<Product>();
-    public virtual ICollection<ReturnRequest> ReturnRequests { get; set; } = new List<ReturnRequest>();
+    public virtual ICollection<ReturnRequest> ReturnRequests { get; set; } =
+        new List<ReturnRequest>();
     public virtual ICollection<Review> Reviews { get; set; } = new List<Review>();
     public virtual ICollection<Store> Stores { get; set; } = new List<Store>();
 }

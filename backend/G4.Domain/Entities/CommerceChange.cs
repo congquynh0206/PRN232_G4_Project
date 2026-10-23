@@ -1,4 +1,5 @@
 namespace G4.Domain.Entities;
+
 // Only routing identifiers, never financial amounts, evidence or identity values.
 public sealed class CommerceChange
 {

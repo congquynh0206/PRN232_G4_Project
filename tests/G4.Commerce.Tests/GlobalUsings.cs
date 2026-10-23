@@ -1,8 +1,8 @@
 global using G4.Application.Integrations;
 global using G4.Contracts.Checkout;
 global using G4.Domain.Rules;
-global using G4.Infrastructure.Checkout;
 global using G4.Infrastructure.Authentication;
+global using G4.Infrastructure.Checkout;
 global using G4.Infrastructure.Finance;
 global using G4.Infrastructure.Integrations.PayPal;
 global using G4.Infrastructure.Payments;

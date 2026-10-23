@@ -7,12 +7,24 @@ internal static class AddressChangeSqlChecks
 {
     public static async Task RunAsync()
     {
-        var connection = Environment.GetEnvironmentVariable("G4_ADDRESS_SQL_TEST_CONNECTION") ?? throw new Exception("QA connection required");
-        if (new SqlConnectionStringBuilder(connection).InitialCatalog != "G4_AddressChange_Test_20261013")
+        var connection =
+            Environment.GetEnvironmentVariable("G4_ADDRESS_SQL_TEST_CONNECTION")
+            ?? throw new Exception("QA connection required");
+        if (
+            new SqlConnectionStringBuilder(connection).InitialCatalog
+            != "G4_AddressChange_Test_20261013"
+        )
             throw new Exception("Dedicated SQL QA database required");
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlServer(connection).Options;
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseSqlServer(connection)
+            .Options;
         var config = new ConfigurationBuilder().Build();
-        int buyer, seller, shipper, orderId, requestId, shipmentId;
+        int buyer,
+            seller,
+            shipper,
+            orderId,
+            requestId,
+            shipmentId;
         AddressChangeInput input;
         await using (var db = new ApplicationDbContext(options))
         {
@@ -23,10 +35,20 @@ internal static class AddressChangeSqlChecks
             var product = await db.Products.FirstAsync(x => x.SellerId == seller);
             var finance = new SellerFinanceService(db, config);
             var checkout = new CheckoutService(db, finance);
-            var order = await checkout.CreateOrderAsync(buyer, new(address.Id, [new(product.Id, 1)], null, Guid.NewGuid().ToString()));
+            var order = await checkout.CreateOrderAsync(
+                buyer,
+                new(address.Id, [new(product.Id, 1)], null, Guid.NewGuid().ToString())
+            );
             orderId = order.Id;
-            await checkout.PayCardAsync(orderId, "4111111111111111", "12/30", Guid.NewGuid().ToString());
-            var shipment = await new ShipmentService(db, new Carrier()).CreateOutboundAsync(orderId);
+            await checkout.PayCardAsync(
+                orderId,
+                "4111111111111111",
+                "12/30",
+                Guid.NewGuid().ToString()
+            );
+            var shipment = await new ShipmentService(db, new Carrier()).CreateOutboundAsync(
+                orderId
+            );
             shipmentId = shipment.Id;
             await new ShipmentService(db, new Carrier()).ClaimAsync(shipmentId, shipper);
             input = new(
@@ -34,13 +56,21 @@ internal static class AddressChangeSqlChecks
                 "SQL address change test",
                 Guid.NewGuid().ToString()
             );
-            input = input with { QuoteToken = (await new AddressChangeService(db, finance).QuoteAsync(orderId, buyer, input)).Token };
+            input = input with
+            {
+                QuoteToken = (
+                    await new AddressChangeService(db, finance).QuoteAsync(orderId, buyer, input)
+                ).Token,
+            };
         }
 
         async Task<AddressChangeView> Request()
         {
             await using var db = new ApplicationDbContext(options);
-            return await new AddressChangeService(db, new SellerFinanceService(db, config)).RequestAsync(orderId, buyer, input);
+            return await new AddressChangeService(
+                db,
+                new SellerFinanceService(db, config)
+            ).RequestAsync(orderId, buyer, input);
         }
 
         var requests = await Task.WhenAll(Request(), Request());
@@ -49,26 +79,37 @@ internal static class AddressChangeSqlChecks
         async Task<AddressChangeView> Approve()
         {
             await using var db = new ApplicationDbContext(options);
-            return await new AddressChangeService(db, new SellerFinanceService(db, config)).DecideAsync(requestId, seller, new(true, null));
+            return await new AddressChangeService(
+                db,
+                new SellerFinanceService(db, config)
+            ).DecideAsync(requestId, seller, new(true, null));
         }
 
         await Task.WhenAll(Approve(), Approve());
         await using (var waiting = new ApplicationDbContext(options))
         {
-            Check((await waiting.OrderTables.SingleAsync(x => x.Id == orderId)).AddressChangeCount == 0
-                && !await waiting.Refunds.AnyAsync(x => x.OrderId == orderId), "SQL seller approval waits without money/address change");
+            Check(
+                (await waiting.OrderTables.SingleAsync(x => x.Id == orderId)).AddressChangeCount
+                    == 0
+                    && !await waiting.Refunds.AnyAsync(x => x.OrderId == orderId),
+                "SQL seller approval waits without money/address change"
+            );
         }
         async Task FinalApproval()
         {
             await using var db = new ApplicationDbContext(options);
-            await new AddressChangeService(db, new SellerFinanceService(db, config)).DecideShipperAsync(shipmentId, shipper, new(requestId, true, null));
+            await new AddressChangeService(
+                db,
+                new SellerFinanceService(db, config)
+            ).DecideShipperAsync(shipmentId, shipper, new(requestId, true, null));
         }
         await Task.WhenAll(FinalApproval(), FinalApproval());
         await using (var db = new ApplicationDbContext(options))
         {
             var order = await db.OrderTables.SingleAsync(x => x.Id == orderId);
             Check(
-                order.AddressChangeCount == 1 && order.AddressSnapshot!.Contains("New Hanoi street"),
+                order.AddressChangeCount == 1
+                    && order.AddressSnapshot!.Contains("New Hanoi street"),
                 "SQL approval updates once"
             );
             Check(
@@ -81,25 +122,31 @@ internal static class AddressChangeSqlChecks
                 "SQL shipping simulation amount"
             );
             Check(
-                await db.FinancialTransactions.CountAsync(x => x.OrderId == orderId && x.Type == "RefundApplied") == 1,
+                await db.FinancialTransactions.CountAsync(x =>
+                    x.OrderId == orderId && x.Type == "RefundApplied"
+                ) == 1,
                 "SQL refund ledger once"
             );
             Check(
-                (await db.SellerSettlements.SingleAsync(x => x.OrderId == orderId)).Status == "Processing",
+                (await db.SellerSettlements.SingleAsync(x => x.OrderId == orderId)).Status
+                    == "Processing",
                 "SQL retains fund release state"
             );
             var s = await db.ShippingInfos.SingleAsync(x => x.Id == shipmentId);
             Check(
-                s.AddressChangeRequestId == requestId && s.DeliveryAddressSnapshot == order.AddressSnapshot,
+                s.AddressChangeRequestId == requestId
+                    && s.DeliveryAddressSnapshot == order.AddressSnapshot,
                 "SQL updates existing shipment"
             );
-
         }
 
         async Task Ack()
         {
             await using var db = new ApplicationDbContext(options);
-            await new AddressChangeService(db, new SellerFinanceService(db, config)).AcknowledgeAsync(shipmentId, shipper);
+            await new AddressChangeService(
+                db,
+                new SellerFinanceService(db, config)
+            ).AcknowledgeAsync(shipmentId, shipper);
         }
 
         await Task.WhenAll(Ack(), Ack());
@@ -107,7 +154,12 @@ internal static class AddressChangeSqlChecks
         {
             var shipping = new ShipmentService(db, new Carrier());
             Check(
-                await shipping.RecordEventAsync(shipmentId, Guid.NewGuid().ToString(), "PickedUp", shipperId: shipper),
+                await shipping.RecordEventAsync(
+                    shipmentId,
+                    Guid.NewGuid().ToString(),
+                    "PickedUp",
+                    shipperId: shipper
+                ),
                 "SQL tracking after ack"
             );
             var finance = new SellerFinanceService(db, config);
@@ -116,30 +168,64 @@ internal static class AddressChangeSqlChecks
             var address = await db.Addresses.FirstAsync(x => x.UserId == buyer && x.State == "HCM");
             var product = await db.Products.FirstAsync(x => x.SellerId == seller);
             var checkout = new CheckoutService(db, finance);
-            var other = await checkout.CreateOrderAsync(buyer, new(address.Id, [new(product.Id, 1)], null, Guid.NewGuid().ToString()));
-            await checkout.PayCardAsync(other.Id, "4111111111111111", "12/30", Guid.NewGuid().ToString());
+            var other = await checkout.CreateOrderAsync(
+                buyer,
+                new(address.Id, [new(product.Id, 1)], null, Guid.NewGuid().ToString())
+            );
+            await checkout.PayCardAsync(
+                other.Id,
+                "4111111111111111",
+                "12/30",
+                Guid.NewGuid().ToString()
+            );
             var changes = new AddressChangeService(db, finance);
-            var change = await AddressChangeChecks.SendAsync(changes, db, other.Id, buyer, input with { Key = Guid.NewGuid().ToString(), QuoteToken = null });
+            var change = await AddressChangeChecks.SendAsync(
+                changes,
+                db,
+                other.Id,
+                buyer,
+                input with
+                {
+                    Key = Guid.NewGuid().ToString(),
+                    QuoteToken = null,
+                }
+            );
             await changes.DecideAsync(change.Id, seller, new(true, null));
             await returns.RequestCancelAsync(other.Id);
             await returns.DecideCancelAsync(other.Id, true, null);
             Check(
-                await db.Refunds.Where(x => x.OrderId == other.Id && x.Status == "Succeeded").SumAsync(x => x.Amount) == other.TotalPrice,
+                await db
+                    .Refunds.Where(x => x.OrderId == other.Id && x.Status == "Succeeded")
+                    .SumAsync(x => x.Amount) == other.TotalPrice,
                 "SQL cumulative refund matches original payment"
             );
         }
 
-        Console.WriteLine("Real SQL address requests/approval/ack concurrency, shipment synchronization and cumulative refunds passed");
+        Console.WriteLine(
+            "Real SQL address requests/approval/ack concurrency, shipment synchronization and cumulative refunds passed"
+        );
     }
 
-    private static void Check(bool condition, string message) => ReturnAutomationChecks.Check(condition, message);
+    private static void Check(bool condition, string message) =>
+        ReturnAutomationChecks.Check(condition, message);
+
     private sealed class Carrier : ICarrierGateway
     {
-        public Task<string> CreateLabelAsync(int id, string direction, string key, CancellationToken ct) => Task.FromResult($"QA-{id}-{direction}");
+        public Task<string> CreateLabelAsync(
+            int id,
+            string direction,
+            string key,
+            CancellationToken ct
+        ) => Task.FromResult($"QA-{id}-{direction}");
     }
 
     private sealed class Refunds : IRefundGateway
     {
-        public Task<string> RefundAsync(Payment payment, decimal amount, string key, CancellationToken ct) => Task.FromResult("REFUND-" + key);
+        public Task<string> RefundAsync(
+            Payment payment,
+            decimal amount,
+            string key,
+            CancellationToken ct
+        ) => Task.FromResult("REFUND-" + key);
     }
 }

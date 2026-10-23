@@ -1,12 +1,21 @@
-using G4.Domain.Entities;
 using G4.Contracts.Checkout;
+using G4.Domain.Entities;
 
 namespace G4.Application.Services;
+
 public interface ICheckoutService
 {
     Task<IReadOnlyList<Product>> RandomProductsAsync(int count, CancellationToken ct = default);
-    Task<PriceQuote> QuoteAsync(int buyerId, CheckoutRequest request, CancellationToken ct = default);
-    Task<OrderTable> CreateOrderAsync(int buyerId, CheckoutRequest request, CancellationToken ct = default);
+    Task<PriceQuote> QuoteAsync(
+        int buyerId,
+        CheckoutRequest request,
+        CancellationToken ct = default
+    );
+    Task<OrderTable> CreateOrderAsync(
+        int buyerId,
+        CheckoutRequest request,
+        CancellationToken ct = default
+    );
     Task<Payment> PayCardAsync(
         int orderId,
         string number,

@@ -1,4 +1,5 @@
 namespace G4.Domain.Entities;
+
 public sealed class SellerPayout
 {
     public int Id { get; set; }

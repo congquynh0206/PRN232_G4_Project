@@ -2,9 +2,11 @@ using G4.Contracts.Checkout;
 using Microsoft.AspNetCore.Mvc;
 
 namespace G4.Api.Controllers;
+
 [ApiController]
 [Route("api/cart")]
-public sealed class CartController(IBuyerCartService carts, IHostEnvironment environment) : ApiControllerBase(environment)
+public sealed class CartController(IBuyerCartService carts, IHostEnvironment environment)
+    : ApiControllerBase(environment)
 {
     [HttpGet]
     public async Task<IActionResult> Get(CancellationToken ct)

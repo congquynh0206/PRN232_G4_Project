@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
 namespace G4.Infrastructure.Persistence;
+
 public partial class ApplicationDbContext
 {
     public DbSet<ShippingEvent> ShippingEvents => Set<ShippingEvent>();
@@ -27,16 +28,30 @@ public partial class ApplicationDbContext
         ConfigureDisputeDecisions(modelBuilder);
         ConfigureReturnPricing(modelBuilder);
         modelBuilder.Entity<Product>().Property(x => x.WeightKg).HasColumnType("decimal(10,3)");
-        modelBuilder.Entity<OrderItem>().Property(x => x.UnitWeightKgSnapshot).HasColumnType("decimal(10,3)");
-        modelBuilder.Entity<OrderTable>().Property(x => x.TotalWeightKg).HasColumnType("decimal(18,3)");
+        modelBuilder
+            .Entity<OrderItem>()
+            .Property(x => x.UnitWeightKgSnapshot)
+            .HasColumnType("decimal(10,3)");
+        modelBuilder
+            .Entity<OrderTable>()
+            .Property(x => x.TotalWeightKg)
+            .HasColumnType("decimal(18,3)");
         modelBuilder.Entity<OrderTable>().Property(x => x.PickupAddressSnapshot).HasMaxLength(500);
         modelBuilder.Entity<Dispute>(entity =>
         {
             entity.Property(x => x.Proposal).HasMaxLength(30);
             entity.Property(x => x.Outcome).HasMaxLength(30);
             entity.Property(x => x.RowVersion).IsRowVersion();
-            entity.HasIndex(x => x.OrderId).IsUnique().HasFilter("[IsOpen] = 1 AND [WorkflowEnabled] = 1 AND [orderId] IS NOT NULL");
-            entity.HasIndex(x => new { x.WorkflowEnabled, x.Status, x.SellerResponseDueAt });
+            entity
+                .HasIndex(x => x.OrderId)
+                .IsUnique()
+                .HasFilter("[IsOpen] = 1 AND [WorkflowEnabled] = 1 AND [orderId] IS NOT NULL");
+            entity.HasIndex(x => new
+            {
+                x.WorkflowEnabled,
+                x.Status,
+                x.SellerResponseDueAt,
+            });
         });
         modelBuilder.Entity<DisputeEntry>(entity =>
         {
@@ -45,8 +60,16 @@ public partial class ApplicationDbContext
             entity.Property(x => x.Kind).HasMaxLength(30);
             entity.Property(x => x.Description).HasMaxLength(4000);
             entity.HasIndex(x => new { x.DisputeId, x.Id });
-            entity.HasOne<Dispute>().WithMany().HasForeignKey(x => x.DisputeId).OnDelete(DeleteBehavior.NoAction);
-            entity.HasOne<User>().WithMany().HasForeignKey(x => x.ActorId).OnDelete(DeleteBehavior.NoAction);
+            entity
+                .HasOne<Dispute>()
+                .WithMany()
+                .HasForeignKey(x => x.DisputeId)
+                .OnDelete(DeleteBehavior.NoAction);
+            entity
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(x => x.ActorId)
+                .OnDelete(DeleteBehavior.NoAction);
         });
         modelBuilder.Entity<OrderTable>(entity =>
         {
@@ -64,8 +87,14 @@ public partial class ApplicationDbContext
         modelBuilder.Entity<OrderItem>().Property(x => x.ProductTitleSnapshot).HasMaxLength(255);
         modelBuilder.Entity<Payment>(entity =>
         {
-            entity.HasIndex(x => x.IdempotencyKey).IsUnique().HasFilter("[IdempotencyKey] IS NOT NULL");
-            entity.HasIndex(x => x.ProviderTransactionId).IsUnique().HasFilter("[ProviderTransactionId] IS NOT NULL");
+            entity
+                .HasIndex(x => x.IdempotencyKey)
+                .IsUnique()
+                .HasFilter("[IdempotencyKey] IS NOT NULL");
+            entity
+                .HasIndex(x => x.ProviderTransactionId)
+                .IsUnique()
+                .HasFilter("[ProviderTransactionId] IS NOT NULL");
             entity.Property(x => x.ProviderOrderId).HasMaxLength(100);
             entity.Property(x => x.ProviderTransactionId).HasMaxLength(100);
             entity.Property(x => x.IdempotencyKey).HasMaxLength(100);
@@ -78,9 +107,19 @@ public partial class ApplicationDbContext
             entity.Property(x => x.PickupAddressSnapshot).HasMaxLength(500);
             entity.Property(x => x.DeliveryAddressSnapshot).HasMaxLength(500);
             entity.HasIndex(x => new { x.ShipperId, x.Status });
-            entity.HasOne<User>().WithMany().HasForeignKey(x => x.ShipperId).OnDelete(DeleteBehavior.NoAction);
-            entity.HasIndex(x => x.IdempotencyKey).IsUnique().HasFilter("[IdempotencyKey] IS NOT NULL");
-            entity.HasIndex(x => x.TrackingNumber).IsUnique().HasFilter("[trackingNumber] IS NOT NULL");
+            entity
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(x => x.ShipperId)
+                .OnDelete(DeleteBehavior.NoAction);
+            entity
+                .HasIndex(x => x.IdempotencyKey)
+                .IsUnique()
+                .HasFilter("[IdempotencyKey] IS NOT NULL");
+            entity
+                .HasIndex(x => x.TrackingNumber)
+                .IsUnique()
+                .HasFilter("[trackingNumber] IS NOT NULL");
             entity.Property(x => x.Direction).HasMaxLength(20);
             entity.Property(x => x.IdempotencyKey).HasMaxLength(100);
         });
@@ -93,7 +132,11 @@ public partial class ApplicationDbContext
             entity.Property(x => x.Status).HasMaxLength(50);
             entity.Property(x => x.Location).HasMaxLength(100);
             entity.Property(x => x.ActorRole).HasMaxLength(20);
-            entity.HasOne<User>().WithMany().HasForeignKey(x => x.ActorUserId).OnDelete(DeleteBehavior.NoAction);
+            entity
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(x => x.ActorUserId)
+                .OnDelete(DeleteBehavior.NoAction);
             entity.HasOne<ShippingInfo>().WithMany().HasForeignKey(x => x.ShippingInfoId);
         });
         modelBuilder.Entity<Refund>(entity =>
@@ -106,7 +149,11 @@ public partial class ApplicationDbContext
             entity.Property(x => x.Reason).HasMaxLength(100);
             entity.Property(x => x.Status).HasMaxLength(20);
             entity.HasOne<OrderTable>().WithMany().HasForeignKey(x => x.OrderId);
-            entity.HasOne<Payment>().WithMany().HasForeignKey(x => x.PaymentId).OnDelete(DeleteBehavior.NoAction);
+            entity
+                .HasOne<Payment>()
+                .WithMany()
+                .HasForeignKey(x => x.PaymentId)
+                .OnDelete(DeleteBehavior.NoAction);
         });
         modelBuilder.Entity<NotificationOutbox>(entity =>
         {
@@ -115,7 +162,10 @@ public partial class ApplicationDbContext
             entity.Property(x => x.EventType).HasMaxLength(50);
             entity.Property(x => x.Recipient).HasMaxLength(100);
             entity.Property(x => x.Status).HasMaxLength(20);
-            entity.HasIndex(x => new { x.OrderId, x.EventType }).IsUnique().HasFilter("[EventKey] IS NULL AND [OrderId] IS NOT NULL");
+            entity
+                .HasIndex(x => new { x.OrderId, x.EventType })
+                .IsUnique()
+                .HasFilter("[EventKey] IS NULL AND [OrderId] IS NOT NULL");
         });
         modelBuilder.Entity<SellerAccount>(entity =>
         {
@@ -129,7 +179,11 @@ public partial class ApplicationDbContext
             entity.Property(x => x.OnHoldBalance).HasColumnType("decimal(18,2)");
             entity.Property(x => x.NegativeBalance).HasColumnType("decimal(18,2)");
             entity.Property(x => x.MonthlySalesAmount).HasColumnType("decimal(18,2)");
-            entity.HasOne<User>().WithMany().HasForeignKey(x => x.SellerId).OnDelete(DeleteBehavior.NoAction);
+            entity
+                .HasOne<User>()
+                .WithMany()
+                .HasForeignKey(x => x.SellerId)
+                .OnDelete(DeleteBehavior.NoAction);
         });
         modelBuilder.Entity<SellerSettlement>(entity =>
         {
@@ -146,9 +200,21 @@ public partial class ApplicationDbContext
             entity.Property(x => x.FeeCreditAmount).HasColumnType("decimal(18,2)");
             entity.Property(x => x.Currency).HasMaxLength(3);
             entity.Property(x => x.Status).HasMaxLength(30);
-            entity.HasOne<SellerAccount>().WithMany().HasForeignKey(x => x.SellerAccountId).OnDelete(DeleteBehavior.NoAction);
-            entity.HasOne<OrderTable>().WithMany().HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.NoAction);
-            entity.HasOne<Payment>().WithMany().HasForeignKey(x => x.PaymentId).OnDelete(DeleteBehavior.NoAction);
+            entity
+                .HasOne<SellerAccount>()
+                .WithMany()
+                .HasForeignKey(x => x.SellerAccountId)
+                .OnDelete(DeleteBehavior.NoAction);
+            entity
+                .HasOne<OrderTable>()
+                .WithMany()
+                .HasForeignKey(x => x.OrderId)
+                .OnDelete(DeleteBehavior.NoAction);
+            entity
+                .HasOne<Payment>()
+                .WithMany()
+                .HasForeignKey(x => x.PaymentId)
+                .OnDelete(DeleteBehavior.NoAction);
         });
         modelBuilder.Entity<SellerPayout>(entity =>
         {
@@ -161,7 +227,11 @@ public partial class ApplicationDbContext
             entity.Property(x => x.IdempotencyKey).HasMaxLength(100);
             entity.Property(x => x.DestinationMasked).HasMaxLength(30);
             entity.Property(x => x.BankReferenceId).HasMaxLength(100);
-            entity.HasOne<SellerAccount>().WithMany().HasForeignKey(x => x.SellerAccountId).OnDelete(DeleteBehavior.NoAction);
+            entity
+                .HasOne<SellerAccount>()
+                .WithMany()
+                .HasForeignKey(x => x.SellerAccountId)
+                .OnDelete(DeleteBehavior.NoAction);
         });
         modelBuilder.Entity<FinancialTransaction>(entity =>
         {
@@ -175,11 +245,31 @@ public partial class ApplicationDbContext
             entity.Property(x => x.Currency).HasMaxLength(3);
             entity.Property(x => x.EntryKey).HasMaxLength(100);
             entity.Property(x => x.Description).HasMaxLength(500);
-            entity.HasOne<SellerAccount>().WithMany().HasForeignKey(x => x.SellerAccountId).OnDelete(DeleteBehavior.NoAction);
-            entity.HasOne<OrderTable>().WithMany().HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.NoAction);
-            entity.HasOne<SellerSettlement>().WithMany().HasForeignKey(x => x.SettlementId).OnDelete(DeleteBehavior.NoAction);
-            entity.HasOne<SellerPayout>().WithMany().HasForeignKey(x => x.PayoutId).OnDelete(DeleteBehavior.NoAction);
-            entity.HasOne<Refund>().WithMany().HasForeignKey(x => x.RefundId).OnDelete(DeleteBehavior.NoAction);
+            entity
+                .HasOne<SellerAccount>()
+                .WithMany()
+                .HasForeignKey(x => x.SellerAccountId)
+                .OnDelete(DeleteBehavior.NoAction);
+            entity
+                .HasOne<OrderTable>()
+                .WithMany()
+                .HasForeignKey(x => x.OrderId)
+                .OnDelete(DeleteBehavior.NoAction);
+            entity
+                .HasOne<SellerSettlement>()
+                .WithMany()
+                .HasForeignKey(x => x.SettlementId)
+                .OnDelete(DeleteBehavior.NoAction);
+            entity
+                .HasOne<SellerPayout>()
+                .WithMany()
+                .HasForeignKey(x => x.PayoutId)
+                .OnDelete(DeleteBehavior.NoAction);
+            entity
+                .HasOne<Refund>()
+                .WithMany()
+                .HasForeignKey(x => x.RefundId)
+                .OnDelete(DeleteBehavior.NoAction);
         });
     }
 }

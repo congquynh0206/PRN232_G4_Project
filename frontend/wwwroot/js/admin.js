@@ -22,11 +22,14 @@
   G4.SellerLevels.init('admin');
   G4.AdminOrderLookup.init();
   G4.Navigation.init(tab);
-  G4.Realtime?.subscribe(['orders', 'returns', 'disputes', 'finance', 'levels', 'notifications'], async () => {
-    const id = document.querySelector('.tab-panel.active')?.id;
-    if (id === 'seller-debts') await G4.SellerDebt.loadAdmin();
-    else if (id === 'seller-risk') await G4.SellerRisk.load();
-    else if (id === 'seller-levels') await G4.SellerLevels.refresh();
-    else if (id === 'inbox') await G4.Notifications.load();
-  });
+  G4.Realtime?.subscribe(
+    ['orders', 'returns', 'disputes', 'finance', 'levels', 'notifications'],
+    async () => {
+      const id = document.querySelector('.tab-panel.active')?.id;
+      if (id === 'seller-debts') await G4.SellerDebt.loadAdmin();
+      else if (id === 'seller-risk') await G4.SellerRisk.load();
+      else if (id === 'seller-levels') await G4.SellerLevels.refresh();
+      else if (id === 'inbox') await G4.Notifications.load();
+    },
+  );
 })();

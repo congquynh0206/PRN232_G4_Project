@@ -1,26 +1,134 @@
 /* Shared compact dialogs; loaded after each feature's styles. */
-dialog.action-dialog, dialog.decision-dialog { box-sizing: border-box; width: min(420px, calc(100vw - 24px)); max-width: calc(100vw - 24px); max-height: min(82dvh, 760px); padding: 20px; overflow-y: auto; overscroll-behavior: contain; }
-dialog.decision-dialog { width: min(620px, calc(100vw - 24px)); }
-dialog.detail-dialog { box-sizing: border-box; width: min(860px, calc(100vw - 24px)); max-height: 86dvh; }
-dialog.action-dialog form, dialog.action-dialog fieldset { display: grid; gap: 10px; min-width: 0; }
-dialog.action-dialog fieldset { border: 0; margin: 0; padding: 0; }
-dialog.action-dialog input:not([type=checkbox]):not([type=radio]), dialog.action-dialog select, dialog.action-dialog textarea { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--line, #ccd5df); border-radius: 8px; padding: 9px 11px; font: inherit; background: #fff; color: #172b4d; }
-dialog.action-dialog textarea { resize: vertical; min-height: 90px; max-height: 220px; }
-dialog.action-dialog h2 { font-size: 20px; margin: 0; }
-dialog.action-dialog p { margin: 0; overflow-wrap: anywhere; }
-dialog button, dialog summary { min-height: 44px; }
-dialog :focus-visible { outline: 2px solid #2457d6; outline-offset: 3px; }
-dialog [hidden] { display: none !important; }
-#seller-feedback-dialog { width: min(440px, calc(100vw - 24px)); }
-#return-dialog { width: min(460px, calc(100vw - 24px)); }
-dialog.promotion-dialog { box-sizing: border-box; width: min(640px, calc(100vw - 24px)); max-height: 84dvh; }
-dialog.promotion-dialog form { max-height: 84dvh; }
-dialog.decision-dialog .decision-actions { bottom: -20px; }
-#seller-feedback-dialog .actions { justify-content: flex-end; }
-#realtime-status { display: inline-block; margin-inline-end: 12px; padding-inline-end: 12px; border-inline-end: 1px solid #b7c5dc; }
-.return-list-tools { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin: 16px 0; }
-.return-list-tools label { display: grid; gap: 6px; }
-.return-card { border: 1px solid var(--line, #d8e0e9); border-radius: 12px; padding: 16px; margin: 12px 0; }
-.return-card p { margin: 6px 0; overflow-wrap: anywhere; }
-.return-card .actions { margin-top: 12px; }
-@media (max-width: 540px) { dialog.action-dialog, dialog.decision-dialog { padding: 16px; max-height: 88dvh; } dialog.detail-dialog { max-height: 90dvh; } dialog.decision-dialog .decision-actions { bottom: -16px; } .return-list-tools label { width: 100%; } }
+dialog.action-dialog,
+dialog.decision-dialog {
+  box-sizing: border-box;
+  width: min(420px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  max-height: min(82dvh, 760px);
+  padding: 20px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+dialog.decision-dialog {
+  width: min(620px, calc(100vw - 24px));
+}
+dialog.detail-dialog {
+  box-sizing: border-box;
+  width: min(860px, calc(100vw - 24px));
+  max-height: 86dvh;
+}
+dialog.action-dialog form,
+dialog.action-dialog fieldset {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+dialog.action-dialog fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+dialog.action-dialog input:not([type='checkbox']):not([type='radio']),
+dialog.action-dialog select,
+dialog.action-dialog textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid var(--line, #ccd5df);
+  border-radius: 8px;
+  padding: 9px 11px;
+  font: inherit;
+  background: #fff;
+  color: #172b4d;
+}
+dialog.action-dialog textarea {
+  resize: vertical;
+  min-height: 90px;
+  max-height: 220px;
+}
+dialog.action-dialog h2 {
+  font-size: 20px;
+  margin: 0;
+}
+dialog.action-dialog p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+dialog button,
+dialog summary {
+  min-height: 44px;
+}
+dialog :focus-visible {
+  outline: 2px solid #2457d6;
+  outline-offset: 3px;
+}
+dialog [hidden] {
+  display: none !important;
+}
+#seller-feedback-dialog {
+  width: min(440px, calc(100vw - 24px));
+}
+#return-dialog {
+  width: min(460px, calc(100vw - 24px));
+}
+dialog.promotion-dialog {
+  box-sizing: border-box;
+  width: min(640px, calc(100vw - 24px));
+  max-height: 84dvh;
+}
+dialog.promotion-dialog form {
+  max-height: 84dvh;
+}
+dialog.decision-dialog .decision-actions {
+  bottom: -20px;
+}
+#seller-feedback-dialog .actions {
+  justify-content: flex-end;
+}
+#realtime-status {
+  display: inline-block;
+  margin-inline-end: 12px;
+  padding-inline-end: 12px;
+  border-inline-end: 1px solid #b7c5dc;
+}
+.return-list-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  margin: 16px 0;
+}
+.return-list-tools label {
+  display: grid;
+  gap: 6px;
+}
+.return-card {
+  border: 1px solid var(--line, #d8e0e9);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 12px 0;
+}
+.return-card p {
+  margin: 6px 0;
+  overflow-wrap: anywhere;
+}
+.return-card .actions {
+  margin-top: 12px;
+}
+@media (max-width: 540px) {
+  dialog.action-dialog,
+  dialog.decision-dialog {
+    padding: 16px;
+    max-height: 88dvh;
+  }
+  dialog.detail-dialog {
+    max-height: 90dvh;
+  }
+  dialog.decision-dialog .decision-actions {
+    bottom: -16px;
+  }
+  .return-list-tools label {
+    width: 100%;
+  }
+}

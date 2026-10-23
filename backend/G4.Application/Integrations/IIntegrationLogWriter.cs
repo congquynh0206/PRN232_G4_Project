@@ -1,4 +1,5 @@
 namespace G4.Application.Integrations;
+
 public sealed record IntegrationLogEntry(
     int? OrderId,
     string CorrelationId,
@@ -17,6 +18,7 @@ public sealed record IntegrationLogEntry(
     int? Cycle,
     DateTime CreatedAt
 );
+
 public interface IIntegrationLogWriter
 {
     Task WriteAsync(IntegrationLogEntry entry, CancellationToken ct);

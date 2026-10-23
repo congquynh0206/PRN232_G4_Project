@@ -72,7 +72,11 @@
     };
     var defaultId = Model == "buyer" ? "summary" : Model == "admin" ? "disputes" : "orders";
 }
-<nav class="role-tabs workspace-nav @(Model == "buyer" ? "buyer-nav" : "sidebar-nav")" aria-label="Điều hướng chính" data-role-navigation="@Model">
+<nav
+    class="role-tabs workspace-nav @(Model == "buyer" ? "buyer-nav" : "sidebar-nav")"
+    aria-label="Điều hướng chính"
+    data-role-navigation="@Model"
+>
     @foreach (var group in groups)
     {
         <div class="navigation-group">
@@ -82,8 +86,24 @@
             }
             @foreach (var item in group.Items)
             {
-                <button type="button" data-tab="@item.Id" data-nav-label="@item.Label" class="navigation-item @(item.Id == defaultId ? "active" : "")" aria-controls="@item.Id" aria-current="@(item.Id == defaultId ? "page" : null)">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="@paths[item.Icon]" /></svg>
+                <button
+                    type="button"
+                    data-tab="@item.Id"
+                    data-nav-label="@item.Label"
+                    class="navigation-item @(item.Id == defaultId ? "active" : "")"
+                    aria-controls="@item.Id"
+                    aria-current="@(item.Id == defaultId ? "page" : null)"
+                >
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.7"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                        focusable="false"
+                    ><path d="@paths[item.Icon]" /></svg>
                     <span class="navigation-label">@item.Label</span>
                     @if (!string.IsNullOrEmpty(item.Badge))
                     {

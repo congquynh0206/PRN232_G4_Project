@@ -2,12 +2,18 @@ using G4.Contracts.Checkout;
 using Microsoft.AspNetCore.Mvc;
 
 namespace G4.Api.Controllers;
+
 [ApiController]
 [Route("api")]
-public sealed class DisputesController(IDisputeService disputes, IHostEnvironment environment) : ApiControllerBase(environment)
+public sealed class DisputesController(IDisputeService disputes, IHostEnvironment environment)
+    : ApiControllerBase(environment)
 {
-    private string ActorRole => HasRole("buyer") ? "buyer" : HasRole("seller") ? "seller" : "admin";
-    private bool CanRead => IsAvailable && (HasRole("buyer") || HasRole("seller") || HasRole("admin"));
+    private string ActorRole =>
+        HasRole("buyer") ? "buyer"
+        : HasRole("seller") ? "seller"
+        : "admin";
+    private bool CanRead =>
+        IsAvailable && (HasRole("buyer") || HasRole("seller") || HasRole("admin"));
 
     [HttpGet("disputes/page")]
     public async Task<IActionResult> Page(
@@ -19,7 +25,9 @@ public sealed class DisputesController(IDisputeService disputes, IHostEnvironmen
     {
         if (!CanRead)
             return StatusCode(403);
-        return Ok(await disputes.GetPageAsync(CurrentUserId, ActorRole, page, pageSize, filter, ct));
+        return Ok(
+            await disputes.GetPageAsync(CurrentUserId, ActorRole, page, pageSize, filter, ct)
+        );
     }
 
     [HttpGet("disputes/{id:int}")]
@@ -40,7 +48,11 @@ public sealed class DisputesController(IDisputeService disputes, IHostEnvironmen
     }
 
     [HttpPost("disputes/{id:int}/evidence")]
-    public async Task<IActionResult> Evidence(int id, DisputeEvidenceRequest request, CancellationToken ct)
+    public async Task<IActionResult> Evidence(
+        int id,
+        DisputeEvidenceRequest request,
+        CancellationToken ct
+    )
     {
         if (!IsAvailable || !(HasRole("buyer") || HasRole("seller")))
             return StatusCode(403);
@@ -49,7 +61,11 @@ public sealed class DisputesController(IDisputeService disputes, IHostEnvironmen
     }
 
     [HttpPost("disputes/{id:int}/proposal")]
-    public async Task<IActionResult> Proposal(int id, DisputeProposalRequest request, CancellationToken ct)
+    public async Task<IActionResult> Proposal(
+        int id,
+        DisputeProposalRequest request,
+        CancellationToken ct
+    )
     {
         if (!IsAvailable || !HasRole("seller"))
             return StatusCode(403);
@@ -58,7 +74,11 @@ public sealed class DisputesController(IDisputeService disputes, IHostEnvironmen
     }
 
     [HttpPost("disputes/{id:int}/response")]
-    public async Task<IActionResult> SubmitResponse(int id, DisputeResponseRequest request, CancellationToken ct)
+    public async Task<IActionResult> SubmitResponse(
+        int id,
+        DisputeResponseRequest request,
+        CancellationToken ct
+    )
     {
         if (!IsAvailable || !HasRole("buyer"))
             return StatusCode(403);
@@ -67,7 +87,11 @@ public sealed class DisputesController(IDisputeService disputes, IHostEnvironmen
     }
 
     [HttpPost("disputes/{id:int}/resolution")]
-    public async Task<IActionResult> Resolution(int id, AdminDecisionInput request, CancellationToken ct)
+    public async Task<IActionResult> Resolution(
+        int id,
+        AdminDecisionInput request,
+        CancellationToken ct
+    )
     {
         if (!IsAvailable || !HasRole("admin"))
             return StatusCode(403);
@@ -75,9 +99,14 @@ public sealed class DisputesController(IDisputeService disputes, IHostEnvironmen
     }
 
     [HttpPost("disputes/{id:int}/decision-preview")]
-    public async Task<IActionResult> DecisionPreview(int id, AdminDecisionPreviewInput request, CancellationToken ct)
+    public async Task<IActionResult> DecisionPreview(
+        int id,
+        AdminDecisionPreviewInput request,
+        CancellationToken ct
+    )
     {
-        if (!IsAvailable || !HasRole("admin")) return StatusCode(403);
+        if (!IsAvailable || !HasRole("admin"))
+            return StatusCode(403);
         return Ok(await disputes.PreviewDecisionAsync(id, CurrentUserId, request, ct));
     }
 }

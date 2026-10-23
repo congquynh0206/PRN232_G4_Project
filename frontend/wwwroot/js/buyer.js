@@ -91,16 +91,25 @@
   function actions(o) {
     const buttons = [];
     if (o.payments.some((p) => p.status === 'Succeeded'))
-      buttons.push(`<button type="button" data-action="product-reviews" data-id="${o.id}">Đánh giá sản phẩm &amp; phản hồi</button>`);
+      buttons.push(
+        `<button type="button" data-action="product-reviews" data-id="${o.id}">Đánh giá sản phẩm &amp; phản hồi</button>`,
+      );
     if (o.status === 'AwaitingPayment' && o.payPalCheckoutId)
-      buttons.push(`<button data-action="resume-paypal-cart" data-id="${o.payPalCheckoutId}">Xem thanh toán PayPal cả giỏ</button>`);
+      buttons.push(
+        `<button data-action="resume-paypal-cart" data-id="${o.payPalCheckoutId}">Xem thanh toán PayPal cả giỏ</button>`,
+      );
     if (o.status === 'AwaitingPayment' && !o.payPalCheckoutId)
       buttons.push(
         `<button data-action="cancel" data-id="${o.id}">Hủy đơn</button><button data-action="retry-card" data-id="${o.id}">Thanh toán bằng thẻ thử</button><button data-action="retry-paypal" data-id="${o.id}">Thanh toán PayPal</button>`,
       );
     if (['Paid', 'Preparing'].includes(o.status))
       buttons.push(`<button data-action="cancel" data-id="${o.id}">Yêu cầu hủy</button>`);
-    if (o.status === 'Delivered' && !o.returnRequest && o.canRequestReturn !== false && (G4.Returns.windowOpen?.(o) ?? true))
+    if (
+      o.status === 'Delivered' &&
+      !o.returnRequest &&
+      o.canRequestReturn !== false &&
+      (G4.Returns.windowOpen?.(o) ?? true)
+    )
       buttons.push(`<button data-action="return" data-id="${o.id}">Yêu cầu trả hàng</button>`);
     if (
       o.status === 'Delivered' &&
@@ -134,14 +143,18 @@
   async function action(b) {
     const id = Number(b.dataset.id),
       kind = b.dataset.action;
-    if (kind === 'resume-paypal-cart') { G4.closeDetail(); return G4.PayPalCart.show(id); }
+    if (kind === 'resume-paypal-cart') {
+      G4.closeDetail();
+      return G4.PayPalCart.show(id);
+    }
     if (kind === 'review-seller') return G4.SellerFeedback.open(id, () => showOrder(id));
     if (kind === 'product-reviews') return G4.BuyerProductReviews.open(id);
     if (kind === 'hold') return G4.Disputes.openNew(id);
-    if (kind === 'return') return G4.Returns.open(id, async () => {
-      await loadOrders(state.page, id);
-      await showOrder(id);
-    });
+    if (kind === 'return')
+      return G4.Returns.open(id, async () => {
+        await loadOrders(state.page, id);
+        await showOrder(id);
+      });
     const titles = {
       cancel: 'Xác nhận hủy đơn',
       return: 'Yêu cầu trả hàng',
@@ -208,11 +221,17 @@
   G4.SellerFeedback.init();
   G4.BuyerProductReviews.init();
   G4.PayPalCart.init(async () => loadOrders(state.page));
-  G4.Realtime?.subscribe(['orders', 'returns', 'shipments', 'disputes', 'notifications'], async () => {
-    if (document.querySelector('.tab-panel.active')?.id === 'orders') await loadOrders(state.page);
-    if (document.querySelector('.tab-panel.active')?.id === 'notifications') await G4.Notifications.load();
-    if ($('detail-dialog')?.open && document.querySelector('#detail-content [data-order-detail]')) await showOrder(detailOrderId, true);
-  });
+  G4.Realtime?.subscribe(
+    ['orders', 'returns', 'shipments', 'disputes', 'notifications'],
+    async () => {
+      if (document.querySelector('.tab-panel.active')?.id === 'orders')
+        await loadOrders(state.page);
+      if (document.querySelector('.tab-panel.active')?.id === 'notifications')
+        await G4.Notifications.load();
+      if ($('detail-dialog')?.open && document.querySelector('#detail-content [data-order-detail]'))
+        await showOrder(detailOrderId, true);
+    },
+  );
   G4.Disputes.init('buyer', async (id) => {
     await loadOrders(state.page, id);
   });

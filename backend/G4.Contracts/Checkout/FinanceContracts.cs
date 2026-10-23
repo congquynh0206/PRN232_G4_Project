@@ -1,7 +1,11 @@
 namespace G4.Contracts.Checkout;
+
 public sealed record PayoutRequest(decimal Amount, string Key, bool SimulateFailure = false);
+
 public sealed record FundHoldRequest(string Reason, string[] EvidenceLinks);
+
 public sealed record FundHoldResolutionRequest(bool ReleaseToSeller, string Reason);
+
 public sealed record SellerLevelProgress(
     int CompletedOrders,
     decimal? PositiveFeedbackRate,
@@ -11,6 +15,7 @@ public sealed record SellerLevelProgress(
     decimal RequiredFeedbackRate,
     decimal RequiredOnTimeRate
 );
+
 public sealed record FinanceTransactionView(
     long Id,
     int? OrderId,
@@ -21,6 +26,7 @@ public sealed record FinanceTransactionView(
     string? Description,
     DateTime CreatedAt
 );
+
 public sealed record PayoutView(
     int Id,
     decimal Amount,
@@ -33,7 +39,16 @@ public sealed record PayoutView(
     IReadOnlyList<PayoutStepView>? History = null,
     int WorkflowVersion = 0
 );
-public sealed record PayoutStepView(string? FromStatus, string ToStatus, DateTime OccurredAt, int? ActorUserId, string ActorRole, string? BankReferenceId);
+
+public sealed record PayoutStepView(
+    string? FromStatus,
+    string ToStatus,
+    DateTime OccurredAt,
+    int? ActorUserId,
+    string ActorRole,
+    string? BankReferenceId
+);
+
 public sealed record SellerFinanceSummary(
     int SellerId,
     int Level,
@@ -54,10 +69,33 @@ public sealed record SellerFinanceSummary(
     decimal PaidOut = 0
 );
 
-public sealed record PlatformFeeChangeRequest(decimal FeePercent, decimal FixedFee, DateTimeOffset? EffectiveAt,
-    string Reason, string RequestKey, int ExpectedLatestPolicyId);
-public sealed record PlatformFeePolicyView(int Id, decimal FeePercent, decimal FixedFee,
-    decimal PreviousFeePercent, decimal PreviousFixedFee, DateTime EffectiveAt, DateTime CreatedAt,
-    int? ChangedById, string ChangedBy, string Reason);
-public sealed record PlatformFeeSettings(PlatformFeePolicyView Current, int LatestPolicyId,
-    int Page, int PageSize, int TotalCount, IReadOnlyList<PlatformFeePolicyView> Items);
+public sealed record PlatformFeeChangeRequest(
+    decimal FeePercent,
+    decimal FixedFee,
+    DateTimeOffset? EffectiveAt,
+    string Reason,
+    string RequestKey,
+    int ExpectedLatestPolicyId
+);
+
+public sealed record PlatformFeePolicyView(
+    int Id,
+    decimal FeePercent,
+    decimal FixedFee,
+    decimal PreviousFeePercent,
+    decimal PreviousFixedFee,
+    DateTime EffectiveAt,
+    DateTime CreatedAt,
+    int? ChangedById,
+    string ChangedBy,
+    string Reason
+);
+
+public sealed record PlatformFeeSettings(
+    PlatformFeePolicyView Current,
+    int LatestPolicyId,
+    int Page,
+    int PageSize,
+    int TotalCount,
+    IReadOnlyList<PlatformFeePolicyView> Items
+);

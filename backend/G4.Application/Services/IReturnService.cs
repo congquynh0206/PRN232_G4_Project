@@ -1,12 +1,21 @@
-using G4.Domain.Entities;
 using G4.Contracts.Checkout;
+using G4.Domain.Entities;
 
 namespace G4.Application.Services;
+
 public interface IReturnService
 {
-    Task<ReturnRequest> RequestReturnAsync(int orderId, string reason, CancellationToken ct = default);
+    Task<ReturnRequest> RequestReturnAsync(
+        int orderId,
+        string reason,
+        CancellationToken ct = default
+    );
     Task<ReturnQuote> QuoteAsync(int orderId, string reasonCode, CancellationToken ct = default);
-    Task<ReturnRequest> RequestPricedReturnAsync(int orderId, ReturnRequestInput request, CancellationToken ct = default);
+    Task<ReturnRequest> RequestPricedReturnAsync(
+        int orderId,
+        ReturnRequestInput request,
+        CancellationToken ct = default
+    );
     Task<ReturnRequest> ApproveAsync(int returnId, CancellationToken ct = default);
     Task<ReturnRequest> RetryShipmentAsync(int returnId, CancellationToken ct = default);
     Task<ReturnRequest> RejectAsync(int returnId, string reason, CancellationToken ct = default);
