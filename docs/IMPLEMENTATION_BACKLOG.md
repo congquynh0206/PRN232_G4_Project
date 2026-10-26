@@ -1,5 +1,32 @@
 # Backlog triển khai theo đặc tả ngày 18/10/2026
 
+## FLOW-DOC — Luồng checkout và màn tiếp theo ngày 25/10/2026
+
+- Đã tạo ba workflow Archify dựa trên source: tạo đơn/điều hướng, kết quả thẻ thử và
+  PayPal cả giỏ. [Hướng dẫn, bảng nhánh và liên kết HTML](BUYER_CHECKOUT_FLOW.md).
+  Phân biệt lỗi tạo đơn, mất phản hồi, đơn đã tạo, kết quả trộn, Verifying, hủy lượt
+  PayPal và hủy đơn; thể hiện dialog/thẻ kết quả theo UI hiện có.
+- Cả ba đạt validate/deliver/check/browser-check; dẫn chứng Git ghim commit
+  `e7997b03bd86bb5160332dd94bd5dc853b441963`, Chrome kiểm tra bốn viewport desktop
+  và sáng/tối theo quy trình Archify. Chưa đánh giá ảnh bằng mắt hoặc E2E ứng dụng
+  nối database/provider thật. Không sửa code nghiệp vụ, không tạo/áp migration hoặc
+  thay dữ liệu. Viewer tiếng Việt một phần; thông báo chưa dịch dùng tiếng Anh.
+
+## ARCH-DOC — Sơ đồ kiến trúc source ngày 25/10/2026
+
+- Đã tạo [sơ đồ HTML Archify](../.archify/architecture-g4-overview-20261025-155434/g4-overview.html)
+  và [nguồn JSON](../.archify/architecture-g4-overview-20261025-155434/candidate.json),
+  có dẫn chứng file/dòng ghim commit `e7997b03bd86bb5160332dd94bd5dc853b441963`.
+  Phạm vi: frontend/proxy, API auth, nghiệp vụ/worker, SQL Server, SignalR và adapter;
+  thể hiện rõ Sandbox, carrier/credit-card/payout mô phỏng và nhánh SMTP theo cấu hình.
+- Archify `finalize` đạt validate/deliver/check/browser-check; Chrome kiểm tra bốn viewport
+  1440–2048px, sáng/tối theo quy trình của công cụ và không tràn ngang. Chưa đánh giá
+  ảnh bằng mắt; viewer tiếng Việt một phần, các thông báo còn lại dùng tiếng Anh.
+  Receipt nằm cạnh artifact và trong thư mục `review-2` của cùng lần tạo sơ đồ.
+- Đã cập nhật [hướng dẫn kiến trúc](BACKEND_ARCHITECTURE.md). Không sửa nghiệp vụ,
+  không tạo/áp migration, không seed hoặc kiểm thử database/provider thật. Các trạng thái
+  task nghiệp vụ bên dưới giữ nguyên phạm vi và bằng chứng lịch sử của từng đợt.
+
 ## UI-COUNTDOWN — Đồng hồ thao tác và tiền giữ từng đơn ngày 23/10/2026
 
 - Đã triển khai đồng hồ tại payment, return window/receipt, phản hồi tranh chấp/receipt theo thỏa thuận, đổi địa chỉ Buyer/Seller/Shipper, xét cấp và nợ Seller/Admin. Dùng deadline server, đồng bộ giờ qua proxy, cập nhật mỗi giây; về 0 hiện chờ xử lý, không tự ghi nhận kết quả tiền/trạng thái. Không tạo deadline giả cho payout, return chưa duyệt hoặc nhánh chưa triển khai.

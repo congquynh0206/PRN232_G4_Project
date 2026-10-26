@@ -1,0 +1,393 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "02 · Thẻ thử: kết quả và thao tác tiếp",
+    "locale": "vi",
+    "translations": {
+      "page.title": "{title}",
+      "diagram.description.workflow": "Luồng thao tác và màn hình từ source G4_Project.",
+      "legend.title": "Chú giải",
+      "legend.workflow.frontend": "Màn hình / thao tác",
+      "legend.workflow.backend": "Xử lý hệ thống",
+      "legend.workflow.security": "Nhánh lỗi / chưa xác nhận",
+      "viewer.theme.toggle.title": "Đổi sáng / tối (T)",
+      "viewer.theme.toggle": "Đổi giao diện sáng / tối",
+      "viewer.theme.dark": "Tối",
+      "viewer.theme.light": "Sáng",
+      "viewer.motion.live": "Chuyển động",
+      "viewer.motion.still": "Tĩnh",
+      "node.focus": "Xem {label}",
+      "node.focus.detail": "Xem {label}, {detail}"
+    },
+    "output": ".archify/workflow-buyer-checkout-20261025-160506/02-card.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/congquynh0206/PRN232_G4_Project.git",
+      "revision": "e7997b03bd86bb5160332dd94bd5dc853b441963"
+    }
+  },
+  "lanes": [
+    {
+      "id": "main",
+      "label": "Thao tác và kết quả chính"
+    },
+    {
+      "id": "unpaid",
+      "label": "Còn đơn chưa được xác nhận thanh toán",
+      "variant": "exception"
+    },
+    {
+      "id": "mixed",
+      "label": "Kết quả khác nhau giữa các đơn"
+    }
+  ],
+  "mainPath": [
+    "start",
+    "pay",
+    "summary",
+    "success",
+    "detail",
+    "paid-next"
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "lane": "main",
+      "col": 0,
+      "type": "frontend",
+      "label": "Đơn của tôi",
+      "sublabel": "Đơn đã tạo thành công",
+      "tag": "Đã chọn thẻ thử",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/buyer-cart.js",
+          "line": 338,
+          "end_line": 354,
+          "label": "Tạo đơn rồi vào tab orders"
+        }
+      ]
+    },
+    {
+      "id": "pay",
+      "lane": "main",
+      "col": 1,
+      "type": "backend",
+      "label": "Trả tiền từng đơn",
+      "sublabel": "Lần lượt các đơn chờ trả",
+      "tag": "Chung thông tin thẻ thử",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/buyer-cart.js",
+          "line": 353,
+          "end_line": 365,
+          "label": "Vòng lặp gọi thanh toán card"
+        }
+      ]
+    },
+    {
+      "id": "summary",
+      "lane": "main",
+      "col": 2,
+      "type": "backend",
+      "label": "Tổng hợp kết quả",
+      "sublabel": "Xét trạng thái từng lần trả",
+      "tag": "Chỉ Succeeded là đã trả",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/buyer-cart.js",
+          "line": 361,
+          "end_line": 371,
+          "label": "Xếp các kết quả khác vào chưa thành công"
+        }
+      ]
+    },
+    {
+      "id": "success",
+      "lane": "main",
+      "col": 3,
+      "type": "frontend",
+      "label": "Tất cả thành công",
+      "sublabel": "Thông báo đã thanh toán",
+      "tag": "Đơn thành công → Paid",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/buyer-cart.js",
+          "line": 366,
+          "end_line": 371,
+          "label": "Thông báo khi không còn kết quả lỗi"
+        },
+        {
+          "path": "backend/G4.Infrastructure/Checkout/CheckoutService.cs",
+          "line": 433,
+          "end_line": 459,
+          "label": "Chuyển trạng thái và ghi nhận tiền"
+        },
+        {
+          "path": "backend/G4.Domain/Rules/OrderState.cs",
+          "line": 5,
+          "end_line": 9,
+          "label": "PaymentSucceeded chuyển sang Paid"
+        }
+      ]
+    },
+    {
+      "id": "failed",
+      "lane": "unpaid",
+      "col": 3,
+      "type": "security",
+      "label": "Chưa đơn nào xong",
+      "sublabel": "Báo các mã đơn cần kiểm tra",
+      "tag": "Từ chối / hết hạn thẻ / lỗi",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/buyer-cart.js",
+          "line": 355,
+          "end_line": 371,
+          "label": "UI ghi lỗi và liệt kê đơn chưa thành công"
+        },
+        {
+          "path": "backend/G4.Infrastructure/Checkout/CheckoutService.cs",
+          "line": 401,
+          "end_line": 415,
+          "label": "Trạng thái từ thẻ giả lập"
+        }
+      ]
+    },
+    {
+      "id": "partial",
+      "lane": "mixed",
+      "col": 3,
+      "type": "frontend",
+      "label": "Chỉ một số đơn xong",
+      "sublabel": "Giữ nguyên các đơn đã trả",
+      "tag": "Xử lý các đơn còn lại",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/buyer-cart.js",
+          "line": 353,
+          "end_line": 371,
+          "label": "Từng đơn có kết quả độc lập"
+        }
+      ]
+    },
+    {
+      "id": "detail",
+      "lane": "main",
+      "col": 4,
+      "type": "frontend",
+      "label": "Chi tiết đơn đầu",
+      "sublabel": "Dialog trong Đơn của tôi",
+      "tag": "Không phải trang thành công",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/buyer-cart.js",
+          "line": 373,
+          "end_line": 374,
+          "label": "Mở đơn đầu sau khi tổng hợp"
+        },
+        {
+          "path": "frontend/wwwroot/js/buyer.js",
+          "line": 125,
+          "end_line": 141,
+          "label": "Dialog hiển thị trạng thái thật"
+        }
+      ]
+    },
+    {
+      "id": "paid-next",
+      "lane": "main",
+      "col": 5,
+      "type": "frontend",
+      "label": "Đã trả: chờ seller",
+      "sublabel": "Theo dõi trong Đơn của tôi",
+      "tag": "Paid / Preparing",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/buyer.js",
+          "line": 105,
+          "end_line": 106,
+          "label": "Paid/Preparing có yêu cầu hủy"
+        },
+        {
+          "path": "frontend/Views/Buyer/Index.cshtml",
+          "line": 159,
+          "end_line": 163,
+          "label": "Bộ lọc chờ giao / đang giao"
+        }
+      ]
+    },
+    {
+      "id": "retry",
+      "lane": "unpaid",
+      "col": 5,
+      "type": "frontend",
+      "label": "Chưa trả: mở đúng đơn",
+      "sublabel": "Thử lại / PayPal / hủy",
+      "tag": "Nếu server còn cho phép",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/buyer.js",
+          "line": 97,
+          "end_line": 104,
+          "label": "Nút thao tác theo trạng thái thật"
+        },
+        {
+          "path": "frontend/wwwroot/js/buyer.js",
+          "line": 180,
+          "end_line": 198,
+          "label": "Retry và tải lại chi tiết"
+        }
+      ]
+    },
+    {
+      "id": "expired",
+      "lane": "mixed",
+      "col": 5,
+      "type": "backend",
+      "label": "Đơn hết hạn",
+      "sublabel": "Worker hết hạn đơn chờ",
+      "tag": "Quá hạn + không Verifying",
+      "sources": [
+        {
+          "path": "backend/G4.Infrastructure/Checkout/CheckoutService.cs",
+          "line": 465,
+          "end_line": 494,
+          "label": "Worker kiểm tra hạn và trạng thái"
+        },
+        {
+          "path": "backend/G4.Domain/Rules/OrderState.cs",
+          "line": 5,
+          "end_line": 9,
+          "label": "Sự kiện Expire thành Expired"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "start-pay",
+      "from": "start",
+      "to": "pay",
+      "label": "Các đơn chờ trả",
+      "role": "main",
+      "variant": "emphasis"
+    },
+    {
+      "id": "pay-summary",
+      "from": "pay",
+      "to": "summary",
+      "label": "Xong vòng lặp",
+      "role": "main",
+      "variant": "emphasis"
+    },
+    {
+      "id": "summary-success",
+      "from": "summary",
+      "to": "success",
+      "label": "Tất cả Succeeded",
+      "role": "main",
+      "variant": "emphasis"
+    },
+    {
+      "id": "summary-failed",
+      "from": "summary",
+      "to": "failed",
+      "label": "Chưa có Succeeded",
+      "role": "error",
+      "variant": "security"
+    },
+    {
+      "id": "summary-partial",
+      "from": "summary",
+      "to": "partial",
+      "label": "Kết quả trộn",
+      "role": "branch",
+      "variant": "default"
+    },
+    {
+      "id": "success-detail",
+      "from": "success",
+      "to": "detail",
+      "label": "Mở đơn đầu",
+      "role": "main",
+      "variant": "emphasis"
+    },
+    {
+      "id": "failed-detail",
+      "from": "failed",
+      "to": "detail",
+      "label": "Vẫn mở đơn đầu",
+      "role": "branch",
+      "variant": "default"
+    },
+    {
+      "id": "partial-detail",
+      "from": "partial",
+      "to": "detail",
+      "label": "Vẫn mở đơn đầu",
+      "role": "branch",
+      "variant": "default"
+    },
+    {
+      "id": "detail-paid-next",
+      "from": "detail",
+      "to": "paid-next",
+      "label": "Đơn đã trả",
+      "role": "main",
+      "variant": "emphasis"
+    },
+    {
+      "id": "detail-retry",
+      "from": "detail",
+      "to": "retry",
+      "label": "Đơn chưa trả",
+      "role": "branch",
+      "variant": "default"
+    },
+    {
+      "id": "retry-expired",
+      "from": "retry",
+      "to": "expired",
+      "label": "Quá hạn cho phép",
+      "role": "branch",
+      "variant": "default"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Sau checkout có ba nhóm kết quả",
+      "items": [
+        "Toàn bộ đơn trả thành công; toàn bộ chưa được xác nhận thành công; hoặc chỉ một số đơn trả thành công.",
+        "Cả ba nhóm đều tải lại danh sách và mở dialog của đơn đầu tiên. Với giỏ hai seller, phải xem đúng mã đơn còn lỗi, vì dialog đầu tiên có thể là đơn đã trả.",
+        "Đơn Paid xuất hiện trong nhóm Chờ giao; seller tiếp tục chuẩn bị và tạo vận đơn. Màn buyer vẫn là Đơn của tôi."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Thông báo UI và kết quả thực tế",
+      "items": [
+        "Frontend cũng ghi Failed khi request thẻ ném lỗi. Nếu mất phản hồi, cần đọc lại trạng thái đơn; thông báo lỗi request chưa chứng minh tiền chưa được ghi nhận.",
+        "Nếu đơn chưa trả và không gắn lượt PayPal cả giỏ đang xử lý, chi tiết cho thử thẻ, PayPal riêng đơn hoặc hủy. Nếu có lượt PayPal cả giỏ, nút mở lại lượt đó.",
+        "Retry thẻ trong chi tiết hiện dùng thẻ thử thành công 4111...1111, hạn 12/30. Đây là mô phỏng, không phải cổng thẻ thật."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Hết hạn là nhánh riêng",
+      "items": [
+        "Đơn chờ thanh toán có deadline theo server. Worker hết hạn và trả tồn khi quá hạn; payment PayPal đang Verifying được bảo vệ khỏi nhánh hết hạn này.",
+        "Nếu lỗi ném ra ngoài trước khi vòng lặp/refresh hoàn tất, UI có thể chỉ giữ màn Đơn của tôi và thông báo tiếp tục thanh toán, chưa mở dialog tự động."
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Cách đọc",
+      "items": [
+        "Đọc mũi tên theo thứ tự; tên node là màn hình, thao tác hoặc kết quả. SRC mở file/dòng của source đã ghim commit.",
+        "Đây là hành vi hiện có trong source, chưa phải kết quả chạy E2E với database và PayPal thật. Một số nút Archify dùng tiếng Anh."
+      ]
+    }
+  ]
+}

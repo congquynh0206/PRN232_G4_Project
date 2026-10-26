@@ -1,0 +1,1116 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "architecture",
+  "quality": "showcase",
+  "startedAt": "2026-10-25T08:57:38.774Z",
+  "specification": {
+    "path": "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.archify\\architecture-g4-overview-20261025-155434\\candidate.json",
+    "sha256": "a607e337de8f68799bb759366aa2c92287ad6e3e59bb920946e8b35220ae1c5c",
+    "bytes": 13954
+  },
+  "artifact": {
+    "path": "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.archify\\architecture-g4-overview-20261025-155434\\g4-overview.html",
+    "sha256": "135120b470b1cf31f9356ec8e143941949f58affe1e7871f3e38a7f8f4529d95",
+    "bytes": 861391
+  },
+  "stages": {
+    "validate": {
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": null,
+      "execution": "embedded-in-deliver",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.agents\\skills\\archify\\bin\\archify.mjs",
+        "deliver",
+        "architecture",
+        "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.archify\\architecture-g4-overview-20261025-155434\\candidate.json",
+        "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.archify\\architecture-g4-overview-20261025-155434\\g4-overview.html",
+        "--quality",
+        "showcase",
+        "--repo-root",
+        "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project",
+        "--json"
+      ],
+      "receipt": {
+        "schemaVersion": 1,
+        "ok": true,
+        "command": "validate",
+        "specification": {
+          "sha256": "a607e337de8f68799bb759366aa2c92287ad6e3e59bb920946e8b35220ae1c5c",
+          "bytes": 13954
+        },
+        "validation": {
+          "checksPassed": 9,
+          "checkCount": 9,
+          "compositionProfile": "showcase",
+          "compositionStatus": "pass",
+          "errors": 0,
+          "warnings": 0
+        }
+      }
+    },
+    "deliver": {
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 560,
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.agents\\skills\\archify\\bin\\archify.mjs",
+        "deliver",
+        "architecture",
+        "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.archify\\architecture-g4-overview-20261025-155434\\candidate.json",
+        "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.archify\\architecture-g4-overview-20261025-155434\\g4-overview.html",
+        "--quality",
+        "showcase",
+        "--repo-root",
+        "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project",
+        "--json"
+      ],
+      "receipt": {
+        "schemaVersion": 1,
+        "receiptId": "cba18bea-0d50-447e-930e-f8a9c5d3cd9a",
+        "ok": true,
+        "command": "deliver",
+        "type": "architecture",
+        "input": "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.archify\\architecture-g4-overview-20261025-155434\\candidate.json",
+        "output": "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.archify\\architecture-g4-overview-20261025-155434\\g4-overview.html",
+        "specification": {
+          "sha256": "a607e337de8f68799bb759366aa2c92287ad6e3e59bb920946e8b35220ae1c5c",
+          "bytes": 13954
+        },
+        "artifact": {
+          "sha256": "135120b470b1cf31f9356ec8e143941949f58affe1e7871f3e38a7f8f4529d95",
+          "bytes": 861391
+        },
+        "validation": {
+          "checksPassed": 9,
+          "checkCount": 9,
+          "compositionProfile": "showcase",
+          "compositionStatus": "pass",
+          "errors": 0,
+          "warnings": 0
+        },
+        "evidence": {
+          "verified": true,
+          "repository": "https://github.com/congquynh0206/PRN232_G4_Project",
+          "revision": "e7997b03bd86bb5160332dd94bd5dc853b441963",
+          "references": 28
+        },
+        "diagnostics": [
+          {
+            "code": "i18n/translation-coverage",
+            "severity": "warning",
+            "message": "meta.locale \"vi\" resolves 18/486 renderer-owned messages (3%) from 18 meta.translations entries; 468 fall back to English.",
+            "subject": {
+              "diagramType": "architecture",
+              "path": "/meta/translations"
+            },
+            "evidence": {
+              "locale": "vi",
+              "resolvedLocale": "vi",
+              "bundledLocale": null,
+              "translatedKeys": 18,
+              "totalKeys": 486,
+              "appliedOverrideKeys": 18,
+              "missingKeys": [
+                "diagram.description.workflow",
+                "diagram.description.sequence",
+                "diagram.description.dataflow",
+                "diagram.description.lifecycle",
+                "node.context.workflow",
+                "node.context.sequence",
+                "node.context.dataflow",
+                "node.context.lifecycle",
+                "legend.architecture.cloud",
+                "legend.architecture.security"
+              ],
+              "missingKeysTotal": 468,
+              "englishSource": {
+                "diagram.description.workflow": "A workflow diagram generated by Archify.",
+                "diagram.description.sequence": "A sequence diagram generated by Archify.",
+                "diagram.description.dataflow": "A data-flow diagram generated by Archify.",
+                "diagram.description.lifecycle": "A lifecycle diagram generated by Archify.",
+                "node.context.workflow": "Workflow node",
+                "node.context.sequence": "Sequence participant",
+                "node.context.dataflow": "Data-flow node",
+                "node.context.lifecycle": "Lifecycle state",
+                "legend.architecture.cloud": "Cloud",
+                "legend.architecture.security": "Security"
+              }
+            },
+            "supportedFixes": [
+              "Add each missing key to meta.translations, translating its English source string and keeping its {placeholders}."
+            ]
+          }
+        ],
+        "update": {
+          "status": "unavailable",
+          "installedVersion": null,
+          "availableVersion": null,
+          "releaseNotes": null,
+          "checkedAt": null,
+          "source": null,
+          "noticeRequired": false,
+          "noticeText": null,
+          "reason": "disabled"
+        }
+      },
+      "stderr": "archify: meta.locale \"vi\" resolves 18/486 renderer-owned messages (3%) from 18 meta.translations entries; 468 fall back to English."
+    },
+    "check": {
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 161,
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.agents\\skills\\archify\\bin\\archify.mjs",
+        "check",
+        "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.archify\\architecture-g4-overview-20261025-155434\\g4-overview.html",
+        "--require-provenance"
+      ],
+      "receipt": {
+        "ok": true,
+        "file": "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.archify\\architecture-g4-overview-20261025-155434\\g4-overview.html",
+        "artifact": {
+          "sha256": "135120b470b1cf31f9356ec8e143941949f58affe1e7871f3e38a7f8f4529d95",
+          "bytes": 861391
+        },
+        "checks": [
+          {
+            "name": "single_svg",
+            "ok": true,
+            "details": [
+              "found 1 <svg> block(s)"
+            ]
+          },
+          {
+            "name": "finite_svg",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "orthogonal_arrows",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "label_route_clearance",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "relationship_crossings",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "relationship_corridors",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "container_border_runs",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "route_rhythm",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "legend_clearance",
+            "ok": true,
+            "details": []
+          }
+        ],
+        "composition": {
+          "schemaVersion": 1,
+          "profile": "showcase",
+          "status": "pass",
+          "summary": {
+            "errors": 0,
+            "warnings": 0
+          },
+          "metrics": {
+            "properCrossings": 0,
+            "resolvedCrossovers": 0,
+            "ambiguousCorridors": 0,
+            "arrowheadCollisions": 0,
+            "containerBorderRuns": 0,
+            "labelRouteClearanceIssues": 0,
+            "labelCanvasOverflowIssues": 0,
+            "minLabelRouteClearance": 98.1,
+            "desktopReadabilityIssues": 0,
+            "viewportHeightIssues": 0,
+            "minProjectedNodeTextPx": 6.642857142857143,
+            "maxBends": 2,
+            "routesOverSuggestedBends": 0,
+            "maxStretch": 1,
+            "routesOverSuggestedStretch": 0,
+            "minSegmentPx": 85,
+            "minInteriorSegmentPx": 400,
+            "shortSegmentCount": 0,
+            "shortEndpointSegmentCount": 0,
+            "shortInteriorSegmentCount": 0,
+            "microSegmentCount": 0
+          },
+          "suggestedLimits": {
+            "bendsPerRelationship": 2,
+            "stretch": 1.35,
+            "segmentPx": 16,
+            "microSegmentPx": 8
+          },
+          "routeReview": {
+            "crossings": [],
+            "detours": []
+          },
+          "leadingSpace": {
+            "measured": true,
+            "emptyTopPx": 40,
+            "emptyTopRatio": 0.042,
+            "occupiedTop": 40,
+            "viewBoxTop": 0,
+            "canvasHeight": 948,
+            "typicalNodeHeight": 90,
+            "reviewSuggested": false
+          },
+          "desktopReadability": {
+            "budgetBasis": "legacy-930",
+            "readerContract": "declared-wide-v1",
+            "availableDiagramWidth": 930,
+            "actualBudgetPx": 930,
+            "limit": "legacy",
+            "requestedTargetPx": 7.5,
+            "requestedTargetMet": false,
+            "hardFloorPx": 6,
+            "hardFloorMet": true,
+            "minimumOwner": {
+              "kind": "edge",
+              "id": "browser-frontend",
+              "from": "browser",
+              "to": "frontend"
+            },
+            "minimumSourceTextPx": 8,
+            "minimumProjectedTextPx": 6.642857142857143,
+            "semanticTextCount": 30
+          },
+          "issues": []
+        },
+        "provenance": "current",
+        "deliveryReceiptId": "cba18bea-0d50-447e-930e-f8a9c5d3cd9a"
+      }
+    },
+    "browser-check": {
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 2401,
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.agents\\skills\\archify\\bin\\archify.mjs",
+        "browser-check",
+        "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.archify\\architecture-g4-overview-20261025-155434\\g4-overview.html",
+        "--json",
+        "--require-provenance",
+        "--out-dir",
+        "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.archify\\architecture-g4-overview-20261025-155434\\review-2"
+      ],
+      "execution": "in-process",
+      "receipt": {
+        "schemaVersion": 1,
+        "ok": true,
+        "command": "browser-check",
+        "evidenceKind": "automated-browser",
+        "status": "pass",
+        "visualReview": "not-requested",
+        "provenance": "current",
+        "deliveryReceiptId": "cba18bea-0d50-447e-930e-f8a9c5d3cd9a",
+        "artifact": {
+          "path": "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.archify\\architecture-g4-overview-20261025-155434\\g4-overview.html",
+          "sha256": "135120b470b1cf31f9356ec8e143941949f58affe1e7871f3e38a7f8f4529d95",
+          "bytes": 861391
+        },
+        "state": {
+          "detail": "read",
+          "motion": "still"
+        },
+        "chrome": {
+          "status": "available",
+          "executable": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+        },
+        "diagnostics": [],
+        "containment": {
+          "status": "pass",
+          "policy": "fit-or-reader-declared-readable-vertical-scroll",
+          "viewports": [
+            {
+              "width": 1440,
+              "height": 900,
+              "theme": "light",
+              "innerWidth": 1440,
+              "innerHeight": 900,
+              "scrollWidth": 1440,
+              "scrollHeight": 949,
+              "overflowX": false,
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
+              "readerLayout": "adaptive",
+              "readerOverflow": "authored",
+              "readerFit": "intrinsic-height",
+              "ok": true,
+              "readerWidth": 964,
+              "diagramWidth": 934,
+              "pageComposition": {
+                "bodyPaddingPx": 12,
+                "headerPx": 68,
+                "diagramChromePx": 78,
+                "svgPx": 791,
+                "cardsPx": 0,
+                "viewBoxHeight": 948
+              },
+              "viewBoxWidth": 1120,
+              "minimumProjectedNodeTextPx": 6.671428571428572,
+              "minimumProjectedNonEdgeTextPx": 7.505357142857143,
+              "minimumProjectedEdgeTextPx": 6.671428571428572,
+              "minimumProjectedNodeText": "HTTP + cookie",
+              "minimumProjectedNodeTextDetail": "edge",
+              "minimumProjectedNodeTextOwner": {
+                "kind": "edge",
+                "id": "browser-frontend",
+                "from": "browser",
+                "to": "frontend"
+              },
+              "minimumRequiredNodeTextPx": 6,
+              "readabilityOk": true,
+              "hasLegend": true,
+              "hasNavigationDock": true,
+              "legendDockIntersectionArea": 0,
+              "dockStageIntersectionArea": 0,
+              "dockStageGap": 10,
+              "requiredDockStageGap": 10,
+              "viewerChromeStageOk": true,
+              "viewerChromeReserve": 54,
+              "viewerChromeActive": true,
+              "viewerChromeOk": true,
+              "resolvedTheme": "light"
+            },
+            {
+              "width": 1600,
+              "height": 1000,
+              "theme": "light",
+              "innerWidth": 1600,
+              "innerHeight": 1000,
+              "scrollWidth": 1600,
+              "scrollHeight": 1015,
+              "overflowX": false,
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
+              "readerLayout": "adaptive",
+              "readerOverflow": "authored",
+              "readerFit": "intrinsic-height",
+              "ok": true,
+              "readerWidth": 964,
+              "diagramWidth": 934,
+              "pageComposition": {
+                "bodyPaddingPx": 64,
+                "headerPx": 76,
+                "diagramChromePx": 84,
+                "svgPx": 791,
+                "cardsPx": 0,
+                "viewBoxHeight": 948
+              },
+              "viewBoxWidth": 1120,
+              "minimumProjectedNodeTextPx": 6.671428571428572,
+              "minimumProjectedNonEdgeTextPx": 7.505357142857143,
+              "minimumProjectedEdgeTextPx": 6.671428571428572,
+              "minimumProjectedNodeText": "HTTP + cookie",
+              "minimumProjectedNodeTextDetail": "edge",
+              "minimumProjectedNodeTextOwner": {
+                "kind": "edge",
+                "id": "browser-frontend",
+                "from": "browser",
+                "to": "frontend"
+              },
+              "minimumRequiredNodeTextPx": 6,
+              "readabilityOk": true,
+              "hasLegend": true,
+              "hasNavigationDock": true,
+              "legendDockIntersectionArea": 0,
+              "dockStageIntersectionArea": 0,
+              "dockStageGap": 10,
+              "requiredDockStageGap": 10,
+              "viewerChromeStageOk": true,
+              "viewerChromeReserve": 54,
+              "viewerChromeActive": true,
+              "viewerChromeOk": true,
+              "resolvedTheme": "light"
+            },
+            {
+              "width": 1920,
+              "height": 1080,
+              "theme": "light",
+              "innerWidth": 1920,
+              "innerHeight": 1080,
+              "scrollWidth": 1920,
+              "scrollHeight": 1080,
+              "overflowX": false,
+              "overflowY": false,
+              "verticalScrollAccepted": false,
+              "overflowDisposition": "contained",
+              "readerLayout": "adaptive",
+              "readerOverflow": null,
+              "readerFit": "intrinsic-height",
+              "ok": true,
+              "readerWidth": 1046,
+              "diagramWidth": 1016,
+              "pageComposition": {
+                "bodyPaddingPx": 64,
+                "headerPx": 60,
+                "diagramChromePx": 84,
+                "svgPx": 860,
+                "cardsPx": 0,
+                "viewBoxHeight": 948
+              },
+              "viewBoxWidth": 1120,
+              "minimumProjectedNodeTextPx": 7.257142857142857,
+              "minimumProjectedNonEdgeTextPx": 8.164285714285715,
+              "minimumProjectedEdgeTextPx": 7.257142857142857,
+              "minimumProjectedNodeText": "HTTP + cookie",
+              "minimumProjectedNodeTextDetail": "edge",
+              "minimumProjectedNodeTextOwner": {
+                "kind": "edge",
+                "id": "browser-frontend",
+                "from": "browser",
+                "to": "frontend"
+              },
+              "minimumRequiredNodeTextPx": 6,
+              "readabilityOk": true,
+              "hasLegend": true,
+              "hasNavigationDock": true,
+              "legendDockIntersectionArea": 0,
+              "dockStageIntersectionArea": 0,
+              "dockStageGap": 10,
+              "requiredDockStageGap": 10,
+              "viewerChromeStageOk": true,
+              "viewerChromeReserve": 54,
+              "viewerChromeActive": true,
+              "viewerChromeOk": true,
+              "resolvedTheme": "light"
+            },
+            {
+              "width": 2048,
+              "height": 1320,
+              "theme": "light",
+              "innerWidth": 2048,
+              "innerHeight": 1320,
+              "scrollWidth": 2048,
+              "scrollHeight": 1320,
+              "overflowX": false,
+              "overflowY": false,
+              "verticalScrollAccepted": false,
+              "overflowDisposition": "contained",
+              "readerLayout": "adaptive",
+              "readerOverflow": null,
+              "readerFit": "intrinsic-height",
+              "ok": true,
+              "readerWidth": 1328,
+              "diagramWidth": 1278,
+              "pageComposition": {
+                "bodyPaddingPx": 64,
+                "headerPx": 68,
+                "diagramChromePx": 94,
+                "svgPx": 1082,
+                "cardsPx": 0,
+                "viewBoxHeight": 948
+              },
+              "viewBoxWidth": 1120,
+              "minimumProjectedNodeTextPx": 8,
+              "minimumProjectedNonEdgeTextPx": 9,
+              "minimumProjectedEdgeTextPx": 8,
+              "minimumProjectedNodeText": "HTTP + cookie",
+              "minimumProjectedNodeTextDetail": "edge",
+              "minimumProjectedNodeTextOwner": {
+                "kind": "edge",
+                "id": "browser-frontend",
+                "from": "browser",
+                "to": "frontend"
+              },
+              "minimumRequiredNodeTextPx": 6,
+              "readabilityOk": true,
+              "hasLegend": true,
+              "hasNavigationDock": true,
+              "legendDockIntersectionArea": 0,
+              "dockStageIntersectionArea": 0,
+              "dockStageGap": 10,
+              "requiredDockStageGap": 10,
+              "viewerChromeStageOk": true,
+              "viewerChromeReserve": 44,
+              "viewerChromeActive": true,
+              "viewerChromeOk": true,
+              "resolvedTheme": "light"
+            }
+          ]
+        },
+        "themeStates": {
+          "status": "pass",
+          "viewports": [
+            {
+              "width": 1440,
+              "height": 900,
+              "requestedTheme": "light",
+              "resolvedTheme": "light",
+              "ok": true
+            },
+            {
+              "width": 1600,
+              "height": 1000,
+              "requestedTheme": "light",
+              "resolvedTheme": "light",
+              "ok": true
+            },
+            {
+              "width": 1920,
+              "height": 1080,
+              "requestedTheme": "light",
+              "resolvedTheme": "light",
+              "ok": true
+            },
+            {
+              "width": 2048,
+              "height": 1320,
+              "requestedTheme": "light",
+              "resolvedTheme": "light",
+              "ok": true
+            },
+            {
+              "width": 1440,
+              "height": 900,
+              "requestedTheme": "dark",
+              "resolvedTheme": "dark",
+              "ok": true
+            },
+            {
+              "width": 2048,
+              "height": 1320,
+              "requestedTheme": "dark",
+              "resolvedTheme": "dark",
+              "ok": true
+            }
+          ]
+        },
+        "readability": {
+          "status": "pass",
+          "minimumProjectedNodeTextPx": 6,
+          "viewports": [
+            {
+              "width": 1440,
+              "height": 900,
+              "theme": "light",
+              "innerWidth": 1440,
+              "innerHeight": 900,
+              "scrollWidth": 1440,
+              "scrollHeight": 949,
+              "overflowX": false,
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
+              "readerLayout": "adaptive",
+              "readerOverflow": "authored",
+              "readerFit": "intrinsic-height",
+              "ok": true,
+              "readerWidth": 964,
+              "diagramWidth": 934,
+              "pageComposition": {
+                "bodyPaddingPx": 12,
+                "headerPx": 68,
+                "diagramChromePx": 78,
+                "svgPx": 791,
+                "cardsPx": 0,
+                "viewBoxHeight": 948
+              },
+              "viewBoxWidth": 1120,
+              "minimumProjectedNodeTextPx": 6.671428571428572,
+              "minimumProjectedNonEdgeTextPx": 7.505357142857143,
+              "minimumProjectedEdgeTextPx": 6.671428571428572,
+              "minimumProjectedNodeText": "HTTP + cookie",
+              "minimumProjectedNodeTextDetail": "edge",
+              "minimumProjectedNodeTextOwner": {
+                "kind": "edge",
+                "id": "browser-frontend",
+                "from": "browser",
+                "to": "frontend"
+              },
+              "minimumRequiredNodeTextPx": 6,
+              "readabilityOk": true,
+              "hasLegend": true,
+              "hasNavigationDock": true,
+              "legendDockIntersectionArea": 0,
+              "dockStageIntersectionArea": 0,
+              "dockStageGap": 10,
+              "requiredDockStageGap": 10,
+              "viewerChromeStageOk": true,
+              "viewerChromeReserve": 54,
+              "viewerChromeActive": true,
+              "viewerChromeOk": true,
+              "resolvedTheme": "light"
+            },
+            {
+              "width": 1600,
+              "height": 1000,
+              "theme": "light",
+              "innerWidth": 1600,
+              "innerHeight": 1000,
+              "scrollWidth": 1600,
+              "scrollHeight": 1015,
+              "overflowX": false,
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
+              "readerLayout": "adaptive",
+              "readerOverflow": "authored",
+              "readerFit": "intrinsic-height",
+              "ok": true,
+              "readerWidth": 964,
+              "diagramWidth": 934,
+              "pageComposition": {
+                "bodyPaddingPx": 64,
+                "headerPx": 76,
+                "diagramChromePx": 84,
+                "svgPx": 791,
+                "cardsPx": 0,
+                "viewBoxHeight": 948
+              },
+              "viewBoxWidth": 1120,
+              "minimumProjectedNodeTextPx": 6.671428571428572,
+              "minimumProjectedNonEdgeTextPx": 7.505357142857143,
+              "minimumProjectedEdgeTextPx": 6.671428571428572,
+              "minimumProjectedNodeText": "HTTP + cookie",
+              "minimumProjectedNodeTextDetail": "edge",
+              "minimumProjectedNodeTextOwner": {
+                "kind": "edge",
+                "id": "browser-frontend",
+                "from": "browser",
+                "to": "frontend"
+              },
+              "minimumRequiredNodeTextPx": 6,
+              "readabilityOk": true,
+              "hasLegend": true,
+              "hasNavigationDock": true,
+              "legendDockIntersectionArea": 0,
+              "dockStageIntersectionArea": 0,
+              "dockStageGap": 10,
+              "requiredDockStageGap": 10,
+              "viewerChromeStageOk": true,
+              "viewerChromeReserve": 54,
+              "viewerChromeActive": true,
+              "viewerChromeOk": true,
+              "resolvedTheme": "light"
+            },
+            {
+              "width": 1920,
+              "height": 1080,
+              "theme": "light",
+              "innerWidth": 1920,
+              "innerHeight": 1080,
+              "scrollWidth": 1920,
+              "scrollHeight": 1080,
+              "overflowX": false,
+              "overflowY": false,
+              "verticalScrollAccepted": false,
+              "overflowDisposition": "contained",
+              "readerLayout": "adaptive",
+              "readerOverflow": null,
+              "readerFit": "intrinsic-height",
+              "ok": true,
+              "readerWidth": 1046,
+              "diagramWidth": 1016,
+              "pageComposition": {
+                "bodyPaddingPx": 64,
+                "headerPx": 60,
+                "diagramChromePx": 84,
+                "svgPx": 860,
+                "cardsPx": 0,
+                "viewBoxHeight": 948
+              },
+              "viewBoxWidth": 1120,
+              "minimumProjectedNodeTextPx": 7.257142857142857,
+              "minimumProjectedNonEdgeTextPx": 8.164285714285715,
+              "minimumProjectedEdgeTextPx": 7.257142857142857,
+              "minimumProjectedNodeText": "HTTP + cookie",
+              "minimumProjectedNodeTextDetail": "edge",
+              "minimumProjectedNodeTextOwner": {
+                "kind": "edge",
+                "id": "browser-frontend",
+                "from": "browser",
+                "to": "frontend"
+              },
+              "minimumRequiredNodeTextPx": 6,
+              "readabilityOk": true,
+              "hasLegend": true,
+              "hasNavigationDock": true,
+              "legendDockIntersectionArea": 0,
+              "dockStageIntersectionArea": 0,
+              "dockStageGap": 10,
+              "requiredDockStageGap": 10,
+              "viewerChromeStageOk": true,
+              "viewerChromeReserve": 54,
+              "viewerChromeActive": true,
+              "viewerChromeOk": true,
+              "resolvedTheme": "light"
+            },
+            {
+              "width": 2048,
+              "height": 1320,
+              "theme": "light",
+              "innerWidth": 2048,
+              "innerHeight": 1320,
+              "scrollWidth": 2048,
+              "scrollHeight": 1320,
+              "overflowX": false,
+              "overflowY": false,
+              "verticalScrollAccepted": false,
+              "overflowDisposition": "contained",
+              "readerLayout": "adaptive",
+              "readerOverflow": null,
+              "readerFit": "intrinsic-height",
+              "ok": true,
+              "readerWidth": 1328,
+              "diagramWidth": 1278,
+              "pageComposition": {
+                "bodyPaddingPx": 64,
+                "headerPx": 68,
+                "diagramChromePx": 94,
+                "svgPx": 1082,
+                "cardsPx": 0,
+                "viewBoxHeight": 948
+              },
+              "viewBoxWidth": 1120,
+              "minimumProjectedNodeTextPx": 8,
+              "minimumProjectedNonEdgeTextPx": 9,
+              "minimumProjectedEdgeTextPx": 8,
+              "minimumProjectedNodeText": "HTTP + cookie",
+              "minimumProjectedNodeTextDetail": "edge",
+              "minimumProjectedNodeTextOwner": {
+                "kind": "edge",
+                "id": "browser-frontend",
+                "from": "browser",
+                "to": "frontend"
+              },
+              "minimumRequiredNodeTextPx": 6,
+              "readabilityOk": true,
+              "hasLegend": true,
+              "hasNavigationDock": true,
+              "legendDockIntersectionArea": 0,
+              "dockStageIntersectionArea": 0,
+              "dockStageGap": 10,
+              "requiredDockStageGap": 10,
+              "viewerChromeStageOk": true,
+              "viewerChromeReserve": 44,
+              "viewerChromeActive": true,
+              "viewerChromeOk": true,
+              "resolvedTheme": "light"
+            }
+          ]
+        },
+        "viewerChrome": {
+          "status": "pass",
+          "viewports": [
+            {
+              "width": 1440,
+              "height": 900,
+              "theme": "light",
+              "innerWidth": 1440,
+              "innerHeight": 900,
+              "scrollWidth": 1440,
+              "scrollHeight": 949,
+              "overflowX": false,
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
+              "readerLayout": "adaptive",
+              "readerOverflow": "authored",
+              "readerFit": "intrinsic-height",
+              "ok": true,
+              "readerWidth": 964,
+              "diagramWidth": 934,
+              "pageComposition": {
+                "bodyPaddingPx": 12,
+                "headerPx": 68,
+                "diagramChromePx": 78,
+                "svgPx": 791,
+                "cardsPx": 0,
+                "viewBoxHeight": 948
+              },
+              "viewBoxWidth": 1120,
+              "minimumProjectedNodeTextPx": 6.671428571428572,
+              "minimumProjectedNonEdgeTextPx": 7.505357142857143,
+              "minimumProjectedEdgeTextPx": 6.671428571428572,
+              "minimumProjectedNodeText": "HTTP + cookie",
+              "minimumProjectedNodeTextDetail": "edge",
+              "minimumProjectedNodeTextOwner": {
+                "kind": "edge",
+                "id": "browser-frontend",
+                "from": "browser",
+                "to": "frontend"
+              },
+              "minimumRequiredNodeTextPx": 6,
+              "readabilityOk": true,
+              "hasLegend": true,
+              "hasNavigationDock": true,
+              "legendDockIntersectionArea": 0,
+              "dockStageIntersectionArea": 0,
+              "dockStageGap": 10,
+              "requiredDockStageGap": 10,
+              "viewerChromeStageOk": true,
+              "viewerChromeReserve": 54,
+              "viewerChromeActive": true,
+              "viewerChromeOk": true,
+              "resolvedTheme": "light"
+            },
+            {
+              "width": 1600,
+              "height": 1000,
+              "theme": "light",
+              "innerWidth": 1600,
+              "innerHeight": 1000,
+              "scrollWidth": 1600,
+              "scrollHeight": 1015,
+              "overflowX": false,
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
+              "readerLayout": "adaptive",
+              "readerOverflow": "authored",
+              "readerFit": "intrinsic-height",
+              "ok": true,
+              "readerWidth": 964,
+              "diagramWidth": 934,
+              "pageComposition": {
+                "bodyPaddingPx": 64,
+                "headerPx": 76,
+                "diagramChromePx": 84,
+                "svgPx": 791,
+                "cardsPx": 0,
+                "viewBoxHeight": 948
+              },
+              "viewBoxWidth": 1120,
+              "minimumProjectedNodeTextPx": 6.671428571428572,
+              "minimumProjectedNonEdgeTextPx": 7.505357142857143,
+              "minimumProjectedEdgeTextPx": 6.671428571428572,
+              "minimumProjectedNodeText": "HTTP + cookie",
+              "minimumProjectedNodeTextDetail": "edge",
+              "minimumProjectedNodeTextOwner": {
+                "kind": "edge",
+                "id": "browser-frontend",
+                "from": "browser",
+                "to": "frontend"
+              },
+              "minimumRequiredNodeTextPx": 6,
+              "readabilityOk": true,
+              "hasLegend": true,
+              "hasNavigationDock": true,
+              "legendDockIntersectionArea": 0,
+              "dockStageIntersectionArea": 0,
+              "dockStageGap": 10,
+              "requiredDockStageGap": 10,
+              "viewerChromeStageOk": true,
+              "viewerChromeReserve": 54,
+              "viewerChromeActive": true,
+              "viewerChromeOk": true,
+              "resolvedTheme": "light"
+            },
+            {
+              "width": 1920,
+              "height": 1080,
+              "theme": "light",
+              "innerWidth": 1920,
+              "innerHeight": 1080,
+              "scrollWidth": 1920,
+              "scrollHeight": 1080,
+              "overflowX": false,
+              "overflowY": false,
+              "verticalScrollAccepted": false,
+              "overflowDisposition": "contained",
+              "readerLayout": "adaptive",
+              "readerOverflow": null,
+              "readerFit": "intrinsic-height",
+              "ok": true,
+              "readerWidth": 1046,
+              "diagramWidth": 1016,
+              "pageComposition": {
+                "bodyPaddingPx": 64,
+                "headerPx": 60,
+                "diagramChromePx": 84,
+                "svgPx": 860,
+                "cardsPx": 0,
+                "viewBoxHeight": 948
+              },
+              "viewBoxWidth": 1120,
+              "minimumProjectedNodeTextPx": 7.257142857142857,
+              "minimumProjectedNonEdgeTextPx": 8.164285714285715,
+              "minimumProjectedEdgeTextPx": 7.257142857142857,
+              "minimumProjectedNodeText": "HTTP + cookie",
+              "minimumProjectedNodeTextDetail": "edge",
+              "minimumProjectedNodeTextOwner": {
+                "kind": "edge",
+                "id": "browser-frontend",
+                "from": "browser",
+                "to": "frontend"
+              },
+              "minimumRequiredNodeTextPx": 6,
+              "readabilityOk": true,
+              "hasLegend": true,
+              "hasNavigationDock": true,
+              "legendDockIntersectionArea": 0,
+              "dockStageIntersectionArea": 0,
+              "dockStageGap": 10,
+              "requiredDockStageGap": 10,
+              "viewerChromeStageOk": true,
+              "viewerChromeReserve": 54,
+              "viewerChromeActive": true,
+              "viewerChromeOk": true,
+              "resolvedTheme": "light"
+            },
+            {
+              "width": 2048,
+              "height": 1320,
+              "theme": "light",
+              "innerWidth": 2048,
+              "innerHeight": 1320,
+              "scrollWidth": 2048,
+              "scrollHeight": 1320,
+              "overflowX": false,
+              "overflowY": false,
+              "verticalScrollAccepted": false,
+              "overflowDisposition": "contained",
+              "readerLayout": "adaptive",
+              "readerOverflow": null,
+              "readerFit": "intrinsic-height",
+              "ok": true,
+              "readerWidth": 1328,
+              "diagramWidth": 1278,
+              "pageComposition": {
+                "bodyPaddingPx": 64,
+                "headerPx": 68,
+                "diagramChromePx": 94,
+                "svgPx": 1082,
+                "cardsPx": 0,
+                "viewBoxHeight": 948
+              },
+              "viewBoxWidth": 1120,
+              "minimumProjectedNodeTextPx": 8,
+              "minimumProjectedNonEdgeTextPx": 9,
+              "minimumProjectedEdgeTextPx": 8,
+              "minimumProjectedNodeText": "HTTP + cookie",
+              "minimumProjectedNodeTextDetail": "edge",
+              "minimumProjectedNodeTextOwner": {
+                "kind": "edge",
+                "id": "browser-frontend",
+                "from": "browser",
+                "to": "frontend"
+              },
+              "minimumRequiredNodeTextPx": 6,
+              "readabilityOk": true,
+              "hasLegend": true,
+              "hasNavigationDock": true,
+              "legendDockIntersectionArea": 0,
+              "dockStageIntersectionArea": 0,
+              "dockStageGap": 10,
+              "requiredDockStageGap": 10,
+              "viewerChromeStageOk": true,
+              "viewerChromeReserve": 44,
+              "viewerChromeActive": true,
+              "viewerChromeOk": true,
+              "resolvedTheme": "light"
+            }
+          ]
+        },
+        "captures": {
+          "status": "not-requested",
+          "screenshots": [],
+          "contactSheet": null
+        },
+        "sidecars": {
+          "directory": "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.archify\\architecture-g4-overview-20261025-155434\\review-2",
+          "receipt": "g4-overview.browser-check.json",
+          "files": []
+        }
+      }
+    }
+  },
+  "browserCheck": {
+    "requested": true,
+    "ran": true
+  },
+  "diagnostics": [
+    {
+      "code": "i18n/translation-coverage",
+      "severity": "warning",
+      "message": "meta.locale \"vi\" resolves 18/486 renderer-owned messages (3%) from 18 meta.translations entries; 468 fall back to English.",
+      "subject": {
+        "diagramType": "architecture",
+        "path": "/meta/translations"
+      },
+      "evidence": {
+        "locale": "vi",
+        "resolvedLocale": "vi",
+        "bundledLocale": null,
+        "translatedKeys": 18,
+        "totalKeys": 486,
+        "appliedOverrideKeys": 18,
+        "missingKeys": [
+          "diagram.description.workflow",
+          "diagram.description.sequence",
+          "diagram.description.dataflow",
+          "diagram.description.lifecycle",
+          "node.context.workflow",
+          "node.context.sequence",
+          "node.context.dataflow",
+          "node.context.lifecycle",
+          "legend.architecture.cloud",
+          "legend.architecture.security"
+        ],
+        "missingKeysTotal": 468,
+        "englishSource": {
+          "diagram.description.workflow": "A workflow diagram generated by Archify.",
+          "diagram.description.sequence": "A sequence diagram generated by Archify.",
+          "diagram.description.dataflow": "A data-flow diagram generated by Archify.",
+          "diagram.description.lifecycle": "A lifecycle diagram generated by Archify.",
+          "node.context.workflow": "Workflow node",
+          "node.context.sequence": "Sequence participant",
+          "node.context.dataflow": "Data-flow node",
+          "node.context.lifecycle": "Lifecycle state",
+          "legend.architecture.cloud": "Cloud",
+          "legend.architecture.security": "Security"
+        }
+      },
+      "supportedFixes": [
+        "Add each missing key to meta.translations, translating its English source string and keeping its {placeholders}."
+      ]
+    }
+  ],
+  "evidence": {
+    "receipt": "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.archify\\architecture-g4-overview-20261025-155434\\review-2\\g4-overview.finalize.json",
+    "summaryReceipt": "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.archify\\architecture-g4-overview-20261025-155434\\review-2\\g4-overview.finalize-summary.json",
+    "browserCheckReceipt": "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.archify\\architecture-g4-overview-20261025-155434\\review-2\\g4-overview.browser-check.json"
+  },
+  "visualReview": "not-requested",
+  "finishedAt": "2026-10-25T08:57:42.498Z",
+  "durationMs": 3723,
+  "update": {
+    "status": "current",
+    "installedVersion": "3.2.0",
+    "availableVersion": "3.2.0",
+    "releaseNotes": null,
+    "checkedAt": "2026-10-25T08:56:20.347Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "4d60a353-75eb-4182-a62f-affb25cbb6ef",
+  "status": "current",
+  "command": "deliver",
+  "type": "workflow",
+  "input": "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.archify\\workflow-buyer-checkout-20261025-160506\\03-paypal.json",
+  "output": "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.archify\\workflow-buyer-checkout-20261025-160506\\03-paypal.html",
+  "specification": {
+    "sha256": "9be8d3249aadb5d433f761596e682ba48ea3b9d47659d74bee78dab3cafb01ec",
+    "bytes": 14605
+  },
+  "artifact": {
+    "sha256": "ae4f0d2d1758848d7f836b0c05012695882297792795c07cbb8b8e316b2a3784",
+    "bytes": 866334
+  }
+}

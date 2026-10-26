@@ -1,0 +1,431 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "G4_Project — Kiến trúc tổng quan từ source",
+    "locale": "vi",
+    "translations": {
+      "page.title": "{title}",
+      "diagram.description.architecture": "Kiến trúc G4_Project đối chiếu từ mã nguồn.",
+      "legend.title": "Chú giải",
+      "legend.architecture.frontend": "Giao diện",
+      "legend.architecture.backend": "Xử lý phía server",
+      "legend.architecture.database": "Dữ liệu",
+      "legend.architecture.external": "Dịch vụ ngoài ứng dụng",
+      "viewer.theme.toggle.title": "Đổi sáng / tối (T)",
+      "viewer.theme.toggle": "Đổi giao diện sáng / tối",
+      "viewer.theme.dark": "Tối",
+      "viewer.theme.light": "Sáng",
+      "viewer.motion.live": "Chuyển động",
+      "viewer.motion.still": "Tĩnh",
+      "viewer.motion.pause": "Dừng chuyển động",
+      "viewer.motion.resume": "Bật chuyển động",
+      "node.focus": "Xem {label}",
+      "node.focus.detail": "Xem {label}, {detail}",
+      "node.context.architecture": "Thành phần hệ thống"
+    },
+    "output": ".archify/architecture-g4-overview-20261025-155434/g4-overview.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/congquynh0206/PRN232_G4_Project.git",
+      "revision": "e7997b03bd86bb5160332dd94bd5dc853b441963"
+    }
+  },
+  "components": [
+    {
+      "id": "browser",
+      "type": "frontend",
+      "label": "Trình duyệt",
+      "sublabel": "Razor UI + JavaScript",
+      "tag": "Buyer / Seller / Shipper / Admin",
+      "pos": [40, 40],
+      "size": [240, 80],
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/common.js",
+          "line": 90,
+          "end_line": 118,
+          "label": "Request qua proxy frontend"
+        },
+        {
+          "path": "frontend/wwwroot/js/realtime.js",
+          "line": 59,
+          "end_line": 99,
+          "label": "SignalR trực tiếp từ trình duyệt"
+        },
+        {
+          "path": "backend/G4.Api/Realtime/CommerceHub.cs",
+          "line": 7,
+          "end_line": 23,
+          "label": "Bốn role được kết nối"
+        }
+      ]
+    },
+    {
+      "id": "frontend",
+      "type": "frontend",
+      "label": "Frontend MVC",
+      "sublabel": "Razor + cookie đăng nhập",
+      "tag": "Ứng dụng riêng · :5131 mặc định",
+      "pos": [440, 40],
+      "size": [240, 80],
+      "sources": [
+        {
+          "path": "frontend/Program.cs",
+          "line": 14,
+          "end_line": 27,
+          "label": "MVC, HttpClient và cookie auth"
+        },
+        {
+          "path": "frontend/Controllers/ApiProxyController.cs",
+          "line": 8,
+          "end_line": 45,
+          "label": "Proxy gắn JWT gọi API"
+        },
+        {
+          "path": "frontend/Controllers/RealtimeController.cs",
+          "line": 7,
+          "end_line": 21,
+          "label": "Cấp URL và token SignalR"
+        }
+      ]
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "API + phân quyền",
+      "sublabel": "G4.Api · Controllers / JWT",
+      "tag": "ASP.NET Core · :5251 mặc định",
+      "pos": [840, 40],
+      "size": [240, 80],
+      "sources": [
+        {
+          "path": "backend/G4.Api/Program.cs",
+          "line": 31,
+          "end_line": 69,
+          "label": "JWT, fallback auth và DI"
+        },
+        {
+          "path": "backend/G4.Api/Controllers/CheckoutController.cs",
+          "line": 8,
+          "end_line": 24,
+          "label": "Kiểm tra role, gọi use case"
+        },
+        {
+          "path": "backend/G4.Infrastructure/DependencyInjection.cs",
+          "line": 24,
+          "end_line": 59,
+          "label": "Nối interface và implementation"
+        }
+      ]
+    },
+    {
+      "id": "commerce",
+      "type": "backend",
+      "label": "Nghiệp vụ + worker",
+      "sublabel": "G4.Infrastructure · EF Core",
+      "tag": "Cùng tiến trình G4.Api",
+      "pos": [840, 280],
+      "size": [240, 90],
+      "sources": [
+        {
+          "path": "backend/G4.Infrastructure/Notifications/CommerceMaintenanceWorker.cs",
+          "line": 24,
+          "end_line": 107,
+          "label": "Use case, DB và xử lý định kỳ"
+        },
+        {
+          "path": "backend/G4.Infrastructure/Payments/PayPalCartPaymentService.cs",
+          "line": 235,
+          "end_line": 248,
+          "label": "Nghiệp vụ gọi PayPal gateway"
+        },
+        {
+          "path": "backend/G4.Infrastructure/Shipping/ShipmentService.cs",
+          "line": 415,
+          "end_line": 435,
+          "label": "Nghiệp vụ gọi carrier và retry"
+        }
+      ]
+    },
+    {
+      "id": "database",
+      "type": "database",
+      "label": "SQL Server",
+      "sublabel": "Đơn / ví / outbox / thay đổi",
+      "tag": "ApplicationDbContext",
+      "pos": [440, 280],
+      "size": [240, 90],
+      "sources": [
+        {
+          "path": "backend/G4.Infrastructure/DependencyInjection.cs",
+          "line": 24,
+          "end_line": 27,
+          "label": "EF Core cấu hình SQL Server"
+        },
+        {
+          "path": "backend/G4.Infrastructure/Persistence/ApplicationDbContext.Configuration.cs",
+          "line": 7,
+          "end_line": 13,
+          "label": "Outbox, ví và ledger"
+        },
+        {
+          "path": "backend/G4.Infrastructure/Persistence/ApplicationDbContext.Realtime.cs",
+          "line": 7,
+          "end_line": 15,
+          "label": "Bảng CommerceChange"
+        }
+      ]
+    },
+    {
+      "id": "realtime",
+      "type": "backend",
+      "label": "SignalR + dispatch",
+      "sublabel": "CommerceHub / ChangeWorker",
+      "tag": "Trong G4.Api · poll 500 ms",
+      "pos": [40, 280],
+      "size": [240, 90],
+      "sources": [
+        {
+          "path": "backend/G4.Api/Realtime/CommerceChangeWorker.cs",
+          "line": 12,
+          "end_line": 49,
+          "label": "Đọc DB, phát sự kiện theo group"
+        },
+        {
+          "path": "backend/G4.Api/Realtime/CommerceHub.cs",
+          "line": 7,
+          "end_line": 25,
+          "label": "Group theo user và role"
+        },
+        {
+          "path": "backend/G4.Api/Program.cs",
+          "line": 118,
+          "end_line": 124,
+          "label": "Hub /hubs/commerce và CORS"
+        }
+      ]
+    },
+    {
+      "id": "adapters",
+      "type": "backend",
+      "label": "Adapter tích hợp",
+      "sublabel": "PayPal / Carrier / SMTP",
+      "tag": "Trong G4.Infrastructure",
+      "pos": [440, 540],
+      "size": [240, 90],
+      "sources": [
+        {
+          "path": "backend/G4.Infrastructure/Integrations/PayPal/PayPalSandboxGateway.cs",
+          "line": 244,
+          "end_line": 307,
+          "label": "OAuth và HTTP tới PayPal"
+        },
+        {
+          "path": "backend/G4.Infrastructure/Integrations/Shipping/HttpCarrierGateway.cs",
+          "line": 14,
+          "end_line": 46,
+          "label": "HTTP tạo nhãn với carrier key"
+        },
+        {
+          "path": "backend/G4.Infrastructure/Notifications/SmtpEmailSender.cs",
+          "line": 13,
+          "end_line": 70,
+          "label": "Gửi SMTP theo cấu hình"
+        }
+      ]
+    },
+    {
+      "id": "paypal",
+      "type": "external",
+      "label": "PayPal Sandbox",
+      "sublabel": "Create / capture / reconcile",
+      "tag": "Cần cấu hình credential",
+      "pos": [840, 540],
+      "size": [240, 90],
+      "sources": [
+        {
+          "path": "backend/G4.Infrastructure/Integrations/PayPal/PayPalSandboxGateway.cs",
+          "line": 11,
+          "end_line": 20,
+          "label": "Endpoint Sandbox mặc định"
+        },
+        {
+          "path": "backend/G4.Infrastructure/Integrations/PayPal/PayPalSandboxGateway.cs",
+          "line": 266,
+          "end_line": 288,
+          "label": "Yêu cầu credential OAuth"
+        }
+      ]
+    },
+    {
+      "id": "mailhog",
+      "type": "external",
+      "label": "MailHog / SMTP",
+      "sublabel": "Hộp thư test Development",
+      "tag": "SMTP mặc định :1025",
+      "pos": [40, 540],
+      "size": [240, 90],
+      "sources": [
+        {
+          "path": "backend/G4.Api/appsettings.Development.json",
+          "line": 6,
+          "end_line": 12,
+          "label": "SMTP Development cục bộ"
+        },
+        {
+          "path": "backend/G4.Infrastructure/Notifications/NotificationProcessor.cs",
+          "line": 62,
+          "end_line": 103,
+          "label": "Chỉ gửi khi Mail:Mode = Smtp"
+        },
+        {
+          "path": "docs/PROJECT_RUN.md",
+          "line": 37,
+          "label": "Hướng dẫn chạy MailHog"
+        }
+      ]
+    },
+    {
+      "id": "carrier",
+      "type": "backend",
+      "label": "Carrier Simulator",
+      "sublabel": "POST /api/carrier/labels",
+      "tag": "Trong G4.Api · Development",
+      "pos": [440, 790],
+      "size": [240, 90],
+      "sources": [
+        {
+          "path": "backend/G4.Api/Controllers/CarrierSimulatorController.cs",
+          "line": 6,
+          "end_line": 38,
+          "label": "Giả lập nhãn, kiểm tra key và môi trường"
+        },
+        {
+          "path": "backend/G4.Api/appsettings.Development.json",
+          "line": 13,
+          "label": "Carrier trỏ về chính API"
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "browser-frontend",
+      "from": "browser",
+      "to": "frontend",
+      "label": "HTTP + cookie",
+      "variant": "emphasis"
+    },
+    {
+      "id": "frontend-api",
+      "from": "frontend",
+      "to": "api",
+      "label": "HTTP + JWT",
+      "variant": "emphasis"
+    },
+    {
+      "id": "api-commerce",
+      "from": "api",
+      "to": "commerce",
+      "label": "Gọi interface",
+      "variant": "emphasis"
+    },
+    {
+      "id": "commerce-database",
+      "from": "commerce",
+      "to": "database",
+      "label": "EF Core / SQL",
+      "variant": "emphasis"
+    },
+    {
+      "id": "realtime-database",
+      "from": "realtime",
+      "to": "database",
+      "label": "Poll + đánh dấu"
+    },
+    {
+      "id": "realtime-browser",
+      "from": "realtime",
+      "to": "browser",
+      "label": "SignalR + JWT",
+      "variant": "dashed"
+    },
+    {
+      "id": "commerce-adapters",
+      "from": "commerce",
+      "to": "adapters",
+      "label": "Gọi tích hợp",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "adapters-paypal",
+      "from": "adapters",
+      "to": "paypal",
+      "label": "HTTPS / OAuth"
+    },
+    {
+      "id": "adapters-mailhog",
+      "from": "adapters",
+      "to": "mailhog",
+      "label": "SMTP nếu Smtp",
+      "variant": "dashed"
+    },
+    {
+      "id": "adapters-carrier",
+      "from": "adapters",
+      "to": "carrier",
+      "label": "HTTP + key (Dev)"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Đọc đường đi chính",
+      "items": [
+        "Trình duyệt → Frontend MVC → API kiểm tra JWT/role → service nghiệp vụ → SQL Server.",
+        "Frontend xác thực bằng cookie, proxy gắn JWT của phiên đăng nhập khi gọi backend.",
+        "SignalR là đường trực tiếp giữa trình duyệt và API; sự kiện yêu cầu UI tải lại dữ liệu."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Hai ứng dụng, các thư viện dùng chung tiến trình",
+      "items": [
+        "frontend và G4.Api là hai ứng dụng .NET 8. Các node backend là vai trò trong G4.Api, không phải các dịch vụ triển khai riêng.",
+        "G4.Application định nghĩa interface use case và tích hợp; G4.Contracts chứa DTO; G4.Domain chứa entity và quy tắc thuần.",
+        "G4.Infrastructure triển khai cart/checkout, payment, shipment, return/dispute, seller finance, EF Core và adapter."
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Worker và dữ liệu bền vững",
+      "items": [
+        "CommerceMaintenanceWorker chạy mỗi 5 giây: đối soát payment, deadline, return/dispute, release tiền, payout, nợ, write-off, level và outbox email.",
+        "CommerceChangeWorker đọc thay đổi đã commit mỗi 500 ms, gửi CommerceChanged cho group user/role rồi ghi DispatchedAt.",
+        "Outbox và CommerceChange là bảng SQL Server; đây là các luồng nền trong ứng dụng."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Các tích hợp theo cấu hình source",
+      "items": [
+        "PayPal dùng Sandbox và cần credential. Luồng chính là capture và reconcile; trạng thái Verifying được worker đối soát.",
+        "Carrier mặc định gọi HTTP về chính G4.Api. Endpoint tạo nhãn chỉ chạy ở Development và yêu cầu X-Carrier-Key.",
+        "Development gửi SMTP tới MailHog. Khi Mail:Mode = Capture, email chỉ được lưu; sơ đồ chỉ vẽ nhánh SMTP khi được bật.",
+        "Thanh toán thẻ và payout ngân hàng là mô phỏng nội bộ; không có cổng thẻ hoặc ngân hàng thật trong sơ đồ."
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Phạm vi và cách kiểm chứng",
+      "items": [
+        "Kiến trúc tổng quan dựa trên source commit e7997b0. Bấm SRC để xem file và dòng đã ghim theo commit.",
+        "Source không xác nhận ứng dụng/provider đang chạy hoặc migration đã áp dụng trên database chính.",
+        "Các yêu cầu chưa triển khai trong backlog không được vẽ thành chức năng đã có. Nội dung tiếng Việt; một số điều khiển Archify dùng tiếng Anh.",
+        "Thư mục skill .agents/ đang chưa được Git theo dõi; không dùng các file đó làm dẫn chứng kiến trúc ứng dụng."
+      ]
+    }
+  ]
+}

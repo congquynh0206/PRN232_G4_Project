@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "482b28d0-83ee-40f6-ba93-a16b602d27b9",
+  "status": "current",
+  "command": "deliver",
+  "type": "workflow",
+  "input": "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.archify\\workflow-buyer-checkout-20261025-160506\\01-checkout.json",
+  "output": "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.archify\\workflow-buyer-checkout-20261025-160506\\01-checkout.html",
+  "specification": {
+    "sha256": "2adcfb6d6ca1556a49374d08d003f50e0be72c14887375f390dc9acb4a6bcd66",
+    "bytes": 11520
+  },
+  "artifact": {
+    "sha256": "13debd54843f607599148c3bbbd137c4d74cdf53c1a92a97bf1c051c8d15fc3b",
+    "bytes": 857784
+  }
+}

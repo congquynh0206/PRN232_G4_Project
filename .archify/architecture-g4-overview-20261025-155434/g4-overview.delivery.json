@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "cba18bea-0d50-447e-930e-f8a9c5d3cd9a",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.archify\\architecture-g4-overview-20261025-155434\\candidate.json",
+  "output": "D:\\HocTap\\Semester\\Ky8\\PRN232\\G4_Project\\.archify\\architecture-g4-overview-20261025-155434\\g4-overview.html",
+  "specification": {
+    "sha256": "a607e337de8f68799bb759366aa2c92287ad6e3e59bb920946e8b35220ae1c5c",
+    "bytes": 13954
+  },
+  "artifact": {
+    "sha256": "135120b470b1cf31f9356ec8e143941949f58affe1e7871f3e38a7f8f4529d95",
+    "bytes": 861391
+  }
+}

@@ -1,0 +1,486 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "03 · PayPal cả giỏ: quay về và các nhánh",
+    "locale": "vi",
+    "translations": {
+      "page.title": "{title}",
+      "diagram.description.workflow": "Luồng thao tác và màn hình từ source G4_Project.",
+      "legend.title": "Chú giải",
+      "legend.workflow.frontend": "Màn hình / thao tác",
+      "legend.workflow.backend": "Xử lý hệ thống",
+      "legend.workflow.security": "Nhánh lỗi / chưa xác nhận",
+      "viewer.theme.toggle.title": "Đổi sáng / tối (T)",
+      "viewer.theme.toggle": "Đổi giao diện sáng / tối",
+      "viewer.theme.dark": "Tối",
+      "viewer.theme.light": "Sáng",
+      "viewer.motion.live": "Chuyển động",
+      "viewer.motion.still": "Tĩnh",
+      "node.focus": "Xem {label}",
+      "node.focus.detail": "Xem {label}, {detail}"
+    },
+    "output": ".archify/workflow-buyer-checkout-20261025-160506/03-paypal.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/congquynh0206/PRN232_G4_Project.git",
+      "revision": "e7997b03bd86bb5160332dd94bd5dc853b441963"
+    }
+  },
+  "lanes": [
+    {
+      "id": "main",
+      "label": "Đi PayPal và quay về ứng dụng"
+    },
+    {
+      "id": "waiting",
+      "label": "Chờ xác nhận / chờ đối soát"
+    },
+    {
+      "id": "retry",
+      "label": "Có thể xử lý lại các đơn còn thiếu"
+    },
+    {
+      "id": "errors",
+      "label": "Chưa khởi tạo được lượt",
+      "variant": "exception"
+    }
+  ],
+  "mainPath": [
+    "start",
+    "approve",
+    "return",
+    "panel",
+    "paid",
+    "detail"
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "lane": "main",
+      "col": 0,
+      "type": "frontend",
+      "label": "Bắt đầu PayPal",
+      "sublabel": "Đơn đã có trong Đơn của tôi",
+      "tag": "Một lượt cho cả giỏ",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/buyer-cart.js",
+          "line": 338,
+          "end_line": 351,
+          "label": "Khởi tạo sau khi đã tạo đơn"
+        },
+        {
+          "path": "frontend/wwwroot/js/paypal-cart.js",
+          "line": 53,
+          "end_line": 64,
+          "label": "Gọi tạo lượt theo checkoutKey"
+        }
+      ]
+    },
+    {
+      "id": "approve",
+      "lane": "main",
+      "col": 1,
+      "type": "external",
+      "label": "Trang PayPal",
+      "sublabel": "Đăng nhập / duyệt hoặc hủy",
+      "tag": "Chỉ Pending + có URL",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/paypal-cart.js",
+          "line": 41,
+          "end_line": 46,
+          "label": "Đi tiếp trang xác nhận nếu Pending"
+        },
+        {
+          "path": "frontend/wwwroot/js/paypal-cart.js",
+          "line": 61,
+          "end_line": 64,
+          "label": "Redirect approval URL"
+        }
+      ]
+    },
+    {
+      "id": "return",
+      "lane": "main",
+      "col": 2,
+      "type": "backend",
+      "label": "Quay về Buyer",
+      "sublabel": "Duyệt: capture · hủy: quay về",
+      "tag": "Return / Cancel callback",
+      "sources": [
+        {
+          "path": "frontend/Controllers/BuyerController.cs",
+          "line": 13,
+          "end_line": 47,
+          "label": "Return capture và Cancel redirect"
+        }
+      ]
+    },
+    {
+      "id": "panel",
+      "lane": "main",
+      "col": 3,
+      "type": "frontend",
+      "label": "Đơn của tôi",
+      "sublabel": "Khối PayPal cả giỏ",
+      "tag": "Đọc trạng thái server",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/paypal-cart.js",
+          "line": 17,
+          "end_line": 40,
+          "label": "Khối kết quả PayPal"
+        },
+        {
+          "path": "frontend/wwwroot/js/paypal-cart.js",
+          "line": 98,
+          "end_line": 115,
+          "label": "Đọc lại lượt từ URL/session"
+        },
+        {
+          "path": "frontend/wwwroot/js/role-navigation.js",
+          "line": 107,
+          "end_line": 116,
+          "label": "URL checkoutId chọn tab orders"
+        }
+      ]
+    },
+    {
+      "id": "paid",
+      "lane": "main",
+      "col": 4,
+      "type": "frontend",
+      "label": "Đã thanh toán",
+      "sublabel": "Succeeded",
+      "tag": "Mỗi đơn xem riêng",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/paypal-cart.js",
+          "line": 17,
+          "end_line": 30,
+          "label": "Hiển thị Succeeded và từng đơn"
+        },
+        {
+          "path": "backend/G4.Infrastructure/Payments/PayPalCartPaymentService.cs",
+          "line": 499,
+          "end_line": 510,
+          "label": "Tổng hợp trạng thái từ payment"
+        }
+      ]
+    },
+    {
+      "id": "detail",
+      "lane": "main",
+      "col": 5,
+      "type": "frontend",
+      "label": "Bấm Xem đơn",
+      "sublabel": "Mở dialog chi tiết đơn",
+      "tag": "Tiếp tục theo dõi giao hàng",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/paypal-cart.js",
+          "line": 27,
+          "end_line": 30,
+          "label": "Nút Xem đơn theo mã"
+        },
+        {
+          "path": "frontend/wwwroot/js/buyer.js",
+          "line": 125,
+          "end_line": 141,
+          "label": "Mở dialog chi tiết"
+        },
+        {
+          "path": "frontend/wwwroot/js/buyer.js",
+          "line": 207,
+          "end_line": 212,
+          "label": "Bắt sự kiện mở đơn"
+        }
+      ]
+    },
+    {
+      "id": "pending",
+      "lane": "waiting",
+      "col": 3,
+      "type": "frontend",
+      "label": "Còn chờ thao tác",
+      "sublabel": "Creating / Pending",
+      "tag": "Đọc điều kiện ở thẻ dưới",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/paypal-cart.js",
+          "line": 17,
+          "end_line": 30,
+          "label": "Các nút phụ thuộc trạng thái"
+        }
+      ]
+    },
+    {
+      "id": "verifying",
+      "lane": "waiting",
+      "col": 4,
+      "type": "frontend",
+      "label": "Đang xác minh",
+      "sublabel": "Verifying",
+      "tag": "Chưa hủy / thanh toán lại",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/paypal-cart.js",
+          "line": 17,
+          "end_line": 30,
+          "label": "UI không hiện nút trả lại khi Verifying"
+        },
+        {
+          "path": "backend/G4.Infrastructure/Payments/PayPalCartPaymentService.cs",
+          "line": 528,
+          "end_line": 535,
+          "label": "Server chặn hủy khi Verifying"
+        }
+      ]
+    },
+    {
+      "id": "check",
+      "lane": "waiting",
+      "col": 5,
+      "type": "frontend",
+      "label": "Kiểm tra kết quả",
+      "sublabel": "Đọc lại / reconcile / realtime",
+      "tag": "Chờ kết luận từ server",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/paypal-cart.js",
+          "line": 40,
+          "end_line": 40,
+          "label": "Nút kiểm tra gọi reconcile"
+        },
+        {
+          "path": "frontend/wwwroot/js/paypal-cart.js",
+          "line": 76,
+          "end_line": 85,
+          "label": "Đọc trạng thái và reconcile"
+        },
+        {
+          "path": "frontend/wwwroot/js/paypal-cart.js",
+          "line": 113,
+          "end_line": 115,
+          "label": "Cập nhật qua realtime"
+        }
+      ]
+    },
+    {
+      "id": "retryable",
+      "lane": "retry",
+      "col": 4,
+      "type": "frontend",
+      "label": "Chưa trả đủ / đã hủy",
+      "sublabel": "Thất bại / một phần / hủy",
+      "tag": "Giữ các đơn đã trả",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/paypal-cart.js",
+          "line": 17,
+          "end_line": 30,
+          "label": "Nút thanh toán phần còn lại"
+        },
+        {
+          "path": "backend/G4.Infrastructure/Payments/PayPalCartPaymentService.cs",
+          "line": 499,
+          "end_line": 510,
+          "label": "Failed và PartiallyPaid"
+        },
+        {
+          "path": "backend/G4.Infrastructure/Payments/PayPalCartPaymentService.cs",
+          "line": 532,
+          "end_line": 545,
+          "label": "Hủy lượt không đổi đơn đã trả"
+        }
+      ]
+    },
+    {
+      "id": "retry",
+      "lane": "retry",
+      "col": 5,
+      "type": "frontend",
+      "label": "Trả các đơn còn lại",
+      "sublabel": "Bắt đầu lượt PayPal mới",
+      "tag": "Chỉ khi còn đơn chờ trả",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/paypal-cart.js",
+          "line": 27,
+          "end_line": 30,
+          "label": "Điều kiện nút retry"
+        },
+        {
+          "path": "frontend/wwwroot/js/paypal-cart.js",
+          "line": 50,
+          "end_line": 63,
+          "label": "Retry dùng fresh attempt"
+        }
+      ]
+    },
+    {
+      "id": "init-error",
+      "lane": "errors",
+      "col": 0,
+      "type": "security",
+      "label": "Hiện lỗi khởi tạo",
+      "sublabel": "Ở lại khối kết quả",
+      "tag": "Đơn đã tạo vẫn còn",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/paypal-cart.js",
+          "line": 65,
+          "end_line": 70,
+          "label": "Lỗi cấu hình / khởi tạo chưa rõ và retry"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "start-approve",
+      "from": "start",
+      "to": "approve",
+      "label": "Pending + URL",
+      "role": "main",
+      "variant": "emphasis"
+    },
+    {
+      "id": "approve-return",
+      "from": "approve",
+      "to": "return",
+      "label": "Duyệt / hủy",
+      "role": "main",
+      "variant": "emphasis"
+    },
+    {
+      "id": "return-panel",
+      "from": "return",
+      "to": "panel",
+      "label": "Mở lại Buyer",
+      "role": "main",
+      "variant": "emphasis"
+    },
+    {
+      "id": "panel-paid",
+      "from": "panel",
+      "to": "paid",
+      "label": "Succeeded",
+      "role": "main",
+      "variant": "emphasis"
+    },
+    {
+      "id": "paid-detail",
+      "from": "paid",
+      "to": "detail",
+      "label": "Xem từng đơn",
+      "role": "main",
+      "variant": "emphasis"
+    },
+    {
+      "id": "panel-pending",
+      "from": "panel",
+      "to": "pending",
+      "label": "Creating / Pending",
+      "role": "branch",
+      "variant": "default"
+    },
+    {
+      "id": "panel-verifying",
+      "from": "panel",
+      "to": "verifying",
+      "label": "Verifying",
+      "role": "branch",
+      "variant": "default"
+    },
+    {
+      "id": "panel-retryable",
+      "from": "panel",
+      "to": "retryable",
+      "label": "Failed / Partial / Cancelled",
+      "role": "branch",
+      "variant": "default"
+    },
+    {
+      "id": "verifying-check",
+      "from": "verifying",
+      "to": "check",
+      "label": "Đọc lại kết quả",
+      "role": "branch",
+      "variant": "default"
+    },
+    {
+      "id": "retryable-retry",
+      "from": "retryable",
+      "to": "retry",
+      "label": "Còn đơn chờ trả",
+      "role": "branch",
+      "variant": "default"
+    },
+    {
+      "id": "start-init-error",
+      "from": "start",
+      "to": "init-error",
+      "label": "Khởi tạo lỗi / chưa rõ",
+      "role": "error",
+      "variant": "security"
+    },
+    {
+      "id": "start-panel",
+      "from": "start",
+      "to": "panel",
+      "label": "Không chuyển trang",
+      "role": "branch",
+      "variant": "default"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Màn sau PayPal là gì?",
+      "items": [
+        "Sau khi PayPal trả về, controller chuyển về /Buyer với paypalCheckoutId. Điều hướng chọn Đơn của tôi; khối Thanh toán PayPal cả giỏ đọc trạng thái từ server.",
+        "Return gọi capture, nhưng HTTP thành công không có nghĩa tất cả payment đã Succeeded. UI hiển thị trạng thái thật của lượt và từng đơn.",
+        "PayPal không tự mở chi tiết đơn như nhánh thẻ. Buyer bấm Xem đơn để mở dialog."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Bảy trạng thái được UI hiển thị",
+      "items": [
+        "Creating: đang khởi tạo. Pending: chờ duyệt, có thể Tiếp tục xác nhận PayPal khi có URL. Cả hai có nút Hủy lượt này.",
+        "Verifying: đang xác minh. Chỉ kiểm tra kết quả/chờ đối soát; chưa cho hủy hoặc tạo lượt trả lại.",
+        "Succeeded: tất cả đơn trả xong. Failed: chưa trả thành công. PartiallyPaid: mới trả một phần. Cancelled: hủy lượt PayPal.",
+        "Failed / PartiallyPaid / Cancelled chỉ hiện Trả các đơn còn lại nếu còn đơn AwaitingPayment chưa Succeeded."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Hủy PayPal khác hủy đơn",
+      "items": [
+        "Bấm hủy ở PayPal quay về Buyer. JS chỉ yêu cầu hủy lượt khi trạng thái đọc lại vẫn là Pending; server cũng chặn hủy khi Verifying.",
+        "Hủy lượt PayPal không tự hủy đơn. Các đơn chưa trả tiếp tục chờ trong giới hạn deadline; các đơn đã trả giữ nguyên.",
+        "Nếu không có credential hoặc khởi tạo lỗi/mất phản hồi, UI ở lại và hiện nút Kiểm tra lại lượt PayPal. Không tự coi kết quả chưa rõ là thành công."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Thao tác từ các nhánh chờ",
+      "items": [
+        "Pending + có URL: bấm Tiếp tục xác nhận PayPal để đi lại trang ngoài. Creating/Pending: có thể bấm Hủy lượt này theo điều kiện server.",
+        "Kiểm tra kết quả gọi reconcile. Sự kiện realtime cũng tải lại lượt. Kết quả mới sẽ đưa nội dung khối về một trong các nhóm trạng thái trên.",
+        "Trả các đơn còn lại bắt đầu một attempt mới; backend giữ nguyên các đơn đã Succeeded."
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Cách đọc",
+      "items": [
+        "Đọc mũi tên theo thứ tự; tên node là màn hình, thao tác hoặc kết quả. SRC mở file/dòng của source đã ghim commit.",
+        "Đây là hành vi hiện có trong source, chưa phải kết quả chạy E2E với database và PayPal thật. Một số nút Archify dùng tiếng Anh."
+      ]
+    }
+  ]
+}

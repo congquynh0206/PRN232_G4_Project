@@ -2,6 +2,28 @@
 
 Backend được chia thành năm project .NET 8 trong cùng solution. Khi chạy ứng dụng chỉ khởi động `G4.Api`; bốn project còn lại là thư viện được nạp vào API.
 
+## Sơ đồ tổng quan từ source ngày 25/10/2026
+
+[Mở sơ đồ HTML tương tác](../.archify/architecture-g4-overview-20261025-155434/g4-overview.html)
+hoặc sửa [nguồn JSON Archify](../.archify/architecture-g4-overview-20261025-155434/candidate.json).
+Sơ đồ ghim source tại commit `e7997b03bd86bb5160332dd94bd5dc853b441963`;
+các dấu `SRC` dẫn đến file và dòng tương ứng. Mở HTML bằng trình duyệt nếu trình xem
+Markdown chỉ hiển thị source HTML.
+
+Sơ đồ thể hiện đường đi browser → frontend MVC/proxy → API JWT/role → nghiệp vụ/worker
+trong Infrastructure → SQL Server, cùng adapter PayPal Sandbox, carrier giả lập và SMTP.
+SignalR nối trực tiếp browser với API. Các node nghiệp vụ, adapter, worker, SignalR và
+carrier giả lập là vai trò trong cùng tiến trình API; Application/Contracts/Domain được
+giải thích trong thẻ chi tiết. Carrier mặc định gọi về chính API và chỉ tạo nhãn ở
+Development; SMTP chỉ gửi khi `Mail:Mode = Smtp`.
+
+Kiểm tra tự động bằng Archify `finalize`: schema/bố cục, dẫn chứng Git, render, kiểm tra
+HTML/SVG và Chrome ở 1440×900, 1600×1000, 1920×1080, 2048×1320 đều đạt. Chưa đánh giá
+ảnh bằng mắt; một số điều khiển viewer dùng tiếng Anh. Chỉ tạo tài liệu và artifact;
+không tạo/áp migration, không chạy ứng dụng hoặc kiểm thử database/provider thật.
+
+## Cây thư mục backend
+
 ```text
 backend/
 ├── G4.Api/

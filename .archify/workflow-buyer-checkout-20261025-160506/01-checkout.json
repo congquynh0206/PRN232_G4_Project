@@ -1,0 +1,400 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "01 · Checkout: bấm xong đi màn nào?",
+    "locale": "vi",
+    "translations": {
+      "page.title": "{title}",
+      "diagram.description.workflow": "Luồng thao tác và màn hình từ source G4_Project.",
+      "legend.title": "Chú giải",
+      "legend.workflow.frontend": "Màn hình / thao tác",
+      "legend.workflow.backend": "Xử lý hệ thống",
+      "legend.workflow.security": "Nhánh lỗi / chưa xác nhận",
+      "viewer.theme.toggle.title": "Đổi sáng / tối (T)",
+      "viewer.theme.toggle": "Đổi giao diện sáng / tối",
+      "viewer.theme.dark": "Tối",
+      "viewer.theme.light": "Sáng",
+      "viewer.motion.live": "Chuyển động",
+      "viewer.motion.still": "Tĩnh",
+      "node.focus": "Xem {label}",
+      "node.focus.detail": "Xem {label}, {detail}"
+    },
+    "output": ".archify/workflow-buyer-checkout-20261025-160506/01-checkout.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/congquynh0206/PRN232_G4_Project.git",
+      "revision": "e7997b03bd86bb5160332dd94bd5dc853b441963"
+    }
+  },
+  "lanes": [
+    {
+      "id": "screens",
+      "label": "Luồng màn hình chính"
+    },
+    {
+      "id": "card",
+      "label": "Đã chọn thẻ thử"
+    },
+    {
+      "id": "paypal",
+      "label": "Đã chọn PayPal"
+    },
+    {
+      "id": "errors",
+      "label": "Chưa đi tiếp được",
+      "variant": "exception"
+    }
+  ],
+  "mainPath": [
+    "cart",
+    "checkout",
+    "place",
+    "orders",
+    "method",
+    "card-branch"
+  ],
+  "nodes": [
+    {
+      "id": "cart",
+      "lane": "screens",
+      "col": 0,
+      "type": "frontend",
+      "label": "Giỏ hàng",
+      "sublabel": "Xem sản phẩm / số lượng",
+      "tag": "Buyer · #summary",
+      "sources": [
+        {
+          "path": "frontend/Views/Buyer/Index.cshtml",
+          "line": 9,
+          "end_line": 32,
+          "label": "Giỏ và nút tiếp tục"
+        }
+      ]
+    },
+    {
+      "id": "checkout",
+      "lane": "screens",
+      "col": 1,
+      "type": "frontend",
+      "label": "Thanh toán",
+      "sublabel": "Địa chỉ / mã / phương thức",
+      "tag": "Buyer · #checkout",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/buyer-cart.js",
+          "line": 287,
+          "end_line": 327,
+          "label": "Báo giá theo địa chỉ hiện tại"
+        },
+        {
+          "path": "frontend/wwwroot/js/buyer-cart.js",
+          "line": 397,
+          "end_line": 400,
+          "label": "Mở phần Thanh toán"
+        }
+      ]
+    },
+    {
+      "id": "place",
+      "lane": "screens",
+      "col": 2,
+      "type": "backend",
+      "label": "Bấm đặt hàng",
+      "sublabel": "Tạo một đơn mỗi seller",
+      "tag": "Đặt hàng & thanh toán",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/buyer-cart.js",
+          "line": 330,
+          "end_line": 343,
+          "label": "Gọi checkout trước thanh toán"
+        },
+        {
+          "path": "backend/G4.Infrastructure/Checkout/BuyerCartService.cs",
+          "line": 364,
+          "end_line": 397,
+          "label": "Tạo các đơn và xóa giỏ khi commit"
+        }
+      ]
+    },
+    {
+      "id": "orders",
+      "lane": "screens",
+      "col": 3,
+      "type": "frontend",
+      "label": "Đơn của tôi",
+      "sublabel": "Tạo xong → chuyển tab",
+      "tag": "Buyer · #orders",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/buyer-cart.js",
+          "line": 338,
+          "end_line": 343,
+          "label": "Chọn tab orders và tải danh sách"
+        },
+        {
+          "path": "frontend/Views/Buyer/Index.cshtml",
+          "line": 141,
+          "end_line": 147,
+          "label": "Tên màn Đơn của tôi"
+        }
+      ]
+    },
+    {
+      "id": "method",
+      "lane": "screens",
+      "col": 4,
+      "type": "backend",
+      "label": "Chạy cách đã chọn",
+      "sublabel": "Chọn từ màn Thanh toán",
+      "tag": "Chỉ xử lý đơn chưa trả",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/buyer-cart.js",
+          "line": 335,
+          "end_line": 361,
+          "label": "Phân nhánh phương thức đã chọn"
+        }
+      ]
+    },
+    {
+      "id": "card-branch",
+      "lane": "card",
+      "col": 5,
+      "type": "frontend",
+      "label": "Thẻ: xem chi tiết",
+      "sublabel": "Thử từng đơn → mở đơn đầu",
+      "tag": "Đọc sơ đồ 02",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/buyer-cart.js",
+          "line": 353,
+          "end_line": 374,
+          "label": "Thanh toán tuần tự rồi mở chi tiết"
+        }
+      ]
+    },
+    {
+      "id": "paypal-branch",
+      "lane": "paypal",
+      "col": 5,
+      "type": "frontend",
+      "label": "Chuyển sang PayPal",
+      "sublabel": "Nếu Pending + có URL duyệt",
+      "tag": "Đọc sơ đồ 03",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/buyer-cart.js",
+          "line": 343,
+          "end_line": 351,
+          "label": "Khởi tạo PayPal cả giỏ"
+        },
+        {
+          "path": "frontend/wwwroot/js/paypal-cart.js",
+          "line": 53,
+          "end_line": 70,
+          "label": "Chỉ redirect khi có approval URL"
+        }
+      ]
+    },
+    {
+      "id": "no-quote",
+      "lane": "errors",
+      "col": 1,
+      "type": "security",
+      "label": "Ở lại Thanh toán",
+      "sublabel": "Chọn địa chỉ / lấy báo giá",
+      "tag": "Nút đặt chưa dùng được",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/buyer-cart.js",
+          "line": 287,
+          "end_line": 323,
+          "label": "Chặn khi chưa có quote mới"
+        }
+      ]
+    },
+    {
+      "id": "rejected",
+      "lane": "errors",
+      "col": 2,
+      "type": "security",
+      "label": "Ở lại Thanh toán",
+      "sublabel": "Tải giỏ / cập nhật báo giá",
+      "tag": "Checkout trả 400 / 409",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/buyer-cart.js",
+          "line": 383,
+          "end_line": 386,
+          "label": "Reset quote khi checkout bị từ chối"
+        }
+      ]
+    },
+    {
+      "id": "unknown",
+      "lane": "errors",
+      "col": 3,
+      "type": "security",
+      "label": "Kiểm tra Đơn của tôi",
+      "sublabel": "Hoặc thử lại giỏ hiện tại",
+      "tag": "Chưa rõ kết quả tạo đơn",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/buyer-cart.js",
+          "line": 334,
+          "end_line": 338,
+          "label": "Giữ attempt checkout khi gọi API"
+        },
+        {
+          "path": "frontend/wwwroot/js/buyer-cart.js",
+          "line": 375,
+          "end_line": 388,
+          "label": "Thông báo khi kết quả chưa rõ"
+        },
+        {
+          "path": "backend/G4.Infrastructure/Checkout/BuyerCartService.cs",
+          "line": 345,
+          "end_line": 361,
+          "label": "Retry cùng khóa trả về đơn đã có"
+        }
+      ]
+    },
+    {
+      "id": "created-error",
+      "lane": "errors",
+      "col": 4,
+      "type": "security",
+      "label": "Đơn đã tạo vẫn còn",
+      "sublabel": "Tiếp tục trong Đơn của tôi",
+      "tag": "Bước sau tạo đơn gặp lỗi",
+      "sources": [
+        {
+          "path": "frontend/wwwroot/js/buyer-cart.js",
+          "line": 375,
+          "end_line": 381,
+          "label": "Nhánh orders đã có rồi gặp lỗi"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "cart-checkout",
+      "from": "cart",
+      "to": "checkout",
+      "label": "Tiếp tục",
+      "role": "main",
+      "variant": "emphasis"
+    },
+    {
+      "id": "checkout-place",
+      "from": "checkout",
+      "to": "place",
+      "label": "Đủ báo giá",
+      "role": "main",
+      "variant": "emphasis"
+    },
+    {
+      "id": "place-orders",
+      "from": "place",
+      "to": "orders",
+      "label": "Tạo được đơn",
+      "role": "main",
+      "variant": "emphasis"
+    },
+    {
+      "id": "orders-method",
+      "from": "orders",
+      "to": "method",
+      "label": "Tiếp tục trả tiền",
+      "role": "main",
+      "variant": "emphasis"
+    },
+    {
+      "id": "method-card-branch",
+      "from": "method",
+      "to": "card-branch",
+      "label": "Thẻ thử",
+      "role": "branch",
+      "variant": "default"
+    },
+    {
+      "id": "method-paypal-branch",
+      "from": "method",
+      "to": "paypal-branch",
+      "label": "PayPal + có đơn chờ",
+      "role": "branch",
+      "variant": "default"
+    },
+    {
+      "id": "checkout-no-quote",
+      "from": "checkout",
+      "to": "no-quote",
+      "label": "Thiếu / lỗi báo giá",
+      "role": "error",
+      "variant": "security"
+    },
+    {
+      "id": "place-rejected",
+      "from": "place",
+      "to": "rejected",
+      "label": "400 / 409",
+      "role": "error",
+      "variant": "security"
+    },
+    {
+      "id": "place-unknown",
+      "from": "place",
+      "to": "unknown",
+      "label": "Mất phản hồi",
+      "role": "error",
+      "variant": "security"
+    },
+    {
+      "id": "orders-created-error",
+      "from": "orders",
+      "to": "created-error",
+      "label": "Bước sau lỗi",
+      "role": "error",
+      "variant": "security"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Màn tiếp theo thực tế",
+      "items": [
+        "Giỏ hàng, Thanh toán và Đơn của tôi là các tab trong /Buyer, không phải ba ứng dụng riêng.",
+        "Sau khi tạo đơn và tải lại giỏ thành công, UI chuyển sang Đơn của tôi trước khi chạy nhánh thẻ hoặc PayPal.",
+        "Không có màn thành công chung riêng. Với thẻ, UI mở dialog chi tiết đơn đầu tiên; với PayPal, kết quả nằm trong Đơn của tôi."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Ba tình huống dừng trước thanh toán",
+      "items": [
+        "Chưa có địa chỉ/báo giá hợp lệ: ở lại Thanh toán, bổ sung địa chỉ hoặc cập nhật báo giá.",
+        "Checkout trả 400/409: reset báo giá, yêu cầu tải lại giỏ và xác nhận giá mới.",
+        "Timeout/mất phản hồi: không biết chắc server đã tạo hay chưa. UI hướng dẫn kiểm tra Đơn của tôi hoặc thử lại cùng giỏ; backend hỗ trợ khóa checkout."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Sau khi tạo đơn",
+      "items": [
+        "Một seller nhận một đơn riêng. Giỏ được xóa khi giao dịch tạo đơn commit; lỗi thanh toán không tự đưa sản phẩm trở lại giỏ.",
+        "Nếu lỗi xảy ra sau khi đã nhận danh sách đơn, UI cố tải Đơn của tôi và hướng dẫn tiếp tục thanh toán ở đó."
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Cách đọc",
+      "items": [
+        "Đọc mũi tên theo thứ tự; tên node là màn hình, thao tác hoặc kết quả. SRC mở file/dòng của source đã ghim commit.",
+        "Đây là hành vi hiện có trong source, chưa phải kết quả chạy E2E với database và PayPal thật. Một số nút Archify dùng tiếng Anh."
+      ]
+    }
+  ]
+}

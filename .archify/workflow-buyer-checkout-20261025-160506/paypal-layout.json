@@ -1,0 +1,720 @@
+{
+  "contract": "readable-v2",
+  "viewBox": [
+    1270,
+    696
+  ],
+  "requiredViewBox": [
+    1270,
+    696
+  ],
+  "columns": [
+    118,
+    350.8,
+    597.2,
+    792.8000000000001,
+    946,
+    1170
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "lane": "main",
+      "col": 0,
+      "x": 48,
+      "y": 86,
+      "width": 140,
+      "height": 68
+    },
+    {
+      "id": "approve",
+      "lane": "main",
+      "col": 1,
+      "x": 282.8,
+      "y": 86,
+      "width": 136,
+      "height": 68
+    },
+    {
+      "id": "return",
+      "lane": "main",
+      "col": 2,
+      "x": 523.2,
+      "y": 86,
+      "width": 148,
+      "height": 68
+    },
+    {
+      "id": "panel",
+      "lane": "main",
+      "col": 3,
+      "x": 746.8000000000001,
+      "y": 86,
+      "width": 92,
+      "height": 68
+    },
+    {
+      "id": "paid",
+      "lane": "main",
+      "col": 4,
+      "x": 900,
+      "y": 86,
+      "width": 92,
+      "height": 68
+    },
+    {
+      "id": "detail",
+      "lane": "main",
+      "col": 5,
+      "x": 1108,
+      "y": 86,
+      "width": 124,
+      "height": 68
+    },
+    {
+      "id": "pending",
+      "lane": "waiting",
+      "col": 3,
+      "x": 740.8000000000001,
+      "y": 224,
+      "width": 104,
+      "height": 68
+    },
+    {
+      "id": "verifying",
+      "lane": "waiting",
+      "col": 4,
+      "x": 888,
+      "y": 224,
+      "width": 116,
+      "height": 68
+    },
+    {
+      "id": "check",
+      "lane": "waiting",
+      "col": 5,
+      "x": 1094,
+      "y": 224,
+      "width": 152,
+      "height": 68
+    },
+    {
+      "id": "retryable",
+      "lane": "retry",
+      "col": 4,
+      "x": 880,
+      "y": 362,
+      "width": 132,
+      "height": 68
+    },
+    {
+      "id": "retry",
+      "lane": "retry",
+      "col": 5,
+      "x": 1108,
+      "y": 362,
+      "width": 124,
+      "height": 68
+    },
+    {
+      "id": "init-error",
+      "lane": "errors",
+      "col": 0,
+      "x": 62,
+      "y": 500,
+      "width": 112,
+      "height": 68
+    }
+  ],
+  "edges": [
+    {
+      "id": "approve-return",
+      "from": "approve",
+      "to": "return",
+      "points": [
+        [
+          418.8,
+          120
+        ],
+        [
+          523.2,
+          120
+        ]
+      ]
+    },
+    {
+      "id": "paid-detail",
+      "from": "paid",
+      "to": "detail",
+      "points": [
+        [
+          992,
+          120
+        ],
+        [
+          1108,
+          120
+        ]
+      ]
+    },
+    {
+      "id": "panel-paid",
+      "from": "panel",
+      "to": "paid",
+      "points": [
+        [
+          838.8000000000001,
+          120
+        ],
+        [
+          900,
+          120
+        ]
+      ]
+    },
+    {
+      "id": "panel-pending",
+      "from": "panel",
+      "to": "pending",
+      "points": [
+        [
+          792.8000000000001,
+          154
+        ],
+        [
+          792.8000000000001,
+          224
+        ]
+      ]
+    },
+    {
+      "id": "panel-retryable",
+      "from": "panel",
+      "to": "retryable",
+      "points": [
+        [
+          816.8000000000001,
+          154
+        ],
+        [
+          816.8000000000001,
+          170
+        ],
+        [
+          869.4000000000001,
+          170
+        ],
+        [
+          869.4000000000001,
+          346
+        ],
+        [
+          946,
+          346
+        ],
+        [
+          946,
+          362
+        ]
+      ]
+    },
+    {
+      "id": "panel-verifying",
+      "from": "panel",
+      "to": "verifying",
+      "points": [
+        [
+          838.8000000000001,
+          127
+        ],
+        [
+          854.8000000000001,
+          127
+        ],
+        [
+          854.8000000000001,
+          162
+        ],
+        [
+          872,
+          162
+        ],
+        [
+          872,
+          258
+        ],
+        [
+          888,
+          258
+        ]
+      ]
+    },
+    {
+      "id": "retryable-retry",
+      "from": "retryable",
+      "to": "retry",
+      "points": [
+        [
+          1012,
+          396
+        ],
+        [
+          1108,
+          396
+        ]
+      ]
+    },
+    {
+      "id": "return-panel",
+      "from": "return",
+      "to": "panel",
+      "points": [
+        [
+          671.2,
+          120
+        ],
+        [
+          746.8000000000001,
+          120
+        ]
+      ]
+    },
+    {
+      "id": "start-approve",
+      "from": "start",
+      "to": "approve",
+      "points": [
+        [
+          188,
+          120
+        ],
+        [
+          282.8,
+          120
+        ]
+      ]
+    },
+    {
+      "id": "start-init-error",
+      "from": "start",
+      "to": "init-error",
+      "points": [
+        [
+          118,
+          154
+        ],
+        [
+          118,
+          197
+        ],
+        [
+          300.8,
+          197
+        ],
+        [
+          300.8,
+          534
+        ],
+        [
+          174,
+          534
+        ]
+      ]
+    },
+    {
+      "id": "start-panel",
+      "from": "start",
+      "to": "panel",
+      "points": [
+        [
+          48,
+          120
+        ],
+        [
+          32,
+          120
+        ],
+        [
+          32,
+          60
+        ],
+        [
+          792.8000000000001,
+          60
+        ],
+        [
+          792.8000000000001,
+          86
+        ]
+      ]
+    },
+    {
+      "id": "verifying-check",
+      "from": "verifying",
+      "to": "check",
+      "points": [
+        [
+          1004,
+          258
+        ],
+        [
+          1094,
+          258
+        ]
+      ]
+    }
+  ],
+  "labels": [
+    {
+      "edge": "approve-return",
+      "label": "Duyệt hoặc bấm hủy",
+      "x": 471,
+      "y": 110,
+      "width": 96.39999999999999,
+      "height": 14
+    },
+    {
+      "edge": "paid-detail",
+      "label": "Xem từng đơn",
+      "x": 1050,
+      "y": 110,
+      "width": 67.6,
+      "height": 14
+    },
+    {
+      "edge": "panel-paid",
+      "label": "Succeeded",
+      "x": 869.4000000000001,
+      "y": 110,
+      "width": 53.199999999999996,
+      "height": 14
+    },
+    {
+      "edge": "panel-pending",
+      "label": "Creating / Pending",
+      "x": 792.8000000000001,
+      "y": 189,
+      "width": 96.39999999999999,
+      "height": 14
+    },
+    {
+      "edge": "panel-retryable",
+      "label": "Failed / Partial / Cancelled",
+      "x": 907.7,
+      "y": 336,
+      "width": 144.4,
+      "height": 14
+    },
+    {
+      "edge": "panel-verifying",
+      "label": "Verifying",
+      "x": 863.4000000000001,
+      "y": 152,
+      "width": 53.199999999999996,
+      "height": 14
+    },
+    {
+      "edge": "retryable-retry",
+      "label": "Còn đơn chờ trả",
+      "x": 1060,
+      "y": 386,
+      "width": 82,
+      "height": 14
+    },
+    {
+      "edge": "return-panel",
+      "label": "Mở lại Buyer",
+      "x": 709,
+      "y": 110,
+      "width": 67.6,
+      "height": 14
+    },
+    {
+      "edge": "start-approve",
+      "label": "Pending + có URL",
+      "x": 235.4,
+      "y": 110,
+      "width": 86.8,
+      "height": 14
+    },
+    {
+      "edge": "start-init-error",
+      "label": "Khởi tạo lỗi / chưa rõ",
+      "x": 209.4,
+      "y": 187,
+      "width": 115.6,
+      "height": 14
+    },
+    {
+      "edge": "start-panel",
+      "label": "Không chuyển trang",
+      "x": 412.40000000000003,
+      "y": 50,
+      "width": 96.39999999999999,
+      "height": 14
+    },
+    {
+      "edge": "verifying-check",
+      "label": "Đọc lại kết quả",
+      "x": 1049,
+      "y": 248,
+      "width": 82,
+      "height": 14
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "workflow/sublabel-readability",
+      "severity": "error",
+      "message": "Sublabel \"Đơn đã có trong Đơn của tôi\" needs a 8.2px minimum that stays readable on this 1270px canvas, above the supported 8px text row — compact the column spacing or node widths so the canvas is at most 1240px wide; preserve the sublabel's role or protocol.",
+      "subject": {
+        "diagramType": "workflow",
+        "node": "start",
+        "path": "/nodes/0/sublabel"
+      },
+      "evidence": {
+        "requiredFontPx": 8.2,
+        "maximumSlotFontPx": 8,
+        "canvasWidthPx": 1270,
+        "maximumCanvasWidthPx": 1240,
+        "requiredTextWidthPx": 132.83999999999997,
+        "availableTextWidthPx": 132
+      },
+      "supportedFixes": [
+        "compact column spacing or node widths until the implicit canvas is at most 1240px wide, preserving every node and relationship"
+      ]
+    },
+    {
+      "code": "workflow/sublabel-readability",
+      "severity": "error",
+      "message": "Sublabel \"Đăng nhập / duyệt hoặc hủy\" needs a 8.2px minimum that stays readable on this 1270px canvas, above the supported 8px text row — compact the column spacing or node widths so the canvas is at most 1240px wide; preserve the sublabel's role or protocol.",
+      "subject": {
+        "diagramType": "workflow",
+        "node": "approve",
+        "path": "/nodes/1/sublabel"
+      },
+      "evidence": {
+        "requiredFontPx": 8.2,
+        "maximumSlotFontPx": 8,
+        "canvasWidthPx": 1270,
+        "maximumCanvasWidthPx": 1240,
+        "requiredTextWidthPx": 127.91999999999999,
+        "availableTextWidthPx": 128
+      },
+      "supportedFixes": [
+        "compact column spacing or node widths until the implicit canvas is at most 1240px wide, preserving every node and relationship"
+      ]
+    },
+    {
+      "code": "workflow/sublabel-readability",
+      "severity": "error",
+      "message": "Sublabel \"Duyệt: capture · hủy: quay về\" needs a 8.2px minimum that stays readable on this 1270px canvas, above the supported 8px text row — compact the column spacing or node widths so the canvas is at most 1240px wide; preserve the sublabel's role or protocol.",
+      "subject": {
+        "diagramType": "workflow",
+        "node": "return",
+        "path": "/nodes/2/sublabel"
+      },
+      "evidence": {
+        "requiredFontPx": 8.2,
+        "maximumSlotFontPx": 8,
+        "canvasWidthPx": 1270,
+        "maximumCanvasWidthPx": 1240,
+        "requiredTextWidthPx": 142.67999999999998,
+        "availableTextWidthPx": 140
+      },
+      "supportedFixes": [
+        "compact column spacing or node widths until the implicit canvas is at most 1240px wide, preserving every node and relationship"
+      ]
+    },
+    {
+      "code": "workflow/sublabel-readability",
+      "severity": "error",
+      "message": "Sublabel \"Khối PayPal cả giỏ\" needs a 8.2px minimum that stays readable on this 1270px canvas, above the supported 8px text row — compact the column spacing or node widths so the canvas is at most 1240px wide; preserve the sublabel's role or protocol.",
+      "subject": {
+        "diagramType": "workflow",
+        "node": "panel",
+        "path": "/nodes/3/sublabel"
+      },
+      "evidence": {
+        "requiredFontPx": 8.2,
+        "maximumSlotFontPx": 8,
+        "canvasWidthPx": 1270,
+        "maximumCanvasWidthPx": 1240,
+        "requiredTextWidthPx": 88.55999999999999,
+        "availableTextWidthPx": 84
+      },
+      "supportedFixes": [
+        "compact column spacing or node widths until the implicit canvas is at most 1240px wide, preserving every node and relationship"
+      ]
+    },
+    {
+      "code": "workflow/sublabel-readability",
+      "severity": "error",
+      "message": "Sublabel \"Succeeded\" needs a 8.2px minimum that stays readable on this 1270px canvas, above the supported 8px text row — compact the column spacing or node widths so the canvas is at most 1240px wide; preserve the sublabel's role or protocol.",
+      "subject": {
+        "diagramType": "workflow",
+        "node": "paid",
+        "path": "/nodes/4/sublabel"
+      },
+      "evidence": {
+        "requiredFontPx": 8.2,
+        "maximumSlotFontPx": 8,
+        "canvasWidthPx": 1270,
+        "maximumCanvasWidthPx": 1240,
+        "requiredTextWidthPx": 44.279999999999994,
+        "availableTextWidthPx": 84
+      },
+      "supportedFixes": [
+        "compact column spacing or node widths until the implicit canvas is at most 1240px wide, preserving every node and relationship"
+      ]
+    },
+    {
+      "code": "workflow/sublabel-readability",
+      "severity": "error",
+      "message": "Sublabel \"Mở dialog chi tiết đơn\" needs a 8.2px minimum that stays readable on this 1270px canvas, above the supported 8px text row — compact the column spacing or node widths so the canvas is at most 1240px wide; preserve the sublabel's role or protocol.",
+      "subject": {
+        "diagramType": "workflow",
+        "node": "detail",
+        "path": "/nodes/5/sublabel"
+      },
+      "evidence": {
+        "requiredFontPx": 8.2,
+        "maximumSlotFontPx": 8,
+        "canvasWidthPx": 1270,
+        "maximumCanvasWidthPx": 1240,
+        "requiredTextWidthPx": 108.23999999999998,
+        "availableTextWidthPx": 116
+      },
+      "supportedFixes": [
+        "compact column spacing or node widths until the implicit canvas is at most 1240px wide, preserving every node and relationship"
+      ]
+    },
+    {
+      "code": "workflow/sublabel-readability",
+      "severity": "error",
+      "message": "Sublabel \"Creating / Pending\" needs a 8.2px minimum that stays readable on this 1270px canvas, above the supported 8px text row — compact the column spacing or node widths so the canvas is at most 1240px wide; preserve the sublabel's role or protocol.",
+      "subject": {
+        "diagramType": "workflow",
+        "node": "pending",
+        "path": "/nodes/6/sublabel"
+      },
+      "evidence": {
+        "requiredFontPx": 8.2,
+        "maximumSlotFontPx": 8,
+        "canvasWidthPx": 1270,
+        "maximumCanvasWidthPx": 1240,
+        "requiredTextWidthPx": 88.55999999999999,
+        "availableTextWidthPx": 96
+      },
+      "supportedFixes": [
+        "compact column spacing or node widths until the implicit canvas is at most 1240px wide, preserving every node and relationship"
+      ]
+    },
+    {
+      "code": "workflow/sublabel-readability",
+      "severity": "error",
+      "message": "Sublabel \"Verifying\" needs a 8.2px minimum that stays readable on this 1270px canvas, above the supported 8px text row — compact the column spacing or node widths so the canvas is at most 1240px wide; preserve the sublabel's role or protocol.",
+      "subject": {
+        "diagramType": "workflow",
+        "node": "verifying",
+        "path": "/nodes/7/sublabel"
+      },
+      "evidence": {
+        "requiredFontPx": 8.2,
+        "maximumSlotFontPx": 8,
+        "canvasWidthPx": 1270,
+        "maximumCanvasWidthPx": 1240,
+        "requiredTextWidthPx": 44.279999999999994,
+        "availableTextWidthPx": 108
+      },
+      "supportedFixes": [
+        "compact column spacing or node widths until the implicit canvas is at most 1240px wide, preserving every node and relationship"
+      ]
+    },
+    {
+      "code": "workflow/sublabel-readability",
+      "severity": "error",
+      "message": "Sublabel \"Đọc lại / reconcile / realtime\" needs a 8.2px minimum that stays readable on this 1270px canvas, above the supported 8px text row — compact the column spacing or node widths so the canvas is at most 1240px wide; preserve the sublabel's role or protocol.",
+      "subject": {
+        "diagramType": "workflow",
+        "node": "check",
+        "path": "/nodes/8/sublabel"
+      },
+      "evidence": {
+        "requiredFontPx": 8.2,
+        "maximumSlotFontPx": 8,
+        "canvasWidthPx": 1270,
+        "maximumCanvasWidthPx": 1240,
+        "requiredTextWidthPx": 147.59999999999997,
+        "availableTextWidthPx": 144
+      },
+      "supportedFixes": [
+        "compact column spacing or node widths until the implicit canvas is at most 1240px wide, preserving every node and relationship"
+      ]
+    },
+    {
+      "code": "workflow/sublabel-readability",
+      "severity": "error",
+      "message": "Sublabel \"Thất bại / một phần / hủy\" needs a 8.2px minimum that stays readable on this 1270px canvas, above the supported 8px text row — compact the column spacing or node widths so the canvas is at most 1240px wide; preserve the sublabel's role or protocol.",
+      "subject": {
+        "diagramType": "workflow",
+        "node": "retryable",
+        "path": "/nodes/9/sublabel"
+      },
+      "evidence": {
+        "requiredFontPx": 8.2,
+        "maximumSlotFontPx": 8,
+        "canvasWidthPx": 1270,
+        "maximumCanvasWidthPx": 1240,
+        "requiredTextWidthPx": 122.99999999999997,
+        "availableTextWidthPx": 124
+      },
+      "supportedFixes": [
+        "compact column spacing or node widths until the implicit canvas is at most 1240px wide, preserving every node and relationship"
+      ]
+    },
+    {
+      "code": "workflow/sublabel-readability",
+      "severity": "error",
+      "message": "Sublabel \"Bắt đầu lượt PayPal mới\" needs a 8.2px minimum that stays readable on this 1270px canvas, above the supported 8px text row — compact the column spacing or node widths so the canvas is at most 1240px wide; preserve the sublabel's role or protocol.",
+      "subject": {
+        "diagramType": "workflow",
+        "node": "retry",
+        "path": "/nodes/10/sublabel"
+      },
+      "evidence": {
+        "requiredFontPx": 8.2,
+        "maximumSlotFontPx": 8,
+        "canvasWidthPx": 1270,
+        "maximumCanvasWidthPx": 1240,
+        "requiredTextWidthPx": 113.16,
+        "availableTextWidthPx": 116
+      },
+      "supportedFixes": [
+        "compact column spacing or node widths until the implicit canvas is at most 1240px wide, preserving every node and relationship"
+      ]
+    },
+    {
+      "code": "workflow/sublabel-readability",
+      "severity": "error",
+      "message": "Sublabel \"Ở lại khối kết quả\" needs a 8.2px minimum that stays readable on this 1270px canvas, above the supported 8px text row — compact the column spacing or node widths so the canvas is at most 1240px wide; preserve the sublabel's role or protocol.",
+      "subject": {
+        "diagramType": "workflow",
+        "node": "init-error",
+        "path": "/nodes/11/sublabel"
+      },
+      "evidence": {
+        "requiredFontPx": 8.2,
+        "maximumSlotFontPx": 8,
+        "canvasWidthPx": 1270,
+        "maximumCanvasWidthPx": 1240,
+        "requiredTextWidthPx": 88.55999999999999,
+        "availableTextWidthPx": 104
+      },
+      "supportedFixes": [
+        "compact column spacing or node widths until the implicit canvas is at most 1240px wide, preserving every node and relationship"
+      ]
+    }
+  ],
+  "ok": false
+}
