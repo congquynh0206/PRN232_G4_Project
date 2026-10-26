@@ -28,7 +28,7 @@ Build frontend 0 warning/error, Node 128/128 và Chrome fixture Razor thật ở
 
 ### Chức năng theo role
 
-- **Buyer:** random giỏ, checkout, Credit Card/PayPal, xem đơn của chính mình, tracking, hủy, trả hàng; tab Tranh chấp để mở yêu cầu có bằng chứng, bổ sung và chấp nhận/từ chối phương án.
+- **Buyer:** random giỏ, checkout, Credit Card/PayPal, xem đơn và lịch sử payment/refund của chính mình, tracking, hủy, trả hàng; tab Tranh chấp để mở yêu cầu có bằng chứng, bổ sung và chấp nhận/từ chối phương án.
 - **Seller:** chỉ xem đơn bán của mình; chuẩn bị hàng, tạo vận đơn, xử lý hủy/trả/refund, xem balance, level, ledger và payout; tab Tranh chấp để gửi bằng chứng và phương án. Seller không có quyền phát tracking event hoặc quyết định thay admin.
 - **Shipper:** xem vận đơn chờ nhận, nhận riêng chiều đi/chiều trả rồi cập nhật tracking của mình. Chi tiết đơn chỉ chứa vận đơn và lịch sử đang sở hữu; payment, refund và balance không trả về cho shipper. Xem [RETURNS_AND_SHIPPING.md](RETURNS_AND_SHIPPING.md).
 - **Admin:** tra cứu đơn/payment/refund và tracking ở chế độ chỉ đọc, xem nhật ký tích hợp, chỉ mở hồ sơ tranh chấp đã chuyển lên (seller hết hạn hoặc buyer từ chối phương án), đưa ra quyết định theo workflow; không sửa tay tiền/payment/tracking. Tra cứu order không yêu cầu có dispute.
@@ -46,6 +46,7 @@ API còn kiểm tra quyền sở hữu dữ liệu: buyer chỉ truy cập order
 
 - `POST /api/auth/login`: nhận email/mật khẩu và cấp JWT.
 - `GET /api/orders`: tự lọc theo buyer hoặc seller đang đăng nhập.
+- `GET /api/buyer/transactions` và `GET /api/buyer/transactions/{type}/{id}`: lịch sử giao dịch, tổng kỳ và chi tiết chỉ đọc; luôn ràng buộc theo BuyerId trong JWT.
 - `GET /api/shipper/shipments`: danh sách công việc của shipper.
 - `GET /api/disputes/page`: danh sách phân trang theo quyền; admin chỉ thấy hồ sơ đã chuyển lên.
 - `GET /api/disputes/{id}` và các thao tác: xem [DISPUTES.md](DISPUTES.md).

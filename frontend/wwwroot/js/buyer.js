@@ -26,6 +26,7 @@
   function tab(id, loadList = true) {
     if (!G4.Navigation.select(id)) return;
     if (id === 'orders' && loadList) safe(loadOrders);
+    if (id === 'transactions' && loadList) safe(() => window.G4BuyerTransactions.load());
     if (id === 'disputes') safe(() => G4.Disputes.load());
     if (id === 'notifications') safe(() => G4.Notifications.load());
   }
@@ -135,8 +136,14 @@
           `<div class="item">${productThumbnail(x.imageUrl, x.productTitleSnapshot)}<div class="item-info"><strong>${esc(x.productTitleSnapshot)}</strong><small>Số lượng: ${x.quantity}${x.unitWeightKgSnapshot == null ? '' : ' · ' + Number(x.unitWeightKgSnapshot) + ' kg/sản phẩm'}</small></div>${G4.Promotions.linePriceHtml(x.originalTotal == null ? null : x, x.unitPrice * x.quantity, o.promotions)}</div>`,
       )
       .join('');
+    const collected = o.payments
+      .filter((payment) => payment.status === 'Succeeded')
+      .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+    const refunded = o.refunds
+      .filter((refund) => refund.status === 'Succeeded')
+      .reduce((sum, refund) => sum + Number(refund.amount || 0), 0);
     openDetail(
-      `<div class="detail" data-order-detail="${o.id}"><h2>Đơn mua hàng #${o.id}</h2><p class="small">Tạo: ${date(o.orderDate)} · Cập nhật: ${date(o.updatedAt || o.orderDate)}</p><p class="small">${esc(o.addressSnapshot)} · Khối lượng: ${o.totalWeightKg == null ? 'Chưa có dữ liệu' : Number(o.totalWeightKg) + ' kg'}</p>${status}${G4.paymentCountdown(o)}${G4.AddressChanges.summaryHtml(o, 'buyer')}${G4.Returns.windowHtml?.(o) || ''}${G4.disputeBadge(o.dispute)}<h3>Sản phẩm</h3>${lines}${G4.Promotions.breakdownHtml(o)}<div class="promotion-order-totals"><p>Phí vận chuyển: <strong>${money(o.shippingFee ?? o.shipping)}</strong></p><p>Tổng thanh toán: <strong>${money(o.totalPrice)}</strong></p></div><h3>Tiến trình vận chuyển</h3>${trackingHtml(o)}<h3>Thao tác</h3><div class="actions">${actions(o)}</div>${G4.SellerFeedback.html(o)}${G4.returnSummary(o)}${o.refunds.length ? `<div class="refund-summary">${o.refunds.map((r) => `<p>${r.reason === 'shipping-adjustment' ? 'Hoàn chênh lệch ship giả lập' : 'Hoàn'} ${money(r.amount)} · ${esc(label(r.status))}</p>`).join('')}</div>` : ''}</div>`,
+      `<div class="detail" data-order-detail="${o.id}"><h2>Đơn mua hàng #${o.id}</h2><p class="small">Tạo: ${date(o.orderDate)} · Cập nhật: ${date(o.updatedAt || o.orderDate)}</p><p><strong>Đã thanh toán thành công:</strong> ${money(collected)} · <strong>Đã hoàn thành công:</strong> ${money(refunded)} · <strong>Còn lại sau hoàn:</strong> ${money(collected - refunded)}</p><button type="button" data-action="transactions" data-id="${o.id}">Mở lịch sử giao dịch của đơn</button><p class="small">${esc(o.addressSnapshot)} · Khối lượng: ${o.totalWeightKg == null ? 'Chưa có dữ liệu' : Number(o.totalWeightKg) + ' kg'}</p>${status}${G4.paymentCountdown(o)}${G4.AddressChanges.summaryHtml(o, 'buyer')}${G4.Returns.windowHtml?.(o) || ''}${G4.disputeBadge(o.dispute)}<h3>Sản phẩm</h3>${lines}${G4.Promotions.breakdownHtml(o)}<div class="promotion-order-totals"><p>Phí vận chuyển: <strong>${money(o.shippingFee ?? o.shipping)}</strong></p><p>Tổng thanh toán: <strong>${money(o.totalPrice)}</strong></p></div><h3>Tiến trình vận chuyển</h3>${trackingHtml(o)}<h3>Thao tác</h3><div class="actions">${actions(o)}</div>${G4.SellerFeedback.html(o)}${G4.returnSummary(o)}${o.refunds.length ? `<div class="refund-summary">${o.refunds.map((r) => `<p>${r.reason === 'shipping-adjustment' ? 'Hoàn chênh lệch ship giả lập' : 'Hoàn'} ${money(r.amount)} · ${esc(label(r.status))}</p>`).join('')}</div>` : ''}</div>`,
       preserveScroll,
     );
   }
@@ -146,6 +153,10 @@
     if (kind === 'resume-paypal-cart') {
       G4.closeDetail();
       return G4.PayPalCart.show(id);
+    }
+    if (kind === 'transactions') {
+      G4.closeDetail();
+      return window.G4BuyerTransactions.openForOrder(id);
     }
     if (kind === 'review-seller') return G4.SellerFeedback.open(id, () => showOrder(id));
     if (kind === 'product-reviews') return G4.BuyerProductReviews.open(id);
@@ -254,6 +265,7 @@
     });
   }
   G4.Navigation.init(tab);
+  window.G4BuyerShowOrder = id => showOrder(id);
   safe(async () => {
     const p = new URLSearchParams(location.search);
     if (p.has('orderId') && G4.Navigation.current === 'orders') {

@@ -23,6 +23,11 @@ if (args.Contains("--admin-order-lookup"))
     await AdminOrderLookupChecks.RunAsync();
     return;
 }
+if (args.Contains("--buyer-transactions"))
+{
+    await BuyerTransactionChecks.RunAsync();
+    return;
+}
 if (args.Contains("--buyer-address-book"))
 {
     await BuyerAddressBookChecks.RunAsync();
@@ -78,7 +83,6 @@ if (args.Contains("--shipping-reattempts-sql"))
     await ShipmentReattemptSqlChecks.RunAsync();
     return;
 }
-
 if (args.Contains("--business-notifications"))
 {
     await BusinessNotificationChecks.RunAsync();

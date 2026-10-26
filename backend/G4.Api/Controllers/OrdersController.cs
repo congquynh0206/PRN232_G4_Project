@@ -15,6 +15,103 @@ public sealed class OrdersController(
     IConfiguration? config = null
 ) : ApiControllerBase(environment)
 {
+    [HttpGet("buyer/transactions")]
+    public async Task<IActionResult> BuyerTransactions(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] int? orderId = null,
+        [FromQuery] DateTime? from = null, [FromQuery] DateTime? to = null,
+        [FromQuery] string? type = null, [FromQuery] string? status = null,
+        [FromQuery] DateTime? paidFrom = null, [FromQuery] DateTime? paidTo = null,
+        [FromQuery] DateTime? completedFrom = null, [FromQuery] DateTime? completedTo = null,
+        CancellationToken ct = default)
+    {
+        if (!IsAvailable || !HasRole("buyer")) return StatusCode(403);
+        if (page < 1 || pageSize is < 1 or > 100 || from is not null && to is not null && from >= to
+            || type is not null && type is not ("Payment" or "Refund")
+            || status is not null && status is not ("Succeeded" or "Failed" or "Pending" or "Verifying"))
+            return BadRequest("Bộ lọc giao dịch chưa hợp lệ.");
+
+        var ownOrders = db.OrderTables.AsNoTracking().Where(o => o.BuyerId == CurrentUserId);
+        if (orderId is not null) ownOrders = ownOrders.Where(o => o.Id == orderId);
+        var fromDate = from;
+        var toDate = to;
+        var paidStart = paidFrom;
+        var paidEnd = paidTo;
+        var refundStart = completedFrom;
+        var refundEnd = completedTo;
+        var payments = from p in db.Payments.AsNoTracking()
+                       join o in ownOrders on p.OrderId equals o.Id
+                       where (type == null || type != "Refund") && (status == null || p.Status == status)
+                           && (!fromDate.HasValue || p.CreatedAt >= fromDate.Value) && (!toDate.HasValue || p.CreatedAt < toDate.Value)
+                       select new { p.CreatedAt, OrderId = p.OrderId!.Value, p.Id, Type = "Payment", p.Method,
+                           Amount = p.Amount ?? 0m, Status = p.Status ?? "Unknown", Reference = p.ProviderTransactionId ?? p.ProviderOrderId,
+                           Detail = p.ErrorCode, CompletedAt = p.PaidAt, OriginalPaymentId = (int?)null,
+                           OriginalPaymentReference = (string?)null, OriginalPaymentStatus = (string?)null };
+        var refunds = from r in db.Refunds.AsNoTracking()
+                      join o in ownOrders on r.OrderId equals o.Id
+                      join p in db.Payments.AsNoTracking() on r.PaymentId equals p.Id
+                      where (type == null || type != "Payment") && (status == null || r.Status == status)
+                          && (!fromDate.HasValue || r.CreatedAt >= fromDate.Value) && (!toDate.HasValue || r.CreatedAt < toDate.Value)
+                      select new { r.CreatedAt, r.OrderId, r.Id, Type = "Refund", p.Method,
+                          Amount = r.Amount, Status = r.Status, Reference = r.ProviderRefundId, Detail = r.Reason, CompletedAt = r.CompletedAt,
+                          OriginalPaymentId = (int?)p.Id, OriginalPaymentReference = p.ProviderTransactionId ?? p.ProviderOrderId,
+                          OriginalPaymentStatus = p.Status };
+        var all = payments.Concat(refunds);
+        var count = await all.CountAsync(ct);
+        var pageCount = Math.Max(1, (count + pageSize - 1) / pageSize);
+        page = Math.Min(page, pageCount);
+        var rows = await all.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Type).ThenByDescending(x => x.Id)
+            .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
+        var paidTotals = await (from p in db.Payments.AsNoTracking()
+                                join o in ownOrders on p.OrderId equals o.Id
+                                where p.Status == "Succeeded" && p.PaidAt != null
+                                    && (!paidStart.HasValue || p.PaidAt >= paidStart.Value)
+                                    && (!paidEnd.HasValue || p.PaidAt < paidEnd.Value)
+                                group p by p.Method into g
+                                select new { method = g.Key, amount = g.Sum(x => x.Amount ?? 0m) }).ToListAsync(ct);
+        var refundedTotals = await (from r in db.Refunds.AsNoTracking()
+                                    join o in ownOrders on r.OrderId equals o.Id
+                                    where r.Status == "Succeeded" && r.CompletedAt != null
+                                        && (!refundStart.HasValue || r.CompletedAt >= refundStart.Value)
+                                        && (!refundEnd.HasValue || r.CompletedAt < refundEnd.Value)
+                                    group r by r.Reason into g
+                                    select new { reason = g.Key, amount = g.Sum(x => x.Amount) }).ToListAsync(ct);
+        var totals = await ownOrders.Select(o => new
+        {
+            orderId = o.Id,
+            paid = db.Payments.Where(p => p.OrderId == o.Id && p.Status == "Succeeded").Sum(p => (decimal?)(p.Amount ?? 0m)) ?? 0m,
+            refunded = db.Refunds.Where(r => r.OrderId == o.Id && r.Status == "Succeeded").Sum(r => (decimal?)r.Amount) ?? 0m
+        }).ToListAsync(ct);
+        return Ok(new { page, pageSize, totalCount = count, totalPages = pageCount, items = rows,
+            periodTotals = new { paid = paidTotals.Sum(x => x.amount), refunded = refundedTotals.Sum(x => x.amount), paidByMethod = paidTotals, refundedByReason = refundedTotals },
+            orderTotals = totals.Select(x => new { x.orderId, paid = x.paid, refunded = x.refunded, remaining = x.paid - x.refunded }) });
+    }
+
+    [HttpGet("buyer/transactions/{type}/{id:int}")]
+    public async Task<IActionResult> BuyerTransactionDetail(string type, int id, CancellationToken ct)
+    {
+        if (!IsAvailable || !HasRole("buyer")) return StatusCode(403);
+        if (id <= 0 || type is not ("Payment" or "Refund")) return BadRequest("Giao dịch chưa hợp lệ.");
+        if (type == "Payment")
+        {
+            var payment = await db.Payments.AsNoTracking().Where(p => p.Id == id && p.Order != null && p.Order.BuyerId == CurrentUserId)
+                .Select(p => new { p.Id, OrderId = p.OrderId!.Value, Type = "Payment", p.Method, Amount = p.Amount ?? 0m,
+                    Status = p.Status ?? "Unknown", p.CreatedAt, Reference = p.ProviderTransactionId ?? p.ProviderOrderId,
+                    Detail = p.ErrorCode, CompletedAt = p.PaidAt, OriginalPaymentId = (int?)null,
+                    OriginalPaymentReference = (string?)null, OriginalPaymentStatus = (string?)null }).SingleOrDefaultAsync(ct);
+            return payment is null ? NotFound() : Ok(payment);
+        }
+        var refund = await (from r in db.Refunds.AsNoTracking()
+                            join o in db.OrderTables.AsNoTracking() on r.OrderId equals o.Id
+                            join p in db.Payments.AsNoTracking() on r.PaymentId equals p.Id
+                            where r.Id == id && o.BuyerId == CurrentUserId
+                            select new { r.Id, r.OrderId, Type = "Refund", p.Method, Amount = r.Amount,
+                                Status = r.Status, r.CreatedAt, Reference = r.ProviderRefundId, Detail = r.Reason,
+                                CompletedAt = r.CompletedAt, OriginalPaymentId = (int?)p.Id,
+                                OriginalPaymentReference = p.ProviderTransactionId ?? p.ProviderOrderId,
+                                OriginalPaymentStatus = p.Status }).SingleOrDefaultAsync(ct);
+        return refund is null ? NotFound() : Ok(refund);
+    }
+
     [HttpGet("orders")]
     public async Task<IActionResult> Orders(CancellationToken ct)
     {
@@ -565,3 +662,7 @@ public sealed class OrdersController(
         return Ok(new { order.Id, order.Status });
     }
 }
+
+internal sealed record BuyerTransactionRow(DateTime CreatedAt, int OrderId, int Id, string Type, string? Method,
+    decimal Amount, string Status, string? Reference, string? Detail, DateTime? CompletedAt,
+    int? OriginalPaymentId, string? OriginalPaymentReference, string? OriginalPaymentStatus);

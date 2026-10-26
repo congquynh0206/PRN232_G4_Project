@@ -5,6 +5,7 @@
 <link rel="stylesheet" href="~/css/promotions.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/buyer-addresses.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/buyer-checkout.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/buyer-transactions.css" asp-append-version="true" />
 <div id="message" class="message" role="status" aria-live="polite"></div>
 <section id="summary" class="panel tab-panel active">
     <div class="section-head">
@@ -176,6 +177,26 @@
     <div id="order-list" class="order-list" aria-busy="false"></div>
     <div id="order-pagination" class="pagination"></div>
 </section>
+<section id="transactions" class="panel tab-panel">
+    <div class="section-head"><div><span class="eyebrow">Người mua</span><h1>Lịch sử giao dịch</h1><p>Mọi lần thanh toán và hoàn tiền. Bộ lọc ngày áp dụng theo thời điểm tạo giao dịch.</p></div><button type="button" id="transactions-refresh">Làm mới</button></div>
+    <form id="transaction-filters" class="transaction-filters">
+        <label>Mã đơn<input name="orderId" type="number" min="1" placeholder="Tất cả đơn"></label>
+        <label>Từ ngày<input name="from" type="date"></label><label>Đến ngày<input name="to" type="date"></label>
+        <label>Khoảng thống kê<select name="period"><option value="30">30 ngày gần nhất</option><option value="all">Tất cả thời gian</option><option value="custom">Tùy chọn ngày</option></select></label>
+        <label>Loại<select name="type"><option value="">Tất cả</option><option value="Payment">Thanh toán</option><option value="Refund">Hoàn tiền</option></select></label>
+        <label>Trạng thái<select name="status"><option value="">Tất cả</option><option value="Succeeded">Thành công</option><option value="Failed">Thất bại</option><option value="Pending">Đang xử lý</option><option value="Verifying">Đang xác minh</option></select></label>
+        <button class="primary" type="submit">Tìm kiếm</button><button type="reset" id="transaction-clear">Xóa bộ lọc</button>
+    </form>
+    <p id="transaction-summary" class="small" role="status" aria-live="polite"></p>
+    <p id="transaction-period-note" class="small"></p>
+    <div id="transaction-totals" class="transaction-totals" aria-live="polite"></div>
+    <div class="table-scroll"><table class="data-table"><thead><tr><th>Thời gian</th><th>Mã đơn</th><th>Loại</th><th>Phương thức</th><th>Số tiền</th><th>Trạng thái</th><th>Mã giao dịch</th><th>Chi tiết</th></tr></thead><tbody id="transaction-rows"></tbody></table></div>
+    <div id="transaction-pagination" class="pagination"></div>
+</section>
+<dialog id="transaction-dialog" class="detail-dialog" aria-labelledby="transaction-dialog-title">
+    <div class="dialog-head"><h2 id="transaction-dialog-title">Chi tiết giao dịch</h2><button type="button" id="transaction-close">Đóng</button></div>
+    <div id="transaction-dialog-content"></div>
+</dialog>
 <div id="paypal-loading" class="loading-overlay hidden" role="status" aria-live="assertive">
     <div>
         <span class="spinner" aria-hidden="true"></span>
@@ -206,5 +227,6 @@
     <script src="~/js/paypal-cart.js" asp-append-version="true"></script>
     <script src="~/js/seller-feedback.js" asp-append-version="true"></script>
     <script src="~/js/buyer-product-reviews.js" asp-append-version="true"></script>
+    <script src="~/js/buyer-transactions.js" asp-append-version="true"></script>
     <script src="~/js/buyer.js" asp-append-version="true"></script>
 }

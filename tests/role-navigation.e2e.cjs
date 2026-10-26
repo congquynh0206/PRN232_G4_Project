@@ -67,6 +67,8 @@ function response(route) {
     return { ...paged, totals: {}, chart: [], unreconciledPayments: 0, unreconciledRefunds: 0 };
   if (resource === 'seller/product-feedback/products')
     return { ...paged, summary: { productCount: 0, reviewCount: 0, unansweredCount: 0 } };
+  if (resource === 'buyer/transactions')
+    return { ...paged, items: [], periodTotals: { paid: 0, refunded: 0 }, orderTotals: [] };
   if (resource === 'admin/platform-fees')
     return {
       ...paged,
@@ -171,7 +173,7 @@ async function main() {
         continue;
       }
       const nav = page.locator('[data-role-navigation]');
-      const expected = role === 'buyer' ? 4 : role === 'seller' ? 12 : 9;
+      const expected = role === 'buyer' ? 5 : role === 'seller' ? 12 : 9;
       await page.waitForFunction(() => !!G4.Navigation.current);
       assert.equal(await nav.locator('[data-tab]').count(), expected);
       assert.equal(await nav.locator('[data-tab=checkout]').count(), 0);
@@ -276,6 +278,10 @@ async function main() {
       await page.setViewportSize({ width: 390, height: 844 });
       if (role === 'buyer') {
         assert.equal(await nav.evaluate((el) => getComputedStyle(el).position), 'fixed');
+        await nav.locator('[data-tab=transactions]').click();
+        await page.waitForFunction(() => G4.Navigation.current === 'transactions');
+        assert.equal(await page.locator('#transaction-filters').count(), 1);
+        assert.equal(await page.locator('#transaction-dialog').count(), 1);
         await nav.locator('[data-tab=summary]').click();
         await page.locator('#continue').click();
         await page.waitForFunction(() => G4.Navigation.current === 'checkout');

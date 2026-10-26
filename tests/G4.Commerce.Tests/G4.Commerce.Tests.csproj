@@ -8,6 +8,7 @@
     <ItemGroup>
         <ProjectReference Include="../../backend/G4.Infrastructure/G4.Infrastructure.csproj" />
         <ProjectReference Include="../../backend/G4.Contracts/G4.Contracts.csproj" />
+        <ProjectReference Include="../../backend/G4.Api/G4.Api.csproj" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.20" />
     </ItemGroup>
 </Project>

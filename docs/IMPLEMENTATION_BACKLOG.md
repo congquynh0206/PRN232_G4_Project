@@ -46,7 +46,7 @@
 | Mã | Nội dung | Mốc hiện trạng | Đặc tả |
 | --- | --- | --- | --- |
 | B1 | CRUD địa chỉ/mặc định và lấy báo giá lại | Đã có source và hồi quy hợp nhất; chờ SQL QA/E2E địa chỉ | §3; bốn task ưu tiên §2; BUYER_ADDRESS_BOOK.md |
-| B2 | Lịch sử payment/refund buyer | Cần triển khai màn tổng hợp; đã có dữ liệu trong từng đơn | §5; bốn task ưu tiên §1 |
+| B2 | Lịch sử payment/refund buyer | Source, regression backend/UI và browser fixture điều hướng đã đạt; còn QA browser dữ liệu và SQL/provider QA riêng | §5; bốn task ưu tiên §1; [PAYMENT_HISTORY.md](PAYMENT_HISTORY.md) |
 | S1 | Báo cáo tài chính theo thời gian | Đã có source API/UI, test InMemory/UI, LocalDB QA riêng và HTTP role/filter; chờ QA browser, review và nghiệm thu | §2, §9; bốn task ưu tiên §4 |
 | S2 | Feedback sản phẩm và trả lời | Có source, cần xác minh triển khai; giữ tách seller feedback | §2; PRODUCT_FEEDBACK.md |
 | A1 | Admin tra cứu order/payment/refund | Đã có source tra cứu chỉ đọc; chờ build và QA nghiệm thu | §2; bốn task ưu tiên §3; [ADMIN_ORDER_LOOKUP.md](ADMIN_ORDER_LOOKUP.md) |
