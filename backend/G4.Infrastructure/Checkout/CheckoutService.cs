@@ -253,6 +253,19 @@ public sealed class CheckoutService(
 
             db.OrderTables.Add(order);
             await db.SaveChangesAsync(ct);
+            // The identity is now available; keep this alert in the existing checkout transaction.
+            db.CommerceChanges.Add(
+                new CommerceChange
+                {
+                    Topic = "orders",
+                    OrderId = order.Id,
+                    BuyerId = order.BuyerId,
+                    SellerId = order.SellerId,
+                    CreatedAt = now,
+                    NotificationTitle = "Đơn hàng mới",
+                    NotificationMessage = $"Đơn #{order.Id} đang chờ thanh toán.",
+                }
+            );
             foreach (var applied in quote.Promotions)
             {
                 db.OrderPromotionSnapshots.Add(

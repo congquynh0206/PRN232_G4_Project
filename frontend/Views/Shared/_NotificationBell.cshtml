@@ -1,0 +1,43 @@
+<section class="notification-bell" aria-label="Thông báo của bạn">
+    <button
+        type="button"
+        id="notification-bell-toggle"
+        class="notification-bell-toggle"
+        aria-label="Thông báo"
+        aria-controls="notification-bell-panel"
+        aria-expanded="false"
+        aria-haspopup="dialog"
+    >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
+        </svg>
+        <span id="notification-bell-badge" class="notification-bell-badge" aria-hidden="true" hidden></span>
+    </button>
+    <span id="notification-bell-announcement" class="bell-sr-only"
+          role="status" aria-live="polite" aria-atomic="true"></span>
+    <section id="notification-bell-panel" class="notification-bell-panel"
+             role="dialog" aria-labelledby="notification-bell-title" hidden>
+        <div class="notification-bell-head">
+            <div>
+                <h2 id="notification-bell-title">Thông báo</h2>
+                <p id="notification-bell-count">Đang tải thông báo…</p>
+            </div>
+            <button type="button" id="notification-bell-close" aria-label="Đóng thông báo">Đóng</button>
+        </div>
+        <div class="notification-bell-tools">
+            <button type="button" id="notification-bell-read-all" disabled>Đánh dấu tất cả đã đọc</button>
+            <button type="button" id="notification-bell-refresh">Làm mới</button>
+        </div>
+        <p id="notification-bell-error" class="notification-bell-error" role="alert" hidden></p>
+        <ol id="notification-bell-list" class="notification-bell-list" aria-busy="true"></ol>
+        <p id="notification-bell-empty" class="notification-bell-empty" hidden>
+            Bạn chưa có thông báo. Những cập nhật liên quan sẽ xuất hiện tại đây.
+        </p>
+        <div class="notification-bell-footer">
+            <button type="button" id="notification-bell-prev" aria-label="Trang thông báo trước" disabled>Trước</button>
+            <span id="notification-bell-page">Trang 1 / 1</span>
+            <button type="button" id="notification-bell-next" aria-label="Trang thông báo tiếp" disabled>Sau</button>
+        </div>
+    </section>
+</section>

@@ -50,6 +50,7 @@
         {
             <link rel="stylesheet" href="~/css/role-navigation.css" asp-append-version="true" />
         }
+        <link rel="stylesheet" href="~/css/notification-bell.css" asp-append-version="true" />
     </head>
     <body class="@(role == "shipper" ? "vnpost-workspace" : "")">
         <header class="topbar role-topbar">
@@ -71,6 +72,7 @@
                 }
             </a>
             <div class="account-area">
+                <partial name="_NotificationBell" />
                 <div>
                     <strong>@User.Identity?.Name</strong>
                     <small>@roleLabel</small>
@@ -174,5 +176,6 @@
             </form>
         </dialog>
         @await RenderSectionAsync("Scripts", required: false)
+        <script src="~/js/notification-bell.js" asp-append-version="true"></script>
     </body>
 </html>

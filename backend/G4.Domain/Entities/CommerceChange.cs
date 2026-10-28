@@ -1,6 +1,6 @@
 namespace G4.Domain.Entities;
 
-// Only routing identifiers, never financial amounts, evidence or identity values.
+// Routing identifiers and safe business summaries; no amounts, evidence or identity values.
 public sealed class CommerceChange
 {
     public long Id { get; set; }
@@ -14,4 +14,6 @@ public sealed class CommerceChange
     public int? DisputeId { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? DispatchedAt { get; set; }
+    public string? NotificationTitle { get; set; }
+    public string? NotificationMessage { get; set; }
 }

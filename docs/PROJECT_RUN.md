@@ -1,5 +1,11 @@
 # Chạy dự án checkout & giao hàng (nhóm 4)
 
+**Chuông thông báo 27/10/2026:** binary mới cần migration tăng dần
+`20261027153709_AddUserNotificationBell`, rồi restart API/frontend và tải lại trang.
+Chuông có ở cả bốn role, badge chưa đọc 1–9/9+, danh sách lưu theo tài khoản và
+cập nhật SignalR. Chỉ áp migration trên QA `G4_NotificationBell_Test_20261027`,
+**chưa áp database chính**; không chạy lại baseline. [API, SQL duyệt và test](NOTIFICATION_BELL.md).
+
 **Đồng hồ demo 23/10/2026:** khởi động lại API/frontend và tải lại trang để nhận countdown tại thao tác và danh sách tiền giữ từng đơn trong Ví Seller. Không có migration mới hoặc cập nhật database; deadline/snapshot cũ giữ nguyên. [Hướng dẫn và kiểm thử](DEMO_COUNTDOWNS.md).
 
 **Format mã nguồn 23/10/2026:** căn lề/xuống dòng C#/JavaScript/CSS/Razor và test, không đổi nghiệp vụ hoặc schema; không có migration mới và không thay database. Quy tắc 100 ký tự/dòng và cấu hình formatter ở [BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md#trình-bày-mã-nguồn). Solution build đầu ra riêng, backend mặc định và Node 128/128 đạt. API/frontend đang chạy khóa file build mặc định nên đợt này xuất build sang `artifacts/format-build/`, dùng `OutputPath` riêng và `UseAppHost=false` để xác minh mà không dừng ứng dụng.

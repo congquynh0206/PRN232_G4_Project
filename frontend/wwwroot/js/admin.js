@@ -22,6 +22,9 @@
   G4.SellerLevels.init('admin');
   G4.AdminOrderLookup.init();
   G4.Navigation.init(tab);
+  const linkedOrder = Number(new URLSearchParams(location.search).get('orderId'));
+  if (linkedOrder > 0 && G4.Navigation.current === 'order-lookup')
+    safe(() => G4.AdminOrderLookup.openOrder(linkedOrder));
   G4.Realtime?.subscribe(
     ['orders', 'returns', 'disputes', 'finance', 'levels', 'notifications'],
     async () => {

@@ -1,5 +1,8 @@
 # Bổ sung thông báo và email N1
 
+**Chuông 27/10/2026:** inbox chưa đọc bốn role và SignalR dùng bảng riêng,
+không dùng Status SMTP để đếm badge. [Thiết kế, migration và QA](NOTIFICATION_BELL.md).
+
 ## Kế hoạch
 
 - [x] Bổ sung khóa sự kiện theo từng lần thanh toán/yêu cầu/payout và người nhận; giữ dữ liệu email cũ.

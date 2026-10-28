@@ -1,5 +1,21 @@
 # Backlog triển khai theo đặc tả ngày 18/10/2026
 
+## BELL1 — Chuông bốn role ngày 27/10/2026
+
+- Yêu cầu: chuông có badge chưa đọc 1–9/9+, danh sách lưu server, read/read-all theo
+  tài khoản và cập nhật SignalR; mở chuông không đánh dấu đã đọc.
+- Đã có source inbox riêng, snapshot sự kiện đã commit, key chống trùng, API theo
+  claim và UI chung bốn role; không dùng trạng thái gửi email làm số chưa đọc.
+- Hoàn thành/nghiệm thu source: solution/Release build 0 warning/error, backend
+  mặc định đầy đủ (gồm SMTP loopback), InMemory chuông, SQL QA migration/unique/
+  concurrent read/quyền/rollback và Node 135/135 đạt. Chrome nối Razor/API/SQL/
+  SignalR thật bốn role ở 320/390/1440px đạt: scope, 9+, đọc/read-all, link theo role,
+  pagination, keyboard/focus, draft, nhiều tab, reload/offline và escape/lỗi tải.
+  Đã xem ảnh mobile/desktop; artifact tại `artifacts/notification-bell-qa/`.
+- Migration `20261027153709_AddUserNotificationBell` chỉ áp database QA riêng
+  `G4_NotificationBell_Test_20261027`, chưa áp database chính.
+- [API, phạm vi sự kiện, cách chạy và bằng chứng](NOTIFICATION_BELL.md).
+
 ## FLOW-DOC — Luồng checkout và màn tiếp theo ngày 25/10/2026
 
 - Đã tạo ba workflow Archify dựa trên source: tạo đơn/điều hướng, kết quả thẻ thử và

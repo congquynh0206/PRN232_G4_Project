@@ -382,6 +382,8 @@ public sealed class ShipmentService(
                         ShippingInfoId = shippingInfoId,
                         ShipperId = shipperId,
                         CreatedAt = Now,
+                        NotificationTitle = "Đã nhận vận đơn",
+                        NotificationMessage = $"Shipper đã nhận vận đơn #{shippingInfoId}.",
                     }
                 );
                 await db.SaveChangesAsync(ct);

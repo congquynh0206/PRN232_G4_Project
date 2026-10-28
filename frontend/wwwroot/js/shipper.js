@@ -397,6 +397,10 @@
     safe(() => load(1));
   };
   safe(load);
+  const linked = new URLSearchParams(location.search);
+  const linkedOrder = Number(linked.get('orderId'));
+  const linkedShipment = Number(linked.get('shipmentId'));
+  if (linkedOrder > 0 && linkedShipment > 0) safe(() => detail(linkedOrder, linkedShipment));
   G4.Realtime?.subscribe(['shipments', 'orders'], async () => {
     await load();
     if (active && $('detail-dialog').open && !busy.has(active.shipmentId))

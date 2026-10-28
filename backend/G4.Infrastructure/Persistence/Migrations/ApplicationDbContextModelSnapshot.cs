@@ -321,6 +321,14 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<int?>("DisputeId")
                         .HasColumnType("int");
 
+                    b.Property<string>("NotificationMessage")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("NotificationTitle")
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
                     b.Property<int?>("OrderId")
                         .HasColumnType("int");
 
@@ -3132,6 +3140,53 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.ToTable("User", (string)null);
                 });
 
+            modelBuilder.Entity("G4.Domain.Entities.UserNotification", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("CommerceChangeId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("ReadAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("TargetUrl")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CommerceChangeId");
+
+                    b.HasIndex("UserId", "CommerceChangeId")
+                        .IsUnique();
+
+                    b.HasIndex("UserId", "ReadAt", "Id");
+
+                    b.ToTable("UserNotification", (string)null);
+                });
+
             modelBuilder.Entity("G4.Domain.Entities.Address", b =>
                 {
                     b.HasOne("G4.Domain.Entities.User", "User")
@@ -3820,6 +3875,21 @@ namespace G4.Infrastructure.Persistence.Migrations
                         .HasConstraintName("FK__Store__sellerId__6D0D32F4");
 
                     b.Navigation("Seller");
+                });
+
+            modelBuilder.Entity("G4.Domain.Entities.UserNotification", b =>
+                {
+                    b.HasOne("G4.Domain.Entities.CommerceChange", null)
+                        .WithMany()
+                        .HasForeignKey("CommerceChangeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("G4.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("G4.Domain.Entities.Address", b =>

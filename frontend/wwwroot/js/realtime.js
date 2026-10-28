@@ -22,6 +22,16 @@
     );
   }
   function invalidate(topics = ['all']) {
+    for (const listener of listeners) {
+      if (
+        listener.immediate &&
+        (topics.includes('all') || listener.topics.some((t) => topics.includes(t)))
+      ) {
+        Promise.resolve()
+          .then(() => listener.handler(new Set(topics)))
+          .catch(() => {});
+      }
+    }
     topics.forEach((t) => pending.add(t));
     schedule();
   }
@@ -44,6 +54,7 @@
     flushing = true;
     try {
       for (const listener of listeners) {
+        if (listener.immediate) continue;
         if (!topics.has('all') && !listener.topics.some((t) => topics.has(t))) continue;
         try {
           if ((await listener.handler(topics)) === false) pending.add('all');
@@ -103,8 +114,8 @@
     }
   }
   window.G4.Realtime = {
-    subscribe(topics, handler) {
-      listeners.push({ topics, handler });
+    subscribe(topics, handler, { immediate = false } = {}) {
+      listeners.push({ topics, handler, immediate });
     },
     invalidate,
     get connected() {

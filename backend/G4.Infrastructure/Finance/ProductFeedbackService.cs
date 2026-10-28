@@ -351,6 +351,8 @@ public sealed class ProductFeedbackService(ApplicationDbContext db, TimeProvider
                 BuyerId = review.ReviewerId,
                 OrderId = review.OrderId,
                 CreatedAt = clock.GetUtcNow().UtcDateTime,
+                NotificationTitle = "Phản hồi đánh giá sản phẩm",
+                NotificationMessage = "Người bán đã phản hồi một đánh giá sản phẩm của đơn hàng.",
             }
         );
         await db.SaveChangesAsync(ct);

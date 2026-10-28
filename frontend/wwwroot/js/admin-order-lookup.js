@@ -311,5 +311,5 @@
     });
     renderFilters();
   }
-  window.G4.AdminOrderLookup = { init, load };
+  window.G4.AdminOrderLookup = { init, load, openOrder };
 })();

@@ -25,9 +25,22 @@ public sealed class CommerceChangeWorker(
                     .Take(100)
                     .ToListAsync(stoppingToken);
                 var deliveries = new Dictionary<string, HashSet<string>>();
+                var notifications = new G4.Infrastructure.Notifications.BellNotificationService(db);
                 foreach (var change in changes)
                 {
                     var groups = await AudiencesAsync(db, change, stoppingToken);
+                    var recipients = await notifications.MaterializeAsync(
+                        change,
+                        groups,
+                        stoppingToken
+                    );
+                    foreach (var recipient in recipients)
+                    {
+                        var group = "user:" + recipient;
+                        if (!deliveries.TryGetValue(group, out var topics))
+                            deliveries[group] = topics = new();
+                        topics.Add("notification-inbox");
+                    }
                     foreach (var group in groups)
                     {
                         if (!deliveries.TryGetValue(group, out var topics))
@@ -35,6 +48,9 @@ public sealed class CommerceChangeWorker(
                         topics.Add(change.Topic);
                     }
                 }
+                // Commit the inbox before publishing; a reconnect can always load the saved state.
+                if (changes.Count > 0)
+                    await db.SaveChangesAsync(stoppingToken);
                 foreach (var (group, topics) in deliveries)
                     await hub
                         .Clients.Group(group)

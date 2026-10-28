@@ -1,3 +1,4 @@
+using G4.Infrastructure.Notifications;
 using Microsoft.EntityFrameworkCore;
 
 namespace G4.Infrastructure.Persistence;
@@ -5,6 +6,7 @@ namespace G4.Infrastructure.Persistence;
 public partial class ApplicationDbContext
 {
     public DbSet<CommerceChange> CommerceChanges => Set<CommerceChange>();
+    public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
 
     private static void ConfigureRealtime(ModelBuilder model)
     {
@@ -12,7 +14,31 @@ public partial class ApplicationDbContext
         {
             e.ToTable("CommerceChange");
             e.Property(x => x.Topic).HasMaxLength(30);
+            e.Property(x => x.NotificationTitle).HasMaxLength(160);
+            e.Property(x => x.NotificationMessage).HasMaxLength(500);
             e.HasIndex(x => new { x.DispatchedAt, x.Id });
+        });
+        model.Entity<UserNotification>(e =>
+        {
+            e.ToTable("UserNotification");
+            e.Property(x => x.Title).HasMaxLength(160);
+            e.Property(x => x.Message).HasMaxLength(500);
+            e.Property(x => x.TargetUrl).HasMaxLength(200);
+            e.HasIndex(x => new { x.UserId, x.CommerceChangeId }).IsUnique();
+            e.HasIndex(x => new
+            {
+                x.UserId,
+                x.ReadAt,
+                x.Id,
+            });
+            e.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<CommerceChange>()
+                .WithMany()
+                .HasForeignKey(x => x.CommerceChangeId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 
@@ -50,6 +76,7 @@ public partial class ApplicationDbContext
                 {
                     Topic = "shipments",
                     OrderId = x.OrderId,
+                    ShippingInfoId = x.Id > 0 ? x.Id : null,
                     ShipperId = x.ShipperId,
                 },
                 ShippingEvent x => new CommerceChange
@@ -108,12 +135,21 @@ public partial class ApplicationDbContext
                 {
                     Topic = "orders",
                     OrderId = x.OrderId,
+                    ShipperId = x.ExpectedShipperId,
+                },
+                UserNotification x when entry.State == EntityState.Modified => new CommerceChange
+                {
+                    Topic = "notification-inbox",
+                    BuyerId = x.UserId,
                 },
                 _ => null,
             };
             if (signal != null)
             {
                 signal.CreatedAt = DateTime.UtcNow;
+                var content = BellNotificationText.Describe(entry);
+                signal.NotificationTitle = content?.Title;
+                signal.NotificationMessage = content?.Message;
                 signals.Add(signal);
             }
         }
@@ -127,7 +163,9 @@ public partial class ApplicationDbContext
                     x.SellerAccountId,
                     x.ShippingInfoId,
                     x.ShipperId,
-                    x.DisputeId
+                    x.DisputeId,
+                    x.NotificationTitle,
+                    x.NotificationMessage
                 )
             )
         );

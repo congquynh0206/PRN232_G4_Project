@@ -3,6 +3,17 @@ using G4.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
+if (args.Contains("--notification-bell"))
+{
+    await BellNotificationChecks.RunAsync();
+    return;
+}
+if (args.Contains("--notification-bell-sql"))
+{
+    await BellNotificationSqlChecks.RunAsync();
+    return;
+}
+
 if (args.Contains("--seller-finance-report-sql"))
 {
     await SellerFinanceReportSqlChecks.RunAsync();
@@ -234,6 +245,7 @@ await NotificationProcessorBehaviorChecks.RunAsync();
 await IntegrationDiagnosticsChecks.RunAsync();
 await IntegrationBufferChecks.RunAsync();
 await NotificationAuthorizationChecks.RunAsync();
+await BellNotificationChecks.RunAsync();
 await SmtpEmailChecks.RunAsync();
 try
 {

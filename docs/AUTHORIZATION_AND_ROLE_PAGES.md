@@ -15,6 +15,11 @@ Hệ thống có bốn role độc lập. Người dùng đăng nhập tại `/A
 
 ## Phân chia chức năng
 
+**Bổ sung 27/10/2026:** thanh đầu trang cả bốn role có chuông thông báo cá nhân,
+badge chưa đọc và danh sách cập nhật SignalR. Shipper giữ nguyên menu nghiệp vụ;
+chuông công việc chung không lộ chi tiết đơn chưa được gán. Admin cũng không được
+đọc/đánh dấu hộp chuông của tài khoản khác. [Chi tiết](NOTIFICATION_BELL.md).
+
 ### Điều hướng ngày 21/10/2026
 
 - Buyer: Giỏ hàng, Đơn hàng, Tranh chấp, Thông báo. Thanh toán mở từ **Tiếp tục thanh toán**, có **Quay lại giỏ hàng**; khi thanh toán, mục Giỏ hàng vẫn được đánh dấu. Desktop menu ngang; mobile ≤760px dùng thanh dưới với khoảng đệm cuối trang/safe area để cuộn tới các nút hành động.

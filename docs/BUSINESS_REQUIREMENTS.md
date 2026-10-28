@@ -210,6 +210,14 @@ Write-off là quy tắc rủi ro do nợ trong mô phỏng, không tự kết lu
 
 ## 12. Thông báo, nhật ký và tiêu chí hoàn thành
 
+**Quyết định 27/10/2026 — Chuông thông báo:** cả bốn role có chuông nhận cập nhật liên
+quan đến tài khoản qua SignalR. Badge đếm thông báo chưa đọc 1–9, trên 9 là `9+`,
+không có thì ẩn. Danh sách lưu server, có nội dung/thời gian và liên kết tới đơn/mục
+liên quan; reload/đăng nhập lại không mất. Mở chuông không đánh dấu đã đọc; bấm một
+thông báo mới đánh dấu đã đọc, có thao tác đánh dấu tất cả. Trạng thái đọc tách theo
+từng tài khoản, gồm cả admin; gửi lại event/email không tạo trùng chuông. Quyền/tiền
+vẫn do API nghiệp vụ kiểm tra. [Chi tiết và nghiệm thu](NOTIFICATION_BELL.md).
+
 Thông báo/email được tạo cho payment thành công/thất bại cần hành động, giao thành công/thất bại, yêu cầu hủy/đổi địa chỉ/trả hàng, dispute, refund, cảnh báo nợ và payout. Lỗi gửi email không được làm thất bại giao dịch chính; worker retry có giới hạn. Nhật ký tài chính và quyết định Admin là bất biến, phân biệt sự kiện nghiệp vụ với lỗi tích hợp.
 
 Các kịch bản tối thiểu để nghiệm thu:
