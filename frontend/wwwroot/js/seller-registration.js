@@ -75,6 +75,13 @@
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
+        if (response.status === 429) {
+          const error = new Error(
+            result.error || 'Bạn thao tác quá nhanh. Vui lòng chờ rồi gửi lại.',
+          );
+          error.status = 429;
+          throw error;
+        }
         if (response.status >= 400 && response.status < 500) pending = null;
         throw new Error(result.error || result.title || 'Chưa xác định được kết quả đăng ký.');
       }
@@ -88,7 +95,9 @@
     } catch (ex) {
       error.textContent =
         (ex.message || 'Đăng ký chưa thành công.') +
-        (pending ? ' Kết quả chưa rõ; hãy thử gửi lại cùng yêu cầu, không đổi thông tin.' : '');
+        (pending && ex.status !== 429
+          ? ' Kết quả chưa rõ; hãy thử gửi lại cùng yêu cầu, không đổi thông tin.'
+          : '');
       error.focus();
     } finally {
       busy = false;

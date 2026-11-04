@@ -1,5 +1,8 @@
 # Đổi địa chỉ đơn — AD1
 
+**Xác nhận quyết định 31/10/2026:** Seller nhập lại mật khẩu khi chấp thuận/từ chối đổi địa chỉ hoặc đổi cap/địa chỉ lấy hàng.
+[Popup, header API, quota và kiểm thử](PASSWORD_CONFIRMATION.md).
+
 **Đã triển khai/nghiệm thu source ngày 20/10/2026** theo [đặc tả §6](BUSINESS_REQUIREMENTS.md#6-giao-hàng-và-đổi-địa-chỉ) và [backlog AD1](IMPLEMENTATION_BACKLOG.md#3-ad1--xác-nhận-địa-chỉ-trước-khi-áp-dụng). Migration mới chỉ được áp database QA riêng, **chưa áp database chính**. Không chạy binary mới trên schema cũ.
 
 ## Luồng xác nhận trước khi áp dụng

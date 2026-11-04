@@ -1,3 +1,4 @@
+using G4.Api.Security;
 using G4.Contracts.Checkout;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -152,6 +153,7 @@ public sealed class FinanceController(
     }
 
     [HttpPost("seller/payouts")]
+    [RequirePassword("seller", "Gửi yêu cầu rút tiền")]
     public async Task<IActionResult> RequestPayout(PayoutRequest request, CancellationToken ct)
     {
         if (!IsAvailable || !HasRole("seller"))
@@ -206,6 +208,7 @@ public sealed class FinanceController(
     }
 
     [HttpPost("orders/{orderId:int}/fund-hold/resolve")]
+    [RequirePassword("admin", "Chốt phán quyết tranh chấp")]
     public async Task<IActionResult> ResolveHold(
         int orderId,
         AdminDecisionInput request,

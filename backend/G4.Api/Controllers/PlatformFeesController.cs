@@ -1,3 +1,4 @@
+using G4.Api.Security;
 using G4.Contracts.Checkout;
 using G4.Infrastructure.Finance;
 using Microsoft.AspNetCore.Mvc;
@@ -27,6 +28,7 @@ public sealed class PlatformFeesController(
     }
 
     [HttpPost]
+    [RequirePassword("admin", "Thay đổi phí nền tảng")]
     public async Task<IActionResult> Change(PlatformFeeChangeRequest request, CancellationToken ct)
     {
         if (!IsAvailable || !HasRole("admin"))

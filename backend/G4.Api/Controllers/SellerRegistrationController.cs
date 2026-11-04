@@ -1,3 +1,4 @@
+using G4.Api.Security;
 using G4.Contracts.Checkout;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -41,6 +42,7 @@ public sealed class SellerRegistrationController(
     }
 
     [HttpPost("seller/identity")]
+    [RequirePassword("seller", "Thay đổi thông tin định danh")]
     public async Task<IActionResult> Identity(SellerIdentityChangeInput input, CancellationToken ct)
     {
         if (!IsAvailable || !HasRole("seller"))

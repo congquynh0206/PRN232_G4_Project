@@ -45,6 +45,10 @@
             <link rel="stylesheet" href="~/css/vnpost.css" asp-append-version="true" />
         }
         <link rel="stylesheet" href="~/css/dialogs.css" asp-append-version="true" />
+        @if (role is "seller" or "admin")
+        {
+            <link rel="stylesheet" href="~/css/password-confirmation.css" asp-append-version="true" />
+        }
         <link rel="stylesheet" href="~/css/countdowns.css" asp-append-version="true" />
         @if (role is "buyer" or "seller" or "admin")
         {
@@ -175,7 +179,15 @@
                 </div>
             </form>
         </dialog>
+        @if (role is "seller" or "admin")
+        {
+            <partial name="_PasswordConfirmationDialog" />
+        }
         @await RenderSectionAsync("Scripts", required: false)
+        @if (role is "seller" or "admin")
+        {
+            <script src="~/js/password-confirmation.js" asp-append-version="true"></script>
+        }
         <script src="~/js/notification-bell.js" asp-append-version="true"></script>
     </body>
 </html>

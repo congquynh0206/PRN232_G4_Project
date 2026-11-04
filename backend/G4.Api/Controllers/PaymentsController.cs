@@ -1,3 +1,4 @@
+using G4.Api.Security;
 using G4.Contracts.Checkout;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -79,6 +80,7 @@ public sealed class PaymentsController(
     }
 
     [HttpPost("seller/orders/{id:int}/refund")]
+    [RequirePassword("seller", "Xác nhận hoàn tiền")]
     public async Task<IActionResult> Refund(int id, ReasonRequest request, CancellationToken ct)
     {
         if (!IsAvailable || !HasRole("seller"))

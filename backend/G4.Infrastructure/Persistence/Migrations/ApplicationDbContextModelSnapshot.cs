@@ -1606,6 +1606,9 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<bool>("FreeShipping")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsPublicCoupon")
+                        .HasColumnType("bit");
+
                     b.Property<string>("FundingSource")
                         .IsRequired()
                         .HasMaxLength(20)

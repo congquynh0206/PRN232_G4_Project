@@ -5,6 +5,19 @@ namespace G4.Infrastructure.Authentication;
 
 public sealed class AuthenticationService(ApplicationDbContext db) : IAuthenticationService
 {
+    public async Task<bool> ValidatePasswordAsync(
+        int userId,
+        string role,
+        string password,
+        CancellationToken ct = default
+    )
+    {
+        if (string.IsNullOrEmpty(password) || password.Length > 128)
+            return false;
+        var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == userId, ct);
+        return user?.Role == role && Verify(password, user.Password);
+    }
+
     public async Task<User?> ValidateCredentialsAsync(
         string email,
         string password,

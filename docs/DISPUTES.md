@@ -1,5 +1,8 @@
 # Thương lượng và giải quyết tranh chấp
 
+**Xác nhận quyết định 31/10/2026:** Gửi phương án seller và chốt phán quyết admin cần nhập lại mật khẩu; bổ sung bằng chứng không yêu cầu.
+[Popup, header API, quota và kiểm thử](PASSWORD_CONFIRMATION.md).
+
 **Căn cứ mới 18/10/2026:** [đặc tả §7–8](BUSINESS_REQUIREMENTS.md) và [RT2/INR1/A2](IMPLEMENTATION_BACKLOG.md). Bên dưới là workflow đã có, bao gồm gate Delivered và link bắt buộc. Khi bổ sung INR không được dùng gate đó hoặc bắt buyer có URL chứng minh không nhận hàng. Phản đối return từ RejectedAt giữ quyền dù qua return window; admin yêu cầu trả hàng phải giữ hồ sơ/hold chờ kết luận, không để receipt worker tự refund. Kết quả QA cũ không xác nhận các nhánh mới đã có.
 
 SQL Server lưu hồ sơ `Dispute`, lịch sử `DisputeEntry`, khoản giữ tiền và kết quả hoàn tiền. Buyer/seller chỉ xem và cập nhật hồ sơ của đơn thuộc mình. Shipper không tham gia tranh chấp.

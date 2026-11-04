@@ -5,6 +5,7 @@ public record PromotionInput
     public string Name { get; init; } = "";
     public string Type { get; init; } = "Sale";
     public string? Code { get; init; }
+    public bool IsPublicCoupon { get; init; }
     public int? SellerId { get; init; }
     public decimal Value { get; init; }
     public bool IsPercent { get; init; }

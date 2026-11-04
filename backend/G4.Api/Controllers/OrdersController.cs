@@ -1,3 +1,4 @@
+using G4.Api.Security;
 using G4.Contracts.Checkout;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -648,6 +649,7 @@ public sealed class OrdersController(
     }
 
     [HttpPost("seller/orders/{id:int}/cancel/decision")]
+    [RequirePassword("seller", "Chấp thuận hoặc từ chối hủy đơn")]
     public async Task<IActionResult> DecideCancel(
         int id,
         CancellationDecisionRequest request,

@@ -139,6 +139,55 @@
     function quoteFor(item) {
       return state.quote?.sellers.find((x) => x.sellerId === item.sellerId)?.quote;
     }
+    function couponActions(sellerId) {
+      const disabled = busy ? ' disabled' : '';
+      const remove = state.coupons.get(sellerId)
+        ? '<button type="button" data-remove-coupon="' + sellerId + '"' + disabled + '>Bỏ mã</button>'
+        : '';
+      return '<div class="toolbar"><button type="button" data-pick-coupon="' + sellerId
+        + '"' + disabled + '>Chọn mã giảm giá</button>' + remove + '</div>';
+    }
+    async function useCoupon(sellerId, code) {
+      state.coupons.set(sellerId, code);
+      reset();
+      render();
+      await recalculate();
+    }
+    function pickCoupon(sellerId, offer) {
+      const before = state.quote?.sellers.find((s) => s.sellerId === sellerId)?.quote.total;
+      if (!canPay() || before == null)
+        throw new Error('Chọn địa chỉ và cập nhật báo giá trước khi kiểm tra mã.');
+      const token = quoteRequest;
+      const addressKey = book.selectedKey();
+      function ensureCurrent() {
+        if (token !== quoteRequest || !canPay() || addressKey !== book.selectedKey())
+          throw new Error('Báo giá đã thay đổi. Hãy mở lại bộ chọn mã.');
+      }
+      return G4.BuyerOffers.pick(sellerId, async (code) => {
+        ensureCurrent();
+        const input = request();
+        input.sellers.find((s) => s.sellerId === sellerId).couponCode = code;
+        const result = await api('cart/quote', 'POST', input);
+        ensureCurrent();
+        return { before, after: result.sellers.find((s) => s.sellerId === sellerId).quote.total };
+      }, (code) => {
+        ensureCurrent();
+        return useCoupon(sellerId, code);
+      }, offer);
+    }
+    G4.BuyerCart.offerSellers = (offer) => groups()
+      .filter(([sellerId]) => offer.sellerId == null || offer.sellerId === sellerId)
+      .map(([, items]) => items[0]);
+    G4.BuyerCart.openOffer = async (sellerId, offer) => {
+      if (busy || addressBusy) return;
+      tab('checkout');
+      if (!book.count()) {
+        book.openManage(true);
+        return;
+      }
+      await recalculate();
+      await pickCoupon(sellerId, offer);
+    };
     function itemHtml(item, editable) {
       const q = quoteFor(item),
         line = q?.lines?.find((x) => x.productId === item.productId);
@@ -153,7 +202,7 @@
         groups()
           .map(([sellerId, items]) => {
             const q = quoteFor(items[0]);
-            return `<section class="cart-seller"><h3>${esc(items[0].sellerName)}</h3>${items.map((x) => itemHtml(x, editable)).join('')}${!editable ? `<div class="seller-coupon"><label for="coupon-${sellerId}">Mã giảm giá của ${esc(items[0].sellerName)}</label><div class="coupon-row"><input id="coupon-${sellerId}" data-seller-coupon="${sellerId}" maxlength="50" value="${esc(state.coupons.get(sellerId) || '')}" ${busy ? 'disabled' : ''}/><button type="button" data-apply-coupon="${sellerId}" ${busy ? 'disabled' : ''}>Áp dụng</button></div></div><div class="seller-quote">${q ? `Phí ship: <strong>${money(q.shipping)}</strong>${q.shippingDiscount > 0 ? ` <span class="ship-detail">(gốc ${money(q.shippingBase)}, giảm ${money(q.shippingDiscount)})</span>` : ''} · Tổng đơn: <strong>${money(q.total)}</strong>${G4.Promotions.breakdownHtml(q)}` : 'Cập nhật báo giá để xem phí ship và tổng của seller.'}</div>` : ''}</section>`;
+            return `<section class="cart-seller"><h3>${esc(items[0].sellerName)}</h3>${items.map((x) => itemHtml(x, editable)).join('')}${!editable ? `<div class="seller-coupon"><label for="coupon-${sellerId}">Mã giảm giá của ${esc(items[0].sellerName)}</label><div class="coupon-row"><input id="coupon-${sellerId}" data-seller-coupon="${sellerId}" maxlength="50" value="${esc(state.coupons.get(sellerId) || '')}" ${busy ? 'disabled' : ''}/><button type="button" data-apply-coupon="${sellerId}" ${busy ? 'disabled' : ''}>Áp dụng</button></div>${couponActions(sellerId)}</div><div class="seller-quote">${q ? `Phí ship: <strong>${money(q.shipping)}</strong>${q.shippingDiscount > 0 ? ` <span class="ship-detail">(gốc ${money(q.shippingBase)}, giảm ${money(q.shippingDiscount)})</span>` : ''} · Tổng đơn: <strong>${money(q.total)}</strong>${G4.Promotions.breakdownHtml(q)}` : 'Cập nhật báo giá để xem phí ship và tổng của seller.'}</div>` : ''}</section>`;
           })
           .join('');
       $('cart').classList.toggle('empty', !state.items.length);
@@ -215,6 +264,12 @@
               await recalculate();
             })),
       );
+      document.querySelectorAll('[data-pick-coupon]').forEach((button) => {
+        button.onclick = () => safe(() => pickCoupon(Number(button.dataset.pickCoupon)));
+      });
+      document.querySelectorAll('[data-remove-coupon]').forEach((button) => {
+        button.onclick = () => safe(() => useCoupon(Number(button.dataset.removeCoupon), ''));
+      });
     }
     function setBusy(value) {
       busy = value;
@@ -223,7 +278,8 @@
       book.setDisabled(value);
       document
         .querySelectorAll(
-          '[data-quantity],[data-remove],[data-seller-coupon],[data-apply-coupon],input[name="method"],#card-number,#card-expiry',
+          '[data-quantity],[data-remove],[data-seller-coupon],[data-apply-coupon],'
+          + '[data-pick-coupon],[data-remove-coupon],input[name="method"],#card-number,#card-expiry',
         )
         .forEach((x) => (x.disabled = value));
       $('continue').disabled = value || !state.items.length;

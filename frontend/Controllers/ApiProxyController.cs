@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Security.Claims;
+using G4.WebCommon;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -23,13 +24,19 @@ public sealed class ApiProxyController(IHttpClientFactory factory, IConfiguratio
         if (string.IsNullOrWhiteSpace(token))
             return Unauthorized();
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        TrustedProxyHeaders.ForwardClientIp(request, HttpContext);
         if (Request.Method == "POST")
         {
+            // Only this explicit confirmation header is forwarded; never log its value.
+            if (Request.Headers.TryGetValue("X-Action-Password", out var password))
+                request.Headers.TryAddWithoutValidation("X-Action-Password", password.ToArray());
             request.Content = new StreamContent(Request.Body);
             request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
         }
 
         using var response = await factory.CreateClient().SendAsync(request, ct);
+        TrustedProxyHeaders.CopyRetryAfter(response, Response);
+        Response.Headers.CacheControl = "no-store";
         if (response.Headers.Date is { } serverTime)
             Response.Headers["X-Server-Time"] = serverTime.ToString("O");
         var body = await response.Content.ReadAsStringAsync(ct);

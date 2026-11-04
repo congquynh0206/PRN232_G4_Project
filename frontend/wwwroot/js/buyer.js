@@ -25,6 +25,7 @@
     visibleOrders = new Map();
   function tab(id, loadList = true) {
     if (!G4.Navigation.select(id)) return;
+    if (id === 'buyer-offers') safe(() => G4.BuyerOffers.load());
     if (id === 'orders' && loadList) safe(loadOrders);
     if (id === 'transactions' && loadList) safe(() => window.G4BuyerTransactions.load());
     if (id === 'disputes') safe(() => G4.Disputes.load());
@@ -265,7 +266,7 @@
     });
   }
   G4.Navigation.init(tab);
-  window.G4BuyerShowOrder = id => showOrder(id);
+  window.G4BuyerShowOrder = (id) => showOrder(id);
   safe(async () => {
     const p = new URLSearchParams(location.search);
     if (p.has('orderId') && G4.Navigation.current === 'orders') {
@@ -276,7 +277,9 @@
             ? 'Đã kiểm tra thanh toán PayPal. Xem trạng thái đơn hàng bên dưới.'
             : p.get('paymentResult') === 'cancelled'
               ? 'Bạn đã hủy thanh toán PayPal. Đơn hàng vẫn đang chờ thanh toán.'
-              : 'Chưa xác nhận được thanh toán PayPal. Vui lòng kiểm tra lại đơn hàng.',
+              : p.get('paymentResult') === 'rate-limited'
+                ? `Bạn thao tác quá nhanh. Vui lòng kiểm tra lại thanh toán sau ${Math.max(1, Math.min(3600, Number(p.get('retryAfterSeconds')) || 60))} giây.`
+                : 'Chưa xác nhận được thanh toán PayPal. Vui lòng kiểm tra lại đơn hàng.',
           p.get('paymentResult') === 'checked',
         );
     }

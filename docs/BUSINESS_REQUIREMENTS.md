@@ -25,6 +25,16 @@ Hệ thống có bốn vai trò `buyer`, `seller`, `shipper`, `admin`. API kiể
 
 ## 3. Giỏ hàng, checkout và đơn hàng
 
+**Xác nhận quyết định 31/10/2026:** admin/seller nhập lại mật khẩu của chính tài khoản
+đang đăng nhập trước mỗi quyết định quan trọng: phán quyết/yêu cầu trả trước kết luận,
+đổi phí/hạn mức riêng, quản lý khuyến mãi, rút tiền/trả nợ/đổi định danh, quyết định
+hủy/trả/hoàn tiền/tranh chấp/đổi địa chỉ và thay cap/địa chỉ lấy hàng/free returns.
+Popup xuất hiện ở bước xác nhận cuối, cho hủy; sai mật khẩu không áp dụng nghiệp vụ.
+Server xác minh mật khẩu, quyền và ownership, giới hạn thử theo user; không lưu mật
+khẩu rõ hoặc bỏ idempotency/transaction/retry. Worker tự động không chờ mật khẩu.
+[Danh sách chính xác và phần phụ thuộc backlog](PASSWORD_CONFIRMATION.md).
+
+
 **Giao diện demo được duyệt 23/10/2026:** hiển thị đồng hồ tại các thao tác có deadline thực tế (payment, return, receipt, dispute, đổi địa chỉ, giữ tiền, xét cấp và nợ). Ví Seller tách Processing/OnHold còn lại theo từng đơn, dùng snapshot đã lưu và nêu lý do còn bị giữ. Hết đếm ngược chỉ là đến hạn; chỉ kết quả server mới xác nhận refund/mở khóa/đổi trạng thái. Không thêm timer giả cho bước chưa có deadline, không thay đổi chính sách hoặc quyền xử lý tiền. [Phạm vi và nguồn deadline](DEMO_COUNTDOWNS.md).
 
 1. Nút **Random** chọn 2–5 sản phẩm còn tồn kho từ đúng hai seller, không phải hàng đấu giá. Giỏ lưu theo buyer trong database; buyer được sửa số lượng, xóa sản phẩm và chọn/sửa địa chỉ trước khi tạo đơn. Nếu xóa hết hàng của một seller, giỏ còn lại được checkout bình thường. Không cần trang danh sách/chi tiết sản phẩm.
@@ -48,6 +58,11 @@ Khối lượng đơn bằng tổng `khối lượng sản phẩm × số lượ
 Áp dụng phí cơ bản cho mọi đơn lớn hơn 0 đến 1 kg; làm tròn kết quả cuối cùng đến 0,01 USD. Chỉ dùng mức nội Hà Nội khi cả nơi lấy và nơi giao ở Hà Nội, Việt Nam. Seller phải khai báo khối lượng sản phẩm; thiếu khối lượng không được checkout. Không dùng `ceil(kg)`.
 
 ## 4. Promotions
+
+Buyer có tab Ưu đãi để xem các chương trình đang chạy. Mã coupon chỉ xuất hiện trong
+tab và bộ chọn mã nếu bên quản lý bật **Hiển thị mã cho Buyer**. Coupon hiện có mặc
+định riêng tư và vẫn nhập tay được. Checkout cho xem trước tổng tiền với mã theo
+từng seller, dùng báo giá server và yêu cầu buyer xác nhận trước khi áp dụng.
 
 Promotions giảm giá cho buyer, tách khỏi **Promoted Listings** (quảng cáo trả phí để tăng hiển thị). Hệ thống hỗ trợ hai nguồn tài trợ: **seller** tạo chương trình cho hàng/shop của mình và **admin** tạo coupon toàn sàn do nền tảng tài trợ. Một order vẫn chỉ thuộc một seller.
 
@@ -209,6 +224,14 @@ Write-off là quy tắc rủi ro do nợ trong mô phỏng, không tự kết lu
 Đăng ký seller Development nhập tài khoản, shop và **CCCD/Passport** hoặc **tài khoản ngân hàng nhận payout** giả lập. Chuẩn hóa và xác minh định dạng, kiểm tra blacklist trước khi tạo tài khoản; hợp lệ thì tạo seller/shop/ví cấp 1, Active, số dư 0, không chờ admin duyệt. Trùng blacklist bị từ chối trước khi tạo tài khoản, không phải tạo tài khoản mới rồi ban. Màn hình có mẫu hợp lệ/không hợp lệ/trùng blacklist; không dùng dữ liệu thật. Không thu thập số thẻ thanh toán của buyer làm định danh seller. Chuẩn hóa dữ liệu rồi lưu giá trị đối chiếu bằng HMAC với khóa nằm ngoài database; giao diện chỉ hiển thị phần đã che. Seller tạo mới hoặc cập nhật định danh trùng blacklist bị từ chối bằng thông báo chung và HTTP 403; không tiết lộ định danh nào trùng. Admin không được sửa/xóa trực tiếp bản ghi blacklist, chỉ dùng quy trình quyết định có audit.
 
 ## 12. Thông báo, nhật ký và tiêu chí hoàn thành
+
+**Quyết định 28/10/2026 — Rate limiting:** dùng middleware ASP.NET Core Sliding Window,
+policy theo nhóm: login 10/phút/IP, đăng ký 5/10 phút/IP, đọc 120/phút/UserId, ghi
+thông thường 60/phút/UserId, tạo đơn/thanh toán 10/phút/UserId, refund/payout và
+thao tác tài chính liên quan 5/phút/UserId. UserId lấy từ JWT đã xác thực; IP chỉ
+nhận qua proxy có allowlist. Trả 429/Retry-After, UI hướng dẫn chờ và không tự gửi
+lại lệnh tiền. Giữ nguyên auth, idempotency và worker/carrier nội bộ. Bản đầu dùng
+RAM theo process, chưa phải quota dùng chung nhiều replica. [Chi tiết](RATE_LIMITING.md).
 
 **Quyết định 27/10/2026 — Chuông thông báo:** cả bốn role có chuông nhận cập nhật liên
 quan đến tài khoản qua SignalR. Badge đếm thông báo chưa đọc 1–9, trên 9 là `9+`,

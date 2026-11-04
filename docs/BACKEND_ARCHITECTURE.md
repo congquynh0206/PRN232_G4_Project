@@ -2,6 +2,12 @@
 
 Backend được chia thành năm project .NET 8 trong cùng solution. Khi chạy ứng dụng chỉ khởi động `G4.Api`; bốn project còn lại là thư viện được nạp vào API.
 
+Ngày 28/10 bổ sung `shared/G4.WebCommon`: thư viện hosting dùng framework ASP.NET
+Core, được API và frontend cùng tham chiếu để cấu hình Sliding Window, phản hồi
+429 và xử lý proxy tin cậy. Không phụ thuộc Domain/Application/Infrastructure và
+không truy cập database. API gắn policy endpoint qua `CommerceRateLimitConvention`;
+nghiệp vụ/worker tiếp tục ở các lớp cũ. [Cấu hình và kiểm thử](RATE_LIMITING.md).
+
 ## Sơ đồ tổng quan từ source ngày 25/10/2026
 
 [Mở sơ đồ HTML tương tác](../.archify/architecture-g4-overview-20261025-155434/g4-overview.html)

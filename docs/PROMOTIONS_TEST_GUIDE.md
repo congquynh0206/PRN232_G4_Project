@@ -1,5 +1,8 @@
 # Test quản lý khuyến mãi
 
+**Xác nhận quyết định 31/10/2026:** Tạo/sửa/bật/tắt promotion và admin đình chỉ/gỡ đình chỉ cần nhập lại mật khẩu.
+[Popup, header API, quota và kiểm thử](PASSWORD_CONFIRMATION.md).
+
 **Căn cứ mới 18/10/2026:** [đặc tả §4](BUSINESS_REQUIREMENTS.md#4-promotions) và [FS1/FR1](IMPLEMENTATION_BACKLOG.md). Free shipping dùng loại Shipping/FreeShipping hiện có, không tạo engine song song. Phải phân biệt phí carrier, ship buyer trả và nguồn tài trợ; free returns theo item là policy riêng, không bật theo promotion miễn ship. Kiểm tra đổi địa chỉ/return không hoàn khoản ship chưa thu và không ghi chi phí/subsidy hai lần. Các test dưới đây là ghi nhận phiên bản cũ cho tới khi có cập nhật nghiệm thu mới.
 
 Đã triển khai đủ 5 loại cho seller, coupon do nền tảng tài trợ cho admin và áp dụng tại checkout buyer. Tất cả số tiền là USD.
@@ -71,3 +74,17 @@ node --test tests/promotions-ui.test.cjs tests/dispute-ui.test.cjs tests/shipper
 Trước build, dừng đúng các server đang chạy từ thư mục binary tương ứng để tránh khóa DLL trên Windows. Bộ commerce hiện có chạy cùng các kiểm tra mới về quản lý quyền, 15 tình huống pricing, reservation/snapshot/PayPal và 9 tình huống finance/refund. Test race SQL và browser desktop/mobile được thực hiện trên QA riêng.
 
 Khởi động lại API/frontend sau khi cập nhật code. Seller/admin vào tab **Khuyến mãi**, buyer áp dụng tại **Thanh toán**. PayPal được kiểm tra timeout/reconciliation bằng gateway mô phỏng; live SQL/browser dùng thẻ mô phỏng và hoàn tiền nội bộ.
+## Kiểm tra tab Ưu đãi và bộ chọn mã
+
+- Áp dụng migration `20261103090000_AddPublicCoupons` trên database QA trước khi
+  chạy API. Migration thêm cột với mặc định false cho coupon cũ. Chưa áp dụng
+  migration trong đợt triển khai source này.
+- Tạo mã riêng và mã công khai trong cả Seller lẫn Admin. Buyer chỉ thấy mã
+  công khai trong thời gian hiệu lực. Kiểm tra mã riêng vẫn nhập tay được và
+  seller/admin gọi endpoint Buyer nhận 403.
+- Kiểm tra bộ lọc, chuyển trang, sao chép mã và xem mặt hàng áp dụng. Phần
+  xem trước hiển thị tối đa 12 sản phẩm khớp phạm vi.
+- Với giỏ hai seller, chọn mã shop và mã toàn sàn. Bấm **Kiểm tra mã** để so
+  tổng cũ/mới và nhận lỗi từ server nếu thiếu điều kiện. Thử mã làm tổng tăng
+  do thay ưu đãi theo đơn. Xác nhận **Dùng mã** chỉ đổi nhóm đã chọn, và
+  **Bỏ mã** tính lại tổng tự động.

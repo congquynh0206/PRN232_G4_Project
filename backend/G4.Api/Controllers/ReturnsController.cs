@@ -1,3 +1,4 @@
+using G4.Api.Security;
 using G4.Contracts.Checkout;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -64,6 +65,7 @@ public sealed class ReturnsController(
     }
 
     [HttpPost("seller/returns/{id:int}/approve")]
+    [RequirePassword("seller", "Duyệt trả hàng")]
     public async Task<IActionResult> ApproveReturn(int id, CancellationToken ct)
     {
         if (!IsAvailable || !HasRole("seller"))
@@ -108,6 +110,7 @@ public sealed class ReturnsController(
     }
 
     [HttpPost("seller/returns/{id:int}/approve/simulate-failure")]
+    [RequirePassword("seller", "Duyệt trả hàng và giả lập lỗi vận đơn")]
     public async Task<IActionResult> ApproveWithCarrierFailure(int id, CancellationToken ct)
     {
         if (!IsAvailable || !HasRole("seller"))
@@ -155,6 +158,7 @@ public sealed class ReturnsController(
     }
 
     [HttpPost("seller/returns/{id:int}/reject")]
+    [RequirePassword("seller", "Từ chối trả hàng")]
     public async Task<IActionResult> RejectReturn(
         int id,
         ReasonRequest request,
@@ -170,6 +174,7 @@ public sealed class ReturnsController(
     }
 
     [HttpPost("seller/returns/{id:int}/receive")]
+    [RequirePassword("seller", "Xác nhận hàng hợp lệ và hoàn tiền")]
     public async Task<IActionResult> ReceiveReturn(int id, CancellationToken ct)
     {
         if (!IsAvailable || !HasRole("seller"))
@@ -189,6 +194,7 @@ public sealed class ReturnsController(
         );
 
     [HttpPost("seller/returns/{id:int}/issue")]
+    [RequirePassword("seller", "Báo vấn đề hàng trả")]
     public async Task<IActionResult> ReturnIssue(
         int id,
         DisputeEvidenceRequest request,

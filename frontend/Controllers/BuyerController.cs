@@ -34,7 +34,10 @@ public sealed class BuyerController(IHttpClientFactory factory, IConfiguration c
             new
             {
                 paypalCheckoutId = checkoutId,
-                paymentResult = response.IsSuccessStatusCode ? "checked" : "error",
+                paymentResult = response.IsSuccessStatusCode ? "checked"
+                : (int)response.StatusCode == 429 ? "rate-limited"
+                : "error",
+                retryAfterSeconds = RetrySeconds(response),
             }
         );
     }
@@ -63,7 +66,14 @@ public sealed class BuyerController(IHttpClientFactory factory, IConfiguration c
         using var response = await factory.CreateClient().SendAsync(request, ct);
         return RedirectToAction(
             nameof(Index),
-            new { orderId, paymentResult = response.IsSuccessStatusCode ? "checked" : "error" }
+            new
+            {
+                orderId,
+                paymentResult = response.IsSuccessStatusCode ? "checked"
+                : (int)response.StatusCode == 429 ? "rate-limited"
+                : "error",
+                retryAfterSeconds = RetrySeconds(response),
+            }
         );
     }
 
@@ -73,4 +83,13 @@ public sealed class BuyerController(IHttpClientFactory factory, IConfiguration c
 
     private string BackendUrl(string path) =>
         (config["ApiSettings:BaseUrl"] ?? "http://localhost:5251").TrimEnd('/') + "/" + path;
+
+    private static int? RetrySeconds(HttpResponseMessage response) =>
+        (int)response.StatusCode == 429
+            ? Math.Clamp(
+                (int)Math.Ceiling(response.Headers.RetryAfter?.Delta?.TotalSeconds ?? 60),
+                1,
+                3600
+            )
+            : null;
 }

@@ -7,6 +7,38 @@
 <link rel="stylesheet" href="~/css/buyer-checkout.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/buyer-transactions.css" asp-append-version="true" />
 <div id="message" class="message" role="status" aria-live="polite"></div>
+<section id="buyer-offers" class="panel tab-panel">
+    <div class="section-head">
+        <div>
+            <h1>Ưu đãi</h1>
+            <p>Khám phá giảm giá, mã công khai và ưu đãi vận chuyển đang diễn ra.</p>
+        </div>
+    </div>
+    <div class="toolbar">
+        <label for="buyer-offer-filter">Loại ưu đãi</label>
+        <select id="buyer-offer-filter">
+            <option value="all">Tất cả</option>
+            <option value="Discount">Giảm giá</option>
+            <option value="Coupon">Mã giảm giá</option>
+            <option value="Shipping">Miễn / giảm phí ship</option>
+        </select>
+    </div>
+    <p id="buyer-offer-status" role="status"></p>
+    <div id="buyer-offer-list" class="buyer-offer-list"></div>
+    <div class="toolbar">
+        <button type="button" id="buyer-offer-prev" disabled>Trang trước</button>
+        <button type="button" id="buyer-offer-next" disabled>Trang sau</button>
+    </div>
+</section>
+<dialog id="buyer-coupon-picker" aria-labelledby="buyer-coupon-title">
+    <h2 id="buyer-coupon-title">Chọn mã giảm giá</h2>
+    <p id="buyer-coupon-status" role="status"></p>
+    <div id="buyer-coupon-list" class="buyer-offer-list"></div>
+    <div class="toolbar">
+        <button type="button" id="buyer-coupon-more" hidden>Trang sau</button>
+        <form method="dialog"><button type="submit">Đóng</button></form>
+    </div>
+</dialog>
 <section id="summary" class="panel tab-panel active">
     <div class="section-head">
         <div>
@@ -221,6 +253,7 @@
     <script src="~/js/returns.js" asp-append-version="true"></script>
     <script src="~/js/notifications.js" asp-append-version="true"></script>
     <script src="~/js/promotions.js" asp-append-version="true"></script>
+    <script src="~/js/buyer-offers.js" asp-append-version="true"></script>
     <script src="~/js/disputes.js" asp-append-version="true"></script>
     <script src="~/js/buyer-addresses.js" asp-append-version="true"></script>
     <script src="~/js/buyer-cart.js" asp-append-version="true"></script>

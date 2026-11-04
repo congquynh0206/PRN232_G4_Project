@@ -65,6 +65,22 @@ test('registration retry freezes reviewed fields and reuses identical payload af
   assert.equal(requests[1].email, 'seller@example.test');
   assert.match(node('registration-submit').textContent, /cùng yêu cầu/);
 });
+test('429 preserves registration payload after an uncertain attempt and explains waiting', async () => {
+  const requests = [];
+  const { ui, node } = registration(async (path, request) => {
+    requests.push(JSON.parse(request.body));
+    if (requests.length === 1) throw new Error('Connection lost');
+    return { ok: false, status: 429, json: async () => ({ error: 'Thử lại sau 60 giây.' }) };
+  });
+  await ui.submit({ preventDefault() {} });
+  await ui.submit({ preventDefault() {} });
+  assert.equal(requests.length, 2);
+  assert.deepEqual(requests[0], requests[1]);
+  assert.equal(node('registration-fields').disabled, true);
+  assert.match(node('registration-error').textContent, /60 giây/);
+  assert.doesNotMatch(node('registration-error').textContent, /Kết quả chưa rõ/);
+});
+
 test('blacklist 403 does not claim account creation; fields unlock for a corrected identity', async () => {
   const { ui, node } = registration(async () => ({
     ok: false,

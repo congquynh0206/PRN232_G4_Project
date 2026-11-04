@@ -1,5 +1,8 @@
 # Đăng ký seller, blacklist và write-off tự động
 
+**Xác nhận quyết định 31/10/2026:** Đổi định danh seller cần nhập lại mật khẩu; đăng ký và worker write-off không thêm bước này.
+[Popup, header API, quota và kiểm thử](PASSWORD_CONFIRMATION.md).
+
 Đây là luồng mô phỏng trong Development, không phải dịch vụ KYC hoặc xác minh ngân hàng thật. Trang `/Account/RegisterSeller` được mở từ liên kết **Đăng ký người bán thử nghiệm** ở trang đăng nhập.
 
 ## Đăng ký và xác minh

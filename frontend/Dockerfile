@@ -13,6 +13,7 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["frontend/frontend.csproj", "frontend/"]
+COPY ["shared/G4.WebCommon/G4.WebCommon.csproj", "shared/G4.WebCommon/"]
 RUN dotnet restore "./frontend/frontend.csproj"
 COPY . .
 WORKDIR "/src/frontend"

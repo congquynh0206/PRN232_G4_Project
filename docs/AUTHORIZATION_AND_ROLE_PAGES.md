@@ -2,7 +2,19 @@
 
 Hệ thống có bốn role độc lập. Người dùng đăng nhập tại `/Account/Login`; API kiểm tra mật khẩu hash trong SQL Server, cấp JWT 8 giờ, frontend giữ JWT bên trong cookie đăng nhập `HttpOnly`. Mọi request frontend gửi qua proxy đều được gắn Bearer token. Header `X-Actor-Role` và dropdown tự đổi role đã bị loại bỏ.
 
+**Rate limit 28/10/2026:** login/register theo IP tại MVC/API; API sau đăng nhập theo
+NameIdentifier trong JWT. MVC tạo header IP mới từ kết nối đã resolve; API chỉ tin
+allowlist proxy local/Docker, không lấy ID từ client. Trả 429/Retry-After khi vượt
+policy nhóm; Login phân biệt lỗi này với mật khẩu sai, có countdown thử lại thủ công.
+Không đổi role/owner checks hoặc retry/idempotency tiền. [Chi tiết](RATE_LIMITING.md).
+
 ## Tài khoản phát triển
+
+**Xác nhận quyết định 31/10/2026:** các thao tác quan trọng của admin/seller yêu cầu
+nhập lại mật khẩu hiện tại tại popup chung. API kiểm UserId/role từ JWT và PBKDF2
+trước controller, có quota thử chung theo user; không cấp thêm quyền hoặc miễn nhập
+lại cho quyết định sau. Worker tiếp tục tự chạy. [Phạm vi/API/test](PASSWORD_CONFIRMATION.md).
+
 
 | Role | Email | Mật khẩu | Trang sau đăng nhập |
 | --- | --- | --- | --- |

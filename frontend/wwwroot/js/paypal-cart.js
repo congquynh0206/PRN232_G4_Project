@@ -105,6 +105,10 @@
     if (attempt?.id)
       safe(async () => {
         await refresh();
+        if (p.get('paymentResult') === 'rate-limited')
+          G4.message(
+            `Bạn thao tác quá nhanh. Vui lòng kiểm tra lại thanh toán sau ${Math.max(1, Math.min(3600, Number(p.get('retryAfterSeconds')) || 60))} giây.`,
+          );
         if (p.get('paymentResult') === 'cancelled' && current?.status === 'Pending')
           await mutate('cancel');
       });

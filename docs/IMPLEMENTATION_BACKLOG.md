@@ -1,5 +1,66 @@
 # Backlog triển khai theo đặc tả ngày 18/10/2026
 
+## AUTH2 — Nhập lại mật khẩu cho quyết định ngày 31/10/2026
+
+- Đã hoàn thành source cho 21 action API hiện có của admin/seller: phán quyết và
+  alias, phí, promotion/moderation, payout/nợ/định danh, hủy/trả/hoàn tiền, phương
+  án tranh chấp, đổi địa chỉ, cap/địa chỉ lấy hàng. Authorization filter kiểm
+  UserId/role/password trước controller; không thay quyền sở hữu/nghiệp vụ tiền.
+- Popup chung giữ nguyên payload/key, hiển thị quyết định và tiền liên quan, có
+  hủy/Escape, lỗi tại ô nhập, xóa mật khẩu, chặn gửi trùng/hủy lúc đang gửi. Có
+  quota xác nhận riêng 5 lần/60 giây/UserId và 429 thử lại thủ công. Request chỉ
+  nhận challenge không tiêu quota nghiệp vụ; không cache mật khẩu hoặc tự retry
+  sau kết quả mạng chưa rõ. Worker tiếp tục tự chạy.
+- Solution build output `artifacts/password-confirmation-validation/build/` đạt
+  0 warning/error; backend mặc định đầy đủ đạt, gồm HTTP rate limit và SMTP;
+  `--password-confirmation` đạt với MVC/JWT/InMemory thật: 21 route, thiếu/sai mật
+  khẩu không đổi tiền, role/ownership/current password, payout replay trừ một
+  lần, admin fee, quota chung/cạnh tranh và độc lập user. Node 143/143 đạt.
+- Chrome headless với Razor/cookie/proxy thật và API fixture đạt 1440px/375px:
+  seller payout/admin fee, Unicode, sai mật khẩu, 429/manual retry, hủy rồi đổi
+  amount, giữ payload/key, chặn khi pending, Escape không đóng dialog nền và
+  escape nội dung. Đã xem ảnh desktop/mobile tại `artifacts/password-confirmation-ui/`.
+- Không tạo/áp migration, không seed/migrate hoặc thay database chính. Chưa E2E
+  SQL/provider mới; các kiểm tra tiền SQL/rollback lịch sử không được coi là kết
+  quả mới của task này. Cần restart API/frontend và tải lại trang.
+- A2/LIM1/FR1 còn trong backlog: nhánh yêu cầu trả trước kết luận, hạn mức riêng và
+  policy free returns phải gắn xác nhận khi triển khai; không đánh dấu hoàn thành
+  các task đó. [Kế hoạch/phạm vi/API/cấu hình](PASSWORD_CONFIRMATION.md).
+
+
+## DEMO-DATA — SQL trình diễn ngày 31/10/2026
+
+- Đã xuất bộ SQL độc lập, tự tạo database mới/schema migration hiện hành và dữ
+  liệu: 16 tài khoản, 10 seller, 43 kịch bản; seller 2/3 có dữ liệu hiệu suất hỗ
+  trợ, nợ/write-off/blacklist/payout/hold có ledger và lịch sử từ service hiện tại.
+- Nhập thật vào QA SQL Server, so dòng/FK/check, 16 login/10 ví/doanh số/level và
+  blacklist đạt. API trên bản nhập đọc 30 đơn và thực thi card, approve return/
+  label, payout ba level, xét nâng cấp thật trên QA đạt. Script chống ghi đè và
+  helper PowerShell được kiểm tra. [Cách dùng/phạm vi](DEMO_DATABASE.md).
+- Có helper cấu hình process riêng: key định danh demo, Capture và timer đủ dài;
+  không sửa config mặc định hoặc nghiệp vụ. Không có migration mới; chỉ áp các
+  migration hiện có lên database build/QA riêng, không thay database chính.
+- Không ghi hoàn thành INR1/FR1/LIM1/A2/RT2 hoặc bộ kiểm thử provider/đồng thời
+  từ kết quả xuất dữ liệu. Log QA và chi tiết nằm trong hướng dẫn bộ tải xuống.
+
+## RATE1 — Sliding Window và giao diện 429 ngày 28/10/2026
+
+- Hoàn thành source: thư viện hosting chung G4.WebCommon, policy theo nhóm tại API,
+  login/register theo IP tại MVC/API, UserId từ JWT, proxy allowlist local/Docker,
+  JSON/Retry-After và thông báo/countdown. Carrier/worker không dùng quota user.
+- Solution build output riêng 0 warning/error; backend mặc định và bộ HTTP
+  `--rate-limits` đạt, Node 140/140 đạt. HTTP kiểm tra policy route thực tế, hai user,
+  JWT giả, proxy giả, cạnh tranh, phục hồi; create/card/payout chạy InMemory rồi
+  quota chặn create/card/PayPal/payout/refund không đổi tiền/tồn kho/outbox.
+- Chrome fixture dùng MVC/Razor/proxy thật đạt desktop/mobile, 429 local/backend,
+  không gửi backend khi MVC chặn, Retry-After, countdown, không tự replay và giữ key;
+  đã xem ảnh `artifacts/rate-limit-ui/`. Log ở `artifacts/rate-limit-validation/`.
+- Hồi quy Chrome login bốn role và điều hướng 320–1440px đạt; Docker Compose config,
+  CSharpier check và git diff check đạt. Chưa chạy container Docker.
+- Không tạo/áp migration, seed hoặc thay database chính/QA. Chưa chạy SQL/provider
+  thật hoặc Docker. Bộ đếm RAM theo process, chưa triển khai Redis/Nginx/multi-node;
+  NuGet audit chưa chạy do không truy cập nuget.org. [Cấu hình/test](RATE_LIMITING.md).
+
 ## BELL1 — Chuông bốn role ngày 27/10/2026
 
 - Yêu cầu: chuông có badge chưa đọc 1–9/9+, danh sách lưu server, read/read-all theo
@@ -292,3 +353,10 @@ Mỗi task khi hoàn thành ghi ngay bên dưới phần của task hoặc thêm
 - SQL QA thật đạt bảo toàn migration/legacy, request/close cạnh tranh, snapshot/event rollback, payout cùng key và hai key tranh tiền, worker concurrent đủ bước, DTO/history/tổng, rollback request/Completed/Returned sau SaveChanges và retry. UI Node 125/125 đạt.
 - Chrome fixture desktop 1440px/mobile 390px dùng dialog return và Seller Razor/CSS/JS thật: deadline, hết hạn vô hiệu quote, request payout, pending balances, các bước/history, Completed/Returned; không lỗi JS hoặc tràn ngang, ảnh đã xem tại `artifacts/return-window-payout-ui/`. Đây là API fixture, chưa E2E HTTP nối SQL hoặc carrier/bank/provider thật.
 - Đã cập nhật [RT1](RETURN_WINDOW_POLICY.md), [PAY1](PAYOUT_WORKFLOW.md), module và PROJECT_RUN. Không làm các task khác hoặc áp migration chính trong đợt này.
+## Khám phá ưu đãi phía Buyer
+
+- Đã cập nhật source cho tab Ưu đãi, công khai coupon theo lựa chọn của bên quản lý
+  và xem trước báo giá theo seller. Build API/frontend, 29 test JavaScript và
+  kiểm tra API với EF InMemory (`--buyer-offers`) đã qua. Nghiệm thu SQL Server và trình duyệt theo
+  [hướng dẫn Promotions](PROMOTIONS_TEST_GUIDE.md#kiểm-tra-tab-ưu-đãi-và-bộ-chọn-mã)
+  còn chờ. Migration `20261103090000_AddPublicCoupons` chưa áp dụng.

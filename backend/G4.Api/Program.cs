@@ -1,5 +1,8 @@
 using System.Text;
+using G4.Api.RateLimiting;
+using G4.Api.Security;
 using G4.Infrastructure;
+using G4.WebCommon;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
@@ -11,7 +14,15 @@ builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+    options.Conventions.Add(new CommerceRateLimitConvention())
+);
+builder.Services.AddCommerceRateLimiting(
+    builder.Configuration,
+    skipRequest: RequirePasswordAttribute.IsChallenge
+);
+builder.Services.AddSingleton<PasswordAttemptLimiter>();
+builder.Services.AddTrustedProxyHeaders(builder.Configuration);
 builder.Services.AddSignalR();
 var frontendOrigins =
     builder.Configuration.GetSection("Realtime:AllowedOrigins").Get<string[]>()
@@ -102,9 +113,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseTrustedProxyHeaders(builder.Configuration);
 app.UseHttpsRedirection();
+app.UseRouting();
 app.UseCors();
 app.UseAuthentication();
+app.UseRateLimiter();
 app.Use(
     async (context, next) =>
     {

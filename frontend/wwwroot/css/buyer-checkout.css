@@ -98,3 +98,36 @@
     min-height: 44px;
   }
 }
+
+.buyer-offer-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  gap: 1rem;
+}
+
+.buyer-offer-card {
+  border: 1px solid currentColor;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.buyer-offer-card h3 {
+  margin-top: 0;
+}
+
+.buyer-offer-card button,
+#buyer-coupon-picker button,
+#buyer-offers button {
+  min-height: 44px;
+}
+
+#buyer-coupon-picker {
+  width: min(42rem, calc(100% - 2rem));
+  max-height: calc(100% - 2rem);
+  overflow: auto;
+}
+
+#buyer-coupon-picker .buyer-offer-list {
+  grid-template-columns: minmax(0, 1fr);
+}
