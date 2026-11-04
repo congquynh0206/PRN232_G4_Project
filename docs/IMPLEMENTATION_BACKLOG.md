@@ -1,5 +1,17 @@
 # Backlog triển khai theo đặc tả ngày 18/10/2026
 
+## PERF1 — Baseline catalog và kiểm tra quota bằng JMeter
+
+- Hai kịch bản CLI dùng cùng API chỉ đọc có JWT buyer. Bài tải có timer điều tiết.
+  Bài quota dừng theo số request hoặc thời lượng và kiểm tra 200, 429, header
+  `Retry-After` và JSON `RateLimitExceeded`. [Cách chạy](JMETER.md).
+- Ngày 04/11/2026 đã chạy JMeter 5.6.3 với API thật và SQL Server demo riêng
+  `G4_Demo_JMeter_QA_20261104`. Bài tải 30 giây có 31 mẫu, 0 lỗi, 1,05 request/giây,
+  P95 114,4 ms. Bài quota có đúng 150 mẫu gồm 120 HTTP 200 và 30 HTTP 429 hợp lệ.
+  Lượt chỉ gửi hai mẫu đánh dấu lỗi vì chưa thấy 429. Hai bài đều xuất JTL và HTML.
+- Kết quả là baseline trên máy local. Chưa đo giới hạn tải, chưa chạy qua Nginx
+  hoặc quét lỗ hổng. Chỉ nhập schema/dữ liệu demo vào database QA riêng.
+
 ## CI1 — Build và test trên GitHub Actions
 
 - Kế hoạch và phạm vi bản đầu gồm restore NuGet, build Release, chạy bộ backend

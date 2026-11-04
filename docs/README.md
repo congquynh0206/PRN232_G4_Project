@@ -24,6 +24,7 @@
 | Auth và quyền | [AUTHORIZATION_AND_ROLE_PAGES.md](AUTHORIZATION_AND_ROLE_PAGES.md) |
 | Nhập lại mật khẩu cho quyết định admin/seller | [PASSWORD_CONFIRMATION.md](PASSWORD_CONFIRMATION.md) |
 | Rate limit theo UserId/IP, proxy và xử lý 429 | [RATE_LIMITING.md](RATE_LIMITING.md) |
+| Đo tải catalog và kiểm tra HTTP 429 bằng JMeter | [JMETER.md](JMETER.md) |
 | SQL dữ liệu có sẵn để trình diễn với giảng viên | [DEMO_DATABASE.md](DEMO_DATABASE.md) |
 | Giỏ nhiều seller, PayPal/realtime | [MULTI_SELLER_CART.md](MULTI_SELLER_CART.md), [COMMERCE_REFRESH.md](COMMERCE_REFRESH.md) |
 | Luồng màn hình sau checkout và kết quả thanh toán | [BUYER_CHECKOUT_FLOW.md](BUYER_CHECKOUT_FLOW.md) |

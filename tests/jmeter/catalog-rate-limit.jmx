@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="G4 read rate limit"/>
+    <hashTree>
+      <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="API target">
+        <stringProp name="HTTPSampler.protocol">${__P(protocol,http)}</stringProp>
+        <stringProp name="HTTPSampler.domain">${__P(host,localhost)}</stringProp>
+        <stringProp name="HTTPSampler.port">${__P(port,5257)}</stringProp>
+        <stringProp name="HTTPSampler.connect_timeout">5000</stringProp>
+        <stringProp name="HTTPSampler.response_timeout">5000</stringProp>
+      </ConfigTestElement>
+      <hashTree/>
+      <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Buyer JWT">
+        <collectionProp name="HeaderManager.headers">
+          <elementProp name="" elementType="Header">
+            <stringProp name="Header.name">Authorization</stringProp>
+            <stringProp name="Header.value">Bearer ${__groovy(System.getenv('G4_JMETER_BUYER_TOKEN') ?: '')}</stringProp>
+          </elementProp>
+        </collectionProp>
+      </HeaderManager>
+      <hashTree/>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Burst from one buyer">
+        <stringProp name="ThreadGroup.on_sample_error">stopthread</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">${__P(requests,150)}</stringProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">1</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">0</stringProp>
+        <boolProp name="ThreadGroup.scheduler">true</boolProp>
+        <stringProp name="ThreadGroup.duration">15</stringProp>
+      </ThreadGroup>
+      <hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET catalog">
+          <stringProp name="HTTPSampler.path">/api/catalog/random?count=3</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">false</boolProp>
+          <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="Require both 200 and a valid 429">
+            <stringProp name="scriptLanguage">groovy</stringProp>
+            <stringProp name="cacheKey">true</stringProp>
+            <stringProp name="script"><![CDATA[
+import groovy.json.JsonSlurper
+
+String status = SampleResult.getResponseCode()
+if (status == '200') {
+  vars.put('seen200', 'true')
+} else if (status == '429') {
+  def retryAfter = SampleResult.getResponseHeaders() =~ /(?im)^Retry-After:[ \t]*([1-9][0-9]*)[ \t]*\r?$/
+  def body = new JsonSlurper().parseText(SampleResult.getResponseDataAsString())
+  if (retryAfter.find() && body.code == 'RateLimitExceeded' && body.group == 'read' &&
+      body.retryAfterSeconds?.toString() == retryAfter.group(1)) {
+    vars.put('seen429', 'true')
+    SampleResult.setSuccessful(true)
+  } else {
+    AssertionResult.setFailure(true)
+    AssertionResult.setFailureMessage('Expected read rate-limit JSON and matching Retry-After')
+  }
+} else {
+  AssertionResult.setFailure(true)
+  AssertionResult.setFailureMessage('Unexpected response: ' + status)
+}
+
+int requested = Integer.parseInt(props.getProperty('requests', '150'))
+if (!AssertionResult.isFailure() && vars.getIteration() == requested &&
+    (!vars.get('seen200') || !vars.get('seen429'))) {
+  AssertionResult.setFailure(true)
+  AssertionResult.setFailureMessage('Expected both admitted reads (200) and throttled reads (429)')
+}
+]]></stringProp>
+          </JSR223Assertion>
+          <hashTree/>
+        </hashTree>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>
