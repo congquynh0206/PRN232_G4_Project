@@ -151,6 +151,25 @@ node --test tests/*.test.cjs
 
 Kiểm thử console còn xác nhận tính phí, idempotency settlement/payout, fund hold, payout, refund tạo số dư âm và giao dịch mới tự bù nợ.
 
+### CI trên GitHub Actions
+
+Workflow [CI](../.github/workflows/ci.yml) chạy cho pull request và push vào
+`master` trên Ubuntu 24.04 với SDK .NET 8 và Node.js 22. Sau khi push workflow
+lên GitHub, mở tab **Actions → CI → Build and test** để xem kết quả từng bước.
+
+Chạy các lệnh tương ứng từ thư mục gốc repo với .NET 8 và Node.js 22:
+
+```powershell
+dotnet restore G4_Project.sln
+dotnet build G4_Project.sln --configuration Release --no-restore
+dotnet run --project tests/G4.Commerce.Tests --configuration Release --no-build
+node --test tests/*.test.cjs
+```
+
+Bộ backend mặc định gồm EF InMemory, HTTP rate limit, xác nhận mật khẩu và SMTP
+qua loopback. Node chạy các file `*.test.cjs` bằng bộ test tích hợp sẵn. Các bộ SQL,
+browser E2E và smoke test cần môi trường riêng. Workflow chỉ cần quyền đọc source.
+
 
 
 Tab **Cấp seller** dùng đánh giá đơn mua thực tế, dữ liệu giao đúng hạn và tỷ lệ hủy/trả/tranh chấp; worker tự xét mỗi giờ, Development 60 giây (1 phút)/lần. Buyer có nút **Đánh giá seller** trong đơn Delivered/Closed đã thanh toán; seller yêu cầu xét lại và admin xem lịch sử. Màn mô phỏng Development có sáu tình huống và không ghi dữ liệu tài chính. Cần migration `20261015102627_AddSellerLevelsAndOrderFeedback` trước khi chạy API mới; xem [SELLER_LEVELS.md](SELLER_LEVELS.md). Migration chỉ được kiểm thử trên DB QA riêng, không tự áp dụng lên CloneEbayDB.

@@ -1,5 +1,18 @@
 # Backlog triển khai theo đặc tả ngày 18/10/2026
 
+## CI1 — Build và test trên GitHub Actions
+
+- Kế hoạch và phạm vi bản đầu gồm restore NuGet, build Release, chạy bộ backend
+  mặc định và test JavaScript trên Ubuntu với .NET 8 và Node.js 22. Workflow chạy
+  cho pull request và push vào `master`. [Workflow](../.github/workflows/ci.yml).
+- Kiểm chứng local ngày 04/11/2026 trên Windows: YAML đọc được, build Release
+  bằng SDK 8.0.200 đạt 0 cảnh báo/lỗi, bộ backend mặc định đạt gồm HTTP/SMTP
+  loopback, Node 144/144 đạt. Restore local dùng cache và tắt NuGet Audit do
+  lỗi DNS. Workflow giữ lệnh restore mặc định.
+- Chờ lần chạy đầu trên GitHub Actions sau khi push để xác nhận runner Ubuntu.
+  SQL, browser E2E và smoke chạy riêng. Đợt này không có migration hoặc thao tác
+  database. [Cách chạy và xem log](PROJECT_RUN.md#ci-trên-github-actions).
+
 ## AUTH2 — Nhập lại mật khẩu cho quyết định ngày 31/10/2026
 
 - Đã hoàn thành source cho 21 action API hiện có của admin/seller: phán quyết và
