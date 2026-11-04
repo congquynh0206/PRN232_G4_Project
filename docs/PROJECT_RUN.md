@@ -175,6 +175,11 @@ browser E2E và smoke test cần môi trường riêng. Workflow chỉ cần quy
 Chạy trên API Development nối database demo/QA riêng. Hai kịch bản và cách xuất
 báo cáo HTML có trong [hướng dẫn JMeter](JMETER.md).
 
+### Demo Nginx chia tải catalog
+
+Dùng file Compose riêng với hai API và SQL Server demo, xem upstream qua response
+header và log. [Khởi động stack và chạy lại JMeter](NGINX.md).
+
 
 
 Tab **Cấp seller** dùng đánh giá đơn mua thực tế, dữ liệu giao đúng hạn và tỷ lệ hủy/trả/tranh chấp; worker tự xét mỗi giờ, Development 60 giây (1 phút)/lần. Buyer có nút **Đánh giá seller** trong đơn Delivered/Closed đã thanh toán; seller yêu cầu xét lại và admin xem lịch sử. Màn mô phỏng Development có sáu tình huống và không ghi dữ liệu tài chính. Cần migration `20261015102627_AddSellerLevelsAndOrderFeedback` trước khi chạy API mới; xem [SELLER_LEVELS.md](SELLER_LEVELS.md). Migration chỉ được kiểm thử trên DB QA riêng, không tự áp dụng lên CloneEbayDB.

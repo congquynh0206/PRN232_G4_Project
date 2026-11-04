@@ -3,6 +3,7 @@
 **/.env
 **/.git
 **/.gitignore
+**/.local-security
 **/.project
 **/.settings
 **/.toolstarget
@@ -21,6 +22,7 @@
 **/obj
 **/secrets.dev.yaml
 **/values.dev.yaml
+artifacts/
 LICENSE
 README.md
 !**/.gitignore

@@ -1,5 +1,20 @@
 # Backlog triển khai theo đặc tả ngày 18/10/2026
 
+## PERF2 — Nginx chia tải catalog qua hai API
+
+- Compose demo riêng chỉ publish Nginx trên loopback. Nginx chia GET catalog qua
+  hai API, chuyển POST login tới `api-a` và trả 404 cho route ngoài demo. Hai API
+  dùng JWT chung và tắt worker bảo trì/phát thông báo. [Cách chạy](NGINX.md).
+- Ngày 04/11/2026, build Release và bộ backend mặc định đạt. Compose config hợp
+  lệ và `nginx -t` trên image Linux kiểm tra được file gốc.
+- Đã thử trên Nginx Windows 1.28.3 với hai API thật và database QA hiện có.
+  8 lần đọc chia 4/4, route ngoài demo trả 404, sai method trả 403, thiếu JWT
+  trả 401. JMeter 30 giây qua Nginx có 31 HTTP 200, chia 15/16, 0 lỗi, P95
+  39,2 ms. Sau khi dừng API-B, cả 6 lượt đọc vẫn thành công qua API-A.
+- Báo cáo và access log ở `artifacts/nginx/qa-20261104-092703/`. Chưa chạy cả
+  stack Compose do ổ lưu Docker thiếu dung lượng. Kết quả chưa đánh giá sức tải
+  tối đa. Đợt này không tạo hay áp migration và dùng lại database QA.
+
 ## PERF1 — Baseline catalog và kiểm tra quota bằng JMeter
 
 - Hai kịch bản CLI dùng cùng API chỉ đọc có JWT buyer. Bài tải có timer điều tiết.

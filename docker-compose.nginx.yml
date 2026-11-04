@@ -1,0 +1,50 @@
+name: g4-nginx-demo
+
+x-catalog-api: &catalog-api
+  image: g4-nginx-demo-api:local
+  environment:
+    ASPNETCORE_ENVIRONMENT: Development
+    ASPNETCORE_HTTP_PORTS: '8080'
+    Workers__Enabled: 'false'
+    Mail__Mode: Capture
+    SellerIdentity__HmacKey: g4-nginx-local-catalog-demo-only-key
+    Authentication__JwtKey: g4-nginx-local-jwt-demo-only-key-20261104
+    ConnectionStrings__DefaultConnection: >-
+      Server=sqlserver,1433;Database=G4_Demo;User Id=sa;
+      Password=G4@123456Strong!;TrustServerCertificate=True;
+  depends_on:
+    - sqlserver
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: 'Y'
+      MSSQL_SA_PASSWORD: G4@123456Strong!
+    volumes:
+      - catalog_sql:/var/opt/mssql
+
+  api-a:
+    <<: *catalog-api
+    build:
+      context: .
+      dockerfile: backend/G4.Api/Dockerfile
+
+  api-b:
+    <<: *catalog-api
+
+  nginx:
+    image: nginx:1.28.3-alpine
+    ports:
+      - '127.0.0.1:8088:8088'
+    volumes:
+      - type: bind
+        source: ./deploy/nginx/catalog.conf
+        target: /etc/nginx/nginx.conf
+        read_only: true
+    depends_on:
+      - api-a
+      - api-b
+
+volumes:
+  catalog_sql:

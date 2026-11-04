@@ -56,7 +56,8 @@ public static class DependencyInjection
         services.AddHttpClient<IPayPalGateway, PayPalSandboxGateway>();
         services.AddHttpClient<IPayPalBatchGateway, PayPalSandboxGateway>();
         services.AddHttpClient<ICarrierGateway, HttpCarrierGateway>();
-        services.AddHostedService<CommerceMaintenanceWorker>();
+        if (configuration.GetValue("Workers:Enabled", true))
+            services.AddHostedService<CommerceMaintenanceWorker>();
         return services;
     }
 }

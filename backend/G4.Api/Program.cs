@@ -38,7 +38,8 @@ builder.Services.AddCors(options =>
                 .AllowCredentials()
     )
 );
-builder.Services.AddHostedService<G4.Api.Realtime.CommerceChangeWorker>();
+if (builder.Configuration.GetValue("Workers:Enabled", true))
+    builder.Services.AddHostedService<G4.Api.Realtime.CommerceChangeWorker>();
 var jwtKey =
     builder.Configuration["Authentication:JwtKey"]
     ?? throw new InvalidOperationException("Authentication:JwtKey must be configured");
