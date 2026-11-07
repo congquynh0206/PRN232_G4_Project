@@ -10,21 +10,21 @@ public sealed class CommerceRateLimitConvention : IApplicationModelConvention
     public void Apply(ApplicationModel application)
     {
         foreach (var controller in application.Controllers)
-        foreach (var action in controller.Actions)
-        {
-            // Machine-to-machine carrier calls are not charged against a buyer/seller quota.
-            if (controller.ControllerName == "CarrierSimulator")
-                continue;
-            foreach (var selector in action.Selectors)
+            foreach (var action in controller.Actions)
             {
-                var methods = selector
-                    .ActionConstraints.OfType<HttpMethodActionConstraint>()
-                    .SelectMany(x => x.HttpMethods)
-                    .ToArray();
-                var group = Group(controller.ControllerName, action.ActionName, methods);
-                selector.EndpointMetadata.Add(new EnableRateLimitingAttribute(group));
+                // Machine-to-machine carrier calls are not charged against a buyer/seller quota.
+                if (controller.ControllerName == "CarrierSimulator")
+                    continue;
+                foreach (var selector in action.Selectors)
+                {
+                    var methods = selector
+                        .ActionConstraints.OfType<HttpMethodActionConstraint>()
+                        .SelectMany(x => x.HttpMethods)
+                        .ToArray();
+                    var group = Group(controller.ControllerName, action.ActionName, methods);
+                    selector.EndpointMetadata.Add(new EnableRateLimitingAttribute(group));
+                }
             }
-        }
     }
 
     private static string Group(string controller, string action, string[] methods)
@@ -39,7 +39,7 @@ public sealed class CommerceRateLimitConvention : IApplicationModelConvention
             return action == "Refund" ? CommerceRateLimiting.Finance : CommerceRateLimiting.Payment;
         if (
             controller == "PayPalCart"
-            || controller == "Cart" && action == "Checkout"
+            || controller == "Cart" && action is "Checkout" or "BuyItNow"
             || controller == "Checkout" && action == "CreateOrder"
         )
             return CommerceRateLimiting.Payment;
@@ -49,7 +49,7 @@ public sealed class CommerceRateLimitConvention : IApplicationModelConvention
             || controller == "Disputes" && action is "Resolution" or "SubmitResponse"
             || controller == "Returns"
                 && action is "ApproveReturn" or "ApproveWithCarrierFailure" or "ReceiveReturn"
-            || controller == "Orders" && action == "DecideCancel"
+            || controller == "Orders" && action is "DecideCancel" or "CancelUnpaidBySeller"
         )
             return CommerceRateLimiting.Finance;
         return CommerceRateLimiting.Write;

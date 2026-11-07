@@ -25,14 +25,16 @@ public sealed class OrdersController(
         [FromQuery] DateTime? completedFrom = null, [FromQuery] DateTime? completedTo = null,
         CancellationToken ct = default)
     {
-        if (!IsAvailable || !HasRole("buyer")) return StatusCode(403);
+        if (!IsAvailable || !HasRole("buyer"))
+            return StatusCode(403);
         if (page < 1 || pageSize is < 1 or > 100 || from is not null && to is not null && from >= to
             || type is not null && type is not ("Payment" or "Refund")
             || status is not null && status is not ("Succeeded" or "Failed" or "Pending" or "Verifying"))
             return BadRequest("Bộ lọc giao dịch chưa hợp lệ.");
 
         var ownOrders = db.OrderTables.AsNoTracking().Where(o => o.BuyerId == CurrentUserId);
-        if (orderId is not null) ownOrders = ownOrders.Where(o => o.Id == orderId);
+        if (orderId is not null)
+            ownOrders = ownOrders.Where(o => o.Id == orderId);
         var fromDate = from;
         var toDate = to;
         var paidStart = paidFrom;
@@ -43,19 +45,43 @@ public sealed class OrdersController(
                        join o in ownOrders on p.OrderId equals o.Id
                        where (type == null || type != "Refund") && (status == null || p.Status == status)
                            && (!fromDate.HasValue || p.CreatedAt >= fromDate.Value) && (!toDate.HasValue || p.CreatedAt < toDate.Value)
-                       select new { p.CreatedAt, OrderId = p.OrderId!.Value, p.Id, Type = "Payment", p.Method,
-                           Amount = p.Amount ?? 0m, Status = p.Status ?? "Unknown", Reference = p.ProviderTransactionId ?? p.ProviderOrderId,
-                           Detail = p.ErrorCode, CompletedAt = p.PaidAt, OriginalPaymentId = (int?)null,
-                           OriginalPaymentReference = (string?)null, OriginalPaymentStatus = (string?)null };
+                       select new
+                       {
+                           p.CreatedAt,
+                           OrderId = p.OrderId!.Value,
+                           p.Id,
+                           Type = "Payment",
+                           p.Method,
+                           Amount = p.Amount ?? 0m,
+                           Status = p.Status ?? "Unknown",
+                           Reference = p.ProviderTransactionId ?? p.ProviderOrderId,
+                           Detail = p.ErrorCode,
+                           CompletedAt = p.PaidAt,
+                           OriginalPaymentId = (int?)null,
+                           OriginalPaymentReference = (string?)null,
+                           OriginalPaymentStatus = (string?)null
+                       };
         var refunds = from r in db.Refunds.AsNoTracking()
                       join o in ownOrders on r.OrderId equals o.Id
                       join p in db.Payments.AsNoTracking() on r.PaymentId equals p.Id
                       where (type == null || type != "Payment") && (status == null || r.Status == status)
                           && (!fromDate.HasValue || r.CreatedAt >= fromDate.Value) && (!toDate.HasValue || r.CreatedAt < toDate.Value)
-                      select new { r.CreatedAt, r.OrderId, r.Id, Type = "Refund", p.Method,
-                          Amount = r.Amount, Status = r.Status, Reference = r.ProviderRefundId, Detail = r.Reason, CompletedAt = r.CompletedAt,
-                          OriginalPaymentId = (int?)p.Id, OriginalPaymentReference = p.ProviderTransactionId ?? p.ProviderOrderId,
-                          OriginalPaymentStatus = p.Status };
+                      select new
+                      {
+                          r.CreatedAt,
+                          r.OrderId,
+                          r.Id,
+                          Type = "Refund",
+                          p.Method,
+                          Amount = r.Amount,
+                          Status = r.Status,
+                          Reference = r.ProviderRefundId,
+                          Detail = r.Reason,
+                          CompletedAt = r.CompletedAt,
+                          OriginalPaymentId = (int?)p.Id,
+                          OriginalPaymentReference = p.ProviderTransactionId ?? p.ProviderOrderId,
+                          OriginalPaymentStatus = p.Status
+                      };
         var all = payments.Concat(refunds);
         var count = await all.CountAsync(ct);
         var pageCount = Math.Max(1, (count + pageSize - 1) / pageSize);
@@ -68,48 +94,93 @@ public sealed class OrdersController(
                                     && (!paidStart.HasValue || p.PaidAt >= paidStart.Value)
                                     && (!paidEnd.HasValue || p.PaidAt < paidEnd.Value)
                                 group p by p.Method into g
-                                select new { method = g.Key, amount = g.Sum(x => x.Amount ?? 0m) }).ToListAsync(ct);
+                                select new
+                                {
+                                    method = g.Key,
+                                    amount = g.Sum(x => x.Amount ?? 0m)
+                                }).ToListAsync(ct);
         var refundedTotals = await (from r in db.Refunds.AsNoTracking()
                                     join o in ownOrders on r.OrderId equals o.Id
                                     where r.Status == "Succeeded" && r.CompletedAt != null
                                         && (!refundStart.HasValue || r.CompletedAt >= refundStart.Value)
                                         && (!refundEnd.HasValue || r.CompletedAt < refundEnd.Value)
                                     group r by r.Reason into g
-                                    select new { reason = g.Key, amount = g.Sum(x => x.Amount) }).ToListAsync(ct);
+                                    select new
+                                    {
+                                        reason = g.Key,
+                                        amount = g.Sum(x => x.Amount)
+                                    }).ToListAsync(ct);
         var totals = await ownOrders.Select(o => new
         {
             orderId = o.Id,
             paid = db.Payments.Where(p => p.OrderId == o.Id && p.Status == "Succeeded").Sum(p => (decimal?)(p.Amount ?? 0m)) ?? 0m,
             refunded = db.Refunds.Where(r => r.OrderId == o.Id && r.Status == "Succeeded").Sum(r => (decimal?)r.Amount) ?? 0m
         }).ToListAsync(ct);
-        return Ok(new { page, pageSize, totalCount = count, totalPages = pageCount, items = rows,
-            periodTotals = new { paid = paidTotals.Sum(x => x.amount), refunded = refundedTotals.Sum(x => x.amount), paidByMethod = paidTotals, refundedByReason = refundedTotals },
-            orderTotals = totals.Select(x => new { x.orderId, paid = x.paid, refunded = x.refunded, remaining = x.paid - x.refunded }) });
+        return Ok(new
+        {
+            page,
+            pageSize,
+            totalCount = count,
+            totalPages = pageCount,
+            items = rows,
+            periodTotals = new
+            {
+                paid = paidTotals.Sum(x => x.amount),
+                refunded = refundedTotals.Sum(x => x.amount),
+                paidByMethod = paidTotals,
+                refundedByReason = refundedTotals
+            },
+            orderTotals = totals.Select(x => new { x.orderId, paid = x.paid, refunded = x.refunded, remaining = x.paid - x.refunded })
+        });
     }
 
     [HttpGet("buyer/transactions/{type}/{id:int}")]
     public async Task<IActionResult> BuyerTransactionDetail(string type, int id, CancellationToken ct)
     {
-        if (!IsAvailable || !HasRole("buyer")) return StatusCode(403);
-        if (id <= 0 || type is not ("Payment" or "Refund")) return BadRequest("Giao dịch chưa hợp lệ.");
+        if (!IsAvailable || !HasRole("buyer"))
+            return StatusCode(403);
+        if (id <= 0 || type is not ("Payment" or "Refund"))
+            return BadRequest("Giao dịch chưa hợp lệ.");
         if (type == "Payment")
         {
             var payment = await db.Payments.AsNoTracking().Where(p => p.Id == id && p.Order != null && p.Order.BuyerId == CurrentUserId)
-                .Select(p => new { p.Id, OrderId = p.OrderId!.Value, Type = "Payment", p.Method, Amount = p.Amount ?? 0m,
-                    Status = p.Status ?? "Unknown", p.CreatedAt, Reference = p.ProviderTransactionId ?? p.ProviderOrderId,
-                    Detail = p.ErrorCode, CompletedAt = p.PaidAt, OriginalPaymentId = (int?)null,
-                    OriginalPaymentReference = (string?)null, OriginalPaymentStatus = (string?)null }).SingleOrDefaultAsync(ct);
+                .Select(p => new {
+                    p.Id,
+                    OrderId = p.OrderId!.Value,
+                    Type = "Payment",
+                    p.Method,
+                    Amount = p.Amount ?? 0m,
+                    Status = p.Status ?? "Unknown",
+                    p.CreatedAt,
+                    Reference = p.ProviderTransactionId ?? p.ProviderOrderId,
+                    Detail = p.ErrorCode,
+                    CompletedAt = p.PaidAt,
+                    OriginalPaymentId = (int?)null,
+                    OriginalPaymentReference = (string?)null,
+                    OriginalPaymentStatus = (string?)null
+                }).SingleOrDefaultAsync(ct);
             return payment is null ? NotFound() : Ok(payment);
         }
         var refund = await (from r in db.Refunds.AsNoTracking()
                             join o in db.OrderTables.AsNoTracking() on r.OrderId equals o.Id
                             join p in db.Payments.AsNoTracking() on r.PaymentId equals p.Id
                             where r.Id == id && o.BuyerId == CurrentUserId
-                            select new { r.Id, r.OrderId, Type = "Refund", p.Method, Amount = r.Amount,
-                                Status = r.Status, r.CreatedAt, Reference = r.ProviderRefundId, Detail = r.Reason,
-                                CompletedAt = r.CompletedAt, OriginalPaymentId = (int?)p.Id,
+                            select new
+                            {
+                                r.Id,
+                                r.OrderId,
+                                Type = "Refund",
+                                p.Method,
+                                Amount = r.Amount,
+                                Status = r.Status,
+                                r.CreatedAt,
+                                Reference = r.ProviderRefundId,
+                                Detail = r.Reason,
+                                CompletedAt = r.CompletedAt,
+                                OriginalPaymentId = (int?)p.Id,
                                 OriginalPaymentReference = p.ProviderTransactionId ?? p.ProviderOrderId,
-                                OriginalPaymentStatus = p.Status }).SingleOrDefaultAsync(ct);
+                                OriginalPaymentStatus = p.Status
+                            }).SingleOrDefaultAsync(ct);
         return refund is null ? NotFound() : Ok(refund);
     }
 
@@ -586,6 +657,14 @@ public sealed class OrdersController(
                 canOpenDispute,
                 sellerFunds,
                 order.CancelDecisionReason,
+                order.CancelReasonCode,
+                canSellerCancelUnpaid = HasRole("seller")
+                    && order.SellerId == CurrentUserId
+                    && UnpaidItemRules.CanSellerCancel(
+                        order.Status,
+                        order.PaymentExpiresAt,
+                        (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime
+                    ),
                 order.Subtotal,
                 order.DiscountAmount,
                 order.ShippingFee,
@@ -631,7 +710,68 @@ public sealed class OrdersController(
             order.Status == "AwaitingPayment"
                 ? await checkout.CancelUnpaidAsync(id, ct)
                 : await returns.RequestCancelAsync(id, ct);
-        return Ok(new { result.Id, result.Status });
+        return Ok(new
+        {
+            result.Id,
+            result.Status
+        });
+    }
+
+    [HttpPost("seller/orders/{id:int}/cancel-unpaid")]
+    [RequirePassword("seller", "Hủy đơn quá hạn thanh toán và cộng điểm phạt cho người mua")]
+    public async Task<IActionResult> CancelUnpaidBySeller(
+        int id,
+        UnpaidCancelRequest? request,
+        CancellationToken ct
+    )
+    {
+        if (!IsAvailable || !HasRole("seller"))
+            return StatusCode(403);
+        if (!await db.OrderTables.AnyAsync(o => o.Id == id && o.SellerId == CurrentUserId, ct))
+            return StatusCode(403);
+        var order = await checkout.SellerCancelUnpaidAsync(
+            id,
+            CurrentUserId,
+            request?.Reason,
+            ct
+        );
+        return Ok(new
+        {
+            order.Id,
+            order.Status,
+            order.CancelReasonCode
+        });
+    }
+
+    [HttpGet("buyer/unpaid-strikes")]
+    public async Task<IActionResult> UnpaidStrikes(CancellationToken ct)
+    {
+        if (!IsAvailable || !HasRole("buyer"))
+            return StatusCode(403);
+        var now = (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime;
+        var limit = UnpaidItemRules.NormalizeStrikeLimit(
+            config?.GetValue<int?>("Checkout:UnpaidStrikeLimit")
+        );
+        var windowMinutes = UnpaidItemRules.NormalizeStrikeWindowMinutes(
+            config?.GetValue<int?>("Checkout:UnpaidStrikeWindowMinutes")
+        );
+        var windowStart = now.AddMinutes(-windowMinutes);
+        var strikes = await db.UnpaidItemStrikes.CountAsync(
+            s => s.BuyerId == CurrentUserId && s.CreatedAt >= windowStart,
+            ct
+        );
+        var bannedAt = await db
+            .Users.AsNoTracking()
+            .Where(u => u.Id == CurrentUserId)
+            .Select(u => u.BannedAt)
+            .SingleOrDefaultAsync(ct);
+        return Ok(new
+        {
+            strikes,
+            limit,
+            windowMinutes,
+            banned = bannedAt != null
+        });
     }
 
     [HttpPost("seller/orders/{id:int}/prepare")]
@@ -645,7 +785,11 @@ public sealed class OrdersController(
         order.Status = OrderState.Next(order.Status!, "Prepare");
         order.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
-        return Ok(new { order.Id, order.Status });
+        return Ok(new
+        {
+            order.Id,
+            order.Status
+        });
     }
 
     [HttpPost("seller/orders/{id:int}/cancel/decision")]
@@ -661,7 +805,11 @@ public sealed class OrdersController(
         if (!await db.OrderTables.AnyAsync(o => o.Id == id && o.SellerId == CurrentUserId, ct))
             return StatusCode(403);
         var order = await returns.DecideCancelAsync(id, request.Approve, request.Reason, ct);
-        return Ok(new { order.Id, order.Status });
+        return Ok(new
+        {
+            order.Id,
+            order.Status
+        });
     }
 }
 

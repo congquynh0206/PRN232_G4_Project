@@ -116,6 +116,10 @@
       b.push(
         `<button data-action="ship" data-id="${o.id}">${o.shipments.some((s) => s.direction === 'Outbound' && s.status === 'ShipmentCreationFailed') ? 'Tạo lại vận đơn' : 'Tạo vận đơn'}</button><button data-action="fail-carrier" data-id="${o.id}">Giả lập lỗi đơn vị vận chuyển</button>`,
       );
+    if (o.canSellerCancelUnpaid)
+      b.push(
+        `<button data-action="cancel-unpaid" data-id="${o.id}">Hủy đơn quá hạn thanh toán</button>`,
+      );
     if (o.status === 'CancelRequested')
       b.push(
         `<button data-action="accept-cancel" data-id="${o.id}">Chấp nhận hủy</button><button data-action="reject-cancel" data-id="${o.id}">Từ chối hủy</button>`,
@@ -206,15 +210,24 @@
         description:
           k === 'fail-carrier' || k === 'approve-return-failure'
             ? `Đơn #${id}: hệ thống sẽ thử tạo vận đơn và giả lập cả 3 lần gọi đều lỗi. Sau đó bạn có thể tạo lại vận đơn bình thường.`
-            : `Bạn đang cập nhật đơn bán hàng #${id}.`,
-        fields: needsReason ? [{ name: 'reason', label: 'Lý do từ chối', required: true }] : [],
-        confirm: 'Lưu thay đổi',
+            : k === 'cancel-unpaid'
+              ? `Đơn #${id} đã quá hạn thanh toán. Hủy đơn sẽ hoàn lại tồn kho và cộng 1 điểm phạt chưa thanh toán cho người mua. Người mua có 2 điểm phạt liên tiếp sẽ bị khóa tài khoản vĩnh viễn.`
+              : `Bạn đang cập nhật đơn bán hàng #${id}.`,
+        fields: needsReason
+          ? [{ name: 'reason', label: 'Lý do từ chối', required: true }]
+          : k === 'cancel-unpaid'
+            ? [{ name: 'reason', label: 'Ghi chú (không bắt buộc)' }]
+            : [],
+        confirm: k === 'cancel-unpaid' ? 'Hủy đơn và cộng điểm phạt' : 'Lưu thay đổi',
       });
       if (!input) return;
       let path,
         body = {};
       if (k === 'prepare') path = `seller/orders/${id}/prepare`;
-      else if (k === 'ship') path = `seller/orders/${id}/ship`;
+      else if (k === 'cancel-unpaid') {
+        path = `seller/orders/${id}/cancel-unpaid`;
+        body = { reason: input.reason || null };
+      } else if (k === 'ship') path = `seller/orders/${id}/ship`;
       else if (k === 'fail-carrier') {
         path = `seller/orders/${id}/ship/simulate-failure`;
       } else if (k === 'accept-cancel' || k === 'reject-cancel') {
@@ -311,11 +324,11 @@
     transactionPage = result.page;
     $('finance-transactions').innerHTML = result.items.length
       ? result.items
-          .map(
-            (x) =>
-              `<article class="finance-row"><div><strong>${esc(transactionLabels[x.type] || 'Giao dịch tài chính')}${x.orderId ? ` · đơn #${x.orderId}` : ''}</strong><small>${esc(financeDescription(x))} · ${financeDate(x.createdAt)}</small><small>Khoản tiền: ${esc(bucketLabels[x.bucket] || 'Số dư tài chính')}</small></div><b class="${Number(x.amount) < 0 ? 'negative' : 'positive'}">${Number(x.amount) > 0 ? '+' : ''}${money(x.amount)}</b></article>`,
-          )
-          .join('')
+        .map(
+          (x) =>
+            `<article class="finance-row"><div><strong>${esc(transactionLabels[x.type] || 'Giao dịch tài chính')}${x.orderId ? ` · đơn #${x.orderId}` : ''}</strong><small>${esc(financeDescription(x))} · ${financeDate(x.createdAt)}</small><small>Khoản tiền: ${esc(bucketLabels[x.bucket] || 'Số dư tài chính')}</small></div><b class="${Number(x.amount) < 0 ? 'negative' : 'positive'}">${Number(x.amount) > 0 ? '+' : ''}${money(x.amount)}</b></article>`,
+        )
+        .join('')
       : '<p class="empty-note">Chưa có giao dịch tài chính.</p>';
     pager('finance-transactions-pagination', result, (p) => safe(() => loadTransactions(p)));
   }
@@ -356,10 +369,10 @@
   }
   document.querySelectorAll('[data-order-filter]').forEach(
     (b) =>
-      (b.onclick = () => {
-        orderFilter = b.dataset.orderFilter;
-        safe(() => loadOrders(1));
-      }),
+    (b.onclick = () => {
+      orderFilter = b.dataset.orderFilter;
+      safe(() => loadOrders(1));
+    }),
   );
   $('seller-needs-action').onchange = () => {
     needsAction = $('seller-needs-action').checked;
@@ -429,7 +442,7 @@
       !G4.Realtime?.connected &&
       $('detail-dialog')?.open &&
       document.querySelector('#detail-content [data-order-detail]')?.dataset.orderDetail ===
-        String(detailOrderId)
+      String(detailOrderId)
     )
       safe(() => showOrder(detailOrderId, true));
   }, 5000);

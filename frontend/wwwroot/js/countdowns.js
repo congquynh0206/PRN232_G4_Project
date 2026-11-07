@@ -79,7 +79,7 @@
       for (const callback of listeners.get(node.dataset.countdownKind) || []) {
         Promise.resolve()
           .then(() => callback(node.dataset.countdownScope))
-          .catch(() => {});
+          .catch(() => { });
       }
     });
   }
@@ -87,11 +87,11 @@
   function payment(order) {
     return order.status === 'AwaitingPayment'
       ? html(order.paymentExpiresAt, {
-          label: 'Thanh toán trong',
-          expired: 'Đã hết hạn thanh toán — chờ hệ thống đối soát và cập nhật',
-          kind: 'payment',
-          scope: order.id,
-        })
+        label: 'Thanh toán trong',
+        expired: 'Đã hết hạn thanh toán — người bán có thể hủy đơn và người mua bị cộng điểm phạt',
+        kind: 'payment',
+        scope: order.id,
+      })
       : '';
   }
 
@@ -101,21 +101,21 @@
     return blocked
       ? '<p class="small">Đang có tranh chấp — chờ xử lý hồ sơ trước khi hoàn tiền.</p>'
       : html(request.confirmationDueAt, {
-          label: 'Seller kiểm tra hàng trả, tự hoàn tiền sau',
-          expired: 'Đã đến hạn — đang chờ xác nhận và kết quả hoàn tiền từ hệ thống',
-          kind: 'receipt',
-          scope,
-        });
+        label: 'Seller kiểm tra hàng trả, tự hoàn tiền sau',
+        expired: 'Đã đến hạn — đang chờ xác nhận và kết quả hoàn tiền từ hệ thống',
+        kind: 'receipt',
+        scope,
+      });
   }
 
   function address(request) {
     return ['Pending', 'AwaitingShipper'].includes(request.status)
       ? html(request.expiresAt, {
-          label: 'Hoàn tất xác nhận đổi địa chỉ trong',
-          expired: 'Đã hết hạn xác nhận — chờ hệ thống cập nhật, địa chỉ cũ còn hiệu lực',
-          kind: 'address',
-          scope: request.id,
-        })
+        label: 'Hoàn tất xác nhận đổi địa chỉ trong',
+        expired: 'Đã hết hạn xác nhận — chờ hệ thống cập nhật, địa chỉ cũ còn hiệu lực',
+        kind: 'address',
+        scope: request.id,
+      })
       : '';
   }
 
@@ -147,17 +147,17 @@
       (item.permanentSalesBlockedAt
         ? ''
         : html(item.warningAt, {
-            ...options,
-            label: 'Tới mốc cảnh báo nợ',
-            expired: 'Đã đến mốc cảnh báo nợ',
-          })) +
+          ...options,
+          label: 'Tới mốc cảnh báo nợ',
+          expired: 'Đã đến mốc cảnh báo nợ',
+        })) +
       (item.suspended
         ? ''
         : html(item.dueAt, {
-            ...options,
-            label: 'Thời gian trả nợ còn lại',
-            expired: 'Đã quá hạn — chờ hệ thống cập nhật hạn chế bán hàng',
-          })) +
+          ...options,
+          label: 'Thời gian trả nợ còn lại',
+          expired: 'Đã quá hạn — chờ hệ thống cập nhật hạn chế bán hàng',
+        })) +
       html(item.earliestWriteOffAt, {
         ...options,
         label: 'Mốc sớm nhất có thể write-off nếu không có thu hồi mới',

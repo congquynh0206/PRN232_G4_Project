@@ -26,6 +26,12 @@ public interface ICheckoutService
     Task<int> ExpirePendingAsync(CancellationToken ct = default);
     Task<int> CloseDeliveredOutsideReturnWindowAsync(CancellationToken ct = default);
     Task<OrderTable> CancelUnpaidAsync(int orderId, CancellationToken ct = default);
+    Task<OrderTable> SellerCancelUnpaidAsync(
+        int orderId,
+        int sellerId,
+        string? reason,
+        CancellationToken ct = default
+    );
     Task QueueEmailAsync(
         OrderTable order,
         string eventType,

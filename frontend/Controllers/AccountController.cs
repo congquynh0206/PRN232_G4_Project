@@ -103,7 +103,11 @@ public sealed class AccountController(
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, BackendUrl("api/auth/login"));
         request.Content = new StringContent(
-            JsonSerializer.Serialize(new { email, password }),
+            JsonSerializer.Serialize(new
+            {
+                email,
+                password
+            }),
             Encoding.UTF8,
             "application/json"
         );
@@ -127,6 +131,22 @@ public sealed class AccountController(
             Response.StatusCode = StatusCodes.Status429TooManyRequests;
             ViewBag.RetryAfterSeconds = seconds;
             ModelState.AddModelError("", CommerceRateLimiting.Message(seconds));
+            ViewBag.ReturnUrl = returnUrl;
+            return View();
+        }
+        if ((int)response.StatusCode == StatusCodes.Status403Forbidden)
+        {
+            // The API only returns 403 here for a locked account; show its safe message.
+            var denied = await response.Content.ReadAsStringAsync(ct);
+            var message = "Tài khoản không thể đăng nhập.";
+            try
+            {
+                using var document = JsonDocument.Parse(denied);
+                if (document.RootElement.TryGetProperty("error", out var error))
+                    message = error.GetString() ?? message;
+            }
+            catch (JsonException) { }
+            ModelState.AddModelError("", message);
             ViewBag.ReturnUrl = returnUrl;
             return View();
         }

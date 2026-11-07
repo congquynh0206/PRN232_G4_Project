@@ -27,6 +27,8 @@ public sealed record ReasonRequest(string Reason);
 
 public sealed record CancellationDecisionRequest(bool Approve, string? Reason);
 
+public sealed record UnpaidCancelRequest(string? Reason);
+
 public sealed record CarrierFailureRequest(int OrderId, string Direction, int Count);
 
 public sealed record AddressUpdateRequest(

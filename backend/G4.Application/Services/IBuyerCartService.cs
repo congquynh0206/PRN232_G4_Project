@@ -37,4 +37,9 @@ public interface IBuyerCartService
         CartCheckoutRequest request,
         CancellationToken ct = default
     );
+    Task<CartOrderResponse> BuyItNowAsync(
+        int buyerId,
+        BuyItNowRequest request,
+        CancellationToken ct = default
+    );
 }

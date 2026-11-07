@@ -30,6 +30,7 @@
 | Giỏ nhiều seller, PayPal/realtime | [MULTI_SELLER_CART.md](MULTI_SELLER_CART.md), [COMMERCE_REFRESH.md](COMMERCE_REFRESH.md) |
 | Luồng màn hình sau checkout và kết quả thanh toán | [BUYER_CHECKOUT_FLOW.md](BUYER_CHECKOUT_FLOW.md) |
 | Sổ địa chỉ buyer, bảo vệ đơn cũ và retry | [BUYER_ADDRESS_BOOK.md](BUYER_ADDRESS_BOOK.md) |
+| Đơn chưa thanh toán, seller hủy quá hạn, điểm phạt Unpaid Item, khóa tài khoản | [UNPAID_ITEMS.md](UNPAID_ITEMS.md) |
 | Đổi địa chỉ đơn | [ORDER_ADDRESS_CHANGES.md](ORDER_ADDRESS_CHANGES.md) |
 | Tracking/return và giá trả hàng | [RETURNS_AND_SHIPPING.md](RETURNS_AND_SHIPPING.md), [RETURN_PRICING.md](RETURN_PRICING.md), [RT1 deadline](RETURN_WINDOW_POLICY.md) |
 | Dispute/phán quyết | [DISPUTES.md](DISPUTES.md), [ADMIN_DISPUTE_DECISIONS.md](ADMIN_DISPUTE_DECISIONS.md) |

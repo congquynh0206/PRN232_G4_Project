@@ -25,10 +25,24 @@ public sealed class AuthenticationController(
             ct
         );
         if (user is null || string.IsNullOrWhiteSpace(user.Role))
-            return Unauthorized(new { error = "Email hoặc mật khẩu không đúng" });
+            return Unauthorized(new
+            {
+                error = "Email hoặc mật khẩu không đúng"
+            });
+        if (user.BannedAt != null)
+            return StatusCode(
+                403,
+                new
+                {
+                    error = user.BanReason ?? "Tài khoản đã bị khóa vĩnh viễn."
+                }
+            );
         var role = user.Role.ToLowerInvariant();
         if (role is not ("buyer" or "seller" or "admin" or "shipper"))
-            return StatusCode(403, new { error = "Tài khoản chưa được gán role hợp lệ" });
+            return StatusCode(403, new
+            {
+                error = "Tài khoản chưa được gán role hợp lệ"
+            });
         var expiresAt = DateTime.UtcNow.AddHours(8);
         var key =
             configuration["Authentication:JwtKey"]

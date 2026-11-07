@@ -59,6 +59,11 @@ if (args.Contains("--buyer-address-book"))
     await BuyerAddressBookChecks.RunAsync();
     return;
 }
+if (args.Contains("--unpaid-items"))
+{
+    await UnpaidItemChecks.RunAsync();
+    return;
+}
 if (args.Contains("--checkout-limits"))
 {
     await CheckoutLimitChecks.RunAsync();

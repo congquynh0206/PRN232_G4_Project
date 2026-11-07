@@ -397,6 +397,85 @@ public sealed class BuyerCartService(ApplicationDbContext db, ICheckoutService c
         return created.Select(Response).ToArray();
     }
 
+    /// <summary>
+    /// "Buy It Now" for one seller group: create that seller's order as AwaitingPayment (UNPAID),
+    /// hold its stock and remove only that group from the cart. No payment is taken here.
+    /// </summary>
+    public async Task<CartOrderResponse> BuyItNowAsync(
+        int buyerId,
+        BuyItNowRequest request,
+        CancellationToken ct = default
+    )
+    {
+        if (
+            string.IsNullOrWhiteSpace(request.CheckoutKey)
+            || request.CheckoutKey.Length > 60
+            || request.ExpectedTotal is null
+            || string.IsNullOrWhiteSpace(request.PricingFingerprint)
+        )
+            throw new ArgumentException("Cần khóa đặt hàng và báo giá đã xác nhận của seller.");
+        var coupon = string.IsNullOrWhiteSpace(request.CouponCode)
+            ? null
+            : request.CouponCode.Trim().ToUpperInvariant();
+        var canonical = JsonSerializer.Serialize(request with
+        {
+            CouponCode = coupon
+        });
+        await using var tx = await BeginAsync(ct);
+        var previous = await db.CheckoutBatches.SingleOrDefaultAsync(
+            x => x.Key == request.CheckoutKey,
+            ct
+        );
+        if (previous != null)
+        {
+            if (previous.BuyerId != buyerId || previous.RequestJson != canonical)
+                throw new InvalidOperationException("Khóa đặt hàng thuộc về một giỏ hàng khác.");
+            var id = JsonSerializer.Deserialize<int[]>(previous.OrderIdsJson)!.Single();
+            var existing = await db.OrderTables.SingleAsync(x => x.Id == id, ct);
+            if (tx != null)
+                await tx.CommitAsync(ct);
+            return Response(existing);
+        }
+
+        var cart = await CartAsync(buyerId, ct);
+        CheckVersion(cart, request.CartVersion);
+        var view = await ViewAsync(cart, ct);
+        var lines = view.Items.Where(x => x.SellerId == request.SellerId).ToArray();
+        if (lines.Length == 0)
+            throw new ArgumentException("Giỏ hàng không có sản phẩm của seller này.");
+        var order = await checkout.CreateOrderAsync(
+            buyerId,
+            new CheckoutRequest(
+                request.AddressId,
+                lines.Select(x => new CartLine(x.ProductId, x.Quantity)).ToArray(),
+                coupon,
+                $"batch:{request.CheckoutKey}:{request.SellerId}",
+                request.ExpectedTotal,
+                request.PricingFingerprint
+            ),
+            ct
+        );
+        db.CheckoutBatches.Add(
+            new CheckoutBatch
+            {
+                Key = request.CheckoutKey,
+                BuyerId = buyerId,
+                RequestJson = canonical,
+                OrderIdsJson = JsonSerializer.Serialize(new[] { order.Id }),
+            }
+        );
+        cart.ItemsJson = SerializeLines(
+            view
+                .Items.Where(x => x.SellerId != request.SellerId)
+                .Select(x => new CartLine(x.ProductId, x.Quantity))
+        );
+        cart.Version = Guid.NewGuid();
+        await db.SaveChangesAsync(ct);
+        if (tx != null)
+            await tx.CommitAsync(ct);
+        return Response(order);
+    }
+
     private static CartOrderResponse Response(OrderTable order) =>
         new(order.Id, order.SellerId, order.Status, order.TotalPrice, order.PaymentExpiresAt);
 }

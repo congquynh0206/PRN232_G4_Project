@@ -31,6 +31,21 @@
     if (id === 'disputes') safe(() => G4.Disputes.load());
     if (id === 'notifications') safe(() => G4.Notifications.load());
   }
+  async function loadStrikeNotice() {
+    const notice = $('buyer-strike-notice');
+    if (!notice) return;
+    try {
+      const info = await api('buyer/unpaid-strikes');
+      notice.hidden = !info.strikes && !info.banned;
+      notice.textContent = info.banned
+        ? 'Tài khoản đã bị khóa vĩnh viễn do không thanh toán đơn hàng.'
+        : info.strikes
+          ? `Bạn có ${info.strikes}/${info.limit} điểm phạt chưa thanh toán. Đạt ${info.limit} điểm liên tiếp sẽ bị khóa tài khoản vĩnh viễn.`
+          : '';
+    } catch {
+      notice.hidden = true;
+    }
+  }
   async function loadOrders(page = state.page, changedId = null) {
     const request = ++orderRequest,
       filter = orderFilter,
@@ -44,6 +59,7 @@
       if (request !== orderRequest) return;
       state.page = result.page;
       state.orders = result.items;
+      safe(loadStrikeNotice);
       const empty = `<p class="empty-note">${filter === 'all' ? 'Chưa có đơn hàng.' : 'Không có đơn hàng phù hợp với bộ lọc này.'}</p>`;
       if (changedId === null)
         list.innerHTML = result.items.length
@@ -179,12 +195,12 @@
       description: `Đơn mua hàng #${id}. Vui lòng kiểm tra trước khi xác nhận.`,
       fields: ['return', 'hold'].includes(kind)
         ? [
-            {
-              name: 'reason',
-              label: kind === 'return' ? 'Lý do trả hàng' : 'Lý do tranh chấp',
-              required: true,
-            },
-          ]
+          {
+            name: 'reason',
+            label: kind === 'return' ? 'Lý do trả hàng' : 'Lý do tranh chấp',
+            required: true,
+          },
+        ]
         : [],
       confirm: 'Xác nhận',
     });
@@ -211,10 +227,10 @@
   }
   document.querySelectorAll('[data-order-filter]').forEach(
     (b) =>
-      (b.onclick = () => {
-        orderFilter = b.dataset.orderFilter;
-        safe(() => loadOrders(1));
-      }),
+    (b.onclick = () => {
+      orderFilter = b.dataset.orderFilter;
+      safe(() => loadOrders(1));
+    }),
   );
   $('refresh-orders').onclick = () => safe(() => loadOrders(state.page));
   document.body.addEventListener('click', (e) => {
@@ -253,7 +269,7 @@
       !G4.Realtime?.connected &&
       $('detail-dialog')?.open &&
       document.querySelector('#detail-content [data-order-detail]')?.dataset.orderDetail ===
-        String(detailOrderId)
+      String(detailOrderId)
     )
       safe(() => showOrder(detailOrderId, true));
   }, 5000);
