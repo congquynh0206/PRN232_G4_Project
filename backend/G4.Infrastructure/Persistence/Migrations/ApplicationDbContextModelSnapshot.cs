@@ -55,6 +55,10 @@ namespace G4.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(20)")
                         .HasColumnName("phone");
 
+                    b.Property<string>("PostalCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<string>("State")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)")
@@ -1159,13 +1163,29 @@ namespace G4.Infrastructure.Persistence.Migrations
                         .HasMaxLength(3)
                         .HasColumnType("nvarchar(3)");
 
+                    b.Property<string>("DeliveryCitySnapshot")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<string>("DeliveryCountrySnapshot")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<string>("DeliveryNameSnapshot")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("DeliveryPostalCodeSnapshot")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<string>("DeliveryStateSnapshot")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("DeliveryStreetSnapshot")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<decimal>("DiscountAmount")
                         .HasColumnType("decimal(10,2)");
@@ -1348,6 +1368,18 @@ namespace G4.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("KlarnaRedirectUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("KlarnaSessionId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("KlarnaSessionUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<string>("Method")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)")
@@ -1394,6 +1426,10 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.HasIndex("IdempotencyKey")
                         .IsUnique()
                         .HasFilter("[IdempotencyKey] IS NOT NULL");
+
+                    b.HasIndex("KlarnaSessionId")
+                        .IsUnique()
+                        .HasFilter("[KlarnaSessionId] IS NOT NULL");
 
                     b.HasIndex("OrderId");
 
@@ -1606,9 +1642,6 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<bool>("FreeShipping")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("IsPublicCoupon")
-                        .HasColumnType("bit");
-
                     b.Property<string>("FundingSource")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -1618,6 +1651,9 @@ namespace G4.Infrastructure.Persistence.Migrations
                         .HasColumnType("bit");
 
                     b.Property<bool>("IsPercent")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsPublicCoupon")
                         .HasColumnType("bit");
 
                     b.Property<int?>("LegacyCouponId")

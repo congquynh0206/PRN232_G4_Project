@@ -191,6 +191,9 @@ internal static class PasswordConfirmationChecks
         builder.Services.AddScoped<IDisputeService, DisputeService>();
         builder.Services.AddScoped<ICheckoutService, CheckoutService>();
         builder.Services.AddScoped<IPayPalPaymentService, UnusedPayPal>();
+        builder.Services.AddScoped<G4.Infrastructure.Payments.KlarnaPaymentService>(sp => new(
+            sp.GetRequiredService<ApplicationDbContext>(), new KlarnaChecks.Gateway(),
+            sp.GetRequiredService<IConfiguration>(), sp.GetRequiredService<ISellerFinanceService>()));
         builder.Services.AddScoped<SellerFinanceReportService>();
         builder.Services.AddScoped<IReturnService>(_ => new ReturnService(null!, null!, null!));
         var app = builder.Build();

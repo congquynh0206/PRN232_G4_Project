@@ -15,7 +15,8 @@ public sealed class ReturnService(
     ISellerFinanceService? finance = null,
     IConfiguration? config = null,
     TimeProvider? clock = null,
-    IIntegrationLogWriter? logs = null
+    IIntegrationLogWriter? logs = null,
+    G4.Infrastructure.Payments.KlarnaPaymentService? klarnaPayments = null
 ) : IReturnService
 {
     private DateTime Now => (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime;
@@ -523,7 +524,11 @@ public sealed class ReturnService(
         order.CancelPreviousStatus = null;
         await db.SaveChangesAsync(ct);
         if (approve)
-            await RefundAsync(orderId, "cancel", null, ct);
+        {
+            var cancelledAuthorization = klarnaPayments != null && await klarnaPayments.CancelAuthorizationAsync(orderId, ct);
+            if (!cancelledAuthorization)
+                await RefundAsync(orderId, "cancel", null, ct);
+        }
         if (tx != null)
             await tx.CommitAsync(ct);
         return order;

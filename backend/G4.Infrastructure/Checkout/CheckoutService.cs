@@ -171,6 +171,10 @@ public sealed class CheckoutService(
                 AddressId = address.Id,
                 DeliveryStateSnapshot = address.State,
                 DeliveryCountrySnapshot = address.Country,
+                DeliveryNameSnapshot = address.FullName,
+                DeliveryStreetSnapshot = address.Street,
+                DeliveryCitySnapshot = address.City,
+                DeliveryPostalCodeSnapshot = address.PostalCode,
                 PickupStateSnapshot = pickup.State,
                 PickupCountrySnapshot = pickup.Country,
                 AddressSnapshot = string.Join(
@@ -398,11 +402,10 @@ public sealed class CheckoutService(
             await db.Payments.AnyAsync(
                 x =>
                     x.OrderId == orderId
-                    && x.Method == "PayPal"
-                    && (
-                        x.Status == "Verifying"
-                        || x.PayPalCheckoutId != null && x.Status == "Pending"
-                    ),
+                    && ((x.Method == "PayPal"
+                        && (x.Status == "Verifying" || x.PayPalCheckoutId != null && x.Status == "Pending"))
+                        || (x.Method == "Klarna"
+                            && (x.Status == "Pending" || x.Status == "Verifying" || x.Status == "Authorized"))),
                 ct
             )
         )
@@ -483,7 +486,7 @@ public sealed class CheckoutService(
                 o.Status == "AwaitingPayment"
                 && o.PaymentExpiresAt < DateTime.UtcNow
                 && !db.Payments.Any(p =>
-                    p.OrderId == o.Id && p.Method == "PayPal" && p.Status == "Verifying"
+                    p.OrderId == o.Id && (p.Method == "PayPal" && p.Status == "Verifying" || p.Method == "Klarna" && (p.Status == "Pending" || p.Status == "Verifying" || p.Status == "Authorized"))
                 )
             )
             .ToListAsync(ct);
@@ -495,7 +498,7 @@ public sealed class CheckoutService(
             if (
                 order.Status != "AwaitingPayment"
                 || await db.Payments.AnyAsync(
-                    x => x.OrderId == order.Id && x.Method == "PayPal" && x.Status == "Verifying",
+                    x => x.OrderId == order.Id && (x.Method == "PayPal" && x.Status == "Verifying" || x.Method == "Klarna" && (x.Status == "Pending" || x.Status == "Verifying" || x.Status == "Authorized")),
                     ct
                 )
             )
@@ -596,7 +599,7 @@ public sealed class CheckoutService(
         }
         if (
             await db.Payments.AnyAsync(
-                x => x.OrderId == orderId && x.Method == "PayPal" && x.Status == "Verifying",
+                x => x.OrderId == orderId && (x.Method == "PayPal" && x.Status == "Verifying" || x.Method == "Klarna" && (x.Status == "Pending" || x.Status == "Verifying" || x.Status == "Authorized")),
                 ct
             )
         )

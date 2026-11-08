@@ -21,7 +21,8 @@ public sealed class BuyerAddressService(ApplicationDbContext db) : IBuyerAddress
             a.City ?? "",
             a.State ?? "",
             a.Country ?? "",
-            a.IsDefault == true
+            a.IsDefault == true,
+            a.PostalCode
         );
 
     private async Task<IReadOnlyList<BuyerAddressView>> ReadAsync(
@@ -76,6 +77,7 @@ public sealed class BuyerAddressService(ApplicationDbContext db) : IBuyerAddress
         address.City = input.City;
         address.State = input.State;
         address.Country = input.Country;
+        address.PostalCode = input.PostalCode;
     }
 
     /// <summary>Guarantees exactly one default when the book is not empty. preferred wins when set.</summary>

@@ -3,7 +3,7 @@ using G4.Infrastructure.Diagnostics;
 
 namespace G4.Infrastructure.Integrations.Refunds;
 
-public sealed class RefundGateway(IPayPalGateway paypal, IIntegrationLogWriter? logs = null)
+public sealed class RefundGateway(IPayPalGateway paypal, IIntegrationLogWriter? logs = null, IKlarnaGateway? klarna = null)
     : IRefundGateway
 {
     public async Task<string> RefundAsync(
@@ -29,6 +29,13 @@ public sealed class RefundGateway(IPayPalGateway paypal, IIntegrationLogWriter? 
 
         if (payment.Method == "PayPal" && payment.ProviderTransactionId != null)
             return await paypal.RefundAsync(payment.ProviderTransactionId, amount, "USD", key, ct);
+        if (payment.Method == "Klarna" && payment.ProviderOrderId != null && payment.ProviderTransactionId != null)
+        {
+            if (klarna == null) throw new InvalidOperationException("Klarna gateway unavailable");
+            if (amount <= 0 || decimal.Round(amount, 2) != amount)
+                throw new ArgumentException("Refund amount must be positive USD cents", nameof(amount));
+            return await klarna.RefundAsync(payment.ProviderOrderId, checked((long)(amount * 100m)), key, ct);
+        }
         throw new InvalidOperationException("Payment cannot be refunded");
     }
 }

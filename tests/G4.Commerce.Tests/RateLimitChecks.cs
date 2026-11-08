@@ -125,6 +125,9 @@ internal static class RateLimitChecks
         builder.Services.AddScoped<IDisputeService, DisputeService>();
         builder.Services.AddScoped<SellerFinanceReportService>();
         builder.Services.AddScoped<IPayPalPaymentService, NeverPayPal>();
+        builder.Services.AddScoped<G4.Infrastructure.Payments.KlarnaPaymentService>(sp => new(
+            sp.GetRequiredService<ApplicationDbContext>(), new KlarnaChecks.Gateway(),
+            sp.GetRequiredService<IConfiguration>(), sp.GetRequiredService<ISellerFinanceService>()));
         var app = builder.Build();
         // Only this fixture can override the transport peer, to exercise an untrusted proxy.
         app.Use(

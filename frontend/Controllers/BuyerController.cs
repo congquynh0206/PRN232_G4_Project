@@ -81,6 +81,44 @@ public sealed class BuyerController(IHttpClientFactory factory, IConfiguration c
     public IActionResult PayPalCancel(int orderId) =>
         RedirectToAction(nameof(Index), new { orderId, paymentResult = "cancelled" });
 
+    [HttpGet]
+    public async Task<IActionResult> KlarnaReturn(int orderId, CancellationToken ct)
+    {
+        if (orderId <= 0)
+            return RedirectToAction(nameof(Index));
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            BackendUrl($"api/orders/{orderId}/pay/klarna/reconcile")
+        );
+        request.Headers.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            User.FindFirstValue("access_token")
+        );
+        request.Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json");
+        using var response = await factory.CreateClient().SendAsync(request, ct);
+        return RedirectToAction(
+            nameof(Index),
+            new
+            {
+                orderId,
+                paymentProvider = "klarna",
+                paymentResult = response.IsSuccessStatusCode ? "checked"
+                    : (int)response.StatusCode == 429 ? "rate-limited"
+                    : "error",
+                retryAfterSeconds = RetrySeconds(response),
+            }
+        );
+    }
+
+    [HttpGet]
+    public IActionResult KlarnaCancel(int orderId) =>
+        orderId <= 0
+            ? RedirectToAction(nameof(Index))
+            : RedirectToAction(
+                nameof(Index),
+                new { orderId, paymentProvider = "klarna", paymentResult = "cancelled" }
+            );
+
     private string BackendUrl(string path) =>
         (config["ApiSettings:BaseUrl"] ?? "http://localhost:5251").TrimEnd('/') + "/" + path;
 

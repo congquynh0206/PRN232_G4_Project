@@ -115,6 +115,14 @@
                         <small>Không nhập thông tin thẻ thật</small>
                     </span>
                 </label>
+                <label class="payment-option">
+                    <input type="radio" name="method" value="klarna" />
+                    <span>
+                        <strong>Klarna Pay Later</strong>
+                        <small>Klarna duyệt đơn trước; tiền được thu khi giao hàng</small>
+                    </span>
+                </label>
+                <p id="klarna-zip-note" class="address-quote-status warn" role="status" hidden></p>
                 <div id="card-fields" class="card-fields hidden">
                     <label for="card-number">Thẻ thử</label>
                     <select id="card-number">
@@ -164,8 +172,8 @@
                 Báo giá chưa giữ lượt khuyến mãi. Giá được xác nhận khi tạo đơn.
             </p>
             <p class="promotion-checkout-note">
-                Mỗi người bán nhận một đơn riêng. PayPal xác nhận thanh toán cả giỏ trong một lượt;
-                kết quả từng đơn được hiển thị tại “Đơn hàng”.
+                Mỗi người bán nhận một đơn riêng. PayPal xác nhận cả giỏ trong một lượt;
+                Klarna chuyển hướng cho từng đơn, các đơn còn lại thanh toán trong “Đơn hàng”.
             </p>
             <button class="primary wide" id="pay" disabled>Đặt hàng &amp; thanh toán</button>
         </aside>
@@ -216,7 +224,7 @@
         <label>Từ ngày<input name="from" type="date"></label><label>Đến ngày<input name="to" type="date"></label>
         <label>Khoảng thống kê<select name="period"><option value="30">30 ngày gần nhất</option><option value="all">Tất cả thời gian</option><option value="custom">Tùy chọn ngày</option></select></label>
         <label>Loại<select name="type"><option value="">Tất cả</option><option value="Payment">Thanh toán</option><option value="Refund">Hoàn tiền</option></select></label>
-        <label>Trạng thái<select name="status"><option value="">Tất cả</option><option value="Succeeded">Thành công</option><option value="Failed">Thất bại</option><option value="Pending">Đang xử lý</option><option value="Verifying">Đang xác minh</option></select></label>
+        <label>Trạng thái<select name="status"><option value="">Tất cả</option><option value="Succeeded">Thành công</option><option value="Authorized">Đã duyệt · chưa thu tiền</option><option value="Failed">Thất bại</option><option value="Pending">Đang xử lý</option><option value="Verifying">Đang xác minh</option></select></label>
         <button class="primary" type="submit">Tìm kiếm</button><button type="reset" id="transaction-clear">Xóa bộ lọc</button>
     </form>
     <p id="transaction-summary" class="small" role="status" aria-live="polite"></p>
@@ -258,6 +266,7 @@
     <script src="~/js/buyer-addresses.js" asp-append-version="true"></script>
     <script src="~/js/buyer-cart.js" asp-append-version="true"></script>
     <script src="~/js/paypal-cart.js" asp-append-version="true"></script>
+    <script src="~/js/klarna.js" asp-append-version="true"></script>
     <script src="~/js/seller-feedback.js" asp-append-version="true"></script>
     <script src="~/js/buyer-product-reviews.js" asp-append-version="true"></script>
     <script src="~/js/buyer-transactions.js" asp-append-version="true"></script>

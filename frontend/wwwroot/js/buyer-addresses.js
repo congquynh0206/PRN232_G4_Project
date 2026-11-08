@@ -6,20 +6,24 @@
     ['city', 'Thành phố', 50],
     ['state', 'Tỉnh / vùng', 50],
     ['country', 'Quốc gia', 50],
+    ['postalCode', 'Mã bưu chính / ZIP', 20],
   ];
   const MAX_ADDRESSES = 10;
   const clean = (value) =>
     String(value ?? '')
       .trim()
       .replace(/\s+/g, ' ');
-  const lineOf = (a) => [a.street, a.city, a.state, a.country].filter(Boolean).join(', ');
+  const lineOf = (a) => [a.street, a.city, a.state, a.postalCode, a.country].filter(Boolean).join(', ');
   function validate(values) {
     const errors = {};
     for (const [field, label, max] of FIELDS) {
       const text = label.toLowerCase();
-      if (!values[field]) errors[field] = `Vui lòng nhập ${text}.`;
+      if (!values[field] && field !== 'postalCode') errors[field] = `Vui lòng nhập ${text}.`;
       else if (values[field].length > max) errors[field] = `Tối đa ${max} ký tự cho ${text}.`;
     }
+    if (/^(US|USA|United States|United States of America)$/i.test(values.country) &&
+      values.postalCode && !/^\d{5}(?:-\d{4})?$/.test(values.postalCode))
+      errors.postalCode = 'ZIP Hoa Kỳ cần 5 chữ số hoặc ZIP+4.';
     return errors;
   }
   G4.BuyerAddresses = { create };
@@ -37,7 +41,7 @@
       saving = false,
       opener = null;
     const key = (a) =>
-      a ? [a.id, a.fullName, a.street, a.city, a.state, a.country].join('|') : '';
+      a ? [a.id, a.fullName, a.street, a.city, a.state, a.postalCode, a.country].join('|') : '';
     const current = () => addresses.find((a) => a.id === selectedId) || null;
 
     function adopt(list, { select = null, silent = false } = {}) {
@@ -55,7 +59,7 @@
       return `${a.isDefault ? '<span class="address-badge">Mặc định</span>' : ''}${a.id === selectedId ? '<span class="address-badge chosen">Đang giao tới đây</span>' : ''}`;
     }
     function body(a) {
-      return `<span class="address-title"><strong>${esc(a.fullName)}</strong>${badges(a)}</span><span>${esc(a.street)}</span><span>${esc(a.city)}, ${esc(a.state)}, ${esc(a.country)}</span>`;
+      return `<span class="address-title"><strong>${esc(a.fullName)}</strong>${badges(a)}</span><span>${esc(a.street)}</span><span>${esc(a.city)}, ${esc(a.state)}${a.postalCode ? ', ' + esc(a.postalCode) : ''}, ${esc(a.country)}</span>`;
     }
     function render() {
       const list = $('address-list'),
