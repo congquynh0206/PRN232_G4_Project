@@ -27,6 +27,7 @@ public partial class ApplicationDbContext
         ConfigurePayPalCart(modelBuilder);
         ConfigureDisputeDecisions(modelBuilder);
         ConfigureReturnPricing(modelBuilder);
+        ConfigureBestOffers(modelBuilder);
         modelBuilder.Entity<Product>().Property(x => x.WeightKg).HasColumnType("decimal(10,3)");
         modelBuilder
             .Entity<OrderItem>()

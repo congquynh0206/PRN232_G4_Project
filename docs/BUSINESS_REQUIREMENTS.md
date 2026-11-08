@@ -18,8 +18,8 @@ Hệ thống có bốn vai trò `buyer`, `seller`, `shipper`, `admin`. API kiể
 
 | Vai trò | Nghiệp vụ chính |
 | --- | --- |
-| Buyer | Random giỏ, quản lý địa chỉ/mặc định, xem báo giá và policy free returns trước mua, dùng promotion, thanh toán, lịch sử payment/refund, theo dõi tracking, yêu cầu hủy/đổi địa chỉ/return, báo chưa nhận hàng và mở dispute, đánh giá sau giao. |
-| Seller | Chuẩn bị đơn, tạo nhãn, cấu hình cap đổi địa chỉ và policy free returns mặt hàng, xử lý hủy/return/dispute, promotion shop, báo cáo tài chính, trả lời review sản phẩm, theo dõi cấp/nợ và yêu cầu payout giả lập. |
+| Buyer | Random giỏ, quản lý địa chỉ/mặc định, xem báo giá và policy free returns trước mua, dùng promotion, thanh toán, lịch sử payment/refund, theo dõi tracking, yêu cầu hủy/đổi địa chỉ/return, báo chưa nhận hàng và mở dispute, đánh giá sau giao, trả giá và counteroffer. |
+| Seller | Chuẩn bị đơn, tạo nhãn, cấu hình cap đổi địa chỉ và policy free returns mặt hàng, xử lý hủy/return/dispute, promotion shop, Best Offer và ngưỡng auto-accept/auto-decline, báo cáo tài chính, trả lời review sản phẩm, theo dõi cấp/nợ và yêu cầu payout giả lập. |
 | Shipper | Nhận vận đơn nguyên tử, tracking/giao lại, xem địa chỉ lấy/giao và chấp thuận khả năng giao địa chỉ mới nếu đã nhận vận đơn. Chỉ shipper được giao vận đơn được thao tác. |
 | Admin | Policy phí, hạn mức riêng seller, promotion theo quyền, tra cứu order/payment/refund, phán quyết và yêu cầu trả hàng trước phán quyết, theo dõi cấp/nợ/write-off/blacklist. Không sửa tay số dư/payment/tracking hoặc tùy ý nhập seller level. |
 
@@ -35,6 +35,13 @@ Hệ thống có bốn vai trò `buyer`, `seller`, `shipper`, `admin`. API kiể
 
 6. B1 phải đủ thêm/sửa/xóa/đặt mặc định và kiểm tra quyền địa chỉ. Địa chỉ đang chọn bị sửa/thay/xóa làm mất hiệu lực báo giá; phải lấy báo giá mới trước đặt hàng. Sổ địa chỉ không sửa snapshot đơn cũ. Giỏ tối đa 5 sản phẩm, số lượng mỗi dòng 1–5.
 7. Công bố free returns từng mặt hàng ngay trong giỏ random và checkout; snapshot policy/phiên bản và khối lượng từng dòng khi mua. Sau mua, seller đổi policy không thay quyền lợi đơn cũ. Một kiện mỗi chiều và return toàn bộ order trong phạm vi chính; không bổ sung catalog hoặc CRUD sản phẩm/tồn kho toàn diện.
+
+### 3.2. Best Offer (trả giá)
+
+- Seller bật/tắt nhận trả giá riêng theo sản phẩm giá cố định, đồng thời có thể đặt ngưỡng tự động chấp nhận và tự động từ chối. Ngưỡng từ chối phải thấp hơn ngưỡng chấp nhận; cả hai không vượt giá niêm yết. Giá dưới ngưỡng bị từ chối, giá đạt ngưỡng chấp nhận chốt ngay, khoảng giữa chờ seller.
+- Buyer phải chọn địa chỉ và phương thức thanh toán ở lúc gửi đề nghị. Mỗi đề nghị/lượt phản hồi chờ tối đa 24 giờ; worker chuyển phiên đang chờ thành `Expired`. Buyer có tối đa 5 lượt đề nghị trong một phiên, kể cả giá mở đầu và các lần trả lại. Hai bên có thể chấp nhận, từ chối hoặc counteroffer.
+- Khi seller chấp nhận hoặc buyer chấp nhận counteroffer, hệ thống thử thu tiền ngay. Chỉ khi thanh toán thành công trong transaction mới tạo order `Paid`, ghi Payment/settlement/ledger và trừ tồn. Nếu thanh toán lỗi hoặc điều kiện bán không còn hợp lệ, toàn bộ transaction rollback; không giả kết quả `Paid`. Best Offer không sử dụng thời hạn unpaid 15 phút của checkout thông thường.
+- Để đảm bảo auto-pay phải có quyền thu tiền đã được buyer cấp trước. Trong môi trường hiện tại, thẻ Best Offer dùng hồ sơ thẻ mô phỏng `Success`/`Declined`; đây không phải thông tin thẻ thật hoặc token thẻ đã vault. PayPal authorization/vault cho phép thu sau khi seller accept chưa có trong source và phải hoàn tất trước khi bật phương thức PayPal cho Best Offer. Không lưu PAN/CVV thật.
 
 ### 3.1. Phí vận chuyển chiều đi
 

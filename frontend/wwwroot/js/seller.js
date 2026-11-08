@@ -29,6 +29,7 @@
   function tab(id) {
     if (!G4.Navigation.select(id)) return;
     if (id === 'orders') safe(loadOrders);
+    else if (id === 'best-offers') safe(() => G4.BestOffers.sellerLoad());
     else if (id === 'finance-report') G4.SellerReport.load();
     else if (id === 'disputes') safe(() => G4.Disputes.load());
     else if (id === 'promotions') safe(() => G4.Promotions.load());
@@ -410,10 +411,11 @@
     if (b) return safe(() => action(b));
   });
   G4.Realtime?.subscribe(
-    ['orders', 'returns', 'shipments', 'disputes', 'finance', 'levels', 'notifications'],
+    ['orders', 'returns', 'shipments', 'disputes', 'finance', 'levels', 'notifications', 'best-offers'],
     async () => {
       const active = document.querySelector('.tab-panel.active')?.id;
       if (active === 'orders') await loadOrders(orderPage, true);
+      if (active === 'best-offers') await G4.BestOffers.sellerLoad();
       if (active === 'finance') await loadFinance();
       if (active === 'finance-report') await G4.SellerReport.load();
       if (active === 'seller-levels') await G4.SellerLevels.load();

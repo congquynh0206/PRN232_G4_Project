@@ -1,5 +1,18 @@
 # Backlog triển khai theo đặc tả ngày 18/10/2026
 
+## BEST-OFFER — Trả giá buyer/seller ngày 08/11/2026
+
+- Đã thêm cấu hình nhận trả giá theo sản phẩm, auto-accept/auto-decline, phiên thương lượng,
+  counteroffer, giới hạn 5 lượt buyer, hết hạn 24 giờ, UI cho buyer/seller và worker dọn phiên.
+  Khi accept, xử lý order/payment/settlement/ledger và tồn kho trong transaction; chỉ commit khi
+  thu thẻ mô phỏng thành công.
+- Migration được tạo: `20261108124914_AddBestOffers`; chưa áp vào database. Solution build
+  `dotnet build G4_Project.sln --no-restore` đạt 0 warning/error. Chưa chạy test nghiệp vụ,
+  SQL QA, hoặc browser E2E.
+- PayPal/Klarna chưa hỗ trợ auto-pay Best Offer: source hiện không có authorization/vault được
+  buyer cấp trước. Phạm vi thanh toán hiện tại chỉ thẻ mô phỏng. Hướng dẫn:
+  [BEST_OFFERS.md](BEST_OFFERS.md).
+
 ## BELL1 — Chuông bốn role ngày 27/10/2026
 
 - Yêu cầu: chuông có badge chưa đọc 1–9/9+, danh sách lưu server, read/read-all theo
