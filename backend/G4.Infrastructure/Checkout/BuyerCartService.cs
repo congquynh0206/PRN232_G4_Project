@@ -140,6 +140,8 @@ public sealed class BuyerCartService(ApplicationDbContext db, ICheckoutService c
                         x.Id == line.ProductId
                         && x.SellerId != null
                         && x.Price != null
+                        && x.IsListed
+                        && !x.ImmediatePaymentRequired
                         && x.IsAuction != true
                         && x.WeightKg > 0,
                     ct
@@ -179,6 +181,8 @@ public sealed class BuyerCartService(ApplicationDbContext db, ICheckoutService c
             .Products.AsNoTracking()
             .Where(x =>
                 x.SellerId != null
+                && x.IsListed
+                && !x.ImmediatePaymentRequired
                 && x.Price != null
                 && x.IsAuction != true
                 && x.WeightKg > 0

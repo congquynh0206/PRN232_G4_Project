@@ -39,6 +39,7 @@ public sealed class CommerceRateLimitConvention : IApplicationModelConvention
             return action == "Refund" ? CommerceRateLimiting.Finance : CommerceRateLimiting.Payment;
         if (
             controller == "PayPalCart"
+            || controller == "ImmediateCheckout"
             || controller == "Cart" && action == "Checkout"
             || controller == "Checkout" && action == "CreateOrder"
         )

@@ -56,6 +56,7 @@ public sealed class CatalogController(
             WeightKg = input.WeightKg,
             CategoryId = input.CategoryId,
             IsAuction = false,
+            ImmediatePaymentRequired = input.ImmediatePaymentRequired,
         };
         db.Products.Add(product);
         await db.SaveChangesAsync(ct);
@@ -77,9 +78,76 @@ public sealed class CatalogController(
                 product.Title,
                 product.Price,
                 product.WeightKg,
+                product.ImmediatePaymentRequired,
             }
         );
     }
+
+    [HttpGet("seller/products")]
+    public async Task<IActionResult> SellerProducts(CancellationToken ct)
+    {
+        if (!IsAvailable || !HasRole("seller"))
+            return StatusCode(403);
+        return Ok(await ProductList(CurrentUserId).ToListAsync(ct));
+    }
+
+    [HttpPost("seller/products/{id:int}/payment-settings")]
+    public async Task<IActionResult> Settings(
+        int id,
+        ProductPaymentSettings input,
+        CancellationToken ct
+    )
+    {
+        if (!IsAvailable || !HasRole("seller"))
+            return StatusCode(403);
+        if (input.Price <= 0 || input.Price > 99999999.99m
+            || decimal.Round(input.Price, 2) != input.Price)
+            return BadRequest(new { error = "Invalid price" });
+        await using var tx = db.Database.IsRelational()
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct)
+            : null;
+        await G4.Infrastructure.Promotions.PromotionLifecycle.LockReservationsAsync(db, ct);
+        var product = await db.Products.SingleOrDefaultAsync(
+            p => p.Id == id && p.SellerId == CurrentUserId, ct);
+        if (product == null)
+            return NotFound();
+        if (product.IsAuction == true)
+            return BadRequest(new { error = "Buy It Now configuration is for fixed-price products." });
+        if (product.Price != input.ExpectedPrice)
+            return Conflict(new { error = "Price changed. Reload before editing." });
+        product.Price = input.Price;
+        product.ImmediatePaymentRequired = input.ImmediatePaymentRequired;
+        product.IsListed = input.IsListed;
+        await db.SaveChangesAsync(ct);
+        if (tx != null)
+            await tx.CommitAsync(ct);
+        return Ok(new { product.Id, product.ImmediatePaymentRequired, product.IsListed });
+    }
+
+    [HttpGet("catalog/products")]
+    public async Task<IActionResult> Products(CancellationToken ct)
+    {
+        if (!IsAvailable || !HasRole("buyer"))
+            return StatusCode(403);
+        return Ok(await ProductList(null).Take(100).ToListAsync(ct));
+    }
+
+    private IQueryable<ProductListing> ProductList(int? sellerId) =>
+        db.Products.AsNoTracking()
+            .Where(p => p.IsAuction != true && p.Price != null
+                && (sellerId != null || p.IsListed)
+                && (sellerId == null || p.SellerId == sellerId))
+            .OrderBy(p => p.Id)
+            .Select(p => new ProductListing(
+                p.Id, p.Title, p.Description, p.Price, p.WeightKg,
+                p.ImmediatePaymentRequired, p.IsListed,
+                db.Inventories.Where(i => i.ProductId == p.Id).Sum(i => i.Quantity) ?? 0
+            ));
+
+    private sealed record ProductListing(
+        int Id, string? Title, string? Description, decimal? Price, decimal? WeightKg,
+        bool ImmediatePaymentRequired, bool IsListed, int Available
+    );
 
     [HttpGet("catalog/random")]
     public async Task<IActionResult> RandomCart(

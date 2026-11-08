@@ -31,6 +31,8 @@ public sealed class CheckoutService(
             .Products.AsNoTracking()
             .Where(p =>
                 p.SellerId != null
+                && p.IsListed
+                && !p.ImmediatePaymentRequired
                 && p.IsAuction != true
                 && p.Price != null
                 && p.WeightKg > 0
@@ -73,6 +75,26 @@ public sealed class CheckoutService(
         int buyerId,
         CheckoutRequest request,
         CancellationToken ct = default
+    )
+        => await CreateOrderCoreAsync(buyerId, request, false, ct);
+
+    // Only the immediate checkout orchestrator can opt in, inside its SQL transaction.
+    internal Task<OrderTable> CreateImmediateOrderAsync(
+        int buyerId,
+        CheckoutRequest request,
+        CancellationToken ct
+    )
+    {
+        if (db.Database.IsRelational() && db.Database.CurrentTransaction == null)
+            throw new InvalidOperationException("Immediate payment requires an atomic transaction.");
+        return CreateOrderCoreAsync(buyerId, request, true, ct);
+    }
+
+    private async Task<OrderTable> CreateOrderCoreAsync(
+        int buyerId,
+        CheckoutRequest request,
+        bool immediate,
+        CancellationToken ct
     )
     {
         if (string.IsNullOrWhiteSpace(request.CheckoutKey) || request.CheckoutKey.Length > 100)
@@ -146,6 +168,10 @@ public sealed class CheckoutService(
                 ct,
                 true
             );
+            if (!immediate && products.Any(p => p.ImmediatePaymentRequired))
+                throw new InvalidOperationException("Immediate Payment Required: use Buy It Now.");
+            if (immediate && (products.Length != 1 || !products[0].ImmediatePaymentRequired))
+                throw new InvalidOperationException("Product payment configuration has changed.");
             // Keep the finance gate until the new order commits so a debt update cannot race checkout.
             await (
                 finance
@@ -166,6 +192,7 @@ public sealed class CheckoutService(
             var now = DateTime.UtcNow;
             var order = new OrderTable
             {
+                ImmediatePaymentInProgress = immediate,
                 BuyerId = address.UserId,
                 SellerId = products[0].SellerId,
                 AddressId = address.Id,
@@ -226,8 +253,23 @@ public sealed class CheckoutService(
                 );
                 if (stock.Quantity < line.Quantity)
                     throw new InvalidOperationException("Insufficient stock");
-                stock.Quantity -= line.Quantity;
-                stock.LastUpdated = DateTime.UtcNow;
+                if (db.Database.IsRelational())
+                {
+                    var quantity = line.Quantity;
+                    var changed = await db.Inventories
+                        .Where(i => i.Id == stock.Id && i.Quantity >= quantity)
+                        .ExecuteUpdateAsync(update => update
+                            .SetProperty(i => i.Quantity, i => i.Quantity - quantity)
+                            .SetProperty(i => i.LastUpdated, DateTime.UtcNow), ct);
+                    if (changed != 1)
+                        throw new InvalidOperationException("Out of Stock");
+                    await db.Entry(stock).ReloadAsync(ct);
+                }
+                else
+                {
+                    stock.Quantity -= line.Quantity;
+                    stock.LastUpdated = DateTime.UtcNow;
+                }
                 order.OrderItems.Add(
                     new OrderItem
                     {
@@ -254,7 +296,8 @@ public sealed class CheckoutService(
             db.OrderTables.Add(order);
             await db.SaveChangesAsync(ct);
             // The identity is now available; keep this alert in the existing checkout transaction.
-            db.CommerceChanges.Add(
+            if (!immediate)
+                db.CommerceChanges.Add(
                 new CommerceChange
                 {
                     Topic = "orders",
@@ -656,7 +699,8 @@ public sealed class CheckoutService(
             );
         var ids = request.Items.Select(i => i.ProductId).ToArray();
         var products = await db
-            .Products.Where(p => ids.Contains(p.Id) && p.Price != null && p.IsAuction != true)
+            .Products.Where(p => ids.Contains(p.Id) && p.Price != null
+                && p.IsAuction != true && p.IsListed)
             .ToArrayAsync(ct);
         if (
             products.Length != ids.Length

@@ -7,4 +7,6 @@ namespace frontend.Controllers;
 public sealed class SellerController : Controller
 {
     public IActionResult Index() => View();
+
+    public IActionResult Products() => View();
 }

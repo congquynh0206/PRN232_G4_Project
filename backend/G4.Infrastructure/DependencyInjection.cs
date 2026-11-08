@@ -34,7 +34,9 @@ public static class DependencyInjection
             sp.GetRequiredService<BufferedIntegrationLogWriter>()
         );
         services.AddHostedService(sp => sp.GetRequiredService<BufferedIntegrationLogWriter>());
-        services.AddScoped<ICheckoutService, CheckoutService>();
+        services.AddScoped<CheckoutService>();
+        services.AddScoped<ICheckoutService>(sp => sp.GetRequiredService<CheckoutService>());
+        services.AddScoped<ImmediateCheckoutService>();
         services.AddScoped<IBuyerCartService, BuyerCartService>();
         services.AddScoped<IBuyerAddressService, BuyerAddressService>();
         services.AddScoped<IAddressChangeService, AddressChangeService>();

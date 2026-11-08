@@ -3,6 +3,17 @@ using G4.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
+if (args.Contains("--immediate-checkout"))
+{
+    await ImmediateCheckoutChecks.RunAsync();
+    return;
+}
+if (args.Contains("--immediate-checkout-sql"))
+{
+    await ImmediateCheckoutSqlChecks.RunAsync();
+    return;
+}
+
 if (args.Contains("--password-confirmation"))
 {
     await PasswordConfirmationChecks.RunAsync();
@@ -1109,6 +1120,7 @@ await SellerOrderListChecks.RunAsync();
 await BuyerOrderListChecks.RunAsync();
 await AdminOrderLookupChecks.RunAsync();
 await BuyerAddressBookChecks.RunAsync();
+await ImmediateCheckoutChecks.RunAsync();
 
 sealed class TestCarrier : ICarrierGateway
 {

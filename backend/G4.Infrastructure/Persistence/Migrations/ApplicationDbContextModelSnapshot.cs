@@ -746,6 +746,91 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.ToTable("FinancialTransaction", (string)null);
                 });
 
+            modelBuilder.Entity("G4.Domain.Entities.ImmediateCheckout", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("BuyerId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("OrderId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("QuoteJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RequestJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId")
+                        .IsUnique()
+                        .HasFilter("[OrderId] IS NOT NULL");
+
+                    b.HasIndex("BuyerId", "CreatedAt");
+
+                    b.ToTable("ImmediateCheckout", (string)null);
+                });
+
+            modelBuilder.Entity("G4.Domain.Entities.ImmediatePaymentAttempt", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<Guid>("CheckoutId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ErrorCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int?>("OrderId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CheckoutId");
+
+                    b.HasIndex("Key")
+                        .IsUnique();
+
+                    b.HasIndex("OrderId");
+
+                    b.ToTable("ImmediatePaymentAttempt", (string)null);
+                });
+
             modelBuilder.Entity("G4.Domain.Entities.IntegrationLog", b =>
                 {
                     b.Property<long>("Id")
@@ -1505,9 +1590,19 @@ namespace G4.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("images");
 
+                    b.Property<bool>("ImmediatePaymentRequired")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<bool?>("IsAuction")
                         .HasColumnType("bit")
                         .HasColumnName("isAuction");
+
+                    b.Property<bool>("IsListed")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
 
                     b.Property<decimal?>("Price")
                         .HasColumnType("decimal(10, 2)")
@@ -1606,9 +1701,6 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<bool>("FreeShipping")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("IsPublicCoupon")
-                        .HasColumnType("bit");
-
                     b.Property<string>("FundingSource")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -1618,6 +1710,9 @@ namespace G4.Infrastructure.Persistence.Migrations
                         .HasColumnType("bit");
 
                     b.Property<bool>("IsPercent")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsPublicCoupon")
                         .HasColumnType("bit");
 
                     b.Property<int?>("LegacyCouponId")
@@ -3347,6 +3442,34 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.HasOne("G4.Domain.Entities.SellerSettlement", null)
                         .WithMany()
                         .HasForeignKey("SettlementId")
+                        .OnDelete(DeleteBehavior.NoAction);
+                });
+
+            modelBuilder.Entity("G4.Domain.Entities.ImmediateCheckout", b =>
+                {
+                    b.HasOne("G4.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("BuyerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("G4.Domain.Entities.OrderTable", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.NoAction);
+                });
+
+            modelBuilder.Entity("G4.Domain.Entities.ImmediatePaymentAttempt", b =>
+                {
+                    b.HasOne("G4.Domain.Entities.ImmediateCheckout", null)
+                        .WithMany()
+                        .HasForeignKey("CheckoutId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("G4.Domain.Entities.OrderTable", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.NoAction);
                 });
 

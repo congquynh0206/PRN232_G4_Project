@@ -1,0 +1,47 @@
+@{
+    Layout = "_RoleLayout";
+    ViewData["Title"] = "Buy It Now";
+}
+<link rel="stylesheet" href="~/css/immediate-checkout.css" asp-append-version="true" />
+<section class="panel immediate-page" id="buyer-products">
+    <a href="/Buyer?tab=orders">Đơn hàng của tôi</a>
+    <h1>Buy It Now</h1>
+    <div id="message" role="status" aria-live="polite"></div>
+    <p>Thanh toán ngay không giữ hàng khi mở checkout. Tồn kho được kiểm tra lại khi Pay Now.</p>
+    <div id="products-list"></div>
+    <form id="buy-now-form" hidden>
+        <h2 id="checkout-title">Checkout</h2>
+        <label>Số lượng (1–5)
+            <input id="buy-quantity" type="number" min="1" max="5" step="1" value="1" required />
+        </label>
+        <label>Địa chỉ giao hàng <select id="buy-address" required></select></label>
+        <p><a href="/Buyer">Quản lý địa chỉ trong Giỏ hàng</a></p>
+        <label>Mã giảm giá <input id="buy-coupon" maxlength="50" /></label>
+        <button type="submit" id="review-checkout">Xem báo giá</button>
+    </form>
+    <section id="immediate-payment" hidden>
+        <h2>Checkout · Immediate Payment Required</h2>
+        <div id="checkout-quote"></div>
+        <form id="pay-now-form">
+            <label>Phương thức <select><option>Thẻ giả lập</option></select></label>
+            <p>Thẻ thử: 4111111111111111 thành công; 4000000000000002 bị từ chối.</p>
+            <label>Số thẻ thử
+                <input id="card-number" inputmode="numeric" autocomplete="off" required />
+            </label>
+            <label>Hết hạn MM/YY
+                <input id="card-expiry" placeholder="12/30" autocomplete="off" required />
+            </label>
+            <button type="submit" id="pay-now">Pay Now</button>
+        </form>
+        <button type="button" id="check-payment" hidden>Kiểm tra kết quả thanh toán</button>
+    </section>
+    <section id="payment-success" hidden role="status">
+        <h2>Payment Success</h2>
+        <p id="paid-order"></p>
+        <a href="/Buyer?tab=orders">Xem lịch sử đơn hàng</a>
+    </section>
+</section>
+@section Scripts {
+    <script src="~/js/common.js" asp-append-version="true"></script>
+    <script src="~/js/immediate-checkout.js" asp-append-version="true"></script>
+}
