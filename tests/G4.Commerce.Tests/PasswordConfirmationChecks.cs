@@ -47,7 +47,7 @@ internal static class PasswordConfirmationChecks
         var actions = app.Services.GetRequiredService<IActionDescriptorCollectionProvider>()
             .ActionDescriptors.Items.OfType<ControllerActionDescriptor>()
             .Where(x => x.MethodInfo.IsDefined(typeof(RequirePasswordAttribute), false)).ToArray();
-        Check(actions.Length == 21, "all agreed existing entry points are protected");
+        Check(actions.Length == 24, "all agreed existing entry points are protected");
         foreach (var action in actions)
         {
             var policy = (RequirePasswordAttribute)Attribute.GetCustomAttribute(
@@ -155,7 +155,7 @@ internal static class PasswordConfirmationChecks
         using (var changed = await SendAsync(client, paths[0], 25, "seller", Password, payout))
             await ExpectAsync(changed, 403, "PasswordConfirmationInvalid");
         await app.StopAsync();
-        Console.WriteLine("Password confirmation HTTP passed: 21 routes, identity/role/ownership, "
+        Console.WriteLine("Password confirmation HTTP passed: 24 routes, identity/role/ownership, "
             + "Unicode password, no mutation on rejection, payout replay, admin fee, "
             + "parallel shared throttling, user isolation and changed password.");
     }

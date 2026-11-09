@@ -41,6 +41,8 @@ public sealed class CommerceRateLimitConvention : IApplicationModelConvention
             controller == "PayPalCart"
             || controller == "Cart" && action is "Checkout" or "BuyItNow"
             || controller == "Checkout" && action == "CreateOrder"
+            // An accepted offer creates an order and, with Auto-Pay, charges the card.
+            || controller == "BestOffers" && action is "Create" or "SellerAccept" or "BuyerAccept"
         )
             return CommerceRateLimiting.Payment;
         if (

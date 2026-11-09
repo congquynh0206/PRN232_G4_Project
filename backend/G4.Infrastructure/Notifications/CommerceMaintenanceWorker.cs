@@ -64,6 +64,9 @@ public sealed class CommerceMaintenanceWorker(
                     .ServiceProvider.GetRequiredService<IPayPalCartPaymentService>()
                     .MaintainAsync(stoppingToken);
                 await checkout.ExpirePendingAsync(stoppingToken);
+                await scope
+                    .ServiceProvider.GetRequiredService<IBestOfferService>()
+                    .ExpireAsync(stoppingToken);
                 await checkout.CloseDeliveredOutsideReturnWindowAsync(stoppingToken);
                 var finance = scope.ServiceProvider.GetRequiredService<ISellerFinanceService>();
                 await finance.MaintainDebtsAsync(stoppingToken);

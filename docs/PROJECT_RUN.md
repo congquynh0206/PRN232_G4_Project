@@ -39,6 +39,8 @@ Xem cách chia các project tại [BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE
 
 SQL Server là nguồn dữ liệu khi chạy ứng dụng. EF Core InMemory chỉ còn được dùng bên trong kiểm thử tự động, không dùng để khởi tạo dữ liệu cho giao diện.
 
+Best Offer buyer/seller cần migration `20261108124914_AddBestOffers`; trước khi chạy API mới, kiểm tra connection string rồi áp migration pending bằng lệnh EF ở trên. Migration chưa được áp trong lần triển khai này. Thẻ mô phỏng được thử ngay khi offer được accept; PayPal/Klarna chưa hỗ trợ Best Offer auto-pay. Xem [BEST_OFFERS.md](BEST_OFFERS.md).
+
 **Điều hướng 21/10 và B2 ngày 22/10:** Buyer có Giỏ hàng, Đơn hàng, Lịch sử giao dịch, Tranh chấp, Thông báo; Thanh toán mở từ giỏ. Seller/Admin dùng sidebar desktop và nút Menu ở màn hình ≤1000px; Shipper giữ nguyên. Build/restart frontend và tải lại trang để nhận Razor/CSS/JS mới; B2 không thêm migration. Fragment URL giữ mục khi reload/Back/Forward. [B2](PAYMENT_HISTORY.md), [nhóm menu](AUTHORIZATION_AND_ROLE_PAGES.md#điều-hướng-ngày-21102026).
 
 QA điều hướng không cần API/SQL đang chạy: `dotnet build frontend/frontend.csproj --no-restore`, rồi `node tests/role-navigation.e2e.cjs` với Playwright có sẵn trong `NODE_PATH`; nếu cần đặt `CHROME_PATH` tới Chrome cài sẵn. Script tự mở frontend/API đăng nhập giả lập trên cổng localhost riêng và đóng khi xong; API nghiệp vụ dùng fixture đọc, kiểm tra không phát sinh request ghi. Sandbox cần cho phép loopback/Chrome. Đây không phải E2E nối database/provider. Hồi quy return/payout: `node tests/return-payout-ui.e2e.cjs` với cùng môi trường Playwright.

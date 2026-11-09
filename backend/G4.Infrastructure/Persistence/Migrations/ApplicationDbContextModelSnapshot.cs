@@ -208,6 +208,142 @@ namespace G4.Infrastructure.Persistence.Migrations
                 b.ToTable("AddressChangeRequest", (string)null);
             });
 
+            modelBuilder.Entity("G4.Domain.Entities.BestOffer", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("AddressId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BuyerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BuyerOfferCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CardExpiry")
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
+
+                    b.Property<string>("CardProfile")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreationKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("CurrentActorId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("CurrentAmount")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("OrderId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("SellerId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AddressId");
+
+                    b.HasIndex("CreationKey")
+                        .IsUnique();
+
+                    b.HasIndex("CurrentActorId");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("BuyerId", "UpdatedAt");
+
+                    b.HasIndex("ProductId", "BuyerId", "Status");
+
+                    b.HasIndex("SellerId", "Status", "UpdatedAt");
+
+                    b.ToTable("BestOffer", (string)null);
+                });
+
+            modelBuilder.Entity("G4.Domain.Entities.BestOfferTurn", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("ActorId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<long>("BestOfferId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RequestKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Result")
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorId");
+
+                    b.HasIndex("RequestKey")
+                        .IsUnique()
+                        .HasFilter("[RequestKey] IS NOT NULL");
+
+                    b.HasIndex("BestOfferId", "Id");
+
+                    b.ToTable("BestOfferTurn", (string)null);
+                });
+
             modelBuilder.Entity("G4.Domain.Entities.Bid", b =>
             {
                 b.Property<int>("Id")
@@ -1529,9 +1665,18 @@ namespace G4.Infrastructure.Persistence.Migrations
 
                 SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                b.Property<bool>("AllowOffers")
+                    .HasColumnType("bit");
+
                 b.Property<DateTime?>("AuctionEndTime")
                     .HasColumnType("datetime")
                     .HasColumnName("auctionEndTime");
+
+                b.Property<decimal?>("AutoAcceptOfferPrice")
+                    .HasColumnType("decimal(10,2)");
+
+                b.Property<decimal?>("AutoDeclineOfferBelow")
+                    .HasColumnType("decimal(10,2)");
 
                 b.Property<int?>("CategoryId")
                     .HasColumnType("int")
@@ -3295,6 +3440,61 @@ namespace G4.Infrastructure.Persistence.Migrations
                     .HasForeignKey("RefundId")
                     .OnDelete(DeleteBehavior.NoAction);
             });
+
+            modelBuilder.Entity("G4.Domain.Entities.BestOffer", b =>
+                {
+                    b.HasOne("G4.Domain.Entities.Address", null)
+                        .WithMany()
+                        .HasForeignKey("AddressId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("G4.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("BuyerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("G4.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CurrentActorId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("G4.Domain.Entities.OrderTable", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("G4.Domain.Entities.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("G4.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("SellerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("G4.Domain.Entities.BestOfferTurn", b =>
+                {
+                    b.HasOne("G4.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("G4.Domain.Entities.BestOffer", "BestOffer")
+                        .WithMany()
+                        .HasForeignKey("BestOfferId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("BestOffer");
+                });
 
             modelBuilder.Entity("G4.Domain.Entities.Bid", b =>
             {

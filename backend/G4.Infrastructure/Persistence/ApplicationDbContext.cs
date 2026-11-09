@@ -13,6 +13,8 @@ public partial class ApplicationDbContext : DbContext
 
     public virtual DbSet<Address> Addresses { get; set; }
     public virtual DbSet<Bid> Bids { get; set; }
+    public virtual DbSet<BestOffer> BestOffers { get; set; }
+    public virtual DbSet<BestOfferTurn> BestOfferTurns { get; set; }
     public virtual DbSet<Category> Categories { get; set; }
     public virtual DbSet<Coupon> Coupons { get; set; }
     public virtual DbSet<Dispute> Disputes { get; set; }

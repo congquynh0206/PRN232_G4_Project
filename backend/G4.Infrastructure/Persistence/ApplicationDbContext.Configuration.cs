@@ -28,6 +28,7 @@ public partial class ApplicationDbContext
         ConfigureDisputeDecisions(modelBuilder);
         ConfigureReturnPricing(modelBuilder);
         ConfigureUnpaidStrikes(modelBuilder);
+        ConfigureBestOffers(modelBuilder);
         modelBuilder.Entity<Product>().Property(x => x.WeightKg).HasColumnType("decimal(10,3)");
         modelBuilder
             .Entity<OrderItem>()

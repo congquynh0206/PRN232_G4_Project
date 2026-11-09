@@ -46,6 +46,7 @@
         safe(recalculate);
       },
     });
+    G4.BuyerCart.addressBook = book;
     function groups() {
       const result = new Map();
       for (const item of state.items) {

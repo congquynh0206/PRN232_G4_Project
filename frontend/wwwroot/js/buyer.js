@@ -30,6 +30,7 @@
     if (!G4.Navigation.select(id)) return;
     if (id === 'buyer-offers') safe(() => G4.BuyerOffers.load());
     if (id === 'orders' && loadList) safe(loadOrders);
+    if (id === 'best-offers') safe(() => G4.BestOffers.buyerLoad());
     if (id === 'transactions' && loadList) safe(() => window.G4BuyerTransactions.load());
     if (id === 'disputes') safe(() => G4.Disputes.load());
     if (id === 'notifications') safe(() => G4.Notifications.load());
@@ -282,10 +283,12 @@
   G4.BuyerProductReviews.init();
   G4.PayPalCart.init(async () => loadOrders(state.page));
   G4.Realtime?.subscribe(
-    ['orders', 'returns', 'shipments', 'disputes', 'notifications'],
+    ['orders', 'returns', 'shipments', 'disputes', 'notifications', 'best-offers'],
     async () => {
       if (document.querySelector('.tab-panel.active')?.id === 'orders')
         await loadOrders(state.page);
+      if (document.querySelector('.tab-panel.active')?.id === 'best-offers')
+        await G4.BestOffers.buyerLoad();
       if (document.querySelector('.tab-panel.active')?.id === 'notifications')
         await G4.Notifications.load();
       if ($('detail-dialog')?.open && document.querySelector('#detail-content [data-order-detail]'))

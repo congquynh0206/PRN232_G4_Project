@@ -9,6 +9,9 @@ public partial class Product
     public string? Title { get; set; }
     public string? Description { get; set; }
     public decimal? Price { get; set; }
+    public bool AllowOffers { get; set; }
+    public decimal? AutoAcceptOfferPrice { get; set; }
+    public decimal? AutoDeclineOfferBelow { get; set; }
     public string? Images { get; set; }
     public int? CategoryId { get; set; }
     public int? SellerId { get; set; }

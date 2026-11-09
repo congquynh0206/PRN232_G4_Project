@@ -3,6 +3,27 @@
     ViewData["Title"] = "Người bán";
 }
 <div id="message" class="message" role="status" aria-live="polite"></div>
+<link rel="stylesheet" href="~/css/best-offers.css" asp-append-version="true" />
+<section id="best-offers" class="panel tab-panel">
+    <div class="section-head">
+        <div>
+            <span class="eyebrow">Người bán</span>
+            <h1>Best Offer</h1>
+            <p>Bật trả giá và cài mức tự động đồng ý hoặc từ chối cho sản phẩm của bạn.</p>
+        </div>
+        <button type="button" id="seller-offers-refresh">Làm mới</button>
+    </div>
+    <div class="offer-grid">
+        <div>
+            <h2>Cấu hình sản phẩm</h2>
+            <div id="seller-offer-products" class="offer-list" aria-busy="true">Đang tải…</div>
+        </div>
+        <div>
+            <h2>Đề nghị cần xử lý</h2>
+            <div id="seller-offer-list" class="offer-list" aria-busy="true">Đang tải…</div>
+        </div>
+    </div>
+</section>
 <section id="orders" class="panel tab-panel active">
     <div class="section-head">
         <div>
@@ -299,6 +320,7 @@
 <script src="~/js/seller-levels.js" asp-append-version="true"></script>
 <script src="~/js/seller-returns.js" asp-append-version="true"></script>
 <script src="~/js/product-feedback.js" asp-append-version="true"></script>
+<script src="~/js/best-offers.js" asp-append-version="true"></script>
 <script src="~/js/payouts-ui.js" asp-append-version="true"></script>
 <script src="~/js/seller-report.js" asp-append-version="true"></script>
 <script src="~/js/seller-funds.js" asp-append-version="true"></script>

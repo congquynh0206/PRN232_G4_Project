@@ -1,5 +1,24 @@
 # Backlog triển khai theo đặc tả ngày 18/10/2026
 
+## BEST-OFFER — Trả giá buyer/seller ngày 08/11/2026
+
+- Đã thêm cấu hình nhận trả giá theo sản phẩm, auto-accept/auto-decline, phiên thương lượng,
+  counteroffer, giới hạn 5 lượt buyer, hết hạn 24 giờ, UI cho buyer/seller và worker dọn phiên.
+  Khi accept, xử lý order/payment/settlement/ledger và tồn kho trong transaction; chỉ commit khi
+  thu thẻ mô phỏng thành công.
+- Migration được tạo: `20261108124914_AddBestOffers`; chưa áp vào database. Solution build
+  `dotnet build G4_Project.sln --no-restore` đạt 0 warning/error. Chưa chạy test nghiệp vụ,
+  SQL QA, hoặc browser E2E.
+- Sửa ngày 09/11/2026 (không thêm migration): giới hạn 5 lượt theo sản phẩm qua mọi phiên,
+  luồng thanh toán sau tạo đơn `AwaitingPayment` dùng hạn giữ hàng/điểm phạt Unpaid Item,
+  counter phải nằm giữa hai mức giá, khóa chống gửi trùng cho chấp nhận/từ chối/counter,
+  nhập lại mật khẩu và rate limit nhóm `payment` cho thao tác chấp nhận. Test `--best-offers`,
+  `--password-confirmation` (24 route), `--rate-limits`, backend mặc định và Node 154/154 đạt.
+  Chưa SQL QA đồng thời/browser E2E.
+- PayPal/Klarna chưa hỗ trợ auto-pay Best Offer: source hiện không có authorization/vault được
+  buyer cấp trước. Phạm vi thanh toán hiện tại chỉ thẻ mô phỏng. Hướng dẫn:
+  [BEST_OFFERS.md](BEST_OFFERS.md).
+
 ## KLARNA1 — Pay Later sandbox (08/11/2026)
 
 - HPP `PLACE_ORDER`, buyer reconcile, worker đối chiếu khi đóng tab, capture
