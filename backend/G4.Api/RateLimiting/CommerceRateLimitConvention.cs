@@ -31,7 +31,10 @@ public sealed class CommerceRateLimitConvention : IApplicationModelConvention
     {
         if (controller == "Authentication" && action == "Login")
             return CommerceRateLimiting.Login;
-        if (controller == "SellerRegistration" && action == "Register")
+        if (
+            controller == "SellerRegistration" && action == "Register"
+            || controller == "Authentication" && action == "RegisterBuyer"
+        )
             return CommerceRateLimiting.Registration;
         if (methods.Length > 0 && methods.All(x => x is "GET" or "HEAD" or "OPTIONS"))
             return CommerceRateLimiting.Read;
@@ -39,6 +42,7 @@ public sealed class CommerceRateLimitConvention : IApplicationModelConvention
             return action == "Refund" ? CommerceRateLimiting.Finance : CommerceRateLimiting.Payment;
         if (
             controller == "PayPalCart"
+            || controller == "ImmediateCheckout"
             || controller == "Cart" && action is "Checkout" or "BuyItNow"
             || controller == "Checkout" && action == "CreateOrder"
             // An accepted offer creates an order and, with Auto-Pay, charges the card.

@@ -41,5 +41,6 @@ public sealed record SellerProductInput(
     decimal Price,
     decimal WeightKg,
     int Quantity,
-    int? CategoryId = null
+    int? CategoryId = null,
+    bool ImmediatePaymentRequired = false
 );

@@ -14,6 +14,7 @@ public partial class ApplicationDbContext
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
     {
+        ConfigureImmediateCheckout(modelBuilder);
         ConfigureCart(modelBuilder);
         ConfigureAddressChanges(modelBuilder);
         ConfigurePromotions(modelBuilder);

@@ -57,7 +57,8 @@ public partial class ApplicationDbContext
         {
             var signal = entry.Entity switch
             {
-                OrderTable x => new CommerceChange
+                OrderTable x when !x.ImmediatePaymentInProgress
+                    || x.Status != "AwaitingPayment" => new CommerceChange
                 {
                     Topic = "orders",
                     OrderId = x.Id > 0 ? x.Id : null,

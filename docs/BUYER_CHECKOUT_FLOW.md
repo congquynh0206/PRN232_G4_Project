@@ -72,3 +72,22 @@ kiểm tra viewport 1440×900, 1600×1000, 1920×1080, 2048×1320 và sáng/tố
 của công cụ. Receipt nằm cạnh HTML; receipt cuối của PayPal nằm trong `review-2`.
 Chưa đánh giá ảnh bằng mắt hoặc chạy E2E ứng dụng với SQL/PayPal thật. Không sửa code
 nghiệp vụ, không tạo/áp migration, không seed hoặc thay database.
+
+## Luồng riêng Immediate Payment — 08/11/2026
+
+`/Buyer/Products` → Buy It Now → xem báo giá → checkout session (không order,
+không giữ/trừ kho) → Pay Now → transaction SQL với thẻ local → Order Paid +
+Payment Succeeded + stock + settlement commit → Payment Success / lịch sử cũ.
+Refresh/mất phản hồi phải đọc trạng thái session; không tự kết luận Failed hoặc
+thu lại. [Chi tiết API, SQL locking, UI recovery, test và phần chưa làm](IMMEDIATE_PAYMENT.md).
+Luồng Normal Payment ở phần trên giữ nguyên; chưa có source Klarna để đối chiếu.
+
+### Thay thế luồng Immediate bằng authorize / Capture / Void
+
+Pay Now → lưu attempt → authorize → transaction ngắn claim stock → Capture
+ngoài transaction → xác nhận Captured → INSERT Order Paid + Payment + settlement.
+Không còn INSERT AwaitingPayment trung gian. Không giành được stock → Void;
+Void lỗi/timeout thì chờ đối soát. Capture ngoài ý muốn hoặc không ghi được đơn
+sau retry → Refund. Worker và nút kiểm tra dùng cùng state machine; không tự
+thanh toán lại khi Pending/Verifying. Kho chỉ claim lúc Pay Now, không khi mở
+checkout. Chi tiết và giới hạn kiểm chứng SQL ở IMMEDIATE_PAYMENT.md.

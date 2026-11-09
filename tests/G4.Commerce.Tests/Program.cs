@@ -3,6 +3,17 @@ using G4.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
+if (args.Contains("--immediate-checkout"))
+{
+    await ImmediateCheckoutChecks.RunAsync();
+    return;
+}
+if (args.Contains("--immediate-checkout-sql"))
+{
+    await ImmediateCheckoutSqlChecks.RunAsync();
+    return;
+}
+
 if (args.Contains("--password-confirmation"))
 {
     await PasswordConfirmationChecks.RunAsync();
@@ -175,6 +186,12 @@ if (args.Contains("--registration-sql"))
     return;
 }
 
+if (args.Contains("--buyer-registration"))
+{
+    await BuyerRegistrationChecks.RunAsync();
+    return;
+}
+
 if (args.Contains("--registration"))
 {
     await SellerRegistrationChecks.RunAsync();
@@ -265,6 +282,7 @@ await FinancePolicyChecks.RunAsync();
 await SellerFundsChecks.RunAsync();
 await SellerDebtChecks.RunAsync();
 await SellerRegistrationChecks.RunAsync();
+await BuyerRegistrationChecks.RunAsync();
 await SellerLevelChecks.RunAsync();
 await ProductFeedbackChecks.RunAsync();
 await BusinessNotificationChecks.RunAsync();
@@ -279,6 +297,7 @@ await IntegrationDiagnosticsChecks.RunAsync();
 await IntegrationBufferChecks.RunAsync();
 await NotificationAuthorizationChecks.RunAsync();
 await BellNotificationChecks.RunAsync();
+await ImmediateCheckoutChecks.RunAsync();
 await RateLimitChecks.RunAsync();
 await PasswordConfirmationChecks.RunAsync();
 await SmtpEmailChecks.RunAsync();

@@ -10,6 +10,10 @@ public sealed class BuyerController(IHttpClientFactory factory, IConfiguration c
 {
     public IActionResult Index() => View();
 
+    public IActionResult Products() => View();
+
+    public IActionResult Checkout() => View();
+
     [HttpGet]
     public async Task<IActionResult> PayPalCartReturn(
         long checkoutId,

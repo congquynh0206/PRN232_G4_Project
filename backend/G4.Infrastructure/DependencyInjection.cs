@@ -35,7 +35,10 @@ public static class DependencyInjection
             sp.GetRequiredService<BufferedIntegrationLogWriter>()
         );
         services.AddHostedService(sp => sp.GetRequiredService<BufferedIntegrationLogWriter>());
-        services.AddScoped<ICheckoutService, CheckoutService>();
+        services.AddScoped<CheckoutService>();
+        services.AddScoped<ICheckoutService>(sp => sp.GetRequiredService<CheckoutService>());
+        services.AddScoped<ImmediateCheckoutService>();
+        services.AddScoped<IImmediateCardGateway, SimulatedImmediateCardGateway>();
         services.AddScoped<IBuyerCartService, BuyerCartService>();
         services.AddScoped<IBestOfferService, BestOfferService>();
         services.AddScoped<IBuyerAddressService, BuyerAddressService>();
@@ -43,6 +46,7 @@ public static class DependencyInjection
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddSingleton<SellerIdentityHasher>();
         services.AddScoped<ISellerRegistrationService, SellerRegistrationService>();
+        services.AddScoped<IBuyerRegistrationService, BuyerRegistrationService>();
         services.AddScoped<IShipmentService, ShipmentService>();
         services.AddScoped<IReturnService, ReturnService>();
         services.AddScoped<IPayPalPaymentService, PayPalPaymentService>();
