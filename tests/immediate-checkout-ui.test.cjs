@@ -113,3 +113,68 @@ test('declined attempt permits retry with new key; out of stock is explicit', as
   assert.ok(h.element('message').textContent.includes('Out of Stock'));
   assert.equal(h.element('immediate-payment').hidden, true);
 });
+
+test('editing checkout invalidates the quote before a payment can be submitted', async () => {
+  const h = await harness();
+  await h.checkout();
+  h.element('buy-quantity').listeners.input();
+  await h.submit('pay-now-form');
+  assert.equal(h.element('immediate-payment').hidden, true);
+  assert.equal(h.calls.some((x) => x.path.endsWith('/pay/card')), false);
+});
+
+test('restoring an expired session blocks Pay Now and requires a new quote', async () => {
+  const h = await harness(async () => ({
+    status: 'Expired',
+    snapshot: { title: 'Expired', quantity: 1, quote: { total: 12.1 } },
+  }), '?checkout=session');
+  assert.equal(h.element('pay-now').disabled, true);
+  await h.submit('pay-now-form');
+  assert.equal(h.calls.some((x) => x.method === 'POST'), false);
+});
+
+test('pending capture blocks a second payment and explicitly reconciles before success', async () => {
+  let reconciled = false;
+  const h = await harness(async (path) => {
+    if (path.endsWith('/pay/card')) return { status: 'Verifying', stage: 'Capturing' };
+    if (path.endsWith('/reconcile')) {
+      reconciled = true;
+      return { status: 'Succeeded', orderId: 31 };
+    }
+    return reconciled ? { status: 'Succeeded', orderId: 31 } : {
+      status: 'Verifying', attempt: { status: 'Verifying', key: 'existing-key' },
+      snapshot: { title: 'Item', quantity: 1, quote: { total: 12.1 } },
+    };
+  });
+  await h.checkout();
+  await h.submit('pay-now-form');
+  await h.submit('pay-now-form');
+  assert.equal(h.calls.filter((x) => x.path.endsWith('/pay/card')).length, 1);
+  assert.equal(h.element('pay-now').disabled, true);
+  await h.element('check-payment').listeners.click();
+  await tick();
+  assert.equal(reconciled, true);
+  assert.equal(h.element('payment-success').hidden, false);
+});
+
+test('unconfirmed void never displays a completed void or allows a new payment', async () => {
+  const h = await harness(async () => ({
+    status: 'Verifying', stage: 'Voiding', errorCode: 'OutOfStock',
+  }));
+  await h.checkout();
+  await h.submit('pay-now-form');
+  assert.equal(h.element('pay-now').disabled, true);
+  assert.equal(h.element('check-payment').hidden, false);
+  assert.equal(h.element('payment-success').hidden, true);
+  assert.ok(!h.element('message').textContent.includes('đã được Void'));
+});
+
+test('confirmed compensation shows refund and never shows payment success', async () => {
+  const h = await harness(async () => ({
+    status: 'Failed', stage: 'Refunded', errorCode: 'CheckoutChanged',
+  }));
+  await h.checkout();
+  await h.submit('pay-now-form');
+  assert.ok(h.element('message').textContent.includes('hoàn tiền'));
+  assert.equal(h.element('immediate-payment').hidden, true);
+});

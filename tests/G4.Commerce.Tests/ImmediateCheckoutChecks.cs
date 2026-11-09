@@ -5,6 +5,7 @@ using G4.Domain.Entities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting.Internal;
 
@@ -12,8 +13,16 @@ internal static class ImmediateCheckoutChecks
 {
     internal static ImmediateCheckoutService Service(ApplicationDbContext db) => new(
         db,
-        new CheckoutService(db, new SellerFinanceService(db, Config), Config)
+        new CheckoutService(db, new SellerFinanceService(db, Config), Config),
+        new G4.Infrastructure.Payments.SimulatedImmediateCardGateway(new ContextFactory(
+            (DbContextOptions<ApplicationDbContext>)db.GetService<IDbContextOptions>()))
     );
+
+    internal sealed class ContextFactory(DbContextOptions<ApplicationDbContext> options)
+        : IDbContextFactory<ApplicationDbContext>
+    {
+        public ApplicationDbContext CreateDbContext() => new(options);
+    }
 
     private static readonly IConfiguration Config = new ConfigurationBuilder()
         .AddInMemoryCollection(new Dictionary<string, string?> { ["Mail:Mode"] = "Capture" })
@@ -113,7 +122,20 @@ internal static class ImmediateCheckoutChecks
         await Reject(() => service.PayCardAsync(f.Buyer, second,
             new("4111111111111111", "12/30", "unlisted")));
         p.IsListed = true;
+        p.Price = 10m;
+        var stock = await db.Inventories.SingleAsync();
+        stock.Quantity = 0;
+        await db.SaveChangesAsync();
+        await Reject(() => service.PayCardAsync(f.Buyer, second,
+            new("4111111111111111", "12/30", "sold-out")));
+        stock.Quantity = 4;
+        (await db.ImmediateCheckouts.SingleAsync(x => x.Id == second)).ExpiresAt =
+            DateTime.UtcNow.AddSeconds(-1);
+        await db.SaveChangesAsync();
+        await Reject(() => service.PayCardAsync(f.Buyer, second,
+            new("4111111111111111", "12/30", "expired")));
         p.ImmediatePaymentRequired = false;
+        p.Price = 11m;
         await db.SaveChangesAsync();
         var normal = await new CheckoutService(db).CreateOrderAsync(f.Buyer,
             new(f.Address, [new(f.Product, 1)], null, "normal-regression"));
@@ -145,7 +167,20 @@ internal static class ImmediateCheckoutChecks
         Check(publish is OkObjectResult && await db.Products.AnyAsync(x =>
             x.Title == "New immediate product" && x.ImmediatePaymentRequired),
             "seller create product persists payment configuration");
-        Console.WriteLine("Immediate checkout functional checks passed (InMemory; no concurrency claim).");
+        var gateway = new FlakyRefundGateway { FailuresRemaining = 1 };
+        var returns = new ReturnService(db, gateway, new TestCarrier(),
+            new SellerFinanceService(db, Config), Config);
+        await returns.RequestCancelAsync(paid.OrderId!.Value);
+        await returns.DecideCancelAsync(paid.OrderId.Value, true);
+        Check((await db.Refunds.SingleAsync()).Status == "Failed", "failed refund remains retryable");
+        var refunded = await returns.RefundAsync(paid.OrderId.Value, "cancel", null);
+        Check(refunded.Status == "Succeeded", "immediate order uses existing refund retry");
+        var replay = await returns.RefundAsync(paid.OrderId.Value, "cancel", null);
+        Check(replay.Id == refunded.Id && gateway.Calls == 2, "refund replay does not refund twice");
+        Console.WriteLine("Immediate checkout functional/API checks passed: seller settings/ownership, "
+            + "no holds, decline, payment, replay, price/unlist/stock/expiry, normal, refund retry. "
+            + "InMemory only; no concurrency claim.");
+        await ImmediateAuthorizationChecks.RunAsync();
     }
 
     internal static void Check(bool condition, string message)
@@ -156,9 +191,15 @@ internal static class ImmediateCheckoutChecks
 
     internal static async Task Reject(Func<Task> operation)
     {
-        try { await operation(); }
+        try
+        {
+            await operation();
+        }
         catch (Exception ex) when (ex is InvalidOperationException or ArgumentException
-            or KeyNotFoundException) { return; }
+            or KeyNotFoundException)
+        {
+            return;
+        }
         throw new Exception("Expected immediate checkout rejection");
     }
 }

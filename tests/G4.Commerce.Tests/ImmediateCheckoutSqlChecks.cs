@@ -93,14 +93,29 @@ internal static class ImmediateCheckoutSqlChecks
                 "all SQL sessions opened without reservation");
         }
         var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var authorized = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var authorizationCount = 0;
+        var provider = new G4.Infrastructure.Payments.SimulatedImmediateCardGateway(
+            new ImmediateCheckoutChecks.ContextFactory(options));
         var commonKey = Guid.NewGuid().ToString();
         var tasks = sessions.Select(async session =>
         {
             await start.Task;
             await using var db = new ApplicationDbContext(options);
+            var gateway = new ImmediateAuthorizationChecks.FaultGateway(provider)
+            {
+                CheckNoTransaction = () => ImmediateCheckoutChecks.Check(
+                    db.Database.CurrentTransaction == null, "gateway outside SQL transaction"),
+                AfterAuthorization = async () =>
+                {
+                    if (Interlocked.Increment(ref authorizationCount) == (sameSession ? 1 : buyers))
+                        authorized.TrySetResult();
+                    await authorized.Task.WaitAsync(TimeSpan.FromSeconds(45));
+                },
+            };
             try
             {
-                return (await ImmediateCheckoutChecks.Service(db).PayCardAsync(
+                return (await ImmediateAuthorizationChecks.Service(db, gateway).PayCardAsync(
                     session.Buyer, session.Id,
                     new("4111111111111111", "12/30",
                         sameSession ? commonKey : Guid.NewGuid().ToString()))).OrderId;
@@ -128,6 +143,20 @@ internal static class ImmediateCheckoutSqlChecks
             && p.Status == "Succeeded") == stock, "exactly one capture per paid order");
         ImmediateCheckoutChecks.Check(await check.SellerSettlements.CountAsync(
             s => ids.Contains(s.OrderId)) == stock, "exactly one settlement per paid order");
+        var sessionIds = sessions.Select(s => s.Id).ToArray();
+        var attempts = await check.ImmediatePaymentAttempts.AsNoTracking()
+            .Where(a => sessionIds.Contains(a.CheckoutId)).ToListAsync();
+        var providerKeys = attempts.Select(a => "IP-" + a.Id).ToArray();
+        var bank = await check.SimulatedCardAuthorizations.AsNoTracking()
+            .Where(a => providerKeys.Contains(a.Id)).ToListAsync();
+        ImmediateCheckoutChecks.Check(bank.Count(a => a.Status == "Captured") == stock,
+            "only inventory winners capture");
+        if (!sameSession)
+        {
+            ImmediateCheckoutChecks.Check(bank.Count(a => a.Status == "Voided") == buyers - stock
+                && bank.Where(a => a.Status == "Voided").All(a => a.CaptureId == null),
+                "every authorized loser is voided and never captured");
+        }
     }
 
     private static async Task Rollback(
@@ -145,23 +174,23 @@ internal static class ImmediateCheckoutSqlChecks
             .UseSqlServer(connection).AddInterceptors(new FailFinalSave()).Options;
         await using (var db = new ApplicationDbContext(failOptions))
         {
-            try
-            {
-                await ImmediateCheckoutChecks.Service(db).PayCardAsync(f.Buyer, session,
-                    new("4111111111111111", "12/30", session.ToString()));
-                throw new Exception("Expected injected database failure");
-            }
-            catch (DbUpdateException ex) when (ex.Message == "Injected final save failure") { }
+            var verifying = await ImmediateCheckoutChecks.Service(db).PayCardAsync(f.Buyer, session,
+                new("4111111111111111", "12/30", session.ToString()));
+            ImmediateCheckoutChecks.Check(verifying.Status == "Verifying"
+                && verifying.Stage == "Captured", "captured payment is recoverable after DB failure");
         }
         await using var check = new ApplicationDbContext(options);
         ImmediateCheckoutChecks.Check(
-            (await check.Inventories.SingleAsync(i => i.ProductId == f.Product)).Quantity == 1
+            (await check.Inventories.SingleAsync(i => i.ProductId == f.Product)).Quantity == 0
             && !await check.OrderTables.AnyAsync(o => o.OrderItems.Any(i => i.ProductId == f.Product))
-            && !await check.ImmediatePaymentAttempts.AnyAsync(a => a.CheckoutId == session),
-            "failure rolls back inventory, attempt, order, payment and settlement");
+            && await check.ImmediatePaymentAttempts.AnyAsync(a => a.CheckoutId == session
+                && a.InventoryHeld && a.CaptureId != null),
+            "order transaction rolls back while durable capture and claim remain for recovery");
         var retry = await ImmediateCheckoutChecks.Service(check).PayCardAsync(f.Buyer, session,
             new("4111111111111111", "12/30", session.ToString()));
-        ImmediateCheckoutChecks.Check(retry.Status == "Succeeded", "same key retries after rollback");
+        ImmediateCheckoutChecks.Check(retry.Status == "Succeeded", "same key reconciles after rollback");
+        ImmediateCheckoutChecks.Check(await check.Payments.CountAsync(p => p.OrderId == retry.OrderId)
+            == 1, "recovery creates one payment only");
     }
 
     private sealed class FailFinalSave : SaveChangesInterceptor
@@ -172,7 +201,7 @@ internal static class ImmediateCheckoutSqlChecks
         )
         {
             if (data.Context!.ChangeTracker.Entries<ImmediatePaymentAttempt>()
-                .Any(e => e.Entity.Status == "Succeeded"))
+                .Any(e => e.State == EntityState.Modified && e.Entity.Status == "Succeeded"))
                 throw new DbUpdateException("Injected final save failure");
             return base.SavingChangesAsync(data, result, cancellationToken);
         }

@@ -400,3 +400,53 @@ Mỗi task khi hoàn thành ghi ngay bên dưới phần của task hoặc thêm
   kiểm tra API với EF InMemory (`--buyer-offers`) đã qua. Nghiệm thu SQL Server và trình duyệt theo
   [hướng dẫn Promotions](PROMOTIONS_TEST_GUIDE.md#kiểm-tra-tab-ưu-đãi-và-bộ-chọn-mã)
   còn chờ. Migration `20261103090000_AddPublicCoupons` chưa áp dụng.
+
+## BIN-IP — Immediate Payment (08/11/2026, chưa nghiệm thu đầy đủ)
+
+- Có source Seller cấu hình/create, Buyer Buy It Now/checkout/Pay Now, snapshot
+  không giữ kho, thẻ local atomic, unique key/session replay, conditional inventory
+  update, giá/ownership/quyền, settlement/history và UI recovery.
+- Migration `20261108144118_AddImmediateCheckout` và snapshot đã tạo; SQL idempotent
+  đã xuất. Chưa áp database chính/QA vì socket SQL bị chặn (10013).
+- Build đã đạt 0 warning/error. Node 151/151 đạt. Functional/API Immediate đạt;
+  gồm Seller create/settings/quyền, giá/tồn/hết hạn và refund retry.
+- Backend tổng dừng ở test HTTP RateLimitChecks do socket 10013 sau các kiểm tra
+  nghiệp vụ trước đó; không ghi toàn bộ PASS. SQL runner đã thử nhưng bị chặn kết
+  nối trước case; chưa xác minh 2/1, 20/5 hoặc rollback trên SQL thật.
+- Chưa có xUnit độc lập, browser E2E hoặc Immediate provider ngoài/VOID saga.
+  Không tìm thấy source Klarna để chạy regression. Không đánh dấu task hoàn thành.
+- [Chi tiết API/file/demo/khoảng cách và hướng xử lý](IMMEDIATE_PAYMENT.md).
+
+## BIN-IP-SAGA — Sửa đúng authorize/Capture/Void và INSERT PAID (08/11/2026)
+
+Phần này thay thế ghi nhận nhánh thẻ atomic trước đó trong BIN-IP.
+
+- Checkout không giữ kho. Pay Now lưu attempt, authorize ngoài SQL transaction,
+  claim tồn bằng conditional UPDATE trong transaction ngắn, rồi mới Capture.
+  Người thua Void, không Capture. Capture đã xác nhận mới INSERT Order Paid;
+  không có INSERT AwaitingPayment trung gian của nhánh Immediate.
+- Provider giả lập có state bền vững riêng, query/idempotency, Void/Refund; worker
+  đối soát Unknown, phục hồi lease sau restart và retry compensation. DB ghi đơn
+  lỗi được khôi phục hoặc Refund. Refund sau mua hỗ trợ từng phần và key cũ.
+- API thêm POST buyer/immediate-checkouts/{id}/reconcile. UI không cho retry
+  khi Pending/Verifying và không báo Void/Refund hoàn tất trước xác nhận server.
+- Migration mới: 20261108150534_AddImmediateAuthorizationSaga và
+  20261108151440_AddSimulatedCardRefundHistory. Chưa áp database chính/QA.
+- Functional/API và bộ saga đã chạy đạt: insert PAID, authorize/capture timeout,
+  không Capture người thua, Void/Refund retry, stock/quote thay đổi, DB failure
+  recovery/refund, partial refund và phục hồi lease. Đây là InMemory, không phải
+  bằng chứng concurrency SQL. Build hiện đã đạt 0 warning/error; lượt cuối được
+  cập nhật dưới đây sau khi chạy xong.
+- SQL runner đã thử nhưng socket 10013 chặn kết nối trước case. Runner hiện có
+  barrier 2/1 và 20/5 kiểm tra captured/voided, no open transaction ở gateway,
+  duplicate submit và rollback/reconcile. Chưa được báo SQL PASS.
+- Provider vẫn là giả lập thẻ. PayPal cũ không đổi; không có source Klarna để
+  nghiệm thu. Chưa có xUnit độc lập hoặc browser E2E mới.
+- Chi tiết state/API/schema/demo: docs/IMMEDIATE_PAYMENT.md.
+
+Kết quả cuối BIN-IP-SAGA: solution build 0 warning/error; --immediate-checkout
+functional/API + saga đạt (bao gồm partial refund, lease hết hạn và checkout-key
+collision); Node 154/154 đạt, trong đó 10 test UI Immediate. Backend tổng dừng
+RateLimitChecks/socket 10013; SQL runner cũng bị chặn socket trước case. Đã xuất
+SQL idempotent cho hai migration mới, chưa áp DB chính/QA, chưa chạy browser E2E.
+Không ghi SQL concurrency/rollback là PASS; còn bước nghiệm thu trên SQL thực tế.

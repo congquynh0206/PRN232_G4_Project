@@ -34,12 +34,21 @@ public sealed class ImmediateCheckoutController(
         try
         {
             var attempt = await checkout.PayCardAsync(CurrentUserId, id, input, ct);
-            return Ok(new { attempt.Status, attempt.OrderId, attempt.ErrorCode });
+            return Ok(new { attempt.Status, attempt.Stage, attempt.OrderId, attempt.ErrorCode });
         }
         catch (InvalidOperationException ex) when (
             ex.Message.Contains("stock", StringComparison.OrdinalIgnoreCase))
         {
             return Conflict(new { code = "OutOfStock", error = "Out of Stock" });
         }
+    }
+
+    [HttpPost("{id:guid}/reconcile")]
+    public async Task<IActionResult> Reconcile(Guid id, CancellationToken ct)
+    {
+        if (!IsAvailable || !HasRole("buyer"))
+            return StatusCode(403);
+        var attempt = await checkout.ReconcileAsync(CurrentUserId, id, ct);
+        return Ok(new { attempt.Status, attempt.Stage, attempt.OrderId, attempt.ErrorCode });
     }
 }

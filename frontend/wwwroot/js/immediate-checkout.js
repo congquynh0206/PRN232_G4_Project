@@ -6,6 +6,7 @@
   let key;
   let busy = false;
   let uncertain = false;
+  let expired = false;
   const prefix = 'buyer/immediate-checkouts';
   const message = (text) => { $('message').textContent = text; };
 
@@ -32,7 +33,11 @@
   async function recover() {
     if (!session) return;
     $('pay-now').disabled = true;
-    const state = await api(`${prefix}/${session}`);
+    let state = await api(`${prefix}/${session}`);
+    if (state.attempt && ['Pending', 'Verifying'].includes(state.status)) {
+      await api(`${prefix}/${session}/reconcile`, 'POST');
+      state = await api(`${prefix}/${session}`);
+    }
     if (state.status === 'Succeeded') {
       succeeded(state.orderId);
       return;
@@ -44,8 +49,10 @@
       key = crypto.randomUUID();
     }
     uncertain = ['Pending', 'Verifying'].includes(state.status);
-    $('pay-now').disabled = uncertain || busy || state.status === 'Expired';
+    expired = state.status === 'Expired';
+    $('pay-now').disabled = uncertain || busy || expired;
     $('review-checkout').disabled = uncertain;
+    for (const id of ['buy-quantity', 'buy-address', 'buy-coupon']) $(id).disabled = uncertain;
     $('check-payment').hidden = !uncertain;
     if (uncertain) message('Đang xác minh. Kiểm tra kết quả trước khi thanh toán lại.');
     if (state.status === 'Expired') message('Checkout đã hết hạn. Chọn sản phẩm để lấy báo giá mới.');
@@ -76,6 +83,7 @@
     selected = products.find((p) => p.id === Number(button.dataset.buy));
     session = null;
     key = null;
+    expired = false;
     history.replaceState(null, '', '/Buyer/Products');
     $('checkout-title').textContent = selected.title;
     $('buy-now-form').hidden = false;
@@ -110,6 +118,7 @@
       }
       const result = await api(prefix, 'POST', input);
       session = result.id;
+      expired = false;
       key = crypto.randomUUID();
       history.replaceState(null, '', `?checkout=${encodeURIComponent(session)}`);
       showQuote({ title: result.title, quantity: input.quantity, quote: result.quote });
@@ -123,13 +132,25 @@
     }
   });
 
+  for (const id of ['buy-quantity', 'buy-address', 'buy-coupon']) {
+    $(id).addEventListener('input', () => {
+      if (busy || uncertain) return;
+      session = null;
+      key = null;
+      $('immediate-payment').hidden = true;
+      history.replaceState(null, '', '/Buyer/Products');
+      message('Thông tin checkout đã thay đổi. Lấy báo giá mới trước khi Pay Now.');
+    });
+  }
+
   $('pay-now-form').addEventListener('submit', async (event) => {
     event.preventDefault();
-    if (busy || uncertain || !session) return;
+    if (busy || uncertain || expired || !session) return;
     busy = true;
     $('pay-now').disabled = true;
     $('review-checkout').disabled = true;
     $('pay-now').textContent = 'Đang thanh toán…';
+    for (const id of ['buy-quantity', 'buy-address', 'buy-coupon']) $(id).disabled = true;
     message('Đang xử lý thanh toán…');
     try {
       const result = await api(`${prefix}/${session}/pay/card`, 'POST', {
@@ -138,6 +159,19 @@
       if (result.status === 'Succeeded') {
         succeeded(result.orderId);
         await load();
+      } else if (['Pending', 'Verifying'].includes(result.status)) {
+        uncertain = true;
+        $('check-payment').hidden = false;
+        message('Đang đối soát authorization/Capture/Void/Refund. Chưa được thanh toán lại.');
+      } else if (result.errorCode === 'OutOfStock') {
+        $('immediate-payment').hidden = true;
+        message('Out of Stock · Authorization đã được Void. Không có đơn hàng được tạo.');
+        key = crypto.randomUUID();
+        await load();
+      } else if (result.stage === 'Refunded') {
+        message('Giao dịch đã được hoàn tiền. Không có đơn hàng được tạo. Vui lòng lấy báo giá mới.');
+        key = crypto.randomUUID();
+        $('immediate-payment').hidden = true;
       } else {
         message(`Payment Failed: ${result.errorCode}. Bạn có thể thử lại.`);
         key = crypto.randomUUID();
@@ -159,6 +193,7 @@
       busy = false;
       $('pay-now').disabled = uncertain;
       $('review-checkout').disabled = uncertain;
+      for (const id of ['buy-quantity', 'buy-address', 'buy-coupon']) $(id).disabled = uncertain;
       $('pay-now').textContent = 'Pay Now';
     }
   });

@@ -194,3 +194,20 @@ Seller có tab **Đánh giá sản phẩm** để tổng hợp, lọc và trả 
 ## Bổ sung thông báo N1
 
 Email thông báo có thêm thanh toán thất bại, hủy ngay/yêu cầu hủy, yêu cầu/duyệt/từ chối trả hàng và kết quả payout. Email mới chỉ hiển thị cho đúng tài khoản nhận hoặc admin; outbox và retry tiếp tục dùng cơ chế hiện có. Cần migration **20261017050657_CompleteBusinessNotifications**. Xem [NOTIFICATION_COMPLETION.md](NOTIFICATION_COMPLETION.md) để demo, chạy test và xem phạm vi A2 còn riêng. Migration mới chỉ được áp dụng lên database QA riêng trong đợt này.
+
+## Immediate Payment — 08/11/2026
+
+Source mới cần migration `20261108144118_AddImmediateCheckout` trên database đã
+có baseline/migration cũ; không chạy lại baseline. Chưa áp migration trong phiên
+này do SQL bị chặn socket. Seller vào `/Seller/Products`, Buyer vào
+`/Buyer/Products`. API và UI Development dùng thẻ giả lập cũ; PayPal vẫn theo
+luồng cũ. [Lệnh migrate/run/test, demo và giới hạn](IMMEDIATE_PAYMENT.md).
+
+### Immediate authorization saga — bản thay thế nhánh atomic
+
+Nâng tiếp đến `20261108151440_AddSimulatedCardRefundHistory` (bao gồm
+`20261108150534_AddImmediateAuthorizationSaga`) trước khi restart API/frontend.
+Lệnh EF update hiện có áp tăng dần, không chạy lại baseline. Phiên này chưa áp
+schema vì SQL bị chặn socket. Bật Workers:Enabled để tự đối soát/compensation;
+Buyer có nút Kiểm tra kết quả gọi API reconcile. Gateway là thẻ mô phỏng có
+bảng trạng thái riêng, không cần PayPal credential. Xem IMMEDIATE_PAYMENT.md.

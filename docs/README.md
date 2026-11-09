@@ -47,3 +47,12 @@ Tài liệu trong `superpowers/plans` và `superpowers/specs` là kế hoạch t
 - Khi có thay đổi nghiệp vụ được chốt: sửa đặc tả và backlog, rồi đồng bộ hướng dẫn module bị ảnh hưởng.
 - Khi code xong: ghi task, test và môi trường/migration; không đánh dấu hoàn thành chỉ vì đã viết docs.
 - Không đổi ghi nhận test/migration lịch sử thành kết quả của phiên làm việc mới. QA riêng không đồng nghĩa database chính đã nâng.
+
+## Buy It Now / Immediate Payment (08/11/2026)
+
+[API, schema, triển khai, demo, kiểm thử và phần chưa hoàn thiện](IMMEDIATE_PAYMENT.md).
+Nhánh mới dùng thẻ giả lập hiện có; chưa nghiệm thu SQL concurrency và chưa áp migration.
+
+Nhánh Immediate hiện đã bổ sung authorize/Capture/Void, Refund và worker đối soát;
+Order chỉ INSERT Paid sau Capture. Xem bản cập nhật IMMEDIATE_PAYMENT.md và
+BIN-IP-SAGA trong backlog. Kết quả SQL concurrency vẫn chưa xác minh do socket.

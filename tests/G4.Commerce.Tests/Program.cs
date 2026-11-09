@@ -273,6 +273,7 @@ await IntegrationDiagnosticsChecks.RunAsync();
 await IntegrationBufferChecks.RunAsync();
 await NotificationAuthorizationChecks.RunAsync();
 await BellNotificationChecks.RunAsync();
+await ImmediateCheckoutChecks.RunAsync();
 await RateLimitChecks.RunAsync();
 await PasswordConfirmationChecks.RunAsync();
 await SmtpEmailChecks.RunAsync();
@@ -1120,7 +1121,6 @@ await SellerOrderListChecks.RunAsync();
 await BuyerOrderListChecks.RunAsync();
 await AdminOrderLookupChecks.RunAsync();
 await BuyerAddressBookChecks.RunAsync();
-await ImmediateCheckoutChecks.RunAsync();
 
 sealed class TestCarrier : ICarrierGateway
 {

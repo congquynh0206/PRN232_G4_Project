@@ -37,6 +37,7 @@ public static class DependencyInjection
         services.AddScoped<CheckoutService>();
         services.AddScoped<ICheckoutService>(sp => sp.GetRequiredService<CheckoutService>());
         services.AddScoped<ImmediateCheckoutService>();
+        services.AddScoped<IImmediateCardGateway, SimulatedImmediateCardGateway>();
         services.AddScoped<IBuyerCartService, BuyerCartService>();
         services.AddScoped<IBuyerAddressService, BuyerAddressService>();
         services.AddScoped<IAddressChangeService, AddressChangeService>();

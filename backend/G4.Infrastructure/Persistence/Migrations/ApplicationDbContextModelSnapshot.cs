@@ -796,6 +796,23 @@ namespace G4.Infrastructure.Persistence.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<string>("AuthorizationId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("AuthorizationOutcome")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("CaptureId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<Guid>("CheckoutId")
                         .HasColumnType("uniqueidentifier");
 
@@ -806,6 +823,12 @@ namespace G4.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<int>("FinalizationAttempts")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("InventoryHeld")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Key")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -814,10 +837,24 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<int?>("OrderId")
                         .HasColumnType("int");
 
+                    b.Property<Guid?>("ProcessingToken")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ProcessingUntil")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Stage")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
@@ -827,6 +864,8 @@ namespace G4.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.HasIndex("OrderId");
+
+                    b.HasIndex("Status", "ProcessingUntil");
 
                     b.ToTable("ImmediatePaymentAttempt", (string)null);
                 });
@@ -3159,6 +3198,41 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.HasIndex("ShipperId", "Status");
 
                     b.ToTable("ShippingInfo", (string)null);
+                });
+
+            modelBuilder.Entity("G4.Domain.Entities.SimulatedCardAuthorization", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<string>("CaptureId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal>("RefundedAmount")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<string>("RefundsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SimulatedCardAuthorization", (string)null);
                 });
 
             modelBuilder.Entity("G4.Domain.Entities.Store", b =>

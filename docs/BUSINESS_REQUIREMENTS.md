@@ -290,3 +290,30 @@ Khi code: migration giữ dữ liệu và snapshot cũ, kiểm tra quyền phía
 - Tài liệu này là bản nguồn Markdown được duy trì trong repo, không phụ thuộc file trong Downloads hay báo cáo nằm trong thư mục artifacts bị ignore. Quyết định mới được cập nhật vào đây và backlog trước khi đồng bộ hướng dẫn module.
 
 Nguồn tham khảo đã đối chiếu trong phiên làm việc 18/10/2026: [đổi địa chỉ trên eBay](https://www.ebay.com/help/selling/shipping-items/changing-shipping-details-purchase?id=4028), [phí trả hàng](https://www.ebay.com/help/buying/returns-refunds/start-return/return-postage?id=4066), [Item Not Received](https://www.ebay.com/help/buying/resolving-buying-problems/item-not-received?id=4042), [PayPal webhooks](https://developer.paypal.com/api/webhooks/overview/), [payout eBay](https://www.ebay.com/help/selling/getting-paid/getting-paid-items-sold?id=4814). Đây là nguồn so sánh khái niệm, không thay thế chính sách mô phỏng đã chốt.
+
+## Quyết định 08/11/2026 — Immediate Payment theo sản phẩm
+
+Theo yêu cầu mới, Seller được chọn Normal hoặc Immediate Payment khi tạo/sửa
+sản phẩm; đây là phần mở rộng có chủ đích so với giới hạn catalog trước đó.
+Normal Payment và các đơn lịch sử giữ luồng cũ. Immediate mở checkout không giữ
+hàng, không trừ kho, không tạo đơn UNPAID thông thường. Pay Now phải kiểm tra
+lại giá/địa chỉ/promotion/stock và chỉ công bố đơn Paid khi payment và tồn kho
+hợp lệ. Chống overselling/idempotency phải nằm ở backend/database.
+Thẻ local giả lập có thể commit order/payment/stock/settlement trong cùng SQL
+transaction; không gọi provider HTTP trong transaction đó. Nhánh provider bên
+ngoài phải có Unknown/reconcile và VOID/REFUND compensation trước khi bật.
+Klarna được yêu cầu bảo toàn nhưng chưa tìm thấy source hiện tại; không tự thêm
+luồng thay thế hoặc báo đã kiểm thử. [Hiện trạng triển khai](IMMEDIATE_PAYMENT.md).
+
+### Chốt bổ sung Immediate Payment: authorize / capture / void
+
+Yêu cầu mới thay thế nhánh thẻ atomic ban đầu: mở checkout không giữ hàng.
+Pay Now authorize trước; kiểm tra và claim tồn kho bằng cập nhật có điều kiện
+trong transaction ngắn, rồi Capture ngoài transaction. Người không giành được
+hàng không được Capture; authorization của họ phải Void. Chỉ sau xác nhận
+Captured mới INSERT Order với trạng thái Paid ngay từ lần INSERT đầu tiên.
+Không có Order AwaitingPayment kể cả bước trung gian của nhánh Immediate.
+Unknown giữ trạng thái đối soát, không thu lại bằng giao dịch khác. Ghi đơn lỗi
+sau capture phải tự khôi phục hoặc Refund; Void/Refund lỗi phải có worker retry.
+Claim tồn ở bước Pay Now khác với giữ chỗ khi mở checkout. Provider mô phỏng
+phải có trạng thái độc lập với transaction order để kiểm thử các lỗi này.

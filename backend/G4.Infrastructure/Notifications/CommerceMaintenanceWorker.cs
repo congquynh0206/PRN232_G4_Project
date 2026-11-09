@@ -23,6 +23,8 @@ public sealed class CommerceMaintenanceWorker(
             {
                 await using var scope = scopes.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                await scope.ServiceProvider.GetRequiredService<ImmediateCheckoutService>()
+                    .MaintainAsync(stoppingToken);
                 var verifyingOrderIds = await db
                     .Payments.Where(p =>
                         p.Method == "PayPal"

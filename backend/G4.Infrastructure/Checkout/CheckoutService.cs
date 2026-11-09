@@ -79,22 +79,28 @@ public sealed class CheckoutService(
         => await CreateOrderCoreAsync(buyerId, request, false, ct);
 
     // Only the immediate checkout orchestrator can opt in, inside its SQL transaction.
-    internal Task<OrderTable> CreateImmediateOrderAsync(
+    internal Task<OrderTable> CreateCapturedImmediateOrderAsync(
         int buyerId,
         CheckoutRequest request,
+        ImmediatePaymentAttempt attempt,
         CancellationToken ct
     )
     {
         if (db.Database.IsRelational() && db.Database.CurrentTransaction == null)
             throw new InvalidOperationException("Immediate payment requires an atomic transaction.");
-        return CreateOrderCoreAsync(buyerId, request, true, ct);
+        if (attempt.Stage != "Captured" || !attempt.InventoryHeld
+            || string.IsNullOrWhiteSpace(attempt.CaptureId)
+            || attempt.Amount != request.ExpectedTotal)
+            throw new InvalidOperationException("A verified capture and inventory claim are required.");
+        return CreateOrderCoreAsync(buyerId, request, true, ct, attempt);
     }
 
     private async Task<OrderTable> CreateOrderCoreAsync(
         int buyerId,
         CheckoutRequest request,
         bool immediate,
-        CancellationToken ct
+        CancellationToken ct,
+        ImmediatePaymentAttempt? capturedAttempt = null
     )
     {
         if (string.IsNullOrWhiteSpace(request.CheckoutKey) || request.CheckoutKey.Length > 100)
@@ -124,6 +130,8 @@ public sealed class CheckoutService(
                 || !sameItems
             )
                 throw new InvalidOperationException("Checkout key belongs to a different cart");
+            if (immediate)
+                await ValidateCapturedReplayAsync(existing, capturedAttempt!, ct);
             return existing;
         }
 
@@ -159,6 +167,8 @@ public sealed class CheckoutService(
                     )
                 )
                     throw new InvalidOperationException("Checkout key belongs to a different cart");
+                if (immediate)
+                    await ValidateCapturedReplayAsync(existing, capturedAttempt!, ct);
                 return existing;
             }
 
@@ -166,7 +176,8 @@ public sealed class CheckoutService(
                 buyerId,
                 request,
                 ct,
-                true
+                true,
+                skipInventory: immediate
             );
             if (!immediate && products.Any(p => p.ImmediatePaymentRequired))
                 throw new InvalidOperationException("Immediate Payment Required: use Buy It Now.");
@@ -225,7 +236,7 @@ public sealed class CheckoutService(
                 TotalWeightKg = quote.TotalWeightKg,
                 OrderDate = now,
                 UpdatedAt = now,
-                PaymentExpiresAt = now.AddMinutes(15),
+                PaymentExpiresAt = immediate ? null : now.AddMinutes(15),
                 Subtotal = quote.Subtotal,
                 DiscountAmount = quote.Discount,
                 ShippingFee = quote.Shipping,
@@ -242,7 +253,7 @@ public sealed class CheckoutService(
                 SellerGrossSnapshot = quote.SellerGross,
                 PricingFingerprint = quote.PricingFingerprint,
                 CheckoutKey = request.CheckoutKey,
-                Status = "AwaitingPayment",
+                Status = immediate ? "Paid" : "AwaitingPayment",
             };
             foreach (var line in request.Items)
             {
@@ -251,9 +262,9 @@ public sealed class CheckoutService(
                     i => i.ProductId == line.ProductId,
                     ct
                 );
-                if (stock.Quantity < line.Quantity)
+                if (!immediate && stock.Quantity < line.Quantity)
                     throw new InvalidOperationException("Insufficient stock");
-                if (db.Database.IsRelational())
+                if (!immediate && db.Database.IsRelational())
                 {
                     var quantity = line.Quantity;
                     var changed = await db.Inventories
@@ -265,7 +276,7 @@ public sealed class CheckoutService(
                         throw new InvalidOperationException("Out of Stock");
                     await db.Entry(stock).ReloadAsync(ct);
                 }
-                else
+                else if (!immediate)
                 {
                     stock.Quantity -= line.Quantity;
                     stock.LastUpdated = DateTime.UtcNow;
@@ -297,18 +308,20 @@ public sealed class CheckoutService(
             await db.SaveChangesAsync(ct);
             // The identity is now available; keep this alert in the existing checkout transaction.
             if (!immediate)
+            {
                 db.CommerceChanges.Add(
-                new CommerceChange
-                {
-                    Topic = "orders",
-                    OrderId = order.Id,
-                    BuyerId = order.BuyerId,
-                    SellerId = order.SellerId,
-                    CreatedAt = now,
-                    NotificationTitle = "Đơn hàng mới",
-                    NotificationMessage = $"Đơn #{order.Id} đang chờ thanh toán.",
-                }
-            );
+                    new CommerceChange
+                    {
+                        Topic = "orders",
+                        OrderId = order.Id,
+                        BuyerId = order.BuyerId,
+                        SellerId = order.SellerId,
+                        CreatedAt = now,
+                        NotificationTitle = "Đơn hàng mới",
+                        NotificationMessage = $"Đơn #{order.Id} đang chờ thanh toán.",
+                    }
+                );
+            }
             foreach (var applied in quote.Promotions)
             {
                 db.OrderPromotionSnapshots.Add(
@@ -337,7 +350,39 @@ public sealed class CheckoutService(
                 );
             }
 
-            if (quote.Total == 0)
+            if (immediate)
+            {
+                var payment = new Payment
+                {
+                    OrderId = order.Id,
+                    UserId = buyerId,
+                    Amount = quote.Total,
+                    Method = "Card",
+                    Status = "Succeeded",
+                    ProviderTransactionId = capturedAttempt!.CaptureId,
+                    IdempotencyKey = "immediate-" + capturedAttempt.CheckoutId.ToString("N"),
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                    PaidAt = now,
+                };
+                db.Payments.Add(payment);
+                await PromotionLifecycle.ConsumeAsync(db, order.Id, ct);
+                foreach (var usage in db.ChangeTracker.Entries<PromotionUsage>()
+                    .Where(x => x.Entity.OrderId == order.Id))
+                {
+                    usage.Entity.State = "Consumed";
+                    usage.Entity.ConsumedAt = now;
+                }
+                await QueueEmailAsync(order, "PaymentSucceeded", "Payment succeeded", "", ct);
+                await db.SaveChangesAsync(ct);
+                if (finance != null)
+                {
+                    await finance.ValidateMonthlyLimitAsync(order.Id, ct);
+                    await finance.RecordSuccessfulPaymentAsync(order.Id, payment.Id, ct);
+                }
+            }
+
+            if (!immediate && quote.Total == 0)
             {
                 var zero = new Payment
                 {
@@ -400,6 +445,15 @@ public sealed class CheckoutService(
             if (tx is not null)
                 await tx.DisposeAsync();
         }
+    }
+
+    private async Task ValidateCapturedReplayAsync(
+        OrderTable order, ImmediatePaymentAttempt attempt, CancellationToken ct
+    )
+    {
+        if (order.Status != "Paid" || !await db.Payments.AnyAsync(p => p.OrderId == order.Id
+            && p.Status == "Succeeded" && p.ProviderTransactionId == attempt.CaptureId, ct))
+            throw new InvalidOperationException("Checkout key belongs to another payment workflow.");
     }
 
     public async Task<Payment> PayCardAsync(
@@ -677,7 +731,8 @@ public sealed class CheckoutService(
         int buyerId,
         CheckoutRequest request,
         CancellationToken ct,
-        bool locked = false
+        bool locked = false,
+        bool skipInventory = false
     )
     {
         if (
@@ -690,7 +745,7 @@ public sealed class CheckoutService(
                 "Giỏ hàng cần từ 1 đến 5 sản phẩm khác nhau, mỗi sản phẩm có số lượng từ 1 đến 5."
             );
         var address =
-            await db.Addresses.SingleOrDefaultAsync(
+            await db.Addresses.AsNoTracking().SingleOrDefaultAsync(
                 a => a.Id == request.AddressId && a.UserId == buyerId,
                 ct
             )
@@ -699,7 +754,7 @@ public sealed class CheckoutService(
             );
         var ids = request.Items.Select(i => i.ProductId).ToArray();
         var products = await db
-            .Products.Where(p => ids.Contains(p.Id) && p.Price != null
+            .Products.AsNoTracking().Where(p => ids.Contains(p.Id) && p.Price != null
                 && p.IsAuction != true && p.IsListed)
             .ToArrayAsync(ct);
         if (
@@ -716,9 +771,9 @@ public sealed class CheckoutService(
                 ?? throw new InvalidOperationException("Sản phẩm chưa có người bán."),
             ct
         );
-        foreach (var line in request.Items)
+        foreach (var line in request.Items.Where(_ => !skipInventory))
         {
-            var stock = await db.Inventories.SingleOrDefaultAsync(
+            var stock = await db.Inventories.AsNoTracking().SingleOrDefaultAsync(
                 i => i.ProductId == line.ProductId,
                 ct
             );
