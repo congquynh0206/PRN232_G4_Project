@@ -1,3 +1,4 @@
+using G4.Api.Security;
 using G4.Contracts.Checkout;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -22,6 +23,7 @@ public sealed class SellerDebtController(
     }
 
     [HttpPost("seller/debt/repayments")]
+    [RequirePassword("seller", "Xác nhận trả nợ")]
     public async Task<IActionResult> Repay(DebtRepaymentRequest request, CancellationToken ct)
     {
         if (!IsAvailable || !HasRole("seller"))

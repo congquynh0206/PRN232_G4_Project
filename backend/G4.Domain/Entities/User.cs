@@ -11,6 +11,8 @@ public partial class User
     public string? Password { get; set; }
     public string? Role { get; set; }
     public string? AvatarUrl { get; set; }
+    public DateTime? BannedAt { get; set; }
+    public string? BanReason { get; set; }
     public virtual ICollection<Address> Addresses { get; set; } = new List<Address>();
     public virtual ICollection<Bid> Bids { get; set; } = new List<Bid>();
     public virtual ICollection<Dispute> Disputes { get; set; } = new List<Dispute>();

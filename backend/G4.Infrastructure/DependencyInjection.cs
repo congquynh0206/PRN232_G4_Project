@@ -4,6 +4,7 @@ using G4.Infrastructure.Disputes;
 using G4.Infrastructure.Finance;
 using G4.Infrastructure.Integrations.PayPal;
 using G4.Infrastructure.Integrations.Refunds;
+using G4.Infrastructure.Integrations.Klarna;
 using G4.Infrastructure.Integrations.Shipping;
 using G4.Infrastructure.Notifications;
 using G4.Infrastructure.Payments;
@@ -45,6 +46,7 @@ public static class DependencyInjection
         services.AddScoped<IShipmentService, ShipmentService>();
         services.AddScoped<IReturnService, ReturnService>();
         services.AddScoped<IPayPalPaymentService, PayPalPaymentService>();
+        services.AddScoped<KlarnaPaymentService>();
         services.AddScoped<IPayPalCartPaymentService, PayPalCartPaymentService>();
         services.AddScoped<ISellerFinanceService, SellerFinanceService>();
         services.AddScoped<SellerFinanceReportService>();
@@ -55,9 +57,11 @@ public static class DependencyInjection
         services.AddScoped<IRefundGateway, RefundGateway>();
         services.AddSingleton<CarrierAvailabilityState>();
         services.AddHttpClient<IPayPalGateway, PayPalSandboxGateway>();
+        services.AddHttpClient<IKlarnaGateway, KlarnaGateway>();
         services.AddHttpClient<IPayPalBatchGateway, PayPalSandboxGateway>();
         services.AddHttpClient<ICarrierGateway, HttpCarrierGateway>();
-        services.AddHostedService<CommerceMaintenanceWorker>();
+        if (configuration.GetValue("Workers:Enabled", true))
+            services.AddHostedService<CommerceMaintenanceWorker>();
         return services;
     }
 }

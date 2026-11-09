@@ -90,6 +90,8 @@ public static class SellerOrderList
                     s.OrderId == o.Id && s.Direction == "Outbound" && s.Status == "ReturnedToSeller"
                 )
                     ? "Chờ hoàn tiền chuyển hoàn"
+                : o.Status == "AwaitingPayment" && o.PaymentExpiresAt <= DateTime.UtcNow
+                    ? "Quá hạn thanh toán - có thể hủy đơn"
                 : o.Status == "Paid" ? "Chờ chuẩn bị hàng"
                 : o.Status == "Preparing"
                 && !db.ShippingInfos.Any(s => s.OrderId == o.Id && s.Direction == "Outbound")

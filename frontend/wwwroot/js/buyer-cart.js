@@ -15,13 +15,25 @@
     let quoteRequest = 0,
       busy = false,
       addressBusy = false;
+    const usCountry = (value) => /^(US|USA|United States|United States of America)$/i.test(String(value || '').trim());
+    const klarnaZipNeeded = () => {
+      if (document.querySelector('input[name="method"]:checked')?.value !== 'klarna') return false;
+      const a = book.selected();
+      return !a || !usCountry(a.country) || !/^\d{5}(?:-\d{4})?$/.test(String(a.postalCode || '').trim());
+    };
+    function updateKlarnaZipNote() {
+      const note = $('klarna-zip-note');
+      note.hidden = document.querySelector('input[name="method"]:checked')?.value !== 'klarna' || !klarnaZipNeeded();
+      note.textContent = note.hidden ? '' : 'Klarna US cần địa chỉ tại Hoa Kỳ với ZIP thật (5 chữ số hoặc ZIP+4). Hãy thêm/sửa địa chỉ giao hàng trước khi đặt hàng.';
+    }
     // The order may only be created from a quote that belongs to the address selected right now.
-    const canPay = () =>
+    const canQuote = () =>
       !busy &&
       !addressBusy &&
       !!state.quote &&
       book.selectedId() != null &&
       state.quoteKey === book.selectedKey();
+    const canPay = () => canQuote() && !klarnaZipNeeded();
     const book = G4.BuyerAddresses.create({
       lock(value) {
         addressBusy = value;
@@ -124,10 +136,10 @@
           if (!kept)
             notes.push(
               `<li class="note-warn">${esc(next.name)}: khuyến mãi “${esc(promo.name)}” không còn áp dụng với địa chỉ mới` +
-                (promo.type === 'Shipping'
-                  ? ` (không còn giảm được phí ship ${money(next.base)} của khu vực này).`
-                  : ' vì điều kiện áp dụng đã thay đổi.') +
-                '</li>',
+              (promo.type === 'Shipping'
+                ? ` (không còn giảm được phí ship ${money(next.base)} của khu vực này).`
+                : ' vì điều kiện áp dụng đã thay đổi.') +
+              '</li>',
             );
           else if (kept.amount !== promo.amount)
             notes.push(
@@ -140,6 +152,55 @@
     function quoteFor(item) {
       return state.quote?.sellers.find((x) => x.sellerId === item.sellerId)?.quote;
     }
+    function couponActions(sellerId) {
+      const disabled = busy ? ' disabled' : '';
+      const remove = state.coupons.get(sellerId)
+        ? '<button type="button" data-remove-coupon="' + sellerId + '"' + disabled + '>Bỏ mã</button>'
+        : '';
+      return '<div class="toolbar"><button type="button" data-pick-coupon="' + sellerId
+        + '"' + disabled + '>Chọn mã giảm giá</button>' + remove + '</div>';
+    }
+    async function useCoupon(sellerId, code) {
+      state.coupons.set(sellerId, code);
+      reset();
+      render();
+      await recalculate();
+    }
+    function pickCoupon(sellerId, offer) {
+      const before = state.quote?.sellers.find((s) => s.sellerId === sellerId)?.quote.total;
+      if (!canQuote() || before == null)
+        throw new Error('Chọn địa chỉ và cập nhật báo giá trước khi kiểm tra mã.');
+      const token = quoteRequest;
+      const addressKey = book.selectedKey();
+      function ensureCurrent() {
+        if (token !== quoteRequest || !canQuote() || addressKey !== book.selectedKey())
+          throw new Error('Báo giá đã thay đổi. Hãy mở lại bộ chọn mã.');
+      }
+      return G4.BuyerOffers.pick(sellerId, async (code) => {
+        ensureCurrent();
+        const input = request();
+        input.sellers.find((s) => s.sellerId === sellerId).couponCode = code;
+        const result = await api('cart/quote', 'POST', input);
+        ensureCurrent();
+        return { before, after: result.sellers.find((s) => s.sellerId === sellerId).quote.total };
+      }, (code) => {
+        ensureCurrent();
+        return useCoupon(sellerId, code);
+      }, offer);
+    }
+    G4.BuyerCart.offerSellers = (offer) => groups()
+      .filter(([sellerId]) => offer.sellerId == null || offer.sellerId === sellerId)
+      .map(([, items]) => items[0]);
+    G4.BuyerCart.openOffer = async (sellerId, offer) => {
+      if (busy || addressBusy) return;
+      tab('checkout');
+      if (!book.count()) {
+        book.openManage(true);
+        return;
+      }
+      await recalculate();
+      await pickCoupon(sellerId, offer);
+    };
     function itemHtml(item, editable) {
       const q = quoteFor(item),
         line = q?.lines?.find((x) => x.productId === item.productId);
@@ -149,12 +210,67 @@
         : `<span>SL ${item.quantity}</span>`;
       return `<div class="item">${productThumbnail(item.imageUrl, item.title)}<div class="item-info"><strong>${esc(item.title)}</strong><small>Còn ${item.available} · ${item.weightKg ?? 'Chưa có'} kg/sản phẩm</small>${item.quantity > item.available ? '<p class="cart-stock-error">Không đủ tồn kho. Giảm số lượng hoặc xóa sản phẩm.</p>' : ''}</div>${quantity}${G4.Promotions.linePriceHtml(line, (item.price ?? 0) * item.quantity, q?.promotions)}</div>`;
     }
+    function buyNowHtml(sellerId) {
+      return (
+        '<div class="buy-now-box">' +
+        `<button type="button" class="primary buy-now" data-buy-now="${sellerId}" ${busy ? 'disabled' : ''}>` +
+        '<span class="buy-now-title">Buy It Now</span>' +
+        '<small class="buy-now-note">(Không ép trả ngay)</small></button></div>'
+      );
+    }
+    const localTime = (value) =>
+      new Date(/(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? value : value + 'Z').toLocaleString('vi-VN');
+    // Create only this seller's order as UNPAID and hold the stock; payment is done later (PayPal).
+    async function buyNow(sellerId) {
+      if (busy || addressBusy) return;
+      if (!book.count() || book.selectedId() == null) {
+        tab('checkout');
+        book.openManage(true);
+        message('Hãy thêm hoặc chọn địa chỉ giao hàng trước khi đặt Buy It Now.', false);
+        return;
+      }
+      const quote = state.quote?.sellers.find((x) => x.sellerId === sellerId)?.quote;
+      if (!quote || state.quoteKey !== book.selectedKey()) {
+        message('Đang cập nhật báo giá. Hãy thử lại sau giây lát.', false);
+        safe(recalculate);
+        return;
+      }
+      setBusy(true);
+      try {
+        const order = await api('cart/buy-now', 'POST', {
+          addressId: book.selectedId(),
+          cartVersion: state.version,
+          sellerId,
+          couponCode: state.coupons.get(sellerId) || null,
+          expectedTotal: quote.total,
+          pricingFingerprint: quote.pricingFingerprint,
+          checkoutKey: crypto.randomUUID(),
+        });
+        state.coupons.delete(sellerId);
+        accept(await api('cart'));
+        await loadOrders(1);
+        message(
+          `Đã tạo đơn #${order.id} ở trạng thái Chờ thanh toán (UNPAID) và giữ hàng cho bạn đến ` +
+          `${localTime(order.paymentExpiresAt)}. Vào tab Đơn hàng, chọn "Thanh toán PayPal" ` +
+          'trước hạn này. Quá hạn, người bán có thể hủy đơn và bạn bị cộng 1 điểm phạt.',
+          true,
+        );
+        await recalculate();
+      } finally {
+        setBusy(false);
+        render();
+      }
+    }
     function render() {
       const html = (editable) =>
         groups()
           .map(([sellerId, items]) => {
             const q = quoteFor(items[0]);
-            return `<section class="cart-seller"><h3>${esc(items[0].sellerName)}</h3>${items.map((x) => itemHtml(x, editable)).join('')}${!editable ? `<div class="seller-coupon"><label for="coupon-${sellerId}">Mã giảm giá của ${esc(items[0].sellerName)}</label><div class="coupon-row"><input id="coupon-${sellerId}" data-seller-coupon="${sellerId}" maxlength="50" value="${esc(state.coupons.get(sellerId) || '')}" ${busy ? 'disabled' : ''}/><button type="button" data-apply-coupon="${sellerId}" ${busy ? 'disabled' : ''}>Áp dụng</button></div></div><div class="seller-quote">${q ? `Phí ship: <strong>${money(q.shipping)}</strong>${q.shippingDiscount > 0 ? ` <span class="ship-detail">(gốc ${money(q.shippingBase)}, giảm ${money(q.shippingDiscount)})</span>` : ''} · Tổng đơn: <strong>${money(q.total)}</strong>${G4.Promotions.breakdownHtml(q)}` : 'Cập nhật báo giá để xem phí ship và tổng của seller.'}</div>` : ''}</section>`;
+            const lines = items.map((x) => itemHtml(x, editable)).join('');
+            const body = editable
+              ? `<div class="cart-seller-body"><div class="cart-seller-items">${lines}</div>${buyNowHtml(sellerId)}</div>`
+              : lines;
+            return `<section class="cart-seller"><h3>${esc(items[0].sellerName)}</h3>${body}${!editable ? `<div class="seller-coupon"><label for="coupon-${sellerId}">Mã giảm giá của ${esc(items[0].sellerName)}</label><div class="coupon-row"><input id="coupon-${sellerId}" data-seller-coupon="${sellerId}" maxlength="50" value="${esc(state.coupons.get(sellerId) || '')}" ${busy ? 'disabled' : ''}/><button type="button" data-apply-coupon="${sellerId}" ${busy ? 'disabled' : ''}>Áp dụng</button></div>${couponActions(sellerId)}</div><div class="seller-quote">${q ? `Phí ship: <strong>${money(q.shipping)}</strong>${q.shippingDiscount > 0 ? ` <span class="ship-detail">(gốc ${money(q.shippingBase)}, giảm ${money(q.shippingDiscount)})</span>` : ''} · Tổng đơn: <strong>${money(q.total)}</strong>${G4.Promotions.breakdownHtml(q)}` : 'Cập nhật báo giá để xem phí ship và tổng của seller.'}</div>` : ''}</section>`;
           })
           .join('');
       $('cart').classList.toggle('empty', !state.items.length);
@@ -167,55 +283,65 @@
         : 'Tạm tính: ' + money(state.items.reduce((n, x) => n + (x.price ?? 0) * x.quantity, 0));
       $('continue').disabled = busy || !state.items.length;
       $('pay').disabled = !canPay();
+      updateKlarnaZipNote();
       document.querySelectorAll('[data-quantity]').forEach(
         (control) =>
-          (control.onchange = () =>
-            safe(() =>
-              save(
-                state.items.map((x) => ({
-                  productId: x.productId,
-                  quantity:
-                    x.productId === Number(control.dataset.quantity)
-                      ? Number(control.value)
-                      : x.quantity,
-                })),
-              ),
-            )),
+        (control.onchange = () =>
+          safe(() =>
+            save(
+              state.items.map((x) => ({
+                productId: x.productId,
+                quantity:
+                  x.productId === Number(control.dataset.quantity)
+                    ? Number(control.value)
+                    : x.quantity,
+              })),
+            ),
+          )),
       );
       document
         .querySelectorAll('[data-remove]')
         .forEach(
           (control) =>
-            (control.onclick = () =>
-              safe(() =>
-                save(
-                  state.items
-                    .filter((x) => x.productId !== Number(control.dataset.remove))
-                    .map((x) => ({ productId: x.productId, quantity: x.quantity })),
-                ),
-              )),
+          (control.onclick = () =>
+            safe(() =>
+              save(
+                state.items
+                  .filter((x) => x.productId !== Number(control.dataset.remove))
+                  .map((x) => ({ productId: x.productId, quantity: x.quantity })),
+              ),
+            )),
         );
       document.querySelectorAll('[data-seller-coupon]').forEach(
         (control) =>
-          (control.oninput = () => {
-            state.coupons.set(Number(control.dataset.sellerCoupon), control.value.trim());
-            reset();
-            $('cart-subtotal').textContent =
-              'Tạm tính: ' +
-              money(state.items.reduce((n, x) => n + (x.price ?? 0) * x.quantity, 0));
-            document
-              .querySelectorAll('.seller-quote')
-              .forEach((x) => (x.textContent = 'Áp dụng mã hoặc cập nhật báo giá để tính lại.'));
-          }),
+        (control.oninput = () => {
+          state.coupons.set(Number(control.dataset.sellerCoupon), control.value.trim());
+          reset();
+          $('cart-subtotal').textContent =
+            'Tạm tính: ' +
+            money(state.items.reduce((n, x) => n + (x.price ?? 0) * x.quantity, 0));
+          document
+            .querySelectorAll('.seller-quote')
+            .forEach((x) => (x.textContent = 'Áp dụng mã hoặc cập nhật báo giá để tính lại.'));
+        }),
       );
       document.querySelectorAll('[data-apply-coupon]').forEach(
         (control) =>
-          (control.onclick = () =>
-            safe(async () => {
-              reset();
-              await recalculate();
-            })),
+        (control.onclick = () =>
+          safe(async () => {
+            reset();
+            await recalculate();
+          })),
       );
+      document.querySelectorAll('[data-pick-coupon]').forEach((button) => {
+        button.onclick = () => safe(() => pickCoupon(Number(button.dataset.pickCoupon)));
+      });
+      document.querySelectorAll('[data-remove-coupon]').forEach((button) => {
+        button.onclick = () => safe(() => useCoupon(Number(button.dataset.removeCoupon), ''));
+      });
+      document.querySelectorAll('[data-buy-now]').forEach((button) => {
+        button.onclick = () => safe(() => buyNow(Number(button.dataset.buyNow)));
+      });
     }
     function setBusy(value) {
       busy = value;
@@ -224,11 +350,13 @@
       book.setDisabled(value);
       document
         .querySelectorAll(
-          '[data-quantity],[data-remove],[data-seller-coupon],[data-apply-coupon],input[name="method"],#card-number,#card-expiry',
+          '[data-quantity],[data-remove],[data-buy-now],[data-seller-coupon],[data-apply-coupon],'
+          + '[data-pick-coupon],[data-remove-coupon],input[name="method"],#card-number,#card-expiry',
         )
         .forEach((x) => (x.disabled = value));
       $('continue').disabled = value || !state.items.length;
       $('pay').disabled = !canPay();
+      updateKlarnaZipNote();
     }
     function accept(cart) {
       state.items = cart.items;
@@ -351,6 +479,15 @@
           await G4.PayPalCart.begin(checkoutKey);
           return;
         }
+        if (method === 'klarna' && pending.length) {
+          message(
+            `Đã tạo ${orders.length} đơn. Đang chuyển sang Klarna cho đơn #${pending[0].id}. ` +
+              'Các đơn còn lại thanh toán riêng trong Đơn của tôi.',
+            true,
+          );
+          await G4.Klarna.begin(pending[0].id);
+          return;
+        }
         const results = [];
         for (const order of pending) {
           try {
@@ -410,11 +547,14 @@
       .querySelectorAll('input[name="method"]')
       .forEach(
         (r) =>
-          (r.onchange = () =>
-            $('card-fields').classList.toggle(
-              'hidden',
-              document.querySelector('input[name="method"]:checked').value !== 'card',
-            )),
+        (r.onchange = () => {
+          $('card-fields').classList.toggle(
+            'hidden',
+            document.querySelector('input[name="method"]:checked').value !== 'card',
+          );
+          $('pay').disabled = !canPay();
+          updateKlarnaZipNote();
+        }),
       );
     return safe(async () => {
       setBusy(true);

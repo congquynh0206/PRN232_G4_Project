@@ -53,6 +53,9 @@ public sealed class CommerceMaintenanceWorker(
                     }
                 }
 
+                await scope.ServiceProvider.GetRequiredService<
+                    G4.Infrastructure.Payments.KlarnaPaymentService>().MaintainAsync(stoppingToken);
+
                 var checkout = scope.ServiceProvider.GetRequiredService<ICheckoutService>();
                 await scope
                     .ServiceProvider.GetRequiredService<IAddressChangeService>()

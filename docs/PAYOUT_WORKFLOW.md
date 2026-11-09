@@ -1,5 +1,8 @@
 # PAY1 — Rút tiền ra ngân hàng giả lập cho mọi level
 
+**Xác nhận quyết định 31/10/2026:** Seller nhập lại mật khẩu khi gửi yêu cầu rút tiền; worker tiến payout không chờ mật khẩu.
+[Popup, header API, quota và kiểm thử](PASSWORD_CONFIRMATION.md).
+
 Đã triển khai/nghiệm thu source ngày 20/10/2026 theo [đặc tả §9](BUSINESS_REQUIREMENTS.md#9-phí-nền-tảng-seller-balance-và-payout). Migration mới chỉ áp QA riêng, **chưa áp database chính**.
 
 ## Ví và quy trình ngân hàng

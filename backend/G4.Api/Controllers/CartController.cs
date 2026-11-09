@@ -40,6 +40,14 @@ public sealed class CartController(IBuyerCartService carts, IHostEnvironment env
         return Ok(await carts.QuoteAsync(CurrentUserId, request, ct));
     }
 
+    [HttpPost("buy-now")]
+    public async Task<IActionResult> BuyItNow(BuyItNowRequest request, CancellationToken ct)
+    {
+        if (!IsAvailable || !HasRole("buyer"))
+            return StatusCode(403);
+        return Ok(await carts.BuyItNowAsync(CurrentUserId, request, ct));
+    }
+
     [HttpPost("checkout")]
     public async Task<IActionResult> Checkout(CartCheckoutRequest request, CancellationToken ct)
     {

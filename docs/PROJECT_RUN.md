@@ -1,5 +1,24 @@
 # Chạy dự án checkout & giao hàng (nhóm 4)
 
+**Nhập lại mật khẩu 31/10/2026:** build/restart API/frontend và tải lại trang
+admin/seller. 21 action quan trọng hiện có được chặn tại API trước nghiệp vụ và có
+popup nhập mật khẩu; mọi quyết định xác minh riêng. Cấu hình API
+`PasswordConfirmation:PermitLimit/WindowSeconds` mặc định 5 lần/60 giây theo user.
+Không có migration mới hoặc thay database chính. [Danh sách/cách kiểm thử](PASSWORD_CONFIRMATION.md).
+
+
+**Dữ liệu trình diễn 31/10/2026:** dùng bộ `database/demo/G4_Demo.sql` để tạo database
+riêng có sẵn tài khoản/đơn/tiền/nợ/write-off. Không chạy baseline/seed-data thêm.
+Helper `database/demo/Run-Demo.ps1` chạy API 5257/frontend 5137 với key định danh và
+timer demo riêng, không đổi cấu hình chính. [Hướng dẫn và bằng chứng](DEMO_DATABASE.md).
+
+**Rate limit 28/10/2026:** restart API/frontend để nhận Sliding Window và UI 429.
+Không có migration mới. Cấu hình `RateLimiting` trong appsettings của từng ứng dụng;
+API theo UserId JWT, login/register theo IP qua proxy tin cậy. Docker Compose cho
+frontend khởi động trước backend và API resolve allowlist hostname frontend; nếu
+frontend đổi IP thì restart API. Không tin X-Forwarded-For công khai. [Policy,
+quota, proxy, giới hạn một instance và kiểm thử](RATE_LIMITING.md).
+
 **Chuông thông báo 27/10/2026:** binary mới cần migration tăng dần
 `20261027153709_AddUserNotificationBell`, rồi restart API/frontend và tải lại trang.
 Chuông có ở cả bốn role, badge chưa đọc 1–9/9+, danh sách lưu theo tài khoản và
@@ -133,6 +152,35 @@ node --test tests/*.test.cjs
 `smoke-commerce.ps1` yêu cầu cả API và giao diện đang chạy trên database đã chạy `seed-data.sql`, sau đó tạo đơn thử mới. Luồng PayPal thật cần credential sandbox và buyer test account nên không có trong smoke tự động; unit test dùng gateway giả để kiểm tra timeout/đối soát mà không gọi PayPal.
 
 Kiểm thử console còn xác nhận tính phí, idempotency settlement/payout, fund hold, payout, refund tạo số dư âm và giao dịch mới tự bù nợ.
+
+### CI trên GitHub Actions
+
+Workflow [CI](../.github/workflows/ci.yml) chạy cho pull request và push vào
+`master` trên Ubuntu 24.04 với SDK .NET 8 và Node.js 22. Sau khi push workflow
+lên GitHub, mở tab **Actions → CI → Build and test** để xem kết quả từng bước.
+
+Chạy các lệnh tương ứng từ thư mục gốc repo với .NET 8 và Node.js 22:
+
+```powershell
+dotnet restore G4_Project.sln
+dotnet build G4_Project.sln --configuration Release --no-restore
+dotnet run --project tests/G4.Commerce.Tests --configuration Release --no-build
+node --test tests/*.test.cjs
+```
+
+Bộ backend mặc định gồm EF InMemory, HTTP rate limit, xác nhận mật khẩu và SMTP
+qua loopback. Node chạy các file `*.test.cjs` bằng bộ test tích hợp sẵn. Các bộ SQL,
+browser E2E và smoke test cần môi trường riêng. Workflow chỉ cần quyền đọc source.
+
+### Kiểm thử tải bằng JMeter
+
+Chạy trên API Development nối database demo/QA riêng. Hai kịch bản và cách xuất
+báo cáo HTML có trong [hướng dẫn JMeter](JMETER.md).
+
+### Demo Nginx chia tải catalog
+
+Dùng file Compose riêng với hai API và SQL Server demo, xem upstream qua response
+header và log. [Khởi động stack và chạy lại JMeter](NGINX.md).
 
 
 

@@ -117,6 +117,8 @@ public sealed class CheckoutService(
             existing = await db
                 .OrderTables.Include(x => x.OrderItems)
                 .FirstOrDefaultAsync(x => x.CheckoutKey == request.CheckoutKey, ct);
+            if (existing == null)
+                await EnsureBuyerNotBannedAsync(buyerId, ct);
             if (existing != null)
             {
                 if (
@@ -171,6 +173,10 @@ public sealed class CheckoutService(
                 AddressId = address.Id,
                 DeliveryStateSnapshot = address.State,
                 DeliveryCountrySnapshot = address.Country,
+                DeliveryNameSnapshot = address.FullName,
+                DeliveryStreetSnapshot = address.Street,
+                DeliveryCitySnapshot = address.City,
+                DeliveryPostalCodeSnapshot = address.PostalCode,
                 PickupStateSnapshot = pickup.State,
                 PickupCountrySnapshot = pickup.Country,
                 AddressSnapshot = string.Join(
@@ -198,7 +204,7 @@ public sealed class CheckoutService(
                 TotalWeightKg = quote.TotalWeightKg,
                 OrderDate = now,
                 UpdatedAt = now,
-                PaymentExpiresAt = now.AddMinutes(15),
+                PaymentExpiresAt = now.AddMinutes(PaymentHoldMinutes),
                 Subtotal = quote.Subtotal,
                 DiscountAmount = quote.Discount,
                 ShippingFee = quote.Shipping,
@@ -398,11 +404,10 @@ public sealed class CheckoutService(
             await db.Payments.AnyAsync(
                 x =>
                     x.OrderId == orderId
-                    && x.Method == "PayPal"
-                    && (
-                        x.Status == "Verifying"
-                        || x.PayPalCheckoutId != null && x.Status == "Pending"
-                    ),
+                    && ((x.Method == "PayPal"
+                        && (x.Status == "Verifying" || x.PayPalCheckoutId != null && x.Status == "Pending"))
+                        || (x.Method == "Klarna"
+                            && (x.Status == "Pending" || x.Status == "Verifying" || x.Status == "Authorized"))),
                 ct
             )
         )
@@ -477,13 +482,17 @@ public sealed class CheckoutService(
 
     public async Task<int> ExpirePendingAsync(CancellationToken ct = default)
     {
+        // Unpaid Item flow: after the hold deadline the seller decides, so the worker must
+        // not cancel the order (and must not skip the strike) when this switch is off.
+        if (!AutoExpireUnpaid)
+            return 0;
         var expired = await db
             .OrderTables.Include(o => o.OrderItems)
             .Where(o =>
                 o.Status == "AwaitingPayment"
                 && o.PaymentExpiresAt < DateTime.UtcNow
                 && !db.Payments.Any(p =>
-                    p.OrderId == o.Id && p.Method == "PayPal" && p.Status == "Verifying"
+                    p.OrderId == o.Id && (p.Method == "PayPal" && p.Status == "Verifying" || p.Method == "Klarna" && (p.Status == "Pending" || p.Status == "Verifying" || p.Status == "Authorized"))
                 )
             )
             .ToListAsync(ct);
@@ -495,7 +504,7 @@ public sealed class CheckoutService(
             if (
                 order.Status != "AwaitingPayment"
                 || await db.Payments.AnyAsync(
-                    x => x.OrderId == order.Id && x.Method == "PayPal" && x.Status == "Verifying",
+                    x => x.OrderId == order.Id && (x.Method == "PayPal" && x.Status == "Verifying" || x.Method == "Klarna" && (x.Status == "Pending" || x.Status == "Verifying" || x.Status == "Authorized")),
                     ct
                 )
             )
@@ -596,7 +605,7 @@ public sealed class CheckoutService(
         }
         if (
             await db.Payments.AnyAsync(
-                x => x.OrderId == orderId && x.Method == "PayPal" && x.Status == "Verifying",
+                x => x.OrderId == orderId && (x.Method == "PayPal" && x.Status == "Verifying" || x.Method == "Klarna" && (x.Status == "Pending" || x.Status == "Verifying" || x.Status == "Authorized")),
                 ct
             )
         )
@@ -613,6 +622,151 @@ public sealed class CheckoutService(
             await tx.CommitAsync(ct);
         return order;
     }
+
+    public async Task<OrderTable> SellerCancelUnpaidAsync(
+        int orderId,
+        int sellerId,
+        string? reason,
+        CancellationToken ct = default
+    )
+    {
+        await using var tx = await PromotionLifecycle.LockOrderAsync(db, orderId, ct);
+        var order = await db
+            .OrderTables.Include(o => o.OrderItems)
+            .SingleAsync(o => o.Id == orderId, ct);
+        if (db.Database.IsRelational())
+            await db.Entry(order).ReloadAsync(ct);
+        if (order.SellerId != sellerId)
+            throw new InvalidOperationException("Đơn hàng không thuộc người bán này.");
+        // A retry after success returns the stored result without a second strike or restock.
+        if (order.Status == "Cancelled" && order.CancelReasonCode == UnpaidItemRules.CancelReasonCode)
+        {
+            if (tx != null)
+                await tx.CommitAsync(ct);
+            return order;
+        }
+        var now = (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime;
+        if (order.Status != "AwaitingPayment")
+            throw new InvalidOperationException("Chỉ hủy được đơn đang chờ thanh toán.");
+        if (!UnpaidItemRules.CanSellerCancel(order.Status, order.PaymentExpiresAt, now))
+            throw new InvalidOperationException(
+                "Chưa hết thời hạn thanh toán nên chưa thể hủy đơn."
+            );
+        if (
+            await db.Payments.AnyAsync(
+                x =>
+                    x.OrderId == orderId
+                    && (x.Status == "Verifying" || x.Status == "Succeeded"),
+                ct
+            )
+        )
+            throw new InvalidOperationException(
+                "Đơn đang có thanh toán chờ xác minh hoặc đã thanh toán. Chưa thể hủy."
+            );
+        var note = string.IsNullOrWhiteSpace(reason)
+            ? "Người mua không thanh toán trong thời hạn giữ hàng."
+            : reason.Trim();
+        if (note.Length > 500)
+            note = note[..500];
+        order.Status = OrderState.Next(order.Status!, "Cancel");
+        order.CancelReasonCode = UnpaidItemRules.CancelReasonCode;
+        order.CancelDecisionReason = note;
+        order.UpdatedAt = now;
+        await RestoreStockAsync(order, ct);
+        await PromotionLifecycle.ReleaseAsync(db, orderId, ct);
+        if (order.BuyerId is int buyerId)
+        {
+            db.UnpaidItemStrikes.Add(
+                new UnpaidItemStrike
+                {
+                    BuyerId = buyerId,
+                    SellerId = sellerId,
+                    OrderId = order.Id,
+                    Reason = note,
+                    CreatedAt = now,
+                }
+            );
+            await db.SaveChangesAsync(ct);
+            await ApplyBanIfNeededAsync(buyerId, order.Id, now, ct);
+        }
+        await new BusinessNotificationService(db, config).CancellationAsync(order, true, ct);
+        db.CommerceChanges.Add(
+            new CommerceChange
+            {
+                Topic = "orders",
+                OrderId = order.Id,
+                BuyerId = order.BuyerId,
+                SellerId = order.SellerId,
+                CreatedAt = now,
+                NotificationTitle = "Đơn bị hủy do chưa thanh toán",
+                NotificationMessage =
+                    $"Đơn #{order.Id} đã bị hủy vì quá hạn thanh toán. Người mua bị cộng 1 điểm phạt.",
+            }
+        );
+        await db.SaveChangesAsync(ct);
+        if (tx != null)
+            await tx.CommitAsync(ct);
+        return order;
+    }
+
+    private async Task ApplyBanIfNeededAsync(
+        int buyerId,
+        int orderId,
+        DateTime now,
+        CancellationToken ct
+    )
+    {
+        var windowStart = now.AddMinutes(-StrikeWindowMinutes);
+        var strikes = await db.UnpaidItemStrikes.CountAsync(
+            s => s.BuyerId == buyerId && s.CreatedAt >= windowStart,
+            ct
+        );
+        if (!UnpaidItemRules.ShouldBan(strikes, StrikeLimit))
+            return;
+        var buyer = await db.Users.SingleAsync(u => u.Id == buyerId, ct);
+        if (buyer.BannedAt != null)
+            return;
+        buyer.BannedAt = now;
+        buyer.BanReason =
+            $"Bị khóa vĩnh viễn: {strikes} điểm phạt Unpaid Item liên tiếp (đơn #{orderId}).";
+        db.CommerceChanges.Add(
+            new CommerceChange
+            {
+                Topic = "orders",
+                OrderId = orderId,
+                BuyerId = buyerId,
+                CreatedAt = now,
+                NotificationTitle = "Tài khoản bị khóa",
+                NotificationMessage = "Tài khoản bị khóa vĩnh viễn do 2 điểm phạt chưa thanh toán liên tiếp.",
+            }
+        );
+    }
+
+    private async Task EnsureBuyerNotBannedAsync(int buyerId, CancellationToken ct)
+    {
+        var banned = await db
+            .Users.AsNoTracking()
+            .Where(u => u.Id == buyerId)
+            .Select(u => u.BannedAt)
+            .SingleOrDefaultAsync(ct);
+        if (banned != null)
+            throw new InvalidOperationException(
+                "Tài khoản đã bị khóa vĩnh viễn do nhiều lần không thanh toán đơn hàng."
+            );
+    }
+
+    private int PaymentHoldMinutes =>
+        UnpaidItemRules.NormalizeHoldMinutes(config?.GetValue<int?>("Checkout:PaymentHoldMinutes"));
+
+    private bool AutoExpireUnpaid => config?.GetValue<bool?>("Checkout:AutoExpireUnpaid") ?? true;
+
+    private int StrikeLimit =>
+        UnpaidItemRules.NormalizeStrikeLimit(config?.GetValue<int?>("Checkout:UnpaidStrikeLimit"));
+
+    private int StrikeWindowMinutes =>
+        UnpaidItemRules.NormalizeStrikeWindowMinutes(
+            config?.GetValue<int?>("Checkout:UnpaidStrikeWindowMinutes")
+        );
 
     public async Task QueueEmailAsync(
         OrderTable order,

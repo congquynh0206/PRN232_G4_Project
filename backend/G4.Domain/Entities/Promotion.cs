@@ -10,6 +10,7 @@ public class Promotion
     public int CreatedById { get; set; }
     public int? LegacyCouponId { get; set; }
     public string? Code { get; set; }
+    public bool IsPublicCoupon { get; set; }
     public decimal Value { get; set; }
     public bool IsPercent { get; set; }
     public bool FreeShipping { get; set; }

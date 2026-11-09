@@ -23,6 +23,7 @@
         <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
     </ItemGroup>
     <ItemGroup>
+        <ProjectReference Include="../../shared/G4.WebCommon/G4.WebCommon.csproj" />
         <ProjectReference Include="..\G4.Application\G4.Application.csproj" />
         <ProjectReference Include="..\G4.Contracts\G4.Contracts.csproj" />
         <ProjectReference Include="..\G4.Domain\G4.Domain.csproj" />

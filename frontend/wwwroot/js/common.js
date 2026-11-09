@@ -26,6 +26,7 @@
     Pending: 'Đang chờ',
     Processing: 'Đang xử lý',
     Succeeded: 'Thành công',
+    Authorized: 'Đã duyệt · chưa thu tiền',
     Failed: 'Thất bại',
     Verifying: 'Đang xác minh',
     Refunded: 'Đã hoàn tiền',
@@ -57,6 +58,7 @@
     Return: 'Chiều trả hàng',
     Card: 'Thẻ giả lập',
     PayPal: 'PayPal',
+    Klarna: 'Klarna Pay Later',
     Level1: 'Cấp 1',
     Level2: 'Cấp 2',
     Level3: 'Cấp 3',
@@ -70,7 +72,7 @@
     const value = String(raw || '').toLowerCase();
     if (/coupon|promotion|discount/.test(value))
       return 'Mã giảm giá chưa áp dụng được. Vui lòng kiểm tra điều kiện sử dụng hoặc thử mã khác.';
-    if (/card|expiry|payment|paypal/.test(value))
+    if (/card|expiry|payment|paypal|klarna/.test(value))
       return 'Thanh toán chưa hoàn tất. Vui lòng kiểm tra phương thức thanh toán rồi thử lại.';
     if (/stock|inventory|product/.test(value))
       return 'Sản phẩm hoặc số lượng đã thay đổi. Vui lòng cập nhật giỏ hàng rồi thử lại.';
@@ -87,14 +89,45 @@
       return 'Trạng thái đã thay đổi hoặc thao tác chưa thể thực hiện. Vui lòng kiểm tra lại đơn hàng.';
     return 'Thao tác chưa thành công. Vui lòng kiểm tra thông tin và thử lại.';
   }
+  const rateLimitedRequests = new Map();
+  function rateLimitError(seconds, group) {
+    const error = new Error(`Bạn thao tác quá nhanh. Vui lòng thử lại sau ${seconds} giây.`);
+    error.status = 429;
+    error.retryAfterSeconds = seconds;
+    error.group = group;
+    return error;
+  }
   async function api(path, method = 'GET', body = null) {
+    // Freeze the exact reviewed payload/key while the password dialog is open.
+    const serialized = method === 'POST' ? JSON.stringify(body ?? {}) : undefined;
+    const send = (password) => sendRequest(path, method, serialized, password);
+    try {
+      return await send();
+    } catch (error) {
+      if (
+        method === 'POST' &&
+        error.code === 'PasswordConfirmationRequired' &&
+        window.G4?.PasswordConfirmation
+      )
+        return window.G4.PasswordConfirmation.run(error.action, path, serialized, send);
+      throw error;
+    }
+  }
+  async function sendRequest(path, method, serialized, password) {
+    const requestKey = method + ':' + path.split('?')[0];
+    const blocked = rateLimitedRequests.get(requestKey);
+    if (blocked?.until > Date.now())
+      throw rateLimitError(Math.ceil((blocked.until - Date.now()) / 1000), blocked.group);
+    rateLimitedRequests.delete(requestKey);
     const started = globalThis.performance?.now?.() ?? Date.now();
     let response;
     try {
+      const headers = method === 'POST' ? { 'Content-Type': 'application/json' } : {};
+      if (password !== undefined) headers['X-Action-Password'] = encodeURIComponent(password);
       response = await fetch('/api/proxy/' + path, {
         method,
-        headers: method === 'POST' ? { 'Content-Type': 'application/json' } : {},
-        body: method === 'POST' ? JSON.stringify(body ?? {}) : undefined,
+        headers,
+        body: serialized,
       });
     } catch {
       throw new Error('Chưa thể kết nối. Vui lòng kiểm tra mạng rồi thử lại.');
@@ -109,9 +142,30 @@
       elapsed,
     );
     const data = await response.json().catch(() => ({}));
+    if (response.status === 429) {
+      const header = response.headers?.get('Retry-After');
+      const serverDate = Date.parse(response.headers?.get('Date') || '');
+      const headerSeconds =
+        header && /^\d+$/.test(header)
+          ? Number(header)
+          : (Date.parse(header || '') - (Number.isFinite(serverDate) ? serverDate : Date.now())) /
+            1000;
+      const candidate =
+        Number.isFinite(headerSeconds) && headerSeconds > 0
+          ? headerSeconds
+          : Number(data.retryAfterSeconds);
+      const seconds = Math.max(1, Math.min(3600, Math.ceil(candidate > 0 ? candidate : 60)));
+      rateLimitedRequests.set(requestKey, {
+        until: Date.now() + seconds * 1000,
+        group: data.group,
+      });
+      throw rateLimitError(seconds, data.group);
+    }
     if (!response.ok) {
       const error = new Error(friendlyError(response.status, data.error || data.title));
       error.status = response.status;
+      error.code = data.code;
+      error.action = data.action;
       if (data.fields) error.fields = data.fields;
       throw error;
     }
@@ -266,7 +320,7 @@
     const localDate = (value) =>
       date(typeof value === 'string' && !/(Z|[+-]\d{2}:\d{2})$/i.test(value) ? value + 'Z' : value);
     const refunded = o.hasRefund && o.status === 'Closed';
-    const status = refunded ? 'Đã hoàn tiền' : label(o.status);
+    const status = refunded ? 'Đã hoàn tiền' : source === 'buyer' && o.status === 'Paid' ? 'Sẵn sàng giao hàng' : label(o.status);
     const tone = refunded
       ? 'refund'
       : {

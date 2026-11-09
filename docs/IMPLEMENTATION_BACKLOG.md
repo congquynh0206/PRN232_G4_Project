@@ -13,6 +13,117 @@
   buyer cấp trước. Phạm vi thanh toán hiện tại chỉ thẻ mô phỏng. Hướng dẫn:
   [BEST_OFFERS.md](BEST_OFFERS.md).
 
+## KLARNA1 — Pay Later sandbox (08/11/2026)
+
+- HPP `PLACE_ORDER`, buyer reconcile, worker đối chiếu khi đóng tab, capture
+  toàn bộ khi tạo outbound, cancel authorization hoặc refund sau capture;
+  chi tiết và cách chạy ở [KLARNA_PAY_LATER.md](KLARNA_PAY_LATER.md).
+- Migration bổ sung ZIP/address snapshot và Klarna HPP reference. Test service,
+  HTTP gateway, frontend và toàn bộ hồi quy cần qua trước khi review. Live QA
+  playground cần credential riêng; chưa khẳng định seller đã nhận tiền thật.
+- SRS cần phân biệt authorized/captured/settled; lịch trả góp và risk/fee do
+  Klarna quản lý; không tự ghi payout ngay hay công thức phí chưa được xác nhận.
+## PERF2 — Nginx chia tải catalog qua hai API
+
+- Compose demo riêng chỉ publish Nginx trên loopback. Nginx chia GET catalog qua
+  hai API, chuyển POST login tới `api-a` và trả 404 cho route ngoài demo. Hai API
+  dùng JWT chung và tắt worker bảo trì/phát thông báo. [Cách chạy](NGINX.md).
+- Ngày 04/11/2026, build Release và bộ backend mặc định đạt. Compose config hợp
+  lệ và `nginx -t` trên image Linux kiểm tra được file gốc.
+- Đã thử trên Nginx Windows 1.28.3 với hai API thật và database QA hiện có.
+  8 lần đọc chia 4/4, route ngoài demo trả 404, sai method trả 403, thiếu JWT
+  trả 401. JMeter 30 giây qua Nginx có 31 HTTP 200, chia 15/16, 0 lỗi, P95
+  39,2 ms. Sau khi dừng API-B, cả 6 lượt đọc vẫn thành công qua API-A.
+- Báo cáo và access log ở `artifacts/nginx/qa-20261104-092703/`. Chưa chạy cả
+  stack Compose do ổ lưu Docker thiếu dung lượng. Kết quả chưa đánh giá sức tải
+  tối đa. Đợt này không tạo hay áp migration và dùng lại database QA.
+
+## PERF1 — Baseline catalog và kiểm tra quota bằng JMeter
+
+- Hai kịch bản CLI dùng cùng API chỉ đọc có JWT buyer. Bài tải có timer điều tiết.
+  Bài quota dừng theo số request hoặc thời lượng và kiểm tra 200, 429, header
+  `Retry-After` và JSON `RateLimitExceeded`. [Cách chạy](JMETER.md).
+- Ngày 04/11/2026 đã chạy JMeter 5.6.3 với API thật và SQL Server demo riêng
+  `G4_Demo_JMeter_QA_20261104`. Bài tải 30 giây có 31 mẫu, 0 lỗi, 1,05 request/giây,
+  P95 114,4 ms. Bài quota có đúng 150 mẫu gồm 120 HTTP 200 và 30 HTTP 429 hợp lệ.
+  Lượt chỉ gửi hai mẫu đánh dấu lỗi vì chưa thấy 429. Hai bài đều xuất JTL và HTML.
+- Kết quả là baseline trên máy local. Chưa đo giới hạn tải, chưa chạy qua Nginx
+  hoặc quét lỗ hổng. Chỉ nhập schema/dữ liệu demo vào database QA riêng.
+
+## CI1 — Build và test trên GitHub Actions
+
+- Kế hoạch và phạm vi bản đầu gồm restore NuGet, build Release, chạy bộ backend
+  mặc định và test JavaScript trên Ubuntu với .NET 8 và Node.js 22. Workflow chạy
+  cho pull request và push vào `master`. [Workflow](../.github/workflows/ci.yml).
+- Kiểm chứng local ngày 04/11/2026 trên Windows: YAML đọc được, build Release
+  bằng SDK 8.0.200 đạt 0 cảnh báo/lỗi, bộ backend mặc định đạt gồm HTTP/SMTP
+  loopback, Node 144/144 đạt. Restore local dùng cache và tắt NuGet Audit do
+  lỗi DNS. Workflow giữ lệnh restore mặc định.
+- Chờ lần chạy đầu trên GitHub Actions sau khi push để xác nhận runner Ubuntu.
+  SQL, browser E2E và smoke chạy riêng. Đợt này không có migration hoặc thao tác
+  database. [Cách chạy và xem log](PROJECT_RUN.md#ci-trên-github-actions).
+
+## AUTH2 — Nhập lại mật khẩu cho quyết định ngày 31/10/2026
+
+- Đã hoàn thành source cho 21 action API hiện có của admin/seller: phán quyết và
+  alias, phí, promotion/moderation, payout/nợ/định danh, hủy/trả/hoàn tiền, phương
+  án tranh chấp, đổi địa chỉ, cap/địa chỉ lấy hàng. Authorization filter kiểm
+  UserId/role/password trước controller; không thay quyền sở hữu/nghiệp vụ tiền.
+- Popup chung giữ nguyên payload/key, hiển thị quyết định và tiền liên quan, có
+  hủy/Escape, lỗi tại ô nhập, xóa mật khẩu, chặn gửi trùng/hủy lúc đang gửi. Có
+  quota xác nhận riêng 5 lần/60 giây/UserId và 429 thử lại thủ công. Request chỉ
+  nhận challenge không tiêu quota nghiệp vụ; không cache mật khẩu hoặc tự retry
+  sau kết quả mạng chưa rõ. Worker tiếp tục tự chạy.
+- Solution build output `artifacts/password-confirmation-validation/build/` đạt
+  0 warning/error; backend mặc định đầy đủ đạt, gồm HTTP rate limit và SMTP;
+  `--password-confirmation` đạt với MVC/JWT/InMemory thật: 21 route, thiếu/sai mật
+  khẩu không đổi tiền, role/ownership/current password, payout replay trừ một
+  lần, admin fee, quota chung/cạnh tranh và độc lập user. Node 143/143 đạt.
+- Chrome headless với Razor/cookie/proxy thật và API fixture đạt 1440px/375px:
+  seller payout/admin fee, Unicode, sai mật khẩu, 429/manual retry, hủy rồi đổi
+  amount, giữ payload/key, chặn khi pending, Escape không đóng dialog nền và
+  escape nội dung. Đã xem ảnh desktop/mobile tại `artifacts/password-confirmation-ui/`.
+- Không tạo/áp migration, không seed/migrate hoặc thay database chính. Chưa E2E
+  SQL/provider mới; các kiểm tra tiền SQL/rollback lịch sử không được coi là kết
+  quả mới của task này. Cần restart API/frontend và tải lại trang.
+- A2/LIM1/FR1 còn trong backlog: nhánh yêu cầu trả trước kết luận, hạn mức riêng và
+  policy free returns phải gắn xác nhận khi triển khai; không đánh dấu hoàn thành
+  các task đó. [Kế hoạch/phạm vi/API/cấu hình](PASSWORD_CONFIRMATION.md).
+
+
+## DEMO-DATA — SQL trình diễn ngày 31/10/2026
+
+- Đã xuất bộ SQL độc lập, tự tạo database mới/schema migration hiện hành và dữ
+  liệu: 16 tài khoản, 10 seller, 43 kịch bản; seller 2/3 có dữ liệu hiệu suất hỗ
+  trợ, nợ/write-off/blacklist/payout/hold có ledger và lịch sử từ service hiện tại.
+- Nhập thật vào QA SQL Server, so dòng/FK/check, 16 login/10 ví/doanh số/level và
+  blacklist đạt. API trên bản nhập đọc 30 đơn và thực thi card, approve return/
+  label, payout ba level, xét nâng cấp thật trên QA đạt. Script chống ghi đè và
+  helper PowerShell được kiểm tra. [Cách dùng/phạm vi](DEMO_DATABASE.md).
+- Có helper cấu hình process riêng: key định danh demo, Capture và timer đủ dài;
+  không sửa config mặc định hoặc nghiệp vụ. Không có migration mới; chỉ áp các
+  migration hiện có lên database build/QA riêng, không thay database chính.
+- Không ghi hoàn thành INR1/FR1/LIM1/A2/RT2 hoặc bộ kiểm thử provider/đồng thời
+  từ kết quả xuất dữ liệu. Log QA và chi tiết nằm trong hướng dẫn bộ tải xuống.
+
+## RATE1 — Sliding Window và giao diện 429 ngày 28/10/2026
+
+- Hoàn thành source: thư viện hosting chung G4.WebCommon, policy theo nhóm tại API,
+  login/register theo IP tại MVC/API, UserId từ JWT, proxy allowlist local/Docker,
+  JSON/Retry-After và thông báo/countdown. Carrier/worker không dùng quota user.
+- Solution build output riêng 0 warning/error; backend mặc định và bộ HTTP
+  `--rate-limits` đạt, Node 140/140 đạt. HTTP kiểm tra policy route thực tế, hai user,
+  JWT giả, proxy giả, cạnh tranh, phục hồi; create/card/payout chạy InMemory rồi
+  quota chặn create/card/PayPal/payout/refund không đổi tiền/tồn kho/outbox.
+- Chrome fixture dùng MVC/Razor/proxy thật đạt desktop/mobile, 429 local/backend,
+  không gửi backend khi MVC chặn, Retry-After, countdown, không tự replay và giữ key;
+  đã xem ảnh `artifacts/rate-limit-ui/`. Log ở `artifacts/rate-limit-validation/`.
+- Hồi quy Chrome login bốn role và điều hướng 320–1440px đạt; Docker Compose config,
+  CSharpier check và git diff check đạt. Chưa chạy container Docker.
+- Không tạo/áp migration, seed hoặc thay database chính/QA. Chưa chạy SQL/provider
+  thật hoặc Docker. Bộ đếm RAM theo process, chưa triển khai Redis/Nginx/multi-node;
+  NuGet audit chưa chạy do không truy cập nuget.org. [Cấu hình/test](RATE_LIMITING.md).
+
 ## BELL1 — Chuông bốn role ngày 27/10/2026
 
 - Yêu cầu: chuông có badge chưa đọc 1–9/9+, danh sách lưu server, read/read-all theo
@@ -305,3 +416,10 @@ Mỗi task khi hoàn thành ghi ngay bên dưới phần của task hoặc thêm
 - SQL QA thật đạt bảo toàn migration/legacy, request/close cạnh tranh, snapshot/event rollback, payout cùng key và hai key tranh tiền, worker concurrent đủ bước, DTO/history/tổng, rollback request/Completed/Returned sau SaveChanges và retry. UI Node 125/125 đạt.
 - Chrome fixture desktop 1440px/mobile 390px dùng dialog return và Seller Razor/CSS/JS thật: deadline, hết hạn vô hiệu quote, request payout, pending balances, các bước/history, Completed/Returned; không lỗi JS hoặc tràn ngang, ảnh đã xem tại `artifacts/return-window-payout-ui/`. Đây là API fixture, chưa E2E HTTP nối SQL hoặc carrier/bank/provider thật.
 - Đã cập nhật [RT1](RETURN_WINDOW_POLICY.md), [PAY1](PAYOUT_WORKFLOW.md), module và PROJECT_RUN. Không làm các task khác hoặc áp migration chính trong đợt này.
+## Khám phá ưu đãi phía Buyer
+
+- Đã cập nhật source cho tab Ưu đãi, công khai coupon theo lựa chọn của bên quản lý
+  và xem trước báo giá theo seller. Build API/frontend, 29 test JavaScript và
+  kiểm tra API với EF InMemory (`--buyer-offers`) đã qua. Nghiệm thu SQL Server và trình duyệt theo
+  [hướng dẫn Promotions](PROMOTIONS_TEST_GUIDE.md#kiểm-tra-tab-ưu-đãi-và-bộ-chọn-mã)
+  còn chờ. Migration `20261103090000_AddPublicCoupons` chưa áp dụng.

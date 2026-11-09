@@ -75,12 +75,22 @@ test('coupon normalizes code and blank optional limits remain unlimited', () => 
     'seller',
   );
   assert.equal(r.code, 'SHOP_10');
+  assert.equal(r.isPublicCoupon, false);
   assert.equal(r.budget, null);
   assert.equal(r.maxUsage, null);
   assert.equal(r.minSubtotal, 50);
   assert.throws(
     () => p.buildRequest({ ...base(), type: 'Coupon', code: 'ABC', maxUsage: '0' }, 'seller'),
     /lớn hơn 0/,
+  );
+});
+test('coupon publication is opt-in and ignored for automatic promotions', () => {
+  const p = helpers();
+  const input = { ...base(), isPublicCoupon: true };
+  assert.equal(p.buildRequest(input, 'seller').isPublicCoupon, undefined);
+  assert.equal(
+    p.buildRequest({ ...input, type: 'Coupon', code: 'PUBLIC10' }, 'seller').isPublicCoupon,
+    true,
   );
 });
 test('volume tiers require ascending thresholds and nondecreasing discounts', () => {

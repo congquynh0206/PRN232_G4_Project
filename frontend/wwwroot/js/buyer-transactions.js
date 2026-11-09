@@ -4,8 +4,8 @@
   const form = $('transaction-filters');
   const transactionDialog = $('transaction-dialog');
   const dateText = value => value ? G4.date(value) : 'Chưa có';
-  const status = value => ({ Succeeded: 'Thành công', Failed: 'Thất bại', Pending: 'Đang xử lý', Verifying: 'Đang xác minh' }[value] || value);
-  const method = value => value === 'PayPal' ? 'PayPal Sandbox' : value === 'Card' ? 'Thẻ giả lập' : value || 'Chưa có';
+  const status = value => ({ Succeeded: 'Thành công', Authorized: 'Đã duyệt · chưa thu tiền', Failed: 'Thất bại', Pending: 'Đang xử lý', Verifying: 'Đang xác minh' }[value] || value);
+  const method = value => value === 'PayPal' ? 'PayPal Sandbox' : value === 'Card' ? 'Thẻ giả lập' : value === 'Klarna' ? 'Klarna Pay Later' : value || 'Chưa có';
   async function load(next = page) {
     const token = ++request; page = next;
     const params = new URLSearchParams({ page, pageSize: 20 });
@@ -47,7 +47,7 @@
       const t = totals.get(x.orderId), reference = x.reference || 'Chưa có';
       const detail = x.type === 'Refund'
         ? `${x.detail === 'shipping-adjustment' ? 'Hoàn chênh lệch ship giả lập' : `Lý do: ${esc(x.detail || 'Chưa có')}`} · Payment #${x.originalPaymentId} (${esc(status(x.originalPaymentStatus))})`
-        : x.status === 'Failed' ? `Lỗi: ${esc(x.detail || 'Chưa có thông tin lỗi')}` : x.status === 'Succeeded' ? `Thành công lúc ${dateText(x.completedAt)}` : 'Chưa hoàn tất';
+        : x.status === 'Failed' ? `Lỗi: ${esc(x.detail || 'Chưa có thông tin lỗi')}` : x.status === 'Succeeded' ? `Thành công lúc ${dateText(x.completedAt)}` : x.status === 'Authorized' ? 'Đã duyệt; sẽ thu tiền khi giao hàng' : 'Chưa hoàn tất';
       return `<tr><td>${dateText(x.createdAt)}</td><td><button type="button" class="transaction-order-link" data-transaction-order="${x.orderId}">#${x.orderId}</button></td><td>${x.type === 'Payment' ? 'Thanh toán' : 'Hoàn tiền'}</td><td>${method(x.method)}</td><td class="amount">${G4.money(x.amount)}</td><td>${esc(status(x.status))}</td><td><span title="${esc(reference)}">${esc(reference.length > 22 ? `${reference.slice(0, 10)}…${reference.slice(-8)}` : reference)}</span>${x.reference ? ` <button type="button" data-copy="${esc(x.reference)}" aria-label="Sao chép mã giao dịch">Sao chép</button>` : ''}</td><td><button type="button" data-transaction-detail="${x.type}:${x.id}">Xem chi tiết</button></td></tr>`;
     }).join('') : '<tr><td colspan="8">Không có giao dịch phù hợp.</td></tr>';
     G4.pager('transaction-pagination', data, p => G4.safe(() => load(p)));
@@ -72,7 +72,7 @@
       G4.safe(async () => {
       const data = await G4.api(`buyer/transactions/${type}/${id}`);
       $('transaction-dialog-title').textContent = `${data.type === 'Payment' ? 'Thanh toán' : 'Hoàn tiền'} · ${data.orderId ? `Đơn #${data.orderId}` : ''}`;
-      $('transaction-dialog-content').innerHTML = `<dl><dt>Thời điểm tạo</dt><dd>${dateText(data.createdAt)}</dd><dt>Phương thức</dt><dd>${method(data.method)}</dd><dt>Số tiền</dt><dd>${G4.money(data.amount)}</dd><dt>Trạng thái</dt><dd>${esc(status(data.status))}</dd><dt>Mã giao dịch</dt><dd>${esc(data.reference || 'Chưa có')}</dd><dt>Thành công lúc</dt><dd>${dateText(data.completedAt)}</dd><dt>Chi tiết</dt><dd>${data.type === 'Refund' ? `${esc(data.detail || 'Chưa có lý do')} · Payment #${data.originalPaymentId || 'Chưa có'} · ${esc(data.originalPaymentReference || 'Chưa có mã payment')}` : data.status === 'Failed' ? `Lỗi: ${esc(data.detail || 'Chưa có thông tin lỗi')}` : 'Chưa có lỗi'}</dd></dl><button type="button" data-transaction-order="${data.orderId}">Mở đơn #${data.orderId}</button>`;
+      $('transaction-dialog-content').innerHTML = `<dl><dt>Thời điểm tạo</dt><dd>${dateText(data.createdAt)}</dd><dt>Phương thức</dt><dd>${method(data.method)}</dd><dt>Số tiền</dt><dd>${G4.money(data.amount)}</dd><dt>Trạng thái</dt><dd>${esc(status(data.status))}</dd><dt>Mã giao dịch</dt><dd>${esc(data.reference || 'Chưa có')}</dd><dt>Thành công lúc</dt><dd>${dateText(data.completedAt)}</dd><dt>Chi tiết</dt><dd>${data.type === 'Refund' ? `${esc(data.detail || 'Chưa có lý do')} · Payment #${data.originalPaymentId || 'Chưa có'} · ${esc(data.originalPaymentReference || 'Chưa có mã payment')}` : data.status === 'Failed' ? `Lỗi: ${esc(data.detail || 'Chưa có thông tin lỗi')}` : data.status === 'Authorized' ? 'Klarna đã duyệt; chưa thu tiền, sẽ thu khi giao hàng' : 'Chưa có lỗi'}</dd></dl><button type="button" data-transaction-order="${data.orderId}">Mở đơn #${data.orderId}</button>`;
       if (!transactionDialog.open) transactionDialog.showModal();
       });
     }

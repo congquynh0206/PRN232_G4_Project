@@ -37,6 +37,7 @@ services:
       - Mail__From=g4@example.test
       - Frontend__PublicBaseUrl=http://localhost:5000
       - Carrier__BaseUrl=http://backend:8080
+      - TrustedProxies__Hosts__0=frontend
       - Realtime__AllowedOrigins__0=http://localhost:5000
       - Realtime__AllowedOrigins__1=http://127.0.0.1:5000
     ports:
@@ -44,6 +45,7 @@ services:
     depends_on:
       - sqlserver
       - mailhog
+      - frontend
     networks:
       - g4-net
 
@@ -58,8 +60,6 @@ services:
       - Realtime__PublicApiBaseUrl=http://localhost:8080
     ports:
       - "5000:8080"
-    depends_on:
-      - backend
     networks:
       - g4-net
 

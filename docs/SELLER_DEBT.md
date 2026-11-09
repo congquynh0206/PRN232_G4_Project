@@ -1,5 +1,8 @@
 # Quản lý nợ người bán
 
+**Xác nhận quyết định 31/10/2026:** Seller nhập lại mật khẩu trước khi xác nhận trả nợ.
+[Popup, header API, quota và kiểm thử](PASSWORD_CONFIRMATION.md).
+
 **Đồng hồ 23/10/2026:** Seller/Admin xem thời gian tới WarningAt, DueAt và EarliestWriteOffAt. WarningAt lấy từ kỳ nợ, không trừ cứng 15 giây ở client. Mốc write-off là dự kiến nếu không có thu hồi mới; chỉ quyết định của hệ thống mới xác nhận khóa bán. [Hướng dẫn chung](DEMO_COUNTDOWNS.md).
 
 Write-off/khóa bán vĩnh viễn do worker tự đánh giá và kiểm tra blacklist khi đăng ký seller được mô tả tại [SELLER_REGISTRATION_WRITE_OFF.md](SELLER_REGISTRATION_WRITE_OFF.md). Trả hết nợ chỉ gỡ đình chỉ tạm do nợ; giữ khóa bán vĩnh viễn nếu đã có quyết định.

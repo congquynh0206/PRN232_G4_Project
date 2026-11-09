@@ -1,3 +1,4 @@
+using G4.Api.Security;
 using G4.Contracts.Checkout;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +12,8 @@ public sealed class PaymentsController(
     ICheckoutService checkout,
     IReturnService returns,
     IPayPalPaymentService paypal,
-    IHostEnvironment environment
+    IHostEnvironment environment,
+    G4.Infrastructure.Payments.KlarnaPaymentService klarna
 ) : ApiControllerBase(environment)
 {
     [HttpPost("orders/{id:int}/pay/card")]
@@ -78,7 +80,25 @@ public sealed class PaymentsController(
         return Ok(new { payment.Id, payment.Status });
     }
 
+    [HttpPost("orders/{id:int}/pay/klarna")]
+    public async Task<IActionResult> StartKlarna(int id, IdempotencyKeyRequest request, CancellationToken ct)
+    {
+        if (!IsAvailable || !HasRole("buyer")) return StatusCode(403);
+        if (!await db.OrderTables.AnyAsync(o => o.Id == id && o.BuyerId == CurrentUserId, ct)) return StatusCode(403);
+        return Ok(await klarna.StartAsync(id, request.Key, ct));
+    }
+
+    [HttpPost("orders/{id:int}/pay/klarna/reconcile")]
+    public async Task<IActionResult> ReconcileKlarna(int id, CancellationToken ct)
+    {
+        if (!IsAvailable || !HasRole("buyer")) return StatusCode(403);
+        if (!await db.OrderTables.AnyAsync(o => o.Id == id && o.BuyerId == CurrentUserId, ct)) return StatusCode(403);
+        var payment = await klarna.ReconcileAsync(id, ct);
+        return Ok(new { payment.Id, payment.Status, payment.ErrorCode });
+    }
+
     [HttpPost("seller/orders/{id:int}/refund")]
+    [RequirePassword("seller", "Xác nhận hoàn tiền")]
     public async Task<IActionResult> Refund(int id, ReasonRequest request, CancellationToken ct)
     {
         if (!IsAvailable || !HasRole("seller"))

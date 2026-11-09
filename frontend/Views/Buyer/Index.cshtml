@@ -8,6 +8,38 @@
 <link rel="stylesheet" href="~/css/buyer-transactions.css" asp-append-version="true" />
 <link rel="stylesheet" href="~/css/best-offers.css" asp-append-version="true" />
 <div id="message" class="message" role="status" aria-live="polite"></div>
+<section id="buyer-offers" class="panel tab-panel">
+    <div class="section-head">
+        <div>
+            <h1>Ưu đãi</h1>
+            <p>Khám phá giảm giá, mã công khai và ưu đãi vận chuyển đang diễn ra.</p>
+        </div>
+    </div>
+    <div class="toolbar">
+        <label for="buyer-offer-filter">Loại ưu đãi</label>
+        <select id="buyer-offer-filter">
+            <option value="all">Tất cả</option>
+            <option value="Discount">Giảm giá</option>
+            <option value="Coupon">Mã giảm giá</option>
+            <option value="Shipping">Miễn / giảm phí ship</option>
+        </select>
+    </div>
+    <p id="buyer-offer-status" role="status"></p>
+    <div id="buyer-offer-list" class="buyer-offer-list"></div>
+    <div class="toolbar">
+        <button type="button" id="buyer-offer-prev" disabled>Trang trước</button>
+        <button type="button" id="buyer-offer-next" disabled>Trang sau</button>
+    </div>
+</section>
+<dialog id="buyer-coupon-picker" aria-labelledby="buyer-coupon-title">
+    <h2 id="buyer-coupon-title">Chọn mã giảm giá</h2>
+    <p id="buyer-coupon-status" role="status"></p>
+    <div id="buyer-coupon-list" class="buyer-offer-list"></div>
+    <div class="toolbar">
+        <button type="button" id="buyer-coupon-more" hidden>Trang sau</button>
+        <form method="dialog"><button type="submit">Đóng</button></form>
+    </div>
+</dialog>
 <section id="summary" class="panel tab-panel active">
     <div class="section-head">
         <div>
@@ -72,24 +104,20 @@
                     <h2>Giao đến</h2>
                     <button id="manage-addresses" type="button">Quản lý địa chỉ</button>
                 </div>
-                <div
-                    id="address-list"
-                    class="address-list"
-                    role="radiogroup"
-                    aria-label="Địa chỉ giao hàng"
-                    aria-busy="true"
-                ></div>
+                <div id="address-list"
+                     class="address-list"
+                     role="radiogroup"
+                     aria-label="Địa chỉ giao hàng"
+                     aria-busy="true"></div>
                 <div id="address-empty" class="address-empty" hidden>
                     <strong>Bạn chưa có địa chỉ giao hàng.</strong>
                     <span>Hãy thêm địa chỉ trước khi thanh toán để xem đúng phí vận chuyển.</span>
                     <button id="address-empty-add" type="button" class="primary">Thêm địa chỉ</button>
                 </div>
-                <div
-                    id="address-quote-status"
-                    class="address-quote-status"
-                    role="status"
-                    aria-live="polite"
-                ></div>
+                <div id="address-quote-status"
+                     class="address-quote-status"
+                     role="status"
+                     aria-live="polite"></div>
             </div>
             <div class="block">
                 <h2>Phương thức thanh toán</h2>
@@ -107,6 +135,14 @@
                         <small>Không nhập thông tin thẻ thật</small>
                     </span>
                 </label>
+                <label class="payment-option">
+                    <input type="radio" name="method" value="klarna" />
+                    <span>
+                        <strong>Klarna Pay Later</strong>
+                        <small>Klarna duyệt đơn trước; tiền được thu khi giao hàng</small>
+                    </span>
+                </label>
+                <p id="klarna-zip-note" class="address-quote-status warn" role="status" hidden></p>
                 <div id="card-fields" class="card-fields hidden">
                     <label for="card-number">Thẻ thử</label>
                     <select id="card-number">
@@ -156,8 +192,8 @@
                 Báo giá chưa giữ lượt khuyến mãi. Giá được xác nhận khi tạo đơn.
             </p>
             <p class="promotion-checkout-note">
-                Mỗi người bán nhận một đơn riêng. PayPal xác nhận thanh toán cả giỏ trong một lượt;
-                kết quả từng đơn được hiển thị tại “Đơn hàng”.
+                Mỗi người bán nhận một đơn riêng. PayPal xác nhận cả giỏ trong một lượt;
+                Klarna chuyển hướng cho từng đơn, các đơn còn lại thanh toán trong “Đơn hàng”.
             </p>
             <button class="primary wide" id="pay" disabled>Đặt hàng &amp; thanh toán</button>
         </aside>
@@ -197,6 +233,7 @@
         <p id="buyer-order-summary" class="small" role="status" aria-live="polite">
             Đang tải đơn hàng…
         </p>
+        <p id="buyer-strike-notice" class="small" role="status" aria-live="polite" hidden></p>
     </div>
     <div id="order-list" class="order-list" aria-busy="false"></div>
     <div id="order-pagination" class="pagination"></div>
@@ -208,7 +245,7 @@
         <label>Từ ngày<input name="from" type="date"></label><label>Đến ngày<input name="to" type="date"></label>
         <label>Khoảng thống kê<select name="period"><option value="30">30 ngày gần nhất</option><option value="all">Tất cả thời gian</option><option value="custom">Tùy chọn ngày</option></select></label>
         <label>Loại<select name="type"><option value="">Tất cả</option><option value="Payment">Thanh toán</option><option value="Refund">Hoàn tiền</option></select></label>
-        <label>Trạng thái<select name="status"><option value="">Tất cả</option><option value="Succeeded">Thành công</option><option value="Failed">Thất bại</option><option value="Pending">Đang xử lý</option><option value="Verifying">Đang xác minh</option></select></label>
+        <label>Trạng thái<select name="status"><option value="">Tất cả</option><option value="Succeeded">Thành công</option><option value="Authorized">Đã duyệt · chưa thu tiền</option><option value="Failed">Thất bại</option><option value="Pending">Đang xử lý</option><option value="Verifying">Đang xác minh</option></select></label>
         <button class="primary" type="submit">Tìm kiếm</button><button type="reset" id="transaction-clear">Xóa bộ lọc</button>
     </form>
     <p id="transaction-summary" class="small" role="status" aria-live="polite"></p>
@@ -245,10 +282,12 @@
     <script src="~/js/returns.js" asp-append-version="true"></script>
     <script src="~/js/notifications.js" asp-append-version="true"></script>
     <script src="~/js/promotions.js" asp-append-version="true"></script>
+    <script src="~/js/buyer-offers.js" asp-append-version="true"></script>
     <script src="~/js/disputes.js" asp-append-version="true"></script>
     <script src="~/js/buyer-addresses.js" asp-append-version="true"></script>
     <script src="~/js/buyer-cart.js" asp-append-version="true"></script>
     <script src="~/js/paypal-cart.js" asp-append-version="true"></script>
+    <script src="~/js/klarna.js" asp-append-version="true"></script>
     <script src="~/js/seller-feedback.js" asp-append-version="true"></script>
     <script src="~/js/buyer-product-reviews.js" asp-append-version="true"></script>
     <script src="~/js/buyer-transactions.js" asp-append-version="true"></script>

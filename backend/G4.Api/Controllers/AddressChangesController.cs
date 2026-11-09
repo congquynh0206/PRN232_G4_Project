@@ -1,3 +1,4 @@
+using G4.Api.Security;
 using G4.Contracts.Checkout;
 using Microsoft.AspNetCore.Mvc;
 
@@ -47,6 +48,7 @@ public sealed class AddressChangesController(
     }
 
     [HttpPost("seller/address-changes/{id:int}/decision")]
+    [RequirePassword("seller", "Chấp thuận hoặc từ chối đổi địa chỉ")]
     public async Task<IActionResult> Decide(
         int id,
         AddressChangeDecision input,

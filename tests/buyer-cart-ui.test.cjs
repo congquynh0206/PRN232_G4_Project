@@ -39,7 +39,7 @@ async function harness(handler, method = 'card') {
   const controls = (selector) => {
     const result = [];
     for (const match of (element('cart').innerHTML + element('checkout-items').innerHTML).matchAll(
-      /<(?:input|select|button)[^>]*\bdata-(quantity|remove|seller-coupon|apply-coupon)="([^"]+)"[^>]*>/g,
+      /<(?:input|select|button)[^>]*\bdata-(quantity|remove|buy-now|seller-coupon|apply-coupon)="([^"]+)"[^>]*>/g,
     )) {
       const camel = match[1].replace(/-([a-z])/g, (_, x) => x.toUpperCase());
       if (!selector.includes('[data-' + match[1] + ']')) continue;
@@ -295,4 +295,45 @@ test('PayPal starts one checkout for the whole cart and preserves the original c
     h.calls.find((x) => x.route === 'cart/checkout').body.checkoutKey,
   );
   assert.equal(h.calls.filter((x) => x.route.endsWith('/pay/paypal')).length, 0);
+});
+
+test('Buy It Now creates only the chosen seller order as unpaid and stays on the cart', async () => {
+  let submitted;
+  let bought = false;
+  const rest = { version: 'v2', items: [items[1]] };
+  const h = await harness(async (route, verb, body) => {
+    if (route === 'cart') return bought ? rest : cart;
+    if (route === 'cart/quote') return bought ? { ...quoted, sellers: [quoted.sellers[1]] } : quoted;
+    if (route === 'cart/buy-now') {
+      submitted = body;
+      bought = true;
+      return {
+        id: 77,
+        sellerId: 2,
+        status: 'AwaitingPayment',
+        totalPrice: 12,
+        paymentExpiresAt: '2026-11-07T10:05:00',
+      };
+    }
+    throw new Error(route);
+  });
+  assert.match(h.element('cart').innerHTML, /Buy It Now/);
+  assert.match(h.element('cart').innerHTML, /\(Không ép trả ngay\)/);
+  await h.element('buy-now-2').onclick();
+  assert.equal(submitted.sellerId, 2);
+  assert.equal(submitted.cartVersion, 'v1');
+  assert.equal(submitted.addressId, 1);
+  assert.equal(submitted.expectedTotal, 12);
+  assert.equal(submitted.pricingFingerprint, 'fp-a');
+  assert.ok(submitted.checkoutKey);
+  assert.equal(
+    h.calls.some((x) => x.route === 'cart/checkout'),
+    false,
+  );
+  const last = h.messages.at(-1);
+  assert.equal(last.success, true);
+  assert.match(last.value, /#77/);
+  assert.match(last.value, /Chờ thanh toán/);
+  assert.doesNotMatch(h.element('cart').innerHTML, /Item A/);
+  assert.match(h.element('cart').innerHTML, /Item B/);
 });

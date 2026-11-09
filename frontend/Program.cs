@@ -1,3 +1,5 @@
+using frontend.RateLimiting;
+using G4.WebCommon;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 
@@ -14,6 +16,8 @@ if (builder.Environment.IsDevelopment())
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpClient();
+builder.Services.AddTrustedProxyHeaders(builder.Configuration);
+builder.Services.AddCommerceRateLimiting(builder.Configuration, LoginRateLimitResponse.WriteAsync);
 builder
     .Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -35,10 +39,12 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+app.UseTrustedProxyHeaders(builder.Configuration);
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 app.MapControllerRoute(
     name: "root",

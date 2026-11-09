@@ -59,6 +59,16 @@
                     aria-describedby="address-error-country"
                 />
                 <small id="address-error-country" class="field-error" role="alert"></small>
+                <label for="address-form-postalCode">Mã bưu chính / ZIP (tùy chọn)</label>
+                <input
+                    id="address-form-postalCode"
+                    maxlength="20"
+                    autocomplete="postal-code"
+                    inputmode="text"
+                    aria-describedby="address-error-postalCode address-postal-help"
+                />
+                <small id="address-postal-help" class="small">Klarna US cần ZIP thật của địa chỉ giao hàng tại Hoa Kỳ.</small>
+                <small id="address-error-postalCode" class="field-error" role="alert"></small>
                 <label class="address-default-check">
                     <input type="checkbox" id="address-form-default" />
                     Đặt làm địa chỉ mặc định

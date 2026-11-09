@@ -1,10 +1,12 @@
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using G4.WebCommon;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace frontend.Controllers;
 
@@ -37,6 +39,7 @@ public sealed class AccountController(
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting(CommerceRateLimiting.Registration)]
     public async Task<IActionResult> RegisterSeller(
         [FromBody] JsonElement input,
         CancellationToken ct
@@ -46,13 +49,18 @@ public sealed class AccountController(
             return NotFound();
         try
         {
-            using var reply = await factory
-                .CreateClient()
-                .PostAsync(
-                    BackendUrl("api/auth/register-seller"),
-                    new StringContent(input.GetRawText(), Encoding.UTF8, "application/json"),
-                    ct
-                );
+            using var request = new HttpRequestMessage(
+                HttpMethod.Post,
+                BackendUrl("api/auth/register-seller")
+            );
+            request.Content = new StringContent(
+                input.GetRawText(),
+                Encoding.UTF8,
+                "application/json"
+            );
+            TrustedProxyHeaders.ForwardClientIp(request, HttpContext);
+            using var reply = await factory.CreateClient().SendAsync(request, ct);
+            TrustedProxyHeaders.CopyRetryAfter(reply, Response);
             return new ContentResult
             {
                 StatusCode = (int)reply.StatusCode,
@@ -85,6 +93,7 @@ public sealed class AccountController(
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting(CommerceRateLimiting.Login)]
     public async Task<IActionResult> Login(
         string email,
         string password,
@@ -92,17 +101,55 @@ public sealed class AccountController(
         CancellationToken ct
     )
     {
-        using var response = await factory
-            .CreateClient()
-            .PostAsync(
-                BackendUrl("api/auth/login"),
-                new StringContent(
-                    JsonSerializer.Serialize(new { email, password }),
-                    Encoding.UTF8,
-                    "application/json"
-                ),
-                ct
+        using var request = new HttpRequestMessage(HttpMethod.Post, BackendUrl("api/auth/login"));
+        request.Content = new StringContent(
+            JsonSerializer.Serialize(new
+            {
+                email,
+                password
+            }),
+            Encoding.UTF8,
+            "application/json"
+        );
+        TrustedProxyHeaders.ForwardClientIp(request, HttpContext);
+        using var response = await factory.CreateClient().SendAsync(request, ct);
+        TrustedProxyHeaders.CopyRetryAfter(response, Response);
+        if ((int)response.StatusCode == StatusCodes.Status429TooManyRequests)
+        {
+            var retry = response.Headers.RetryAfter;
+            var seconds = Math.Max(
+                1,
+                (int)
+                    Math.Ceiling(
+                        (
+                            retry?.Delta
+                            ?? (retry?.Date - DateTimeOffset.UtcNow)
+                            ?? TimeSpan.FromSeconds(60)
+                        ).TotalSeconds
+                    )
             );
+            Response.StatusCode = StatusCodes.Status429TooManyRequests;
+            ViewBag.RetryAfterSeconds = seconds;
+            ModelState.AddModelError("", CommerceRateLimiting.Message(seconds));
+            ViewBag.ReturnUrl = returnUrl;
+            return View();
+        }
+        if ((int)response.StatusCode == StatusCodes.Status403Forbidden)
+        {
+            // The API only returns 403 here for a locked account; show its safe message.
+            var denied = await response.Content.ReadAsStringAsync(ct);
+            var message = "Tài khoản không thể đăng nhập.";
+            try
+            {
+                using var document = JsonDocument.Parse(denied);
+                if (document.RootElement.TryGetProperty("error", out var error))
+                    message = error.GetString() ?? message;
+            }
+            catch (JsonException) { }
+            ModelState.AddModelError("", message);
+            ViewBag.ReturnUrl = returnUrl;
+            return View();
+        }
         if (!response.IsSuccessStatusCode)
         {
             ModelState.AddModelError("", "Email hoặc mật khẩu không đúng.");

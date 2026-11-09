@@ -1,3 +1,4 @@
+using G4.Api.Security;
 using G4.Contracts.Checkout;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -70,6 +71,7 @@ public sealed class SellerShippingSettingsController(
     }
 
     [HttpPost("address-change-cap")]
+    [RequirePassword("seller", "Thay đổi mức chịu phí đổi địa chỉ")]
     public async Task<IActionResult> AddressChangeCap(
         AddressChangeCapInput input,
         CancellationToken ct
@@ -137,6 +139,7 @@ public sealed class SellerShippingSettingsController(
     }
 
     [HttpPost("pickup")]
+    [RequirePassword("seller", "Thay đổi địa chỉ lấy hàng")]
     public async Task<IActionResult> Pickup(AddressUpdateRequest request, CancellationToken ct)
     {
         if (!IsAvailable || !HasRole("seller"))

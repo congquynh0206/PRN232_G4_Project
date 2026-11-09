@@ -3,6 +3,16 @@ using G4.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
+if (args.Contains("--password-confirmation"))
+{
+    await PasswordConfirmationChecks.RunAsync();
+    return;
+}
+if (args.Contains("--rate-limits"))
+{
+    await RateLimitChecks.RunAsync();
+    return;
+}
 if (args.Contains("--notification-bell"))
 {
     await BellNotificationChecks.RunAsync();
@@ -39,14 +49,29 @@ if (args.Contains("--buyer-transactions"))
     await BuyerTransactionChecks.RunAsync();
     return;
 }
+if (args.Contains("--buyer-offers"))
+{
+    await BuyerOfferChecks.RunAsync();
+    return;
+}
 if (args.Contains("--buyer-address-book"))
 {
     await BuyerAddressBookChecks.RunAsync();
     return;
 }
+if (args.Contains("--unpaid-items"))
+{
+    await UnpaidItemChecks.RunAsync();
+    return;
+}
 if (args.Contains("--checkout-limits"))
 {
     await CheckoutLimitChecks.RunAsync();
+    return;
+}
+if (args.Contains("--klarna"))
+{
+    await KlarnaChecks.RunAsync();
     return;
 }
 if (args.Contains("--paypal-reservations"))
@@ -221,6 +246,7 @@ await ShippingWeightChecks.RunAsync();
 await ShipmentClaimChecks.RunAsync();
 await ShipmentReattemptChecks.RunAsync();
 await PromotionManagementChecks.RunAsync();
+await BuyerOfferChecks.RunAsync();
 PromotionPricingChecks.Run();
 await PromotionCheckoutChecks.RunAsync();
 await BuyerCartChecks.RunAsync();
@@ -239,6 +265,7 @@ await ProductFeedbackChecks.RunAsync();
 await BusinessNotificationChecks.RunAsync();
 await PayPalCartChecks.RunAsync();
 await PayPalReservationChecks.RunAsync();
+await KlarnaChecks.RunAsync();
 NotificationProcessingChecks.CheckRetryRules();
 await NotificationTemplateChecks.RunAsync();
 await NotificationProcessorBehaviorChecks.RunAsync();
@@ -246,6 +273,8 @@ await IntegrationDiagnosticsChecks.RunAsync();
 await IntegrationBufferChecks.RunAsync();
 await NotificationAuthorizationChecks.RunAsync();
 await BellNotificationChecks.RunAsync();
+await RateLimitChecks.RunAsync();
+await PasswordConfirmationChecks.RunAsync();
 await SmtpEmailChecks.RunAsync();
 try
 {

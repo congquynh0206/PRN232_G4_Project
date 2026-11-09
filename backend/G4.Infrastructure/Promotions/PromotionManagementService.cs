@@ -126,6 +126,7 @@ public sealed class PromotionManagementService(ApplicationDbContext db)
         p.Name = input.Name.Trim();
         p.Type = input.Type;
         p.Code = code;
+        p.IsPublicCoupon = code != null && input.IsPublicCoupon;
         p.Value = input.Type == "Volume" || input.FreeShipping ? 0 : input.Value;
         p.IsPercent = input.IsPercent;
         p.FreeShipping = input.Type == "Shipping" && input.FreeShipping;
@@ -450,6 +451,7 @@ public sealed class PromotionManagementService(ApplicationDbContext db)
             Value = p.Value,
             IsPercent = p.IsPercent,
             FreeShipping = p.FreeShipping,
+            IsPublicCoupon = p.IsPublicCoupon,
             Cap = p.Cap,
             MinSubtotal = p.MinSubtotal,
             MinQuantity = p.MinQuantity,

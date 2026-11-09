@@ -6,7 +6,8 @@ public sealed record BuyerAddressInput(
     string? City,
     string? State,
     string? Country,
-    bool IsDefault = false
+    bool IsDefault = false,
+    string? PostalCode = null
 );
 
 public sealed record BuyerAddressView(
@@ -17,7 +18,8 @@ public sealed record BuyerAddressView(
     string City,
     string State,
     string Country,
-    bool IsDefault
+    bool IsDefault,
+    string? PostalCode = null
 );
 
 public sealed record BuyerAddressBook(int? AffectedId, IReadOnlyList<BuyerAddressView> Addresses);
@@ -45,6 +47,7 @@ public static class BuyerAddressRules
             City = Clean(input.City),
             State = Clean(input.State),
             Country = Clean(input.Country),
+            PostalCode = Clean(input.PostalCode),
         };
 
     /// <summary>Returns field name -> Vietnamese error message. Empty when valid.</summary>
@@ -62,6 +65,8 @@ public static class BuyerAddressRules
                 errors[field] = $"Tối đa {max} ký tự cho {label}.";
         }
 
+        if (n.PostalCode is { Length: > 20 })
+            errors["postalCode"] = "Mã bưu chính tối đa 20 ký tự.";
         return errors;
     }
 }

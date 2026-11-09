@@ -13,6 +13,7 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["backend/G4.Api/G4.Api.csproj", "backend/G4.Api/"]
+COPY ["shared/G4.WebCommon/G4.WebCommon.csproj", "shared/G4.WebCommon/"]
 COPY ["backend/G4.Application/G4.Application.csproj", "backend/G4.Application/"]
 COPY ["backend/G4.Contracts/G4.Contracts.csproj", "backend/G4.Contracts/"]
 COPY ["backend/G4.Domain/G4.Domain.csproj", "backend/G4.Domain/"]

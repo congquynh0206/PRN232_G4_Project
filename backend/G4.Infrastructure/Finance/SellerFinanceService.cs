@@ -47,8 +47,8 @@ public sealed partial class SellerFinanceService(
             join pendingOrder in db.OrderTables on payment.OrderId equals pendingOrder.Id
             where
                 payment.OrderId != orderId
-                && payment.Method == "PayPal"
-                && payment.Status == "Verifying"
+                && ((payment.Method == "PayPal" && payment.Status == "Verifying")
+                    || (payment.Method == "Klarna" && (payment.Status == "Authorized" || payment.Status == "Verifying")))
                 && pendingOrder.SellerId == sellerId
             select payment.ReservedSellerGross
                 ?? (
@@ -110,7 +110,7 @@ public sealed partial class SellerFinanceService(
         await LockAccountAsync(account, ct);
         ResetMonth(account);
         var authorizedReservation =
-            payment.Method == "PayPal"
+            (payment.Method == "PayPal" || payment.Method == "Klarna")
             && payment.CaptureReservedAt != null
             && payment.ReservedSellerGross == gross;
         if (

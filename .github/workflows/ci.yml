@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v6
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+
+      - name: Restore NuGet packages
+        run: dotnet restore G4_Project.sln
+
+      - name: Build solution
+        run: dotnet build G4_Project.sln --configuration Release --no-restore
+
+      - name: Run backend checks
+        run: dotnet run --project tests/G4.Commerce.Tests --configuration Release --no-build
+
+      - name: Run JavaScript tests
+        run: node --test tests/*.test.cjs

@@ -13,6 +13,7 @@ public partial class Address
     public string? City { get; set; }
     public string? State { get; set; }
     public string? Country { get; set; }
+    public string? PostalCode { get; set; }
     public bool? IsDefault { get; set; }
     public virtual ICollection<OrderTable> OrderTables { get; set; } = new List<OrderTable>();
     public virtual User? User { get; set; }

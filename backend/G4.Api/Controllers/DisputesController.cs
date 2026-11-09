@@ -1,3 +1,4 @@
+using G4.Api.Security;
 using G4.Contracts.Checkout;
 using Microsoft.AspNetCore.Mvc;
 
@@ -61,6 +62,7 @@ public sealed class DisputesController(IDisputeService disputes, IHostEnvironmen
     }
 
     [HttpPost("disputes/{id:int}/proposal")]
+    [RequirePassword("seller", "Gửi phương án giải quyết tranh chấp")]
     public async Task<IActionResult> Proposal(
         int id,
         DisputeProposalRequest request,
@@ -87,6 +89,7 @@ public sealed class DisputesController(IDisputeService disputes, IHostEnvironmen
     }
 
     [HttpPost("disputes/{id:int}/resolution")]
+    [RequirePassword("admin", "Chốt phán quyết tranh chấp")]
     public async Task<IActionResult> Resolution(
         int id,
         AdminDecisionInput request,
