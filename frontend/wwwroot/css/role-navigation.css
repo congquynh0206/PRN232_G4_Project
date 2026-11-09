@@ -107,16 +107,25 @@
   border-radius: 12px;
   background: #fff;
   padding: 6px;
+  /* When the tabs do not fit, scroll sideways instead of squeezing labels letter by letter. */
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
 }
 .buyer-nav .navigation-group {
   display: flex;
   gap: 8px;
 }
 .buyer-nav .navigation-item {
+  flex: 0 0 auto;
   justify-content: center;
   width: auto;
   margin: 0;
   padding-inline: 20px;
+  white-space: nowrap;
+}
+.buyer-nav .navigation-label {
+  overflow-wrap: normal;
 }
 .buyer-nav .navigation-item.active {
   box-shadow: none;
@@ -184,6 +193,15 @@ dialog.navigation-drawer::backdrop {
 html:has(.navigation-drawer[open]) {
   overflow: hidden;
 }
+@media (max-width: 1200px) {
+  .buyer-nav .navigation-group {
+    gap: 2px;
+  }
+  .buyer-nav .navigation-item {
+    gap: 8px;
+    padding-inline: 12px;
+  }
+}
 @media (max-width: 1000px) {
   .workspace-shell.has-sidebar {
     display: block;
@@ -238,20 +256,21 @@ html:has(.navigation-drawer[open]) {
     border-width: 1px 0 0;
     box-shadow: 0 -4px 20px #243b5c0c;
   }
+  /* One scrollable row keeps the fixed bar short enough for the bottom padding above. */
   .buyer-nav .navigation-group {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 4px;
   }
   .buyer-nav .navigation-item {
     position: relative;
+    flex: 1 0 76px;
     flex-direction: column;
     gap: 4px;
-    width: 100%;
     min-height: 58px;
-    padding: 6px 2px;
+    padding: 6px 4px;
     font-size: 11px;
+    line-height: 1.25;
     text-align: center;
+    white-space: normal;
   }
   .buyer-nav .navigation-badge {
     position: absolute;

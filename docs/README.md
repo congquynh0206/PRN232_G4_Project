@@ -27,6 +27,7 @@
 | Đo tải catalog và kiểm tra HTTP 429 bằng JMeter | [JMETER.md](JMETER.md) |
 | Demo Nginx chia tải catalog qua hai API | [NGINX.md](NGINX.md) |
 | SQL dữ liệu có sẵn để trình diễn với giảng viên | [DEMO_DATABASE.md](DEMO_DATABASE.md) |
+| Kịch bản trình bày demo theo từng vai trò | [DEMO_SCRIPT.md](DEMO_SCRIPT.md) |
 | Giỏ nhiều seller, PayPal/realtime | [MULTI_SELLER_CART.md](MULTI_SELLER_CART.md), [COMMERCE_REFRESH.md](COMMERCE_REFRESH.md) |
 | Luồng màn hình sau checkout và kết quả thanh toán | [BUYER_CHECKOUT_FLOW.md](BUYER_CHECKOUT_FLOW.md) |
 | Sổ địa chỉ buyer, bảo vệ đơn cũ và retry | [BUYER_ADDRESS_BOOK.md](BUYER_ADDRESS_BOOK.md) |

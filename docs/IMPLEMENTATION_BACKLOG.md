@@ -18,6 +18,10 @@
 - PayPal/Klarna chưa hỗ trợ auto-pay Best Offer: source hiện không có authorization/vault được
   buyer cấp trước. Phạm vi thanh toán hiện tại chỉ thẻ mô phỏng. Hướng dẫn:
   [BEST_OFFERS.md](BEST_OFFERS.md).
+- Làm lại UI/UX ngày 10/11/2026 (chỉ frontend, không migration): phiên thương lượng có so sánh
+  giá niêm yết/hai bên/giá chốt, bộ lọc, đếm ngược và lịch sử tiếng Việt; danh sách sản phẩm
+  gọn với form mở khi cần. Đã kiểm tra trên trình duyệt với dữ liệu demo, build frontend và Node
+  UI test liên quan đạt. Chưa có E2E tự động cho các thao tác ghi.
 
 ## KLARNA1 — Pay Later sandbox (08/11/2026)
 

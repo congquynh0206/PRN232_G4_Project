@@ -12,6 +12,8 @@ namespace G4.DemoData;
 
 internal sealed class DemoExporter(ApplicationDbContext db, DemoFixture fixture)
 {
+    public const string FixtureVersion = "2026-11-09";
+
     public async Task<string> GenerateAsync(string baseline)
     {
         var migration = db
@@ -99,7 +101,7 @@ internal sealed class DemoExporter(ApplicationDbContext db, DemoFixture fixture)
             );
         seed.AppendLine(
             "CREATE TABLE demo.Manifest (Id int PRIMARY KEY, ImportedAtUtc datetime2(7), FixtureVersion nvarchar(50));"
-                + "INSERT demo.Manifest VALUES (1,@DemoNow,N'G4-demo-2026-10-31');"
+                + $"INSERT demo.Manifest VALUES (1,@DemoNow,N'G4-demo-{FixtureVersion}');"
         );
         seed.AppendLine(
             "IF EXISTS (SELECT 1 FROM dbo.SellerAccount WHERE ProcessingBalance<0 OR AvailableBalance<0 OR OnHoldBalance<0 OR NegativeBalance<0) "
@@ -113,25 +115,46 @@ internal sealed class DemoExporter(ApplicationDbContext db, DemoFixture fixture)
             "SELECT N'Demo ready. Password for all accounts: G4@123456. See HUONG_DAN_DEMO.md / Run-Demo.ps1.' AS Result;"
                 + "SELECT * FROM demo.LoginAccount ORDER BY Email; SELECT * FROM demo.Scenario ORDER BY Code;"
         );
-        var header = """
+        var header = $$"""
             /*
-             G4 DEMO DATABASE - 31/10/2026
+             G4 DEMO DATABASE - {{FixtureVersion}}
              Run the whole file in SSMS (normal mode) or sqlcmd -f 65001. No SQLCMD variables/includes.
-             Creates a NEW dedicated database with baseline + all current EF migrations + demo data.
-             NEVER drops, clears or overwrites an existing database. If the name exists, execution stops.
-             Change ONLY @DatabaseName below for a second clean demo, e.g. G4_Demo_Lan2.
+             Creates a dedicated database with baseline + ALL current EF migrations + demo data
+             (orders, returns, disputes, finance, Best Offer, Buy It Now, Unpaid Item, coupons).
+             @ReplaceExisting = 1: if the G4_Demo... database already exists it is DROPPED and created
+             again from scratch (only names starting with G4_Demo are allowed, never CloneEbayDB).
+             Set @ReplaceExisting = 0 to stop instead of replacing.
+             Stop Run-Demo.ps1 (API) before re-running, then start it again afterwards.
              Configure the application with Run-Demo.ps1 to match the demo identity key and timers.
              All users, identities, payments, labels, evidence and finance rows are synthetic demo fixtures.
              Historical data is a prepared scenario, not evidence of real provider transactions.
              Password for all demo accounts: G4@123456
             */
+            USE master;
             SET NOCOUNT ON;
             SET XACT_ABORT ON;
+            -- SSMS defaults; sqlcmd needs them explicitly for filtered indexes.
+            SET ANSI_NULLS ON;
+            SET QUOTED_IDENTIFIER ON;
+            SET ANSI_PADDING ON;
+            SET ANSI_WARNINGS ON;
+            SET ARITHABORT ON;
+            SET CONCAT_NULL_YIELDS_NULL ON;
+            SET NUMERIC_ROUNDABORT OFF;
             DECLARE @DatabaseName sysname = N'G4_Demo';
+            DECLARE @ReplaceExisting bit = 1;
             IF @DatabaseName NOT LIKE N'G4[_]Demo%' OR @DatabaseName LIKE N'%[^a-zA-Z0-9_]%' COLLATE Latin1_General_100_BIN2
                 THROW 51000, 'Only a dedicated G4_Demo... database name is allowed.', 1;
+            IF DB_ID(@DatabaseName) IS NOT NULL AND @ReplaceExisting = 1
+            BEGIN
+                DECLARE @Drop nvarchar(max) = N'ALTER DATABASE ' + QUOTENAME(@DatabaseName)
+                    + N' SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE '
+                    + QUOTENAME(@DatabaseName) + N';';
+                EXEC sys.sp_executesql @Drop;
+                PRINT N'Dropped old demo database ' + @DatabaseName + N'.';
+            END
             IF DB_ID(@DatabaseName) IS NOT NULL
-                THROW 51000, 'Database already exists. No data changed. Choose a NEW G4_Demo... name.', 1;
+                THROW 51000, 'Database already exists. No data changed. Set @ReplaceExisting = 1 or choose a NEW G4_Demo... name.', 1;
             DECLARE @Create nvarchar(max) = N'CREATE DATABASE ' + QUOTENAME(@DatabaseName);
             EXEC sys.sp_executesql @Create;
             -- Restrict growth to 8 MB increments on this NEW demo database only.

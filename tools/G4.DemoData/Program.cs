@@ -77,17 +77,25 @@ var master = new SqlConnectionStringBuilder(connection) { InitialCatalog = "mast
 await using (var sqlConnection = new SqlConnection(master.ConnectionString))
 {
     await sqlConnection.OpenAsync();
-    await using var command = new SqlCommand(qaSql, sqlConnection) { CommandTimeout = 240 };
+    await using var command = new SqlCommand(qaSql, sqlConnection) { CommandTimeout = 600 };
     await command.ExecuteNonQueryAsync();
+    var keepSql = qaSql.Replace(
+        "DECLARE @ReplaceExisting bit = 1;",
+        "DECLARE @ReplaceExisting bit = 0;"
+    );
+    await using var keep = new SqlCommand(keepSql, sqlConnection) { CommandTimeout = 600 };
     try
     {
-        await command.ExecuteNonQueryAsync();
+        await keep.ExecuteNonQueryAsync();
         throw new InvalidOperationException("SQL must refuse an existing database.");
     }
     catch (SqlException ex) when (ex.Number == 51000 && ex.Message.Contains("already exists"))
     {
-        Console.WriteLine("Existing-database protection passed.");
+        Console.WriteLine("Existing-database protection (@ReplaceExisting = 0) passed.");
     }
+    // Default mode: running the same file again drops and recreates the demo database.
+    await command.ExecuteNonQueryAsync();
+    Console.WriteLine("Re-run with @ReplaceExisting = 1 recreated the database.");
 }
 var qaConnection = new SqlConnectionStringBuilder(connection) { InitialCatalog = qaName };
 await using var qaDb = new ApplicationDbContext(

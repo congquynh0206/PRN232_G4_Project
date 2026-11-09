@@ -27,6 +27,31 @@ chống gửi trùng khi thử lại, nhập lại mật khẩu và rate limit c
 | Thông báo | Chuông chỉ gửi cho **bên còn lại**, không gửi cho người thao tác: buyer gửi giá/counter/chấp nhận/từ chối thì seller nhận; seller counter/chấp nhận/từ chối thì buyer nhận; tự động chấp nhận theo ngưỡng thì seller nhận. Hết hạn (không ai thao tác) thì cả hai nhận. Ngoài ra có tín hiệu realtime không kèm nội dung để màn hình cả hai bên tự làm mới. Thông báo chung "Cập nhật thanh toán" khi Auto-Pay ghi payment vẫn theo cơ chế đơn hàng chung (gửi buyer và seller của đơn). |
 | Bảo vệ thao tác | `seller/accept` và `buyer/accept` bắt nhập lại mật khẩu (header `X-Action-Password`). Tạo phiên và hai thao tác chấp nhận dùng rate limit nhóm `payment`; các thao tác khác dùng nhóm `write`. |
 
+## Giao diện (cập nhật 10/11/2026)
+
+Chỉ đổi frontend (`Views/Buyer/Index.cshtml`, `wwwroot/js/best-offers.js`,
+`wwwroot/css/best-offers.css`); không đổi API hay database.
+
+- Tab **Trả giá** của buyer: ba bước hướng dẫn; **phiên thương lượng** đặt lên trên, lọc theo
+  Tất cả / Cần bạn phản hồi / Chờ người bán / Đã kết thúc. Phiên cần phản hồi xếp trước, sau đó
+  đến phiên sắp hết hạn.
+- Mỗi phiên có ảnh, tên và trạng thái màu. Ba ô giá **Giá niêm yết / Bạn đề nghị / Người bán đưa
+  ra** (hoặc **Giá chốt**) kèm % giảm, thanh so sánh giá và khoảng chênh còn lại giữa hai bên.
+  Thời gian còn lại tự cập nhật mỗi 30 giây.
+- Khi đến lượt: nút "Chấp nhận $X", "Từ chối", ô trả giá lại có khoảng hợp lệ và nút "Chia đôi".
+  Lịch sử lượt hiển thị bằng tiếng Việt (Bạn/Người bán, gửi đề nghị/trả giá lại/chấp nhận/từ
+  chối, kết quả tự động). Đơn đã tạo có nút mở tab Đơn hàng.
+- Danh sách sản phẩm dạng lưới gọn; form chỉ mở khi bấm "Trả giá". Form có chọn nhanh -5% đến
+  -20% và xem trước số tiền/phần trăm giảm. Sản phẩm đang có phiên mở hiện nút "Xem phiên".
+- Khi realtime làm mới danh sách, form đang mở và giá đang nhập được giữ lại.
+- Tab Best Offer của seller dùng chung thẻ phiên (nhãn theo vai trò người xem). Cột phiên rộng
+  hơn cột cấu hình, thẻ tự co gọn khi hẹp.
+
+Kiểm tra trên trình duyệt với dữ liệu demo (buyer@demo.test, seller.l1@demo.test): bộ lọc, nút
+xem phiên, chọn giá nhanh, giữ giá đang nhập khi làm mới, khổ 375px không tràn ngang. Không bấm
+chấp nhận/từ chối/gửi giá; các luồng này giữ nguyên request và data attribute cũ. Frontend cần
+khởi động lại để nạp `Index.cshtml` mới.
+
 Đơn tạo từ Best Offer chụp đủ địa chỉ giao hàng (tên, đường, thành phố, bang, ZIP, quốc gia) để
 dùng được với Klarna.
 

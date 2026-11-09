@@ -1,23 +1,54 @@
-# Database trình diễn ngày 31/10/2026
+# Database trình diễn (cập nhật 09/11/2026)
 
-Bộ tải xuống nằm trong `database/demo/`: `G4_Demo.sql`, `HUONG_DAN_DEMO.md`,
-`Run-Demo.ps1`, `validation.txt` và gói ZIP. Đây là dữ liệu trình diễn, không phải
+Bộ file nằm trong `database/demo/`: `G4_Demo.sql`, `HUONG_DAN_DEMO.md`,
+`Run-Demo.ps1`, `validation.txt`. Đây là dữ liệu trình diễn, không phải
 bộ kiểm thử tải/đồng thời/provider hoặc báo cáo hoàn thành tất cả backlog.
+Gói ZIP `G4_Demo_2026-10-31.zip` là bản cũ trước Best Offer/Buy It Now; không dùng.
+
+## Cập nhật 09/11/2026
+
+Theo yêu cầu người dùng: chỉ cần chạy một file SQL trong SSMS là có database demo đủ.
+
+- SQL chứa baseline và **toàn bộ migration hiện có** (gồm Public coupon, Unpaid Item,
+  Best Offer, Klarna, Immediate checkout/saga, refund thẻ). Không cần `dotnet ef`.
+- `@ReplaceExisting = 1` (mặc định): nếu database `G4_Demo...` đã có thì xóa và tạo lại.
+  Chỉ nhận tên bắt đầu bằng `G4_Demo`; đặt `0` để dừng như trước. Tắt API demo trước.
+- Kịch bản mới: Unpaid Item (`UNPAID-OVERDUE`, `UNPAID-BAN` thay `EXPIRED` vì đơn
+  không còn tự hết hạn), Best Offer (`BO-ACCEPTED`, `BO-AUTO`, `BO-PENDING-SELLER`,
+  `BO-PENDING-BUYER`), Buy It Now (`BUY-NOW`, `BUY-NOW-LAST-ONE`); DEMO10/SAN5 là
+  coupon công khai ở tab Ưu đãi.
+- Profile demo nới thời hạn để trạng thái chuẩn bị giữ đúng khoảng 4 giờ sau khi chạy
+  SQL: return/receipt/dispute/đổi địa chỉ 6 giờ, giữ tiền cấp 1/2 là 4/2 giờ, nợ đến
+  hạn 6 giờ, write-off 12 giờ, giữ hàng chờ thanh toán 6 giờ, cửa sổ điểm phạt 30 ngày.
+  `Run-Demo.ps1` và `tools/G4.DemoData` dùng cùng giá trị; mặc định repo không đổi.
+- Đầu file có các lệnh `SET QUOTED_IDENTIFIER ON`... để chạy được cả bằng `sqlcmd`
+  (sqlcmd mặc định tắt, làm lỗi tạo filtered index).
+
+Kiểm chứng 09/11: generator build 0 lỗi; dựng 50 kịch bản bằng service thật; SQL nhập
+vào database QA riêng, `@ReplaceExisting = 0` từ chối, chạy lại với `1` xóa và tạo lại;
+kiểm tra số dòng, FK/check, 16 đăng nhập, 10 ví, blacklist, 50 kịch bản đạt. Chạy chính
+file bằng `sqlcmd` tạo `G4_Demo` trong 56 giây (gồm 7 migration mới). API/frontend qua
+`Run-Demo.ps1`: 31/32 đơn mở bằng buyer chính (đơn của buyer.other bị 403 đúng quyền),
+coupon công khai, 2 sản phẩm Buy It Now, seller chấp nhận Best Offer, tự từ chối dưới
+ngưỡng, thanh toán thẻ đơn Best Offer, seller hủy Unpaid Item làm buyer.other bị khóa
+(403), seller.debt chưa quá hạn; log API không có lỗi. Database build/QA tạm đã xóa;
+`G4_Demo` trên máy đã bị thao tác khi kiểm thử nên cần chạy lại SQL trước khi demo.
+Không chạm `CloneEbayDB`.
 
 ## Cách dùng
 
-1. Giữ các file trong thư mục `database/demo` của repo. Mở `G4_Demo.sql` bằng SSMS
-   và chạy toàn bộ. Script tự tạo database mới `G4_Demo`, bảng nền và các migration
-   hiện hành; không cần chạy thêm baseline hoặc seed-data. Chạy bình thường, không
-   cần SQLCMD mode, file include hay công cụ EF trên máy trình diễn.
-2. Mở hai PowerShell tại repo, chạy `Run-Demo.ps1 -App Api -SqlServer localhost`
-   và `Run-Demo.ps1 -App Frontend`. Xem lệnh đầy đủ trong hướng dẫn kèm bộ dữ liệu.
+1. Mở `database/demo/G4_Demo.sql` bằng SSMS và chạy toàn bộ. Script tạo (hoặc tạo lại)
+   database `G4_Demo`, bảng nền, mọi migration và dữ liệu. Không cần baseline,
+   seed-data, SQLCMD mode hay công cụ EF.
+2. Mở hai PowerShell tại repo, chạy
+   `powershell -ExecutionPolicy Bypass -File .\database\demo\Run-Demo.ps1 -App Api -SqlServer localhost`
+   và `powershell -ExecutionPolicy Bypass -File .\database\demo\Run-Demo.ps1 -App Frontend`.
+   `-ExecutionPolicy Bypass` tránh lỗi "running scripts is disabled" và chỉ áp dụng cho lệnh đó.
 3. Mở `http://localhost:5137`. Mật khẩu chung là `G4@123456`; bảng tài khoản và
    mã đơn/hồ sơ theo từng kịch bản có trong hướng dẫn và bảng `demo.Scenario`.
 
-Script từ chối tên database đã tồn tại. Nếu muốn một lượt demo sạch khác, đổi
-biến `@DatabaseName` ở đầu SQL thành tên mới bắt đầu bằng `G4_Demo`, rồi truyền
-`-DatabaseName` tương ứng vào helper. Không tự xóa/reset dữ liệu của lượt trước.
+Muốn giữ bản cũ thì đổi `@DatabaseName` sang tên khác bắt đầu bằng `G4_Demo` và
+truyền `-DatabaseName` tương ứng vào helper.
 Helper chỉ cấu hình process/child hiện tại và khôi phục môi trường khi kết thúc;
 không sửa appsettings, User Secrets, kết nối chính hoặc khóa định danh local.
 
@@ -36,12 +67,15 @@ không sửa appsettings, User Secrets, kết nối chính hoặc khóa định 
 - Giá và policy của đơn đã mua giữ snapshot; promotion mới được chuẩn bị sau các
   đơn mẫu nên không tự giảm lại giá của đơn đã tồn tại. Buyer có thể dùng giỏ mới
   để trình diễn DEMO10/SAN5, sale, volume/order và miễn ship chiều đi.
+- Tên, mô tả và link ảnh sản phẩm lấy từ 15 sản phẩm có ảnh trong bảng `Product` của
+  CloneEbayDB (10/11/2026), dùng lặp lại cho 32 sản phẩm demo và giữ tiền tố seller
+  như `[L1]`. Giá, cân nặng, tồn kho và cấu hình Best Offer vẫn theo demo vì kịch bản
+  dựa vào các số này. Ảnh là link ngoài (gstatic/amazon) nên máy trình diễn cần mạng;
+  mất mạng thì app hiện ô ảnh mặc định.
 
-Profile riêng kéo return/receipt/dispute/đổi địa chỉ lên hai giờ, hold level 1/2
-thành 30/15 phút, nợ đến hạn một giờ/write-off hai giờ. Tự xét cấp mỗi 24 giờ để
-giữ nguyên ca chờ bấm xét; thao tác xét thủ công vẫn dùng service thật. Đơn chưa
-thanh toán giữ hạn 15 phút, nên thực hiện sớm hoặc tạo mới từ giỏ. Không thay các
-giá trị mặc định đã chốt của repo.
+Thời hạn của profile demo xem mục Cập nhật 09/11 ở trên. Tự xét cấp mỗi 24 giờ để
+giữ nguyên ca chờ bấm xét; thao tác xét thủ công vẫn dùng service thật. Không thay
+các giá trị mặc định đã chốt của repo.
 
 Định danh giả lập dùng HMAC demo trong helper; core database chỉ giữ dấu đối chiếu
 và phần đã che, các giá trị nhập mẫu nằm trong hướng dẫn. Phải chạy đúng cấu hình

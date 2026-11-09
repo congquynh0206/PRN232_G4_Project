@@ -71,21 +71,49 @@
         <div>
             <span class="eyebrow">Người mua</span>
             <h1>Trả giá sản phẩm</h1>
-            <p>Đề xuất giá thấp hơn giá niêm yết. Mỗi phiên có hiệu lực 24 giờ.</p>
+            <p>Đề xuất giá thấp hơn giá niêm yết. Mỗi lượt chờ phản hồi tối đa 24 giờ.</p>
         </div>
         <div class="offer-toolbar">
             <button type="button" id="buyer-offers-addresses">Quản lý địa chỉ</button>
             <button type="button" id="buyer-offers-refresh">Làm mới</button>
         </div>
     </div>
-    <div class="offer-grid">
-        <div>
-            <h2>Sản phẩm đang nhận trả giá</h2>
-            <div id="offer-catalog" class="offer-list" aria-busy="true">Đang tải…</div>
+    <ol class="offer-steps" aria-label="Cách trả giá">
+        <li>
+            <strong>Gửi giá</strong>
+            <span>Chọn sản phẩm và nhập mức giá bạn muốn.</span>
+        </li>
+        <li>
+            <strong>Thương lượng</strong>
+            <span>Người bán chấp nhận, từ chối hoặc trả giá lại.</span>
+        </li>
+        <li>
+            <strong>Chốt đơn</strong>
+            <span>Khi hai bên đồng ý, hệ thống tạo đơn theo giá đã chốt.</span>
+        </li>
+    </ol>
+    <div class="offer-section">
+        <div class="offer-section-head">
+            <div>
+                <h2>Phiên thương lượng của bạn</h2>
+                <p>So sánh giá hai bên đưa ra với giá niêm yết rồi phản hồi trước khi hết hạn.</p>
+            </div>
+            <div id="buyer-offer-filters" class="offer-filters" role="group"
+                 aria-label="Lọc phiên thương lượng" hidden></div>
         </div>
-        <div>
-            <h2>Phiên thương lượng của bạn</h2>
-            <div id="buyer-offer-list" class="offer-list" aria-busy="true">Đang tải…</div>
+        <div id="buyer-best-offer-list" class="offer-list offer-session-list" aria-busy="true">
+            Đang tải…
+        </div>
+    </div>
+    <div class="offer-section">
+        <div class="offer-section-head">
+            <div>
+                <h2>Sản phẩm đang nhận trả giá</h2>
+                <p>Bấm “Trả giá” trên sản phẩm bạn muốn để mở form đề nghị.</p>
+            </div>
+        </div>
+        <div id="offer-catalog" class="offer-list offer-catalog-grid" aria-busy="true">
+            Đang tải…
         </div>
     </div>
 </section>

@@ -46,6 +46,88 @@ internal sealed class DemoFixture
     public CheckoutService Checkout { get; }
     private readonly DemoCarrier carrier = new();
 
+    // Names, descriptions and image links copied from the Product table of CloneEbayDB
+    // (products that have an image). Prices, weights and offer settings stay demo-specific
+    // because the scenarios and DEMO_SCRIPT rely on them.
+    private static readonly (string Title, string Description, string Image)[] Catalog =
+    [
+        (
+            "Wireless Headphones",
+            "Bluetooth over-ear headphones",
+            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ1zc86eb8oIu4eOwyIRNcCoPuxNAWf-W1EHw9y5Ro0ew&s=10"
+        ),
+        (
+            "Compact Camera",
+            "Travel-friendly digital camera",
+            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRP7FbP95QRjKcY7JLuLoPMbeVpwWKcL3xA68zs6zySug&s=10"
+        ),
+        (
+            "Smart Watch",
+            "Fitness and notification watch",
+            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTZM1VvAyaNjKUnWEHYeGxHreLLgWJxzMkXHnEMSOz-oQ&s=10"
+        ),
+        (
+            "Phone Case",
+            "Protective case for smartphone",
+            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQl98_12c-T4RCsIOe6unigezKfg-XZ5iHyxrJ0Jmb4OA&s=10"
+        ),
+        (
+            "Portable Charger",
+            "Fast charging power bank",
+            "https://m.media-amazon.com/images/I/61pCjlOUiZL.jpg"
+        ),
+        (
+            "Wireless Mechanical Keyboard",
+            "Compact bluetooth mechanical keyboard with long battery life",
+            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcShe7_jBwQTLsKBGu-6StC1sOERa9CUmbFaEHrCy5Cv3g&s=10"
+        ),
+        (
+            "Wireless Gaming Mouse",
+            "Low latency, ultra-lightweight gaming mouse",
+            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRfbiVRSdaOTFiNlHnDYRUJkLp0iVtigTSOivefZW7IiQ&s=10"
+        ),
+        (
+            "15.6-inch Portable Monitor",
+            "Convenient Full HD IPS secondary screen",
+            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ9wS6i_nWkJWtxPtSzBbm55_UfWf3XMJQukmIEh4sszg&s=10"
+        ),
+        (
+            "Mini Bluetooth Speaker",
+            "IPX7 waterproof portable speaker",
+            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRSUmmQH3f-8ycDpGoB3h3_5zVv8R6q78hj3KMh6eZ11A&s=10"
+        ),
+        (
+            "Laptop Cooling Pad",
+            "Dual-fan cooling pad for fast heat dissipation",
+            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRQVVYJG5PXidY51s_tEMIGYyxLL7Zts_Ifx4GlDVylsFEac3B_1_fJMOs9&s=10"
+        ),
+        (
+            "Bluetooth Speaker",
+            "Portable Bluetooth speaker with rechargeable battery",
+            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRbmgS-u5MMOo5vDBsFe37a60gDiVfek6dF1nEC2rk6jQ&s=10"
+        ),
+        (
+            "Mechanical Keyboard",
+            "Compact mechanical keyboard with backlit keys",
+            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRbmgS-u5MMOo5vDBsFe37a60gDiVfek6dF1nEC2rk6jQ&s=10"
+        ),
+        (
+            "Wireless Mouse",
+            "Ergonomic wireless mouse with adjustable sensitivity",
+            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQoPbdvCfDsXs7zQSraviFdeXQM_bjd4yqC8BlrP8KYbg&s=10"
+        ),
+        (
+            "Screen Cleaning Kit",
+            "Screen cleaning spray and microfiber cloth for electronic devices",
+            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTizDIpLHo6h5atDwMJZUkpxaC79qegbKMcUAcDgTuJoQ&s=10"
+        ),
+        (
+            "USB-C Hub",
+            "Multiport USB-C adapter with HDMI and USB connections",
+            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTJz0nwFYJfGV0Eizt75xP3YaQRLikf-P2JF82MqQFB0w&s=10"
+        ),
+    ];
+
     public DemoFixture(ApplicationDbContext db)
     {
         this.db = db;
@@ -62,24 +144,34 @@ internal sealed class DemoFixture
         Checkout = new CheckoutService(db, Finance, Config, clock: Clock);
     }
 
+    // Demo-only timers. Prepared states stay valid for about 4 hours after the SQL runs.
+    // Run-Demo.ps1 must use the same values.
+    public const int PaymentHoldMinutes = 360;
+
     public static Dictionary<string, string?> Profile() =>
         new()
         {
             ["SellerIdentity:HmacKey"] = HmacKey,
             ["SellerIdentity:KeyId"] = "v1",
-            ["Returns:WindowSeconds"] = "7200",
-            ["Returns:ReceiptSeconds"] = "7200",
-            ["Disputes:SellerResponseSeconds"] = "7200",
-            ["Disputes:BuyerResponseSeconds"] = "7200",
-            ["Disputes:ReturnReceiptSeconds"] = "7200",
-            ["AddressChanges:ConfirmationSeconds"] = "7200",
-            ["Finance:Levels:1:HoldSeconds"] = "1800",
-            ["Finance:Levels:2:HoldSeconds"] = "900",
+            ["Returns:WindowSeconds"] = "21600",
+            ["Returns:ReceiptSeconds"] = "21600",
+            ["Disputes:SellerResponseSeconds"] = "21600",
+            ["Disputes:BuyerResponseSeconds"] = "21600",
+            ["Disputes:ReturnReceiptSeconds"] = "21600",
+            ["AddressChanges:ConfirmationSeconds"] = "21600",
+            ["Finance:Levels:1:HoldSeconds"] = "14400",
+            ["Finance:Levels:2:HoldSeconds"] = "7200",
             ["Finance:LevelPromotion:EvaluationSeconds"] = "86400",
-            ["Finance:Debt:DueSeconds"] = "3600",
-            ["Finance:Debt:WarningBeforeSeconds"] = "300",
-            ["Finance:WriteOff:AfterSeconds"] = "7200",
+            ["Finance:Debt:DueSeconds"] = "21600",
+            ["Finance:Debt:WarningBeforeSeconds"] = "1800",
+            ["Finance:WriteOff:AfterSeconds"] = "43200",
             ["Finance:WriteOff:InactivitySeconds"] = "1800",
+            ["Checkout:PaymentHoldMinutes"] = PaymentHoldMinutes.ToString(
+                CultureInfo.InvariantCulture
+            ),
+            ["Checkout:AutoExpireUnpaid"] = "false",
+            ["Checkout:UnpaidStrikeLimit"] = "2",
+            ["Checkout:UnpaidStrikeWindowMinutes"] = "43200",
             ["Mail:Mode"] = "Capture",
         };
 
@@ -101,6 +193,8 @@ internal sealed class DemoFixture
         await DisputeCasesAsync();
         await AddressCasesAsync();
         await PromotionCasesAsync();
+        await BestOfferCasesAsync();
+        await BuyNowCasesAsync();
         await DebtCasesAsync();
         await EnsureLevel1WalletAsync();
         await PayoutCasesAsync();
@@ -168,7 +262,7 @@ internal sealed class DemoFixture
                 cells.Length == 8
                 && System.Text.RegularExpressions.Regex.IsMatch(
                     cells[2],
-                    "^(Order|Seller|Payout) #[0-9]+$"
+                    "^(Order|Seller|Payout|Offer|Product) #[0-9]+$"
                 )
             )
             {
@@ -217,7 +311,11 @@ internal sealed class DemoFixture
     private async Task AccountsAsync()
     {
         Buyer = await UserAsync("buyer", "buyer", "Buyer trình diễn");
-        OtherBuyer = await UserAsync("buyer.other", "buyer", "Buyer khác để kiểm tra quyền");
+        OtherBuyer = await UserAsync(
+            "buyer.other",
+            "buyer",
+            "Buyer có 1 điểm phạt Unpaid Item"
+        );
         HistoryBuyer = await UserAsync("buyer.history", "buyer", "Buyer lịch sử hỗ trợ xét level");
         Shipper = await UserAsync("shipper", "shipper", "Shipper chính");
         OtherShipper = await UserAsync(
@@ -280,11 +378,13 @@ internal sealed class DemoFixture
             );
             for (var p = 0; p < 3; p++)
             {
+                var item = Catalog[((index - 1) * 3 + p) % Catalog.Length];
                 var product = new Product
                 {
                     SellerId = seller.Id,
-                    Title = $"[{code.ToUpperInvariant()}] Sản phẩm demo {p + 1}",
-                    Description = "Hàng mô phỏng để trình diễn; không phải hàng thật.",
+                    Title = $"[{code.ToUpperInvariant()}] {item.Title}",
+                    Description = item.Description,
+                    Images = item.Image,
                     Price = 100 + p * 20,
                     WeightKg = 1.2m + p * .3m,
                     IsAuction = false,
@@ -437,7 +537,7 @@ internal sealed class DemoFixture
             OrderDate = Clock.Value,
             UpdatedAt = Clock.Value,
             Status = paid ? "Paid" : "AwaitingPayment",
-            PaymentExpiresAt = Clock.Value.AddMinutes(15),
+            PaymentExpiresAt = Clock.Value.AddMinutes(PaymentHoldMinutes),
             Subtotal = goods,
             ShippingFee = shipping,
             TotalPrice = goods + shipping,
@@ -489,6 +589,17 @@ internal sealed class DemoFixture
             await db.SaveChangesAsync();
             await Finance.RecordSuccessfulPaymentAsync(order.Id, payment.Id);
         }
+        return order;
+    }
+
+    private async Task<OrderTable> OverdueOrderAsync(User seller, string code, User buyer)
+    {
+        var order = await OrderAsync(seller, code, paid: false, buyer: buyer);
+        var created = Clock.Value.AddMinutes(-PaymentHoldMinutes - 60);
+        order.OrderDate = created;
+        order.UpdatedAt = created;
+        order.PaymentExpiresAt = Clock.Value.AddHours(-1);
+        await db.SaveChangesAsync();
         return order;
     }
 
@@ -589,7 +700,7 @@ internal sealed class DemoFixture
             unpaid.Id,
             seller,
             "Buyer mở đơn, thanh toán thẻ hoặc PayPal Sandbox đã cấu hình",
-            "Đơn chờ thanh toán; hạn 15 phút, nên trình diễn sớm",
+            "Đơn chờ thanh toán; hạn 6 giờ sau khi chạy SQL",
             "buyer",
             true
         );
@@ -619,19 +730,32 @@ internal sealed class DemoFixture
             "buyer",
             true
         );
-        var expired = await OrderAsync(seller, "EXPIRED", paid: false);
-        expired.OrderDate = Anchor.AddHours(-1);
-        expired.PaymentExpiresAt = Anchor.AddMinutes(-45);
-        await db.SaveChangesAsync();
-        await Checkout.ExpirePendingAsync();
+        // Unpaid Item: the worker never cancels; the seller cancels after the deadline.
+        var overdue = await OverdueOrderAsync(seller, "UNPAID-OVERDUE", Buyer);
         Case(
-            "EXPIRED",
+            "UNPAID-OVERDUE",
             "Order",
-            expired.Id,
+            overdue.Id,
             seller,
-            "Buyer/Admin xem đơn hết hạn",
-            "Expired; tồn kho đã trả lại đúng một lần",
-            "buyer"
+            "Seller mở đơn quá hạn thanh toán, bấm Hủy đơn quá hạn thanh toán",
+            "Cancelled lý do UnpaidItem, hoàn kho một lần; buyer bị 1 điểm phạt (chưa bị khóa)"
+        );
+        Clock.Value = Anchor.AddDays(-2);
+        var earlier = await OverdueOrderAsync(seller, "UNPAID-STRIKE-1", OtherBuyer);
+        await Checkout.SellerCancelUnpaidAsync(
+            earlier.Id,
+            seller.Id,
+            "Dữ liệu demo: lần không thanh toán trước đó."
+        );
+        Clock.Value = Anchor;
+        var ban = await OverdueOrderAsync(seller, "UNPAID-BAN", OtherBuyer);
+        Case(
+            "UNPAID-BAN",
+            "Order",
+            ban.Id,
+            seller,
+            "Seller hủy đơn quá hạn của buyer.other; sau đó đăng nhập buyer.other@demo.test",
+            "Điểm phạt thứ 2 trong 30 ngày: tài khoản buyer.other bị khóa, đăng nhập bị từ chối"
         );
         var cancel = await OrderAsync(seller, "CANCEL-UNPAID", paid: false);
         await Checkout.CancelUnpaidAsync(cancel.Id);
@@ -747,7 +871,7 @@ internal sealed class DemoFixture
             delivered.Id,
             seller,
             "Buyer mở yêu cầu trả hàng/đánh giá; Seller xem tiền giữ",
-            "Delivered, cửa sổ return 2 giờ theo profile demo",
+            "Delivered, cửa sổ return 6 giờ theo profile demo",
             "buyer",
             true
         );
@@ -768,7 +892,7 @@ internal sealed class DemoFixture
             l2.Id,
             Sellers["l2"],
             "Seller cấp 2 xem lịch giữ tiền",
-            "Processing; hold snapshot 15 phút từ Delivered",
+            "Processing; hold snapshot 2 giờ từ Delivered",
             timed: true
         );
         var limit = await OrderAsync(Sellers["limit"], "MONTH-LIMIT", goods: 4975);
@@ -847,7 +971,7 @@ internal sealed class DemoFixture
             receive.OrderId!.Value,
             Sellers["l1"],
             "Seller xác nhận nhận hàng hợp lệ hoặc báo vấn đề",
-            "Return Delivered; chờ kiểm tra, receipt 2 giờ theo profile",
+            "Return Delivered; chờ kiểm tra, receipt 6 giờ theo profile",
             timed: true
         );
         var refunded = await ReturnAsync("RETURN-REFUNDED");
@@ -1054,6 +1178,7 @@ internal sealed class DemoFixture
                 MaxUsage = 100,
                 MaxUsagePerBuyer = 10,
                 Budget = 1000,
+                IsPublicCoupon = item.Item2.Length > 0,
             };
             if (item.Item1 == "Volume")
                 p.Tiers.Add(new PromotionTier { MinQuantity = 2, Percent = 10 });
@@ -1075,6 +1200,7 @@ internal sealed class DemoFixture
                 Budget = 1000,
                 MaxUsage = 100,
                 MaxUsagePerBuyer = 10,
+                IsPublicCoupon = true,
             }
         );
         await db.SaveChangesAsync();
@@ -1084,9 +1210,142 @@ internal sealed class DemoFixture
             seller.Id,
             seller,
             "Seller xem promotion; Buyer random giỏ và nhập DEMO10 hoặc SAN5 theo shop",
-            "Sale, volume/order, free shipping, coupon seller và coupon sàn; không có free returns chưa triển khai",
+            "Sale, volume/order, free shipping, coupon seller và coupon sàn; DEMO10/SAN5 hiện ở tab "
+                + "Ưu đãi của buyer; không có free returns chưa triển khai",
             "buyer"
         );
+    }
+
+    private async Task BestOfferCasesAsync()
+    {
+        var seller = Sellers["l1"];
+        var service = new BestOfferService(db, Finance, Clock, Config);
+        var products = await db
+            .Products.Where(x => x.SellerId == seller.Id)
+            .OrderBy(x => x.Id)
+            .ToListAsync();
+        var address = await db.Addresses.FirstAsync(x =>
+            x.UserId == Buyer.Id && x.IsDefault == true
+        );
+        Clock.Value = Anchor.AddMinutes(-20);
+        // Product 1 (100 USD): auto-decline below 50, auto-accept from 95.
+        await service.UpdateProductSettingsAsync(
+            seller.Id,
+            new(products[0].Id, true, 95, 50),
+            default
+        );
+        await service.UpdateProductSettingsAsync(
+            seller.Id,
+            new(products[1].Id, true, null, null),
+            default
+        );
+        await service.UpdateProductSettingsAsync(
+            seller.Id,
+            new(products[2].Id, true, null, null),
+            default
+        );
+
+        Task<BestOfferView> Offer(Product product, decimal amount, string code) =>
+            service.CreateAsync(
+                Buyer.Id,
+                new(product.Id, amount, address.Id, "PayLater", null, null, "demo-bo-" + code),
+                default
+            );
+
+        var accepted = await Offer(products[0], 85, "accepted");
+        accepted = await service.SellerAcceptAsync(
+            seller.Id,
+            accepted.Id,
+            new(Key: "demo-bo-accepted-seller"),
+            default
+        );
+        Case(
+            "BO-ACCEPTED",
+            "Order",
+            accepted.OrderId!.Value,
+            seller,
+            "Buyer mở Đơn hàng và thanh toán đơn tạo từ Best Offer (85 USD thay vì 100 USD)",
+            "Đơn AwaitingPayment theo giá đã chốt; còn 4/5 lượt trả giá cho sản phẩm này",
+            "buyer"
+        );
+        Case(
+            "BO-AUTO",
+            "Product",
+            products[0].Id,
+            seller,
+            "Buyer vào Trả giá, gửi 40 USD rồi 96 USD cho sản phẩm 1",
+            "Dưới 50 USD tự động bị từ chối; từ 95 USD tự động chấp nhận và tạo đơn",
+            "buyer"
+        );
+        var pendingSeller = await Offer(products[1], 100, "pending-seller");
+        Case(
+            "BO-PENDING-SELLER",
+            "Offer",
+            pendingSeller.Id,
+            seller,
+            "Seller vào Best Offer: chấp nhận (nhập mật khẩu), từ chối hoặc trả giá lại (100–120 USD)",
+            "Buyer đề nghị 100 USD cho sản phẩm 120 USD; chờ seller phản hồi trong 24 giờ"
+        );
+        var pendingBuyer = await Offer(products[2], 110, "pending-buyer");
+        await service.SellerCounterAsync(
+            seller.Id,
+            pendingBuyer.Id,
+            new(Amount: 130, Key: "demo-bo-pending-buyer-counter"),
+            default
+        );
+        Case(
+            "BO-PENDING-BUYER",
+            "Offer",
+            pendingBuyer.Id,
+            seller,
+            "Buyer vào Trả giá: chấp nhận 130 USD (nhập mật khẩu), từ chối hoặc trả giá lại",
+            "Seller đã counter 130 USD cho đề nghị 110 USD; chấp nhận thì tạo đơn chờ thanh toán",
+            "buyer"
+        );
+        Clock.Value = Anchor;
+    }
+
+    private async Task BuyNowCasesAsync()
+    {
+        var seller = Sellers["l1"];
+        foreach (var (item, label, stock, price) in new[]
+        {
+            (Catalog[1], "chỉ còn 1 cái", 1, 150m),
+            (Catalog[4], "trả ngay", 50, 80m),
+        })
+        {
+            var product = new Product
+            {
+                SellerId = seller.Id,
+                Title = $"[L1] Buy It Now - {item.Title} ({label})",
+                Description =
+                    $"{item.Description}. Bắt buộc thanh toán ngay (Immediate Payment).",
+                Images = item.Image,
+                Price = price,
+                WeightKg = 1.0m,
+                IsAuction = false,
+                ImmediatePaymentRequired = true,
+                IsListed = true,
+            };
+            db.Products.Add(product);
+            await db.SaveChangesAsync();
+            db.Inventories.Add(new Inventory { ProductId = product.Id, Quantity = stock });
+            await db.SaveChangesAsync();
+            Case(
+                stock == 1 ? "BUY-NOW-LAST-ONE" : "BUY-NOW",
+                "Product",
+                product.Id,
+                seller,
+                stock == 1
+                    ? "Hai buyer cùng mở /Buyer/Products và bấm Pay Now cho món cuối cùng"
+                    : "Buyer mở /Buyer/Products, chọn sản phẩm, xem báo giá rồi Pay Now bằng thẻ 4111…",
+                stock == 1
+                    ? "Chỉ một người được thu tiền và có đơn Paid; người còn lại được hủy giữ tiền"
+                    : "Authorize rồi Capture; đơn được tạo thẳng ở trạng thái Paid",
+                "buyer"
+            );
+        }
+        db.ChangeTracker.Clear();
     }
 
     private async Task DebtCasesAsync()
@@ -1094,17 +1353,18 @@ internal sealed class DemoFixture
         foreach (var code in new[] { "debt", "overdue", "writeoff", "recovered" })
         {
             var seller = Sellers[code];
-            Clock.Value = Anchor
-                .AddHours(
-                    code is "writeoff" or "recovered" ? -4
-                    : code == "overdue" ? -2
-                    : -1
-                )
-                .AddMinutes(10);
+            // Debt is due 6h after it starts and becomes write-off eligible after 12h:
+            // debt stays "not due" for ~5h, overdue stays unwritten for ~5h after import.
+            Clock.Value = Anchor.AddHours(
+                code is "writeoff" or "recovered" ? -13
+                : code == "overdue" ? -7
+                : -1
+            );
             var debtAt = Clock.Value;
-            Clock.Value = debtAt.AddHours(-2);
+            // Level 1 holds funds for 4h after delivery; release them before the payout.
+            Clock.Value = debtAt.AddHours(-6);
             var order = await OrderAsync(seller, "DEBT-SOURCE-" + code, goods: 50);
-            await HistoricalDeliveredAsync(order, debtAt.AddHours(-1));
+            await HistoricalDeliveredAsync(order, debtAt.AddHours(-5));
             Clock.Value = debtAt;
             await Finance.ReleaseDueFundsAsync();
             var account = await db.SellerAccounts.SingleAsync(x => x.SellerId == seller.Id);
@@ -1212,7 +1472,13 @@ internal sealed class DemoFixture
     {
         var text = new StringBuilder("# Dữ liệu trình diễn G4\n\n");
         text.AppendLine(
-            "Chạy G4_Demo.sql trong SSMS để tạo database mới G4_Demo. Script từ chối database đã tồn tại; không xóa hoặc sửa database hiện có."
+            "Chạy G4_Demo.sql trong SSMS để tạo database G4_Demo có đủ schema (baseline + mọi migration hiện có) và dữ liệu demo. "
+                + "Không cần chạy baseline, seed-data hay `dotnet ef database update`."
+        );
+        text.AppendLine(
+            "\nChạy lại file bất cứ lúc nào để có bộ dữ liệu sạch: với `@ReplaceExisting = 1` (mặc định) script **xóa G4_Demo cũ rồi tạo lại**. "
+                + "Script chỉ chấp nhận tên bắt đầu bằng G4_Demo nên không đụng tới CloneEbayDB. Đặt `@ReplaceExisting = 0` nếu muốn script dừng khi database đã tồn tại. "
+                + "Tắt API demo trước khi chạy lại SQL, chạy xong thì bật lại."
         );
         text.AppendLine(
             "\nMật khẩu chung mọi tài khoản: **G4@123456**. Toàn bộ tài khoản, giao dịch và định danh đều giả lập."
@@ -1222,7 +1488,8 @@ internal sealed class DemoFixture
             "Mở hai cửa sổ PowerShell tại repo, chạy helper kèm theo (không sửa cấu hình gốc):\n"
         );
         text.AppendLine(
-            "```powershell\n.\\database\\demo\\Run-Demo.ps1 -App Api -SqlServer localhost\n.\\database\\demo\\Run-Demo.ps1 -App Frontend\n```\n"
+            "```powershell\npowershell -ExecutionPolicy Bypass -File .\\database\\demo\\Run-Demo.ps1 -App Api -SqlServer localhost\n"
+                + "powershell -ExecutionPolicy Bypass -File .\\database\\demo\\Run-Demo.ps1 -App Frontend\n```\n"
         );
         text.AppendLine(
             "Mở http://localhost:5137. API demo ở http://localhost:5257. Helper trỏ đúng G4_Demo, dùng HMAC demo và Mail Capture; không gửi thư/call cổng tiền thật."
@@ -1246,10 +1513,20 @@ internal sealed class DemoFixture
             );
         text.AppendLine("\n## Lưu ý lúc trình diễn\n");
         text.AppendLine(
-            "- SQL dùng UTC lúc chạy để đặt lại mốc tương đối. Chạy SQL ngay trước buổi demo. Đơn chưa thanh toán vẫn có hạn 15 phút nên làm PAY-READY/PAY-FAILED trước; sau đó có thể tạo mới từ giỏ."
+            "- SQL dùng giờ UTC lúc chạy để đặt lại mọi mốc thời gian. Các trạng thái đã chuẩn bị giữ đúng khoảng **4 giờ** sau khi chạy SQL "
+                + "(nợ chưa đến hạn còn ~5 giờ, cửa sổ trả hàng/tranh chấp/đổi địa chỉ 6 giờ, đơn chờ thanh toán 6 giờ). Nên chạy SQL trong vòng 1–2 giờ trước buổi demo."
         );
         text.AppendLine(
-            "- Profile demo kéo cửa sổ return/receipt/dispute/đổi địa chỉ lên 2 giờ, hold cấp 1/2 thành 30/15 phút, nợ đến hạn 1 giờ/write-off 2 giờ. Đây là cấu hình demo riêng, không thay mặc định nghiệp vụ của repo."
+            "- Profile demo (Run-Demo.ps1): return/receipt/dispute/đổi địa chỉ 6 giờ, giữ tiền cấp 1/2 là 4/2 giờ, nợ đến hạn 6 giờ, write-off 12 giờ, "
+                + "giữ hàng chờ thanh toán 6 giờ, 2 điểm phạt Unpaid Item trong 30 ngày thì khóa. Đây là cấu hình demo riêng, không thay mặc định nghiệp vụ của repo."
+        );
+        text.AppendLine(
+            "- Đơn chưa thanh toán không tự hết hạn (Unpaid Item): quá hạn thì seller bấm Hủy đơn quá hạn thanh toán và buyer bị cộng điểm phạt. "
+                + "UNPAID-BAN làm buyer.other@demo.test bị khóa; không dùng tài khoản này cho phần khác sau khi đã chạy ca đó."
+        );
+        text.AppendLine(
+            "- Best Offer: sản phẩm 1/2/3 của seller.l1 nhận trả giá; sản phẩm 1 có ngưỡng tự từ chối dưới 50 USD và tự chấp nhận từ 95 USD. "
+                + "Mỗi buyer tối đa 5 lượt/sản phẩm. Buy It Now: hai sản phẩm Immediate Payment của seller.l1 ở /Buyer/Products. Klarna/PayPal cần sandbox riêng nên không có dữ liệu sẵn."
         );
         text.AppendLine(
             "- Tự xét level đặt 24 giờ để không nâng các seller up2/up3 trước khi bấm. Bấm Xét lại vẫn chạy service thật. Seller l2/l3 có 20/100 đơn và feedback/tracking hỗ trợ, không chỉ gán số level."
@@ -1273,7 +1550,8 @@ internal sealed class DemoFixture
             "- Quota đăng nhập là 10 lần/phút/IP. Khi đổi nhiều tài khoản liên tiếp có thể phải đợi 429; các tài khoản đã đăng nhập có quota riêng theo UserId."
         );
         text.AppendLine(
-            "- Dữ liệu sẽ thay đổi khi worker chạy/thao tác. SQL không tự reset database đã tồn tại. Muốn buổi demo mới, đổi biến @DatabaseName ở đầu SQL sang G4_Demo_Lan2 và truyền -DatabaseName tương ứng cho helper."
+            "- Dữ liệu sẽ thay đổi khi worker chạy/thao tác. Muốn quay lại trạng thái ban đầu chỉ cần chạy lại G4_Demo.sql (mặc định xóa và tạo lại G4_Demo). "
+                + "Muốn giữ bản cũ thì đổi @DatabaseName sang tên khác bắt đầu bằng G4_Demo và truyền -DatabaseName tương ứng cho helper."
         );
         text.AppendLine(
             "\n## Tra cứu từ SQL\n\n```sql\nUSE G4_Demo;\nSELECT * FROM demo.Scenario ORDER BY Code;\nSELECT * FROM demo.LoginAccount ORDER BY Email;\n```\n"

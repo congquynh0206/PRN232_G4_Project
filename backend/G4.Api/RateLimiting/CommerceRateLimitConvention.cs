@@ -12,7 +12,6 @@ public sealed class CommerceRateLimitConvention : IApplicationModelConvention
         foreach (var controller in application.Controllers)
             foreach (var action in controller.Actions)
             {
-                // Machine-to-machine carrier calls are not charged against a buyer/seller quota.
                 if (controller.ControllerName == "CarrierSimulator")
                     continue;
                 foreach (var selector in action.Selectors)
@@ -45,7 +44,6 @@ public sealed class CommerceRateLimitConvention : IApplicationModelConvention
             || controller == "ImmediateCheckout"
             || controller == "Cart" && action is "Checkout" or "BuyItNow"
             || controller == "Checkout" && action == "CreateOrder"
-            // An accepted offer creates an order and, with Auto-Pay, charges the card.
             || controller == "BestOffers" && action is "Create" or "SellerAccept" or "BuyerAccept"
         )
             return CommerceRateLimiting.Payment;

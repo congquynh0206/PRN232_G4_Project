@@ -18,7 +18,6 @@ public sealed class CommerceChangeWorker(
             {
                 await using var scope = scopes.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                // A separate context sees only committed business transactions.
                 var changes = await db
                     .CommerceChanges.Where(x => x.DispatchedAt == null)
                     .OrderBy(x => x.Id)
@@ -48,7 +47,6 @@ public sealed class CommerceChangeWorker(
                         topics.Add(change.Topic);
                     }
                 }
-                // Commit the inbox before publishing; a reconnect can always load the saved state.
                 if (changes.Count > 0)
                     await db.SaveChangesAsync(stoppingToken);
                 foreach (var (group, topics) in deliveries)
@@ -137,7 +135,7 @@ public sealed class CommerceChangeWorker(
         if (c.Topic is "finance" or "levels" or "notifications")
             groups.Add("role:admin");
         if (c.Topic == "shipments")
-            groups.Add("role:shipper"); // Invalidation only, no order identifiers or contents.
+            groups.Add("role:shipper"); 
         return groups;
     }
 }

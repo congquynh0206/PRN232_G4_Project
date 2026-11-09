@@ -1,6 +1,6 @@
 (() => {
-  const { $, api, esc, money, date, message } = G4;
-  const state = { addresses: [] };
+  const { $, api, esc, money, date, message, productThumbnail } = G4;
+  const state = { addresses: [], catalog: [], offers: [], filter: 'all' };
   // One idempotency key per click/submit, kept until it succeeds so a retry reuses it.
   const pendingKeys = new WeakMap();
   const keyFor = (element) => {
@@ -9,19 +9,41 @@
   };
   const active = (offer) => ['PendingSeller', 'PendingBuyer'].includes(offer.status);
   const payLater = (offer) => offer.paymentMethod === 'PayLater';
-  const cents = (value) => (Math.round(Number(value) * 100) / 100).toFixed(2);
-  const statusName = (offer) =>
-    ({
-      PendingSeller: 'Chờ người bán',
-      PendingBuyer: 'Chờ người mua',
-      Accepted: payLater(offer)
-        ? 'Đã chấp nhận, đơn chờ thanh toán'
-        : 'Đã chấp nhận, đã thanh toán',
-      Declined: 'Đã từ chối',
-      Expired: 'Đã hết hạn',
-    })[offer.status] || offer.status;
-  const paymentName = (offer) =>
-    payLater(offer) ? 'Thanh toán sau (giữ hàng chờ trả)' : 'Auto-Pay bằng thẻ thử';
+  const round2 = (value) => Math.round(Number(value) * 100) / 100;
+  const cents = (value) => round2(value).toFixed(2);
+  const myTurn = (offer) =>
+    (offer.status === 'PendingSeller' && offer.viewerRole === 'seller') ||
+    (offer.status === 'PendingBuyer' && offer.viewerRole === 'buyer');
+  // "action" = the viewer must answer, "waiting" = the other side must answer.
+  const group = (offer) => (!active(offer) ? 'closed' : myTurn(offer) ? 'action' : 'waiting');
+  const otherRole = (offer) => (offer.viewerRole === 'buyer' ? 'seller' : 'buyer');
+  const partyName = (role, viewerRole) =>
+    role === viewerRole ? 'Bạn' : role === 'seller' ? 'Người bán' : 'Người mua';
+  const percentOff = (amount, listPrice) =>
+    listPrice > 0 ? Math.round((1 - amount / listPrice) * 1000) / 10 : 0;
+  const savingText = (amount, listPrice) => {
+    const saved = round2(listPrice - amount);
+    return saved > 0 ? `thấp hơn ${money(saved)} (${percentOff(amount, listPrice)}%)` : '';
+  };
+
+  const statusBadge = (offer) => {
+    const kind = group(offer);
+    if (kind === 'action') return { label: 'Đến lượt bạn', tone: 'action' };
+    if (kind === 'waiting')
+      return {
+        label: offer.viewerRole === 'buyer' ? 'Chờ người bán' : 'Chờ người mua',
+        tone: 'waiting',
+      };
+    if (offer.status === 'Accepted')
+      return {
+        label: payLater(offer) ? 'Đã chốt · chờ thanh toán' : 'Đã chốt · đã thanh toán',
+        tone: 'success',
+      };
+    return {
+      label: { Declined: 'Đã từ chối', Expired: 'Đã hết hạn' }[offer.status] || offer.status,
+      tone: 'muted',
+    };
+  };
   const cardFields = (prefix) => `
     <label>${prefix}
       <select name="cardProfile">
@@ -30,6 +52,23 @@
       </select>
     </label>
     <label>Hạn thẻ<input name="cardExpiry" value="12/30" maxlength="5" /></label>`;
+
+  function remaining(expiresAt) {
+    const minutes = Math.floor((new Date(expiresAt) - Date.now()) / 60000);
+    if (minutes < 1) return null;
+    const hours = Math.floor(minutes / 60);
+    if (!hours) return `${minutes} phút`;
+    return minutes % 60 ? `${hours} giờ ${minutes % 60} phút` : `${hours} giờ`;
+  }
+
+  function deadlineText(element) {
+    const left = remaining(element.dataset.offerExpires);
+    if (!left) return 'Đã quá hạn phản hồi, hệ thống sẽ đóng phiên.';
+    const who = element.dataset.offerWho;
+    return who === 'Bạn'
+      ? `Bạn cần phản hồi trong ${left}.`
+      : `${who} có ${left} để phản hồi.`;
+  }
 
   // Each list loads on its own: one failed request (rate limit, API restart, network) shows
   // its reason in that list instead of leaving every list stuck on "Đang tải…".
@@ -59,9 +98,40 @@
     if (errors.length) message(errors[0].message || 'Chưa tải được dữ liệu trả giá.');
   }
 
+  // Realtime refreshes re-render the lists; keep open forms and typed amounts.
+  function keepDrafts(root) {
+    const drafts = [...root.querySelectorAll('[data-keep]')].map((element) => [
+      element.id,
+      element.tagName === 'DETAILS' ? element.open : element.value,
+    ]);
+    return () =>
+      drafts.forEach(([id, value]) => {
+        const element = document.getElementById(id);
+        if (!element) return;
+        if (element.tagName === 'DETAILS') element.open = value;
+        else if (value !== '') {
+          element.value = value;
+          element.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      });
+  }
+
+  function sortOffers(offers) {
+    const rank = { action: 0, waiting: 1, closed: 2 };
+    const lastAt = (offer) => new Date(offer.turns?.at(-1)?.createdAt || 0).getTime();
+    return [...offers].sort(
+      (a, b) =>
+        rank[group(a)] - rank[group(b)] ||
+        (active(a)
+          ? new Date(a.expiresAt) - new Date(b.expiresAt)
+          : lastAt(b) - lastAt(a)) ||
+        b.id - a.id,
+    );
+  }
+
   async function buyerLoad() {
     const catalog = $('offer-catalog');
-    const offers = $('buyer-offer-list');
+    const offers = $('buyer-best-offer-list');
     if (!catalog || !offers) return;
     try {
       const addressBook = await api('addresses');
@@ -71,30 +141,38 @@
     } catch {
       state.addresses = [];
     }
+    const restore = keepDrafts($('best-offers'));
+    // Both requests settle before either list renders, so each list can use the other's data.
     await loadLists([
       [
+        offers,
+        () => api('best-offers/buyer').then((result) => (state.offers = result)),
+        (result) =>
+          result.length
+            ? sortOffers(result)
+                .map((offer) => offerCard(offer))
+                .join('') + '<p class="empty-state" data-offer-filter-empty hidden></p>'
+            : '<p class="empty-state">Bạn chưa có phiên trả giá nào. Chọn một sản phẩm bên ' +
+              'dưới và bấm “Trả giá” để bắt đầu.</p>',
+      ],
+      [
         catalog,
-        () => api('best-offers/catalog'),
+        () => api('best-offers/catalog').then((result) => (state.catalog = result)),
         (products) =>
           products.length
             ? products.map(productCard).join('')
             : '<p class="empty-state">Chưa có sản phẩm bật trả giá.</p>',
       ],
-      [
-        offers,
-        () => api('best-offers/buyer'),
-        (result) =>
-          result.length
-            ? result.map((offer) => offerCard(offer, 'buyer')).join('')
-            : '<p class="empty-state">Bạn chưa có phiên trả giá nào.</p>',
-      ],
     ]);
+    restore();
+    renderFilters();
   }
 
   async function sellerLoad() {
     const products = $('seller-offer-products');
     const offers = $('seller-offer-list');
     if (!products || !offers) return;
+    const restore = keepDrafts($('best-offers'));
     await loadLists([
       [
         products,
@@ -109,13 +187,96 @@
         () => api('best-offers/seller'),
         (result) =>
           result.length
-            ? result.map((offer) => offerCard(offer, 'seller')).join('')
+            ? sortOffers(result)
+                .map((offer) => offerCard(offer))
+                .join('')
             : '<p class="empty-state">Chưa có đề nghị trả giá.</p>',
       ],
     ]);
+    restore();
+  }
+
+  const filters = [
+    ['all', 'Tất cả'],
+    ['action', 'Cần bạn phản hồi'],
+    ['waiting', 'Chờ người bán'],
+    ['closed', 'Đã kết thúc'],
+  ];
+
+  function renderFilters() {
+    const bar = $('buyer-offer-filters');
+    if (!bar) return;
+    const counts = { all: state.offers.length, action: 0, waiting: 0, closed: 0 };
+    state.offers.forEach((offer) => (counts[group(offer)] += 1));
+    bar.hidden = !state.offers.length;
+    bar.innerHTML = filters
+      .map(
+        ([key, label]) =>
+          `<button type="button" data-offer-filter="${key}"
+            aria-pressed="${state.filter === key}"
+            class="${key === 'action' && counts.action ? 'has-attention' : ''}">
+            ${label}<span class="offer-filter-count">${counts[key]}</span>
+          </button>`,
+      )
+      .join('');
+    applyFilter();
+  }
+
+  function applyFilter() {
+    const list = $('buyer-best-offer-list');
+    if (!list) return;
+    let shown = 0;
+    list.querySelectorAll('[data-offer-group]').forEach((card) => {
+      card.hidden = state.filter !== 'all' && card.dataset.offerGroup !== state.filter;
+      if (!card.hidden) shown += 1;
+    });
+    const empty = list.querySelector('[data-offer-filter-empty]');
+    if (empty) {
+      empty.hidden = shown > 0;
+      empty.textContent = 'Không có phiên nào trong mục này.';
+    }
   }
 
   function productCard(product) {
+    const listPrice = Number(product.listPrice);
+    const openOffer = state.offers.find(
+      (offer) => offer.productId === product.productId && active(offer),
+    );
+    const exhausted = product.buyerOffersUsed >= product.buyerOfferLimit;
+    const left = product.buyerOfferLimit - product.buyerOffersUsed;
+    let body;
+    if (openOffer) {
+      body = `<div class="offer-note">
+        <span>Bạn đang thương lượng sản phẩm này
+          (${esc(statusBadge(openOffer).label.toLowerCase())}).</span>
+        <button type="button" data-offer-jump="${openOffer.id}">Xem phiên</button>
+      </div>`;
+    } else if (exhausted) {
+      body = '<div class="offer-note">Bạn đã dùng hết lượt trả giá cho sản phẩm này.</div>';
+    } else if (!state.addresses.length) {
+      body = `<div class="offer-note">
+        <span>Thêm địa chỉ giao hàng trước khi trả giá.</span>
+        <button type="button" data-offer-addresses>Thêm địa chỉ</button>
+      </div>`;
+    } else {
+      body = composeForm(product, listPrice);
+    }
+    return `<article class="offer-card offer-product">
+      <div class="offer-product-main">
+        ${productThumbnail(product.imageUrl, product.title, 'offer-thumb')}
+        <div class="offer-product-info">
+          <strong class="offer-title">${esc(product.title)}</strong>
+          <span class="offer-product-price">${money(listPrice)}</span>
+          <small>Còn ${product.available} sản phẩm ·
+            Còn ${Math.max(left, 0)}/${product.buyerOfferLimit} lượt trả giá</small>
+        </div>
+      </div>
+      ${body}
+    </article>`;
+  }
+
+  function composeForm(product, listPrice) {
+    const id = product.productId;
     const options = state.addresses
       .map(
         (address) =>
@@ -123,43 +284,50 @@
           `${esc(address.fullName)} — ${esc(address.city)}</option>`,
       )
       .join('');
-    const exhausted = product.buyerOffersUsed >= product.buyerOfferLimit;
-    const canSend = state.addresses.length && !exhausted;
-    return `<article class="offer-card">
-      <div class="offer-card-head">
-        <strong>${esc(product.title)}</strong><span>Giá ${money(product.listPrice)}</span>
-      </div>
-      <p>Còn ${product.available} sản phẩm · Đề xuất phải thấp hơn giá niêm yết.</p>
-      <p>Đã dùng ${product.buyerOffersUsed}/${product.buyerOfferLimit} lượt
-        cho sản phẩm này.</p>
-      <form data-offer-create="${product.productId}" class="offer-form">
-        <label>Giá đề nghị
-          <input name="amount" type="number" min="0.01" max="${cents(product.listPrice - 0.01)}"
-            step="0.01" required ${exhausted ? 'disabled' : ''} />
+    const quick = [5, 10, 15, 20]
+      .map((percent) => cents(listPrice * (1 - percent / 100)))
+      .filter((amount) => Number(amount) > 0)
+      .map(
+        (amount, index) =>
+          `<button type="button" data-offer-fill="${amount}">
+            -${[5, 10, 15, 20][index]}% · ${money(amount)}</button>`,
+      )
+      .join('');
+    return `<details class="offer-compose" id="offer-compose-${id}" data-keep>
+      <summary>
+        <span class="when-closed">Trả giá</span><span class="when-open">Thu gọn</span>
+      </summary>
+      <form data-offer-create="${id}" class="offer-form">
+        <label>Giá bạn đề nghị (USD)
+          <input id="offer-amount-${id}" data-keep name="amount" type="number" min="0.01"
+            max="${cents(listPrice - 0.01)}" step="0.01" inputmode="decimal" required
+            data-list-price="${listPrice}" placeholder="Thấp hơn ${cents(listPrice)}" />
         </label>
+        <p class="offer-preview" data-offer-preview>
+          Nhập giá thấp hơn giá niêm yết ${money(listPrice)} hoặc chọn nhanh:</p>
+        <div class="offer-quick" aria-label="Chọn nhanh mức giảm">${quick}</div>
         <label>Địa chỉ giao hàng
-          <select name="addressId" required>
-            ${options || '<option value="">Hãy thêm địa chỉ trước</option>'}
-          </select>
+          <select name="addressId" required>${options}</select>
         </label>
         <fieldset class="offer-payment">
-          <legend>Khi được chấp nhận</legend>
+          <legend>Khi người bán chấp nhận</legend>
           <label class="offer-check">
             <input type="radio" name="paymentMethod" value="PayLater" checked />
-            Thanh toán sau: tạo đơn chờ thanh toán, trả trong tab Đơn hàng trước hạn
+            <span><strong>Thanh toán sau</strong>
+              <small>Tạo đơn chờ thanh toán, bạn trả trong tab Đơn hàng trước hạn.</small></span>
           </label>
           <label class="offer-check">
             <input type="radio" name="paymentMethod" value="Card" />
-            Auto-Pay: thu tiền thẻ thử ngay khi được chấp nhận
+            <span><strong>Auto-Pay</strong>
+              <small>Thu tiền thẻ thử ngay khi đề nghị được chấp nhận.</small></span>
           </label>
         </fieldset>
-        <div data-card-fields hidden>${cardFields('Thẻ thử đã lưu')}</div>
-        <button class="primary" ${canSend ? '' : 'disabled'}>Gửi trả giá</button>
+        <div data-card-fields hidden class="offer-card-fields">
+          ${cardFields('Thẻ thử đã lưu')}
+        </div>
+        <button class="primary">Gửi đề nghị</button>
       </form>
-      ${exhausted
-        ? '<small>Bạn đã dùng hết lượt trả giá cho sản phẩm này.</small>'
-        : ''}
-    </article>`;
+    </details>`;
   }
 
   function settingsCard(product) {
@@ -185,89 +353,278 @@
     </article>`;
   }
 
+  const lastProposal = (offer, role) =>
+    (offer.turns || [])
+      .filter((turn) => turn.actorRole === role && ['Offer', 'Counter'].includes(turn.action))
+      .at(-1)?.amount;
+
   // Valid counter range: seller between the buyer's offer and the list price; buyer between
   // their previous offer and the seller's counter. The server enforces the same rule.
   function counterRange(offer) {
     if (offer.status === 'PendingSeller')
       return { min: offer.currentAmount + 0.01, max: offer.listPrice - 0.01 };
-    const buyerTurns = (offer.turns || []).filter(
-      (turn) => turn.actorRole === 'buyer' && ['Offer', 'Counter'].includes(turn.action),
-    );
-    const previous = buyerTurns.length ? buyerTurns.at(-1).amount : 0;
+    const previous = lastProposal(offer, 'buyer') ?? 0;
     return { min: previous + 0.01, max: offer.currentAmount - 0.01 };
   }
 
-  function counterForm(offer, role) {
+  function counterForm(offer) {
+    const role = offer.viewerRole;
     const range = counterRange(offer);
     if (range.min > range.max)
-      return '<small>Không còn khoảng giá để trả giá lại; hãy chấp nhận hoặc từ chối.</small>';
-    return `<form data-offer-counter="${role}" data-id="${offer.id}">
-      <input name="amount" type="number" step="0.01" min="${cents(range.min)}"
-        max="${cents(range.max)}" placeholder="Giá ${role === 'seller' ? 'phản hồi' : 'trả lại'}"
-        required />
-      <button>Trả giá lại</button>
-      <small>Từ ${money(cents(range.min))} đến ${money(cents(range.max))}</small>
+      return '<small class="offer-hint">Không còn khoảng giá để trả giá lại; hãy chấp nhận ' +
+        'hoặc từ chối.</small>';
+    const middle = cents(Math.min(range.max, Math.max(range.min, (range.min + range.max) / 2)));
+    return `<form class="offer-counter" data-offer-counter="${role}" data-id="${offer.id}">
+      <label for="offer-counter-${offer.id}">Hoặc trả giá lại</label>
+      <div class="offer-counter-row">
+        <input id="offer-counter-${offer.id}" data-keep name="amount" type="number" step="0.01"
+          min="${cents(range.min)}" max="${cents(range.max)}" inputmode="decimal"
+          placeholder="${money(cents(range.min))} – ${money(cents(range.max))}" required />
+        <button>Gửi giá</button>
+      </div>
+      <div class="offer-quick">
+        <button type="button" data-offer-fill="${middle}">Chia đôi · ${money(middle)}</button>
+      </div>
+      <small class="offer-hint">Trong khoảng ${money(cents(range.min))} –
+        ${money(cents(range.max))}.</small>
     </form>`;
   }
 
-  function offerCard(offer, role) {
-    const turns = (offer.turns || [])
-      .map(
-        (turn) =>
-          `<li>${esc(turn.actorRole)} · ${esc(turn.action)} · ${money(turn.amount)}` +
-          `${turn.result ? ` · ${esc(turn.result)}` : ''}</li>`,
-      )
-      .join('');
-    const acceptLabel = payLater(offer)
-      ? 'Chấp nhận (tạo đơn chờ thanh toán)'
-      : role === 'seller'
-        ? 'Chấp nhận và thu tiền'
-        : 'Chấp nhận và thanh toán';
-    let actions = '';
-    if (active(offer) && offer.viewerRole === 'seller' && offer.status === 'PendingSeller') {
-      actions = `<div class="offer-actions">
-        <button data-offer-action="seller/accept" data-id="${offer.id}">${acceptLabel}</button>
-        <button data-offer-action="seller/decline" data-id="${offer.id}">Từ chối</button>
-        ${counterForm(offer, 'seller')}
+  // Bar scaled from 0 to the list price with a marker for each side's latest price.
+  function priceMeter(offer, buyerPrice, sellerPrice) {
+    const listPrice = Number(offer.listPrice);
+    if (!(listPrice > 0) || buyerPrice == null) return '';
+    const at = (value) => Math.min(100, Math.max(0, (value / listPrice) * 100)).toFixed(1);
+    const gap =
+      sellerPrice != null && sellerPrice > buyerPrice
+        ? `<span class="offer-meter-gap"
+            style="left:${at(buyerPrice)}%;width:${(at(sellerPrice) - at(buyerPrice)).toFixed(1)}%">
+          </span>`
+        : '';
+    const seller =
+      sellerPrice != null
+        ? `<span class="offer-meter-mark is-seller" style="left:${at(sellerPrice)}%"></span>`
+        : '';
+    return `<div class="offer-meter" aria-hidden="true">
+      <span class="offer-meter-fill" style="width:${at(buyerPrice)}%"></span>${gap}
+      <span class="offer-meter-mark is-buyer" style="left:${at(buyerPrice)}%"></span>${seller}
+    </div>`;
+  }
+
+  function priceCompare(offer) {
+    const viewer = offer.viewerRole;
+    const listPrice = Number(offer.listPrice);
+    const buyerPrice = lastProposal(offer, 'buyer');
+    const sellerPrice = lastProposal(offer, 'seller');
+    const cell = (tone, label, value, note) => `<div class="offer-price ${tone}">
+        <span>${label}</span>
+        <strong>${value == null ? '—' : money(value)}</strong>
+        <small>${note}</small>
       </div>`;
-    } else if (active(offer) && offer.viewerRole === 'buyer' && offer.status === 'PendingBuyer') {
-      const counter =
-        offer.buyerOfferCount < offer.buyerOfferLimit
-          ? counterForm(offer, 'buyer')
-          : '<small>Đã dùng hết lượt trả giá cho sản phẩm này.</small>';
-      actions = `<div class="offer-actions">
-        <button data-offer-action="buyer/accept" data-id="${offer.id}">${acceptLabel}</button>
-        <button data-offer-action="buyer/decline" data-id="${offer.id}">Từ chối</button>
-        ${counter}
-      </div>`;
+    const off = (value) => (value == null ? '' : `Giảm ${percentOff(value, listPrice)}%`);
+    let summary = '';
+    if (offer.status === 'Accepted') {
+      const saved = savingText(offer.currentAmount, listPrice);
+      summary =
+        `Giá chốt <strong>${money(offer.currentAmount)}</strong>` +
+        `${saved ? `, ${saved} so với giá niêm yết` : ''}.`;
+    } else if (active(offer) && buyerPrice != null && sellerPrice != null) {
+      summary = `Hai bên còn chênh <strong>${money(round2(sellerPrice - buyerPrice))}</strong>.`;
+    } else if (group(offer) === 'waiting' && viewer === 'buyer' && buyerPrice != null) {
+      summary = `Đang chờ người bán phản hồi mức ${money(buyerPrice)}.`;
     }
+    return `<div class="offer-compare">
+        ${cell('is-list', 'Giá niêm yết', listPrice, 'Giá gốc')}
+        ${cell(
+          'is-buyer',
+          viewer === 'buyer' ? 'Bạn đề nghị' : 'Người mua đề nghị',
+          buyerPrice,
+          off(buyerPrice),
+        )}
+        ${
+          offer.status === 'Accepted'
+            ? cell('is-final', 'Giá chốt', offer.currentAmount, off(offer.currentAmount))
+            : cell(
+                'is-seller',
+                viewer === 'seller' ? 'Bạn đưa ra' : 'Người bán đưa ra',
+                sellerPrice,
+                sellerPrice == null ? 'Chưa trả giá' : off(sellerPrice),
+              )
+        }
+      </div>
+      ${priceMeter(offer, buyerPrice, sellerPrice)}
+      ${summary ? `<p class="offer-summary">${summary}</p>` : ''}`;
+  }
+
+  const verbs = {
+    Offer: 'gửi đề nghị',
+    Counter: 'trả giá lại',
+    Accept: 'chấp nhận',
+    Decline: 'từ chối',
+  };
+  const results = {
+    AutoDeclined: ['Tự động từ chối (dưới ngưỡng của người bán)', 'muted'],
+    PaymentFailed: ['Thanh toán thẻ thử thất bại', 'danger'],
+    AcceptedAndPaid: ['Đã chốt và thanh toán', 'success'],
+    AcceptedUnpaid: ['Đã chốt, đơn chờ thanh toán', 'success'],
+  };
+
+  function timeline(offer) {
+    const items = (offer.turns || []).map((turn) => {
+      const autoAccepted =
+        ['Offer', 'Counter'].includes(turn.action) && turn.result?.startsWith('Accepted');
+      const [resultText, tone] = results[turn.result] || [turn.result, 'muted'];
+      const tag = turn.result
+        ? `<span class="offer-tag is-${tone}">${esc(
+            autoAccepted ? `Người bán tự động chấp nhận · ${resultText}` : resultText,
+          )}</span>`
+        : '';
+      return `<li class="is-${esc(turn.actorRole)}">
+        <div><strong>${partyName(turn.actorRole, offer.viewerRole)}</strong>
+          ${verbs[turn.action] || esc(turn.action)} <b>${money(turn.amount)}</b>${tag}</div>
+        <time datetime="${esc(turn.createdAt)}">${date(turn.createdAt)}</time>
+      </li>`;
+    });
+    if (offer.status === 'Expired')
+      items.push(`<li class="is-system"><div>Phiên hết hạn vì không có phản hồi.</div>
+        <time datetime="${esc(offer.expiresAt)}">${date(offer.expiresAt)}</time></li>`);
+    return items.length
+      ? `<details class="offer-history" ${items.length <= 4 ? 'open' : ''}>
+          <summary>Lịch sử thương lượng (${items.length})</summary>
+          <ol class="offer-timeline">${items.join('')}</ol>
+        </details>`
+      : '';
+  }
+
+  function decideBlock(offer) {
+    const role = offer.viewerRole;
+    const other = partyName(otherRole(offer), role);
+    const saved = savingText(offer.currentAmount, offer.listPrice);
+    const savedText = saved ? `, ${saved} so với giá niêm yết` : '';
+    let hint;
+    if (payLater(offer))
+      hint =
+        role === 'buyer'
+          ? 'Chấp nhận sẽ tạo đơn chờ thanh toán; bạn trả trong tab Đơn hàng trước hạn.'
+          : 'Chấp nhận sẽ tạo đơn chờ người mua thanh toán.';
+    else
+      hint =
+        role === 'buyer'
+          ? 'Chấp nhận sẽ thu tiền thẻ thử ngay và tạo đơn đã thanh toán.'
+          : 'Chấp nhận sẽ thu tiền thẻ thử của người mua ngay.';
+    let counter = counterForm(offer);
+    if (role === 'buyer' && offer.buyerOfferCount >= offer.buyerOfferLimit)
+      counter = '<small class="offer-hint">Bạn đã dùng hết lượt trả giá cho sản phẩm này.</small>';
+    return `<div class="offer-decide">
+      <p class="offer-decide-lead">${other} đang đề nghị
+        <strong>${money(offer.currentAmount)}</strong>${savedText}.
+      </p>
+      <div class="offer-decide-buttons">
+        <button class="primary" data-offer-action="${role}/accept" data-id="${offer.id}">
+          Chấp nhận ${money(offer.currentAmount)}</button>
+        <button class="offer-decline" data-offer-action="${role}/decline" data-id="${offer.id}">
+          Từ chối</button>
+      </div>
+      <small class="offer-hint">${hint} Cần nhập lại mật khẩu khi chấp nhận.</small>
+      ${counter}
+    </div>`;
+  }
+
+  function offerCard(offer) {
+    const badge = statusBadge(offer);
+    const kind = group(offer);
+    const image = state.catalog.find((item) => item.productId === offer.productId)?.imageUrl;
+    const meta = [
+      `Phiên #${offer.id}`,
+      `Khi chốt: ${payLater(offer) ? 'thanh toán sau' : 'Auto-Pay'}`,
+    ];
+    if (offer.viewerRole === 'buyer')
+      meta.push(
+        `Còn ${Math.max(offer.buyerOfferLimit - offer.buyerOfferCount, 0)}/` +
+          `${offer.buyerOfferLimit} lượt trả giá`,
+      );
+    let deadline = '';
+    if (active(offer)) {
+      const turnRole = offer.status === 'PendingSeller' ? 'seller' : 'buyer';
+      const who = partyName(turnRole, offer.viewerRole);
+      deadline = `<p class="offer-deadline" data-offer-expires="${esc(offer.expiresAt)}"
+          data-offer-who="${who}">
+        <span data-offer-countdown></span>
+        <small>Hạn: ${date(offer.expiresAt)}</small></p>`;
+    }
+    let payment = '';
     if (active(offer) && offer.viewerRole === 'buyer' && !payLater(offer)) {
-      actions += `<form data-offer-payment="${offer.id}" class="offer-form">
-        ${cardFields('Thẻ thử dùng khi chốt đơn')}
-        <button>Cập nhật thẻ thử</button>
-      </form>`;
+      payment = `<details class="offer-more">
+        <summary>Đổi thẻ thử dùng khi chốt đơn</summary>
+        <form data-offer-payment="${offer.id}" class="offer-form">
+          ${cardFields('Thẻ thử dùng khi chốt đơn')}
+          <button>Cập nhật thẻ thử</button>
+        </form>
+      </details>`;
     }
     let orderNote = '';
     if (offer.orderId)
-      orderNote = payLater(offer)
-        ? `<p>Đơn hàng #${offer.orderId} đang chờ thanh toán. Người mua thanh toán trong tab
-            Đơn hàng trước hạn; quá hạn người bán có thể hủy và người mua bị cộng điểm phạt.</p>`
-        : `<p>Đơn hàng #${offer.orderId} đã được tạo và thanh toán.</p>`;
-    return `<article class="offer-card">
-      <div class="offer-card-head">
-        <strong>${esc(offer.productTitle)}</strong><span>${statusName(offer)}</span>
-      </div>
-      <p>Đề nghị hiện tại: <strong>${money(offer.currentAmount)}</strong>
-        · Hết hạn ${date(offer.expiresAt)}</p>
-      <p>Thanh toán: ${paymentName(offer)}</p>
-      ${role === 'buyer'
-        ? `<p>Lượt trả giá đã dùng cho sản phẩm:
-            ${offer.buyerOfferCount}/${offer.buyerOfferLimit}</p>`
-        : ''}
-      <ul class="offer-turns">${turns}</ul>${actions}
+      orderNote = `<div class="offer-note is-success">
+        <span>${
+          payLater(offer)
+            ? offer.viewerRole === 'buyer'
+              ? `Đơn hàng #${offer.orderId} đang chờ thanh toán. Hãy thanh toán trước hạn;
+                quá hạn người bán có thể hủy đơn và bạn bị cộng điểm phạt.`
+              : `Đơn hàng #${offer.orderId} đang chờ người mua thanh toán. Quá hạn bạn có
+                thể hủy đơn và người mua bị cộng điểm phạt.`
+            : `Đơn hàng #${offer.orderId} đã được tạo và thanh toán.`
+        }</span>
+        <button type="button" data-nav-target="orders">Mở Đơn hàng</button>
+      </div>`;
+    return `<article class="offer-card offer-session is-${kind}" data-offer-id="${offer.id}"
+        data-offer-group="${kind}">
+      <header class="offer-session-head">
+        ${productThumbnail(image, offer.productTitle, 'offer-thumb')}
+        <div class="offer-session-title">
+          <strong class="offer-title">${esc(offer.productTitle)}</strong>
+          <small>${meta.map(esc).join(' · ')}</small>
+        </div>
+        <span class="offer-status is-${badge.tone}">${esc(badge.label)}</span>
+      </header>
+      ${priceCompare(offer)}
+      ${deadline}
+      ${kind === 'action' ? decideBlock(offer) : ''}
       ${orderNote}
+      ${payment}
+      ${timeline(offer)}
     </article>`;
   }
+
+  function updateCountdowns() {
+    document.querySelectorAll('[data-offer-expires]').forEach((element) => {
+      const text = element.querySelector('[data-offer-countdown]');
+      if (text) text.textContent = deadlineText(element);
+    });
+  }
+
+  function updatePreview(input) {
+    const preview = input.closest('form')?.querySelector('[data-offer-preview]');
+    if (!preview) return;
+    const listPrice = Number(input.dataset.listPrice);
+    const amount = Number(input.value);
+    preview.classList.remove('is-error', 'is-good');
+    if (!input.value) {
+      preview.textContent =
+        `Nhập giá thấp hơn giá niêm yết ${money(listPrice)} hoặc chọn nhanh:`;
+    } else if (!(amount > 0) || amount >= listPrice) {
+      preview.textContent = `Giá đề nghị phải lớn hơn 0 và thấp hơn ${money(listPrice)}.`;
+      preview.classList.add('is-error');
+    } else {
+      preview.textContent =
+        `Bạn đề nghị ${money(amount)}, ${savingText(amount, listPrice)} so với giá niêm yết.`;
+      preview.classList.add('is-good');
+    }
+  }
+
+  document.addEventListener('input', (event) => {
+    if (event.target.matches?.('[data-offer-create] input[name="amount"]'))
+      updatePreview(event.target);
+  });
 
   document.addEventListener('change', (event) => {
     const radio = event.target.closest('[data-offer-create] input[name="paymentMethod"]');
@@ -285,6 +642,8 @@
     event.preventDefault();
     const form = event.target;
     const values = new FormData(form);
+    const submit = form.querySelector('button:not([type="button"])');
+    if (submit) submit.disabled = true;
     try {
       if (create) {
         const autoPay = values.get('paymentMethod') === 'Card';
@@ -298,6 +657,8 @@
           key: keyFor(form),
         });
         pendingKeys.delete(form);
+        form.reset();
+        form.closest('details').open = false;
         message('Đã gửi đề nghị trả giá.', true);
         await buyerLoad();
       } else if (settings) {
@@ -327,15 +688,57 @@
           key: keyFor(form),
         });
         pendingKeys.delete(form);
+        form.reset();
         message('Đã gửi giá phản hồi.', true);
         await (counter.dataset.offerCounter === 'buyer' ? buyerLoad() : sellerLoad());
       }
     } catch (error) {
       message(error.message || 'Không thể hoàn tất thao tác.');
+    } finally {
+      if (submit?.isConnected) submit.disabled = false;
     }
   });
 
+  function jumpTo(offerId) {
+    let card = document.querySelector(`[data-offer-id="${CSS.escape(offerId)}"]`);
+    if (card?.hidden) {
+      state.filter = 'all';
+      renderFilters();
+      card = document.querySelector(`[data-offer-id="${CSS.escape(offerId)}"]`);
+    }
+    if (!card) return;
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    card.classList.remove('is-highlight');
+    void card.offsetWidth;
+    card.classList.add('is-highlight');
+  }
+
   document.addEventListener('click', async (event) => {
+    const fill = event.target.closest('[data-offer-fill]');
+    if (fill) {
+      const input = fill.closest('form')?.querySelector('input[name="amount"]');
+      if (input) {
+        input.value = fill.dataset.offerFill;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.focus();
+      }
+      return;
+    }
+    const filter = event.target.closest('[data-offer-filter]');
+    if (filter) {
+      state.filter = filter.dataset.offerFilter;
+      renderFilters();
+      return;
+    }
+    const jump = event.target.closest('[data-offer-jump]');
+    if (jump) {
+      jumpTo(jump.dataset.offerJump);
+      return;
+    }
+    if (event.target.closest('[data-offer-addresses]')) {
+      G4.BuyerCart.addressBook?.openManage(state.addresses.length === 0);
+      return;
+    }
     const button = event.target.closest('[data-offer-action]');
     if (!button) return;
     button.disabled = true;
@@ -351,6 +754,14 @@
       button.disabled = false;
     }
   });
+
+  // Keep "còn x giờ y phút" current between list reloads.
+  const observer = new MutationObserver(updateCountdowns);
+  ['buyer-best-offer-list', 'seller-offer-list'].forEach((id) => {
+    const list = $(id);
+    if (list) observer.observe(list, { childList: true });
+  });
+  setInterval(updateCountdowns, 30000);
 
   $('buyer-offers-refresh')?.addEventListener('click', () => G4.safe(buyerLoad));
   $('seller-offers-refresh')?.addEventListener('click', () => G4.safe(sellerLoad));
