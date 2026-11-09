@@ -13,7 +13,9 @@ namespace G4.Api.Controllers;
 [AllowAnonymous]
 public sealed class AuthenticationController(
     IAuthenticationService authentication,
-    IConfiguration configuration
+    IBuyerRegistrationService buyerRegistration,
+    IConfiguration configuration,
+    IHostEnvironment environment
 ) : ControllerBase
 {
     [HttpPost("login")]
@@ -29,6 +31,25 @@ public sealed class AuthenticationController(
         var role = user.Role.ToLowerInvariant();
         if (role is not ("buyer" or "seller" or "admin" or "shipper"))
             return StatusCode(403, new { error = "Tài khoản chưa được gán role hợp lệ" });
+        return Ok(Issue(user, role));
+    }
+
+    // Development only, like seller registration. Returns a login token so the
+    // new buyer is signed in right away.
+    [HttpPost("register-buyer")]
+    public async Task<IActionResult> RegisterBuyer(
+        BuyerRegistrationInput input,
+        CancellationToken ct
+    )
+    {
+        if (!environment.IsDevelopment())
+            return NotFound();
+        var user = await buyerRegistration.RegisterAsync(input, ct);
+        return Ok(Issue(user, "buyer"));
+    }
+
+    private LoginResponse Issue(User user, string role)
+    {
         var expiresAt = DateTime.UtcNow.AddHours(8);
         var key =
             configuration["Authentication:JwtKey"]
@@ -50,14 +71,12 @@ public sealed class AuthenticationController(
                 SecurityAlgorithms.HmacSha256
             )
         );
-        return Ok(
-            new LoginResponse(
-                new JwtSecurityTokenHandler().WriteToken(token),
-                expiresAt,
-                user.Id,
-                user.Username ?? user.Email ?? $"User {user.Id}",
-                role
-            )
+        return new LoginResponse(
+            new JwtSecurityTokenHandler().WriteToken(token),
+            expiresAt,
+            user.Id,
+            user.Username ?? user.Email ?? $"User {user.Id}",
+            role
         );
     }
 }

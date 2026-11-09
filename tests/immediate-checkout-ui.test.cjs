@@ -4,9 +4,14 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 
 const tick = () => new Promise((resolve) => setImmediate(resolve));
-async function harness(handler = async () => ({}), search = '') {
+async function harness(
+  handler = async () => ({}),
+  search = '?product=1',
+  script = 'immediate-checkout.js',
+) {
   const elements = new Map();
   const calls = [];
+  const visits = [];
   const element = (id) => {
     if (!elements.has(id)) elements.set(id, {
       value: id === 'buy-quantity' || id === 'buy-address' ? '1' : '',
@@ -28,6 +33,7 @@ async function harness(handler = async () => ({}), search = '') {
     api: async (path, method, body) => {
       calls.push({ path, method, body });
       if (path === 'catalog/products') return [product];
+      if (path === 'catalog/products/1') return product;
       if (path === 'addresses') return [{ id: 1, fullName: 'QA', isDefault: true }];
       if (path === 'buyer/immediate-checkouts') return {
         id: 'session', title: product.title,
@@ -36,25 +42,35 @@ async function harness(handler = async () => ({}), search = '') {
       return handler(path, method, body);
     },
   };
-  vm.runInNewContext(fs.readFileSync('frontend/wwwroot/js/immediate-checkout.js', 'utf8'), {
+  vm.runInNewContext(fs.readFileSync(`frontend/wwwroot/js/${script}`, 'utf8'), {
     window: { G4 }, crypto: { randomUUID: () => Math.random().toString() },
-    location: { search, assign() {} }, history: { replaceState() {} }, URLSearchParams,
+    location: { search, assign: (url) => visits.push(url) },
+    history: { replaceState() {} }, URLSearchParams,
   });
   await tick();
   const submit = (id) => element(id).listeners.submit({ preventDefault() {} });
   async function checkout() {
-    element('products-list').listeners.click({
-      target: { closest: () => ({ dataset: { buy: '1' } }) },
-    });
     await submit('buy-now-form');
   }
-  return { element, calls, submit, checkout };
+  return { element, calls, visits, submit, checkout };
 }
 
-test('catalog escapes product data and checkout calls no normal order or payment API', async () => {
-  const h = await harness();
+test('product list escapes data and Buy It Now opens the separate checkout page', async () => {
+  const h = await harness(undefined, '', 'immediate-products.js');
   assert.ok(h.element('products-list').innerHTML.includes('&lt;img'));
   assert.ok(h.element('products-list').innerHTML.includes('Immediate Payment Required'));
+  assert.ok(!h.element('products-list').innerHTML.includes('<img'));
+  h.element('products-list').listeners.click({
+    target: { closest: () => ({ dataset: { buy: '1' }, disabled: false }) },
+  });
+  assert.deepEqual(h.visits, ['/Buyer/Checkout?product=1']);
+  assert.equal(h.calls.some((x) => x.method === 'POST'), false);
+});
+
+test('checkout page escapes product and calls no normal order or payment API', async () => {
+  const h = await harness();
+  assert.ok(h.element('checkout-product').innerHTML.includes('&lt;img'));
+  assert.ok(!h.element('checkout-product').innerHTML.includes('<script'));
   await h.checkout();
   assert.equal(h.calls.filter((x) => x.method === 'POST').length, 1);
   assert.equal(h.calls.at(-1).path, 'buyer/immediate-checkouts');
@@ -93,7 +109,7 @@ test('HTTP uncertainty blocks payment until server status recovery', async () =>
 });
 
 test('refresh of successful checkout reads status without charging again', async () => {
-  const h = await harness(async () => ({ status: 'Succeeded', orderId: 9 }), '?checkout=session');
+  const h = await harness(async () => ({ status: 'Succeeded', orderId: 9 }), '?product=1&checkout=session');
   assert.equal(h.element('payment-success').hidden, false);
   assert.equal(h.calls.some((x) => x.method === 'POST'), false);
 });
@@ -127,7 +143,7 @@ test('restoring an expired session blocks Pay Now and requires a new quote', asy
   const h = await harness(async () => ({
     status: 'Expired',
     snapshot: { title: 'Expired', quantity: 1, quote: { total: 12.1 } },
-  }), '?checkout=session');
+  }), '?product=1&checkout=session');
   assert.equal(h.element('pay-now').disabled, true);
   await h.submit('pay-now-form');
   assert.equal(h.calls.some((x) => x.method === 'POST'), false);

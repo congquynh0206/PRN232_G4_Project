@@ -112,21 +112,7 @@ public sealed class AccountController(
         TrustedProxyHeaders.CopyRetryAfter(response, Response);
         if ((int)response.StatusCode == StatusCodes.Status429TooManyRequests)
         {
-            var retry = response.Headers.RetryAfter;
-            var seconds = Math.Max(
-                1,
-                (int)
-                    Math.Ceiling(
-                        (
-                            retry?.Delta
-                            ?? (retry?.Date - DateTimeOffset.UtcNow)
-                            ?? TimeSpan.FromSeconds(60)
-                        ).TotalSeconds
-                    )
-            );
-            Response.StatusCode = StatusCodes.Status429TooManyRequests;
-            ViewBag.RetryAfterSeconds = seconds;
-            ModelState.AddModelError("", CommerceRateLimiting.Message(seconds));
+            ShowRateLimit(response);
             ViewBag.ReturnUrl = returnUrl;
             return View();
         }
@@ -137,6 +123,122 @@ public sealed class AccountController(
             return View();
         }
 
+        var result = await SignInAsync(response, ct);
+        if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+            return LocalRedirect(returnUrl);
+        return RedirectForRole(result.Role);
+    }
+
+    [HttpGet]
+    public IActionResult RegisterBuyer()
+    {
+        if (!environment.IsDevelopment())
+            return NotFound();
+        if (User.Identity?.IsAuthenticated == true)
+            return RedirectForRole(User.FindFirstValue(ClaimTypes.Role));
+        return View();
+    }
+
+    // Development only, like seller registration. A new buyer is signed in right away.
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [EnableRateLimiting(CommerceRateLimiting.Registration)]
+    public async Task<IActionResult> RegisterBuyer(
+        string firstName,
+        string lastName,
+        string email,
+        string password,
+        CancellationToken ct
+    )
+    {
+        if (!environment.IsDevelopment())
+            return NotFound();
+        ViewBag.FirstName = firstName;
+        ViewBag.LastName = lastName;
+        ViewBag.Email = email;
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            BackendUrl("api/auth/register-buyer")
+        );
+        request.Content = new StringContent(
+            JsonSerializer.Serialize(new { firstName, lastName, email, password }),
+            Encoding.UTF8,
+            "application/json"
+        );
+        TrustedProxyHeaders.ForwardClientIp(request, HttpContext);
+        HttpResponseMessage response;
+        try
+        {
+            response = await factory.CreateClient().SendAsync(request, ct);
+        }
+        catch (Exception ex)
+            when (ex is HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested
+            )
+        {
+            ModelState.AddModelError(
+                "",
+                "Chưa xác định được kết quả đăng ký. Hãy thử đăng nhập bằng email này trước khi gửi lại."
+            );
+            return View();
+        }
+        using (response)
+        {
+            TrustedProxyHeaders.CopyRetryAfter(response, Response);
+            if ((int)response.StatusCode == StatusCodes.Status429TooManyRequests)
+            {
+                ShowRateLimit(response);
+                return View();
+            }
+            if (!response.IsSuccessStatusCode)
+            {
+                ModelState.AddModelError("", await ErrorMessage(response, ct));
+                return View();
+            }
+            await SignInAsync(response, ct);
+            return RedirectToAction("Index", "Buyer");
+        }
+    }
+
+    private void ShowRateLimit(HttpResponseMessage response)
+    {
+        var retry = response.Headers.RetryAfter;
+        var seconds = Math.Max(
+            1,
+            (int)
+                Math.Ceiling(
+                    (
+                        retry?.Delta
+                        ?? (retry?.Date - DateTimeOffset.UtcNow)
+                        ?? TimeSpan.FromSeconds(60)
+                    ).TotalSeconds
+                )
+        );
+        Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        ViewBag.RetryAfterSeconds = seconds;
+        ModelState.AddModelError("", CommerceRateLimiting.Message(seconds));
+    }
+
+    private static async Task<string> ErrorMessage(
+        HttpResponseMessage response,
+        CancellationToken ct
+    )
+    {
+        const string fallback = "Không thể đăng ký. Hãy kiểm tra lại thông tin.";
+        try
+        {
+            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+            return document.RootElement.TryGetProperty("error", out var error)
+                ? error.GetString() ?? fallback
+                : fallback;
+        }
+        catch (JsonException)
+        {
+            return fallback;
+        }
+    }
+
+    private async Task<LoginResult> SignInAsync(HttpResponseMessage response, CancellationToken ct)
+    {
         var result =
             await response.Content.ReadFromJsonAsync<LoginResult>(cancellationToken: ct)
             ?? throw new InvalidOperationException("Login response is empty");
@@ -154,9 +256,7 @@ public sealed class AccountController(
             ),
             new AuthenticationProperties { IsPersistent = false, ExpiresUtc = result.ExpiresAt }
         );
-        if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
-            return LocalRedirect(returnUrl);
-        return RedirectForRole(result.Role);
+        return result;
     }
 
     [Authorize]

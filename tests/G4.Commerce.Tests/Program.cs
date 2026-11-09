@@ -171,6 +171,12 @@ if (args.Contains("--registration-sql"))
     return;
 }
 
+if (args.Contains("--buyer-registration"))
+{
+    await BuyerRegistrationChecks.RunAsync();
+    return;
+}
+
 if (args.Contains("--registration"))
 {
     await SellerRegistrationChecks.RunAsync();
@@ -261,6 +267,7 @@ await FinancePolicyChecks.RunAsync();
 await SellerFundsChecks.RunAsync();
 await SellerDebtChecks.RunAsync();
 await SellerRegistrationChecks.RunAsync();
+await BuyerRegistrationChecks.RunAsync();
 await SellerLevelChecks.RunAsync();
 await ProductFeedbackChecks.RunAsync();
 await BusinessNotificationChecks.RunAsync();

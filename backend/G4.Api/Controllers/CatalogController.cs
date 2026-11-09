@@ -132,12 +132,24 @@ public sealed class CatalogController(
         return Ok(await ProductList(null).Take(100).ToListAsync(ct));
     }
 
+    [HttpGet("catalog/products/{id:int}")]
+    public async Task<IActionResult> Product(int id, CancellationToken ct)
+    {
+        if (!IsAvailable || !HasRole("buyer"))
+            return StatusCode(403);
+        var product = await ProductList(null).SingleOrDefaultAsync(p => p.Id == id, ct);
+        if (product == null)
+            return NotFound(new { error = "Sản phẩm không còn được bán." });
+        return Ok(product);
+    }
+
+    // Newest products first, so a just-published product is never cut off by Take(100).
     private IQueryable<ProductListing> ProductList(int? sellerId) =>
         db.Products.AsNoTracking()
             .Where(p => p.IsAuction != true && p.Price != null
                 && (sellerId != null || p.IsListed)
                 && (sellerId == null || p.SellerId == sellerId))
-            .OrderBy(p => p.Id)
+            .OrderByDescending(p => p.Id)
             .Select(p => new ProductListing(
                 p.Id, p.Title, p.Description, p.Price, p.WeightKg,
                 p.ImmediatePaymentRequired, p.IsListed,

@@ -83,15 +83,18 @@ SQL để duyệt: database/immediate-checkout-migration.sql (migration đầu) 
 | Method | Route dưới /api | Tác dụng |
 | --- | --- | --- |
 | POST | seller/products | Đăng sản phẩm, chọn ImmediatePaymentRequired |
-| GET | seller/products | Seller xem sản phẩm thuộc mình |
+| GET | seller/products | Seller xem sản phẩm thuộc mình, mới nhất trước |
 | POST | seller/products/{id}/payment-settings | Owner sửa mode, giá và IsListed |
-| GET | catalog/products | Buyer xem sản phẩm/badge/tồn, tối đa 100 sản phẩm |
+| GET | catalog/products | Buyer xem sản phẩm/badge/tồn, 100 sản phẩm mới nhất |
+| GET | catalog/products/{id} | Buyer xem một sản phẩm đang bán, dùng cho trang checkout |
 | POST | buyer/immediate-checkouts | Lấy checkout session không giữ kho |
 | GET | buyer/immediate-checkouts/{guid} | Owner xem trạng thái/snapshot/stage |
 | POST | buyer/immediate-checkouts/{guid}/pay/card | Pay Now, Number/Expiry/Key |
 | POST | buyer/immediate-checkouts/{guid}/reconcile | Owner kiểm tra và khôi phục attempt |
 
-Seller: /Seller/Products. Buyer: /Buyer/Products. UI giữ session qua URL,
+Seller: /Seller/Products. Buyer: /Buyer/Products chỉ là danh sách; Buy It Now
+chuyển sang trang riêng /Buyer/Checkout?product={id} (giao diện như tab Thanh toán,
+chỉ thẻ giả lập). Sau khi lấy báo giá, URL thêm &checkout={session}. UI giữ session qua URL,
 khóa double submit, xóa số thẻ sau gửi và không cho thanh toán lại khi Pending/
 Verifying. Chỉ báo Void/Refund đã xong sau kết quả server. Order History và Seller
 Order Management dùng dữ liệu Paid hiện có. Normal checkout vẫn tạo unpaid order

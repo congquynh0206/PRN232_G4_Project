@@ -1,0 +1,82 @@
+@{
+    Layout = null;
+    ViewData["Title"] = "Đăng ký người mua";
+}
+<!doctype html>
+<html lang="vi">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <title>Đăng ký người mua - Sàn G4</title>
+        <link rel="stylesheet" href="~/css/checkout.css" />
+        <link rel="stylesheet" href="~/css/roles.css" />
+        <link rel="stylesheet" href="~/css/ui-refresh.css" />
+    </head>
+    <body class="login-page">
+        <main class="login-shell">
+            <section class="login-card">
+                <div class="login-brand">
+                    <span class="ebay">
+                        <b>e</b>
+                        <b>b</b>
+                        <b>a</b>
+                        <b>y</b>
+                    </span>
+                    <strong>Sàn G4</strong>
+                </div>
+                <h1>Tạo tài khoản cá nhân</h1>
+                <p>
+                    Đã có tài khoản?
+                    <a asp-action="Login">Đăng nhập</a>
+                </p>
+                <form asp-action="RegisterBuyer" method="post" class="login-form">
+                    <div asp-validation-summary="All" class="validation" role="alert"></div>
+                    <p id="login-rate-limit" role="status" aria-live="polite"
+                       data-retry-after="@(ViewBag.RetryAfterSeconds ?? 0)" hidden></p>
+                    <label for="first-name">Tên</label>
+                    <input
+                        id="first-name"
+                        name="firstName"
+                        value="@ViewBag.FirstName"
+                        autocomplete="given-name"
+                        maxlength="50"
+                        required
+                        autofocus
+                    />
+                    <label for="last-name">Họ</label>
+                    <input
+                        id="last-name"
+                        name="lastName"
+                        value="@ViewBag.LastName"
+                        autocomplete="family-name"
+                        maxlength="50"
+                        required
+                    />
+                    <label for="email">Email</label>
+                    <input
+                        id="email"
+                        name="email"
+                        type="email"
+                        value="@ViewBag.Email"
+                        autocomplete="email"
+                        maxlength="100"
+                        required
+                    />
+                    <label for="password">Mật khẩu</label>
+                    <input
+                        id="password"
+                        name="password"
+                        type="password"
+                        autocomplete="new-password"
+                        minlength="8"
+                        maxlength="128"
+                        required
+                    />
+                    <small>Ít nhất 8 ký tự, có cả chữ và số.</small>
+                    <button class="primary wide" type="submit">Tạo tài khoản</button>
+                </form>
+            </section>
+        </main>
+        <script src="~/js/login-rate-limit.js" asp-append-version="true"></script>
+    </body>
+</html>

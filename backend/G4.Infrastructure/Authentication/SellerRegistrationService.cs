@@ -96,21 +96,12 @@ public sealed class SellerRegistrationService(
             throw new InvalidOperationException(
                 "Email đã được sử dụng. Hãy đăng nhập hoặc chọn email khác."
             );
-        var salt = RandomNumberGenerator.GetBytes(24);
-        var password = Rfc2898DeriveBytes.Pbkdf2(
-            input.Password,
-            salt,
-            210000,
-            HashAlgorithmName.SHA256,
-            32
-        );
         var user = new User
         {
             Username = username,
             Email = email,
             Role = "seller",
-            Password =
-                $"PBKDF2$210000${Convert.ToBase64String(salt)}${Convert.ToBase64String(password)}",
+            Password = PasswordHashing.Hash(input.Password),
         };
         db.Users.Add(user);
         await db.SaveChangesAsync(ct);

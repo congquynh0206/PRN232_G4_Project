@@ -211,3 +211,10 @@ Lệnh EF update hiện có áp tăng dần, không chạy lại baseline. Phiê
 schema vì SQL bị chặn socket. Bật Workers:Enabled để tự đối soát/compensation;
 Buyer có nút Kiểm tra kết quả gọi API reconcile. Gateway là thẻ mô phỏng có
 bảng trạng thái riêng, không cần PayPal credential. Xem IMMEDIATE_PAYMENT.md.
+
+### Checkout riêng Buy It Now và đăng ký buyer — 09/11/2026
+
+Restart API/frontend để nhận view/API mới; không có migration. Buy It Now mở
+/Buyer/Checkout?product={id}. Trang đăng nhập (Development) có link "Đăng ký người mua"
+tới /Account/RegisterBuyer: Tên, Họ, Email, Mật khẩu (8–128 ký tự, có chữ và số), tạo
+xong tự đăng nhập. Test riêng: `dotnet run --project tests/G4.Commerce.Tests -- --buyer-registration`.

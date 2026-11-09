@@ -44,6 +44,7 @@ public static class DependencyInjection
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddSingleton<SellerIdentityHasher>();
         services.AddScoped<ISellerRegistrationService, SellerRegistrationService>();
+        services.AddScoped<IBuyerRegistrationService, BuyerRegistrationService>();
         services.AddScoped<IShipmentService, ShipmentService>();
         services.AddScoped<IReturnService, ReturnService>();
         services.AddScoped<IPayPalPaymentService, PayPalPaymentService>();

@@ -40,6 +40,9 @@
                 @if (Context.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment())
                 {
                     <p>
+                        <a asp-action="RegisterBuyer">Đăng ký người mua</a>
+                    </p>
+                    <p>
                         <a asp-action="RegisterSeller">Đăng ký người bán thử nghiệm</a>
                     </p>
                 }

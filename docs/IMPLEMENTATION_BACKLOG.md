@@ -450,3 +450,19 @@ collision); Node 154/154 đạt, trong đó 10 test UI Immediate. Backend tổng
 RateLimitChecks/socket 10013; SQL runner cũng bị chặn socket trước case. Đã xuất
 SQL idempotent cho hai migration mới, chưa áp DB chính/QA, chưa chạy browser E2E.
 Không ghi SQL concurrency/rollback là PASS; còn bước nghiệm thu trên SQL thực tế.
+
+## BIN-IP-UI + BUYER-REG — Trang checkout riêng, sắp xếp, đăng ký buyer (09/11/2026)
+
+- Buy It Now ở /Buyer/Products chuyển sang trang riêng /Buyer/Checkout?product={id};
+  luồng Pay Now/đối soát giữ nguyên. Thêm GET catalog/products/{id}. Sửa trang
+  Products bị trống do section thiếu class active.
+- Danh sách sản phẩm seller và catalog buyer sắp mới nhất trước (Id giảm dần);
+  catalog vẫn lấy 100 sản phẩm, nay là 100 sản phẩm mới nhất.
+- Đăng ký buyer chỉ Development: /Account/RegisterBuyer và POST api/auth/register-buyer.
+  Form kiểu eBay (Tên, Họ, Email, Mật khẩu), không có mã xác minh email; Họ + Tên lưu
+  vào Username. Mật khẩu PBKDF2 chung với đăng ký seller; email trùng trả 409; dùng
+  chung khóa đăng ký và unique index email. Đăng ký xong tự đăng nhập vào /Buyer.
+  Rate limit nhóm Registration ở API và frontend. Không có migration.
+- Kiểm thử: build solution 0 warning/error (xuất ra thư mục riêng vì API đang chạy khóa
+  bin); --buyer-registration, --registration, --immediate-checkout và --rate-limits đạt;
+  Node 155/155 (11 test UI Immediate). Chưa chạy browser E2E hoặc SQL Server cho phần này.
