@@ -31,54 +31,88 @@
     </label>
     <label>Hạn thẻ<input name="cardExpiry" value="12/30" maxlength="5" /></label>`;
 
+  // Each list loads on its own: one failed request (rate limit, API restart, network) shows
+  // its reason in that list instead of leaving every list stuck on "Đang tải…".
+  function renderList(element, request, render) {
+    if (request.status === 'fulfilled') {
+      try {
+        element.innerHTML = render(request.value);
+        return null;
+      } catch (error) {
+        request = { status: 'rejected', reason: error };
+      }
+    }
+    const reason = request.reason?.message || 'Lỗi không xác định';
+    element.innerHTML =
+      `<p class="empty-state">Chưa tải được danh sách: ${esc(reason)} ` +
+      'Bấm “Làm mới” để thử lại.</p>';
+    return request.reason;
+  }
+
+  async function loadLists(lists) {
+    lists.forEach(([element]) => element.setAttribute('aria-busy', 'true'));
+    const results = await Promise.allSettled(lists.map(([, request]) => request()));
+    const errors = lists
+      .map(([element, , render], index) => renderList(element, results[index], render))
+      .filter(Boolean);
+    lists.forEach(([element]) => element.setAttribute('aria-busy', 'false'));
+    if (errors.length) message(errors[0].message || 'Chưa tải được dữ liệu trả giá.');
+  }
+
   async function buyerLoad() {
     const catalog = $('offer-catalog');
     const offers = $('buyer-offer-list');
     if (!catalog || !offers) return;
-    catalog.setAttribute('aria-busy', 'true');
-    offers.setAttribute('aria-busy', 'true');
     try {
-      const [products, result, addressBook] = await Promise.all([
-        api('best-offers/catalog'),
-        api('best-offers/buyer'),
-        api('addresses'),
-      ]);
+      const addressBook = await api('addresses');
       state.addresses = Array.isArray(addressBook)
         ? addressBook
         : addressBook.addresses || [];
-      catalog.innerHTML = products.length
-        ? products.map(productCard).join('')
-        : '<p class="empty-state">Chưa có sản phẩm bật trả giá.</p>';
-      offers.innerHTML = result.length
-        ? result.map((offer) => offerCard(offer, 'buyer')).join('')
-        : '<p class="empty-state">Bạn chưa có phiên trả giá nào.</p>';
-    } finally {
-      catalog.setAttribute('aria-busy', 'false');
-      offers.setAttribute('aria-busy', 'false');
+    } catch {
+      state.addresses = [];
     }
+    await loadLists([
+      [
+        catalog,
+        () => api('best-offers/catalog'),
+        (products) =>
+          products.length
+            ? products.map(productCard).join('')
+            : '<p class="empty-state">Chưa có sản phẩm bật trả giá.</p>',
+      ],
+      [
+        offers,
+        () => api('best-offers/buyer'),
+        (result) =>
+          result.length
+            ? result.map((offer) => offerCard(offer, 'buyer')).join('')
+            : '<p class="empty-state">Bạn chưa có phiên trả giá nào.</p>',
+      ],
+    ]);
   }
 
   async function sellerLoad() {
     const products = $('seller-offer-products');
     const offers = $('seller-offer-list');
     if (!products || !offers) return;
-    products.setAttribute('aria-busy', 'true');
-    offers.setAttribute('aria-busy', 'true');
-    try {
-      const [items, result] = await Promise.all([
-        api('best-offers/seller/products'),
-        api('best-offers/seller'),
-      ]);
-      products.innerHTML = items.length
-        ? items.map(settingsCard).join('')
-        : '<p class="empty-state">Chưa có sản phẩm giá cố định trong cửa hàng.</p>';
-      offers.innerHTML = result.length
-        ? result.map((offer) => offerCard(offer, 'seller')).join('')
-        : '<p class="empty-state">Chưa có đề nghị trả giá.</p>';
-    } finally {
-      products.setAttribute('aria-busy', 'false');
-      offers.setAttribute('aria-busy', 'false');
-    }
+    await loadLists([
+      [
+        products,
+        () => api('best-offers/seller/products'),
+        (items) =>
+          items.length
+            ? items.map(settingsCard).join('')
+            : '<p class="empty-state">Chưa có sản phẩm giá cố định trong cửa hàng.</p>',
+      ],
+      [
+        offers,
+        () => api('best-offers/seller'),
+        (result) =>
+          result.length
+            ? result.map((offer) => offerCard(offer, 'seller')).join('')
+            : '<p class="empty-state">Chưa có đề nghị trả giá.</p>',
+      ],
+    ]);
   }
 
   function productCard(product) {

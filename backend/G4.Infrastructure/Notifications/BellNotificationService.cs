@@ -116,6 +116,7 @@ public sealed class BellNotificationService(ApplicationDbContext db)
                     "finance" => "#finance",
                     "levels" => role == "seller" ? "#seller-levels" : "#orders",
                     "product-feedback" => "#product-feedback",
+                    "best-offers" => "#best-offers",
                     _ => "#orders",
                 }
             );

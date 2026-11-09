@@ -182,19 +182,20 @@ public sealed class BestOfferService(
         }
         else if (product.AutoAcceptOfferPrice is decimal acceptAt && input.Amount >= acceptAt)
         {
-            await AcceptAsync(offer, product, turn, ct);
+            await AcceptAsync(offer, product, turn, "seller", ct);
         }
         else
         {
-            AddChange(
+            Notify(
                 offer,
+                "seller",
                 "Đề nghị trả giá mới",
-                $"Có đề nghị trả giá cho sản phẩm #{product.Id}.",
-                "best-offers"
+                $"Có đề nghị trả giá mới (#{offer.Id}) cho sản phẩm #{product.Id}."
             );
         }
 
         offer.UpdatedAt = Now;
+        Refresh(offer);
         await db.SaveChangesAsync(ct);
         return await CommitViewAsync(tx, offer, "buyer", ct);
     }
@@ -214,7 +215,7 @@ public sealed class BestOfferService(
         RequireStatus(offer, PendingSeller);
         var turn = AddTurn(offer, sellerId, offer.CurrentAmount, "Accept", input.Key);
         var product = await ProductForOfferAsync(offer, ct);
-        await AcceptAsync(offer, product, turn, ct);
+        await AcceptAsync(offer, product, turn, "buyer", ct);
         offer.UpdatedAt = Now;
         await db.SaveChangesAsync(ct);
         return await CommitViewAsync(tx, offer, "seller", ct);
@@ -254,12 +255,13 @@ public sealed class BestOfferService(
         offer.Status = PendingBuyer;
         RefreshDeadline(offer);
         AddTurn(offer, sellerId, amount, "Counter", input.Key);
-        AddChange(
+        Notify(
             offer,
-            "Người bán đã phản hồi giá",
-            $"Có phản hồi cho đề nghị #{offer.Id}.",
-            "best-offers"
+            "buyer",
+            "Người bán đã trả giá lại",
+            $"Người bán đưa giá mới cho đề nghị #{offer.Id}; hãy phản hồi trong 24 giờ."
         );
+        Refresh(offer);
         await db.SaveChangesAsync(ct);
         return await CommitViewAsync(tx, offer, "seller", ct);
     }
@@ -279,7 +281,7 @@ public sealed class BestOfferService(
         RequireStatus(offer, PendingBuyer);
         var turn = AddTurn(offer, buyerId, offer.CurrentAmount, "Accept", input.Key);
         var product = await ProductForOfferAsync(offer, ct);
-        await AcceptAsync(offer, product, turn, ct);
+        await AcceptAsync(offer, product, turn, "seller", ct);
         offer.UpdatedAt = Now;
         await db.SaveChangesAsync(ct);
         return await CommitViewAsync(tx, offer, "buyer", ct);
@@ -352,18 +354,19 @@ public sealed class BestOfferService(
         }
         else if (product.AutoAcceptOfferPrice is decimal acceptAt && amount >= acceptAt)
         {
-            await AcceptAsync(offer, product, turn, ct);
+            await AcceptAsync(offer, product, turn, "seller", ct);
         }
         else
         {
-            AddChange(
+            Notify(
                 offer,
+                "seller",
                 "Người mua đã trả giá lại",
-                $"Có giá mới cho đề nghị #{offer.Id}.",
-                "best-offers"
+                $"Người mua đưa giá mới cho đề nghị #{offer.Id}; hãy phản hồi trong 24 giờ."
             );
         }
         offer.UpdatedAt = Now;
+        Refresh(offer);
         await db.SaveChangesAsync(ct);
         return await CommitViewAsync(tx, offer, "buyer", ct);
     }
@@ -379,12 +382,11 @@ public sealed class BestOfferService(
         {
             offer.Status = "Expired";
             offer.UpdatedAt = Now;
-            AddChange(
-                offer,
-                "Đề nghị trả giá hết hạn",
-                $"Đề nghị #{offer.Id} đã hết hạn.",
-                "best-offers"
-            );
+            // No one acted: the deadline passed, so both sides are told.
+            var message = $"Đề nghị #{offer.Id} đã hết hạn vì không có phản hồi trong 24 giờ.";
+            Notify(offer, "buyer", "Đề nghị trả giá hết hạn", message);
+            Notify(offer, "seller", "Đề nghị trả giá hết hạn", message);
+            Refresh(offer);
         }
         if (due.Count > 0)
             await db.SaveChangesAsync(ct);
@@ -432,21 +434,30 @@ public sealed class BestOfferService(
         await db.SaveChangesAsync(ct);
     }
 
-    private Task AcceptAsync(
+    // notifyRole is the side that did not act ("buyer" when the seller accepts, otherwise
+    // "seller"); only that side gets the bell notification.
+    private async Task AcceptAsync(
         BestOffer offer,
         Product product,
         BestOfferTurn turn,
+        string notifyRole,
         CancellationToken ct
-    ) =>
-        offer.PaymentMethod == PayLaterMethod
-            ? AcceptUnpaidAsync(offer, product, turn, ct)
-            : AcceptAndChargeAsync(offer, product, turn, ct);
+    )
+    {
+        if (offer.PaymentMethod == PayLaterMethod)
+            await AcceptUnpaidAsync(offer, product, turn, notifyRole, ct);
+        else
+            await AcceptAndChargeAsync(offer, product, turn, notifyRole, ct);
+        Refresh(offer);
+        Refresh(offer, "orders");
+    }
 
     // Auto-Pay: the buyer authorized the saved test card when making the offer.
     private async Task AcceptAndChargeAsync(
         BestOffer offer,
         Product product,
         BestOfferTurn turn,
+        string notifyRole,
         CancellationToken ct
     )
     {
@@ -481,17 +492,16 @@ public sealed class BestOfferService(
         offer.Status = "Accepted";
         offer.OrderId = order.Id;
         turn.Result = "AcceptedAndPaid";
-        AddChange(
+        Notify(
             offer,
-            "Best Offer đã chốt và thanh toán",
-            $"Đơn hàng #{order.Id} đã được tạo và thanh toán.",
+            notifyRole,
+            "Đề nghị trả giá đã được chấp nhận",
+            notifyRole == "buyer"
+                ? $"Người bán đã chấp nhận đề nghị #{offer.Id}. Đơn #{order.Id} đã được tạo "
+                    + "và thanh toán bằng Auto-Pay."
+                : $"Đề nghị #{offer.Id} đã được chốt. Đơn #{order.Id} đã thanh toán; "
+                    + "hãy chuẩn bị hàng.",
             "orders"
-        );
-        AddChange(
-            offer,
-            "Đề nghị đã được chấp nhận",
-            $"Đề nghị #{offer.Id} đã được chấp nhận.",
-            "best-offers"
         );
         await db.SaveChangesAsync(ct);
         await finance.ValidateMonthlyLimitAsync(order.Id, ct);
@@ -505,6 +515,7 @@ public sealed class BestOfferService(
         BestOffer offer,
         Product product,
         BestOfferTurn turn,
+        string notifyRole,
         CancellationToken ct
     )
     {
@@ -521,18 +532,17 @@ public sealed class BestOfferService(
         offer.Status = "Accepted";
         offer.OrderId = order.Id;
         turn.Result = "AcceptedUnpaid";
-        AddChange(
+        var due = deadline.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture) + " UTC";
+        Notify(
             offer,
-            "Best Offer đã chốt, chờ thanh toán",
-            $"Đơn hàng #{order.Id} chờ thanh toán trước "
-                + $"{deadline.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture)} UTC.",
+            notifyRole,
+            "Đề nghị trả giá đã được chấp nhận",
+            notifyRole == "buyer"
+                ? $"Người bán đã chấp nhận đề nghị #{offer.Id}. Hãy thanh toán đơn #{order.Id} "
+                    + $"trong tab Đơn hàng trước {due}."
+                : $"Đề nghị #{offer.Id} đã được chốt. Đơn #{order.Id} đang chờ người mua "
+                    + $"thanh toán trước {due}.",
             "orders"
-        );
-        AddChange(
-            offer,
-            "Đề nghị đã được chấp nhận",
-            $"Đề nghị #{offer.Id} đã được chấp nhận; đơn #{order.Id} đang chờ thanh toán.",
-            "best-offers"
         );
         await db.SaveChangesAsync(ct);
         offer.UpdatedAt = Now;
@@ -633,12 +643,14 @@ public sealed class BestOfferService(
         offer.Status = "Declined";
         offer.UpdatedAt = Now;
         AddTurn(offer, actorId, offer.CurrentAmount, "Decline", key);
-        AddChange(
+        var other = role == "seller" ? "buyer" : "seller";
+        Notify(
             offer,
-            "Đề nghị trả giá đã đóng",
-            $"Đề nghị #{offer.Id} đã bị từ chối.",
-            "best-offers"
+            other,
+            "Đề nghị trả giá đã bị từ chối",
+            $"{(role == "seller" ? "Người bán" : "Người mua")} đã từ chối đề nghị #{offer.Id}."
         );
+        Refresh(offer);
         await db.SaveChangesAsync(ct);
         return await CommitViewAsync(tx, offer, role, ct);
     }
@@ -789,7 +801,27 @@ public sealed class BestOfferService(
         return turn;
     }
 
-    private void AddChange(BestOffer offer, string title, string message, string topic) =>
+    // Bell notification for one side only. It carries no OrderId on purpose: the realtime
+    // worker would otherwise add both order parties as recipients, including the actor.
+    private void Notify(
+        BestOffer offer,
+        string recipientRole,
+        string title,
+        string message,
+        string topic = "best-offers"
+    ) =>
+        db.CommerceChanges.Add(new CommerceChange
+        {
+            Topic = topic,
+            BuyerId = recipientRole == "buyer" ? offer.BuyerId : null,
+            SellerId = recipientRole == "seller" ? offer.SellerId : null,
+            CreatedAt = Now,
+            NotificationTitle = title,
+            NotificationMessage = message,
+        });
+
+    // Silent realtime signal (no bell text) so both screens reload the latest state.
+    private void Refresh(BestOffer offer, string topic = "best-offers") =>
         db.CommerceChanges.Add(new CommerceChange
         {
             Topic = topic,
@@ -797,8 +829,6 @@ public sealed class BestOfferService(
             SellerId = offer.SellerId,
             OrderId = offer.OrderId,
             CreatedAt = Now,
-            NotificationTitle = title,
-            NotificationMessage = message,
         });
 
     private async Task<IDbContextTransaction?> BeginTransactionAsync(

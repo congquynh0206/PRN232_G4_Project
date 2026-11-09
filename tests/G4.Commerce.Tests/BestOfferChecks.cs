@@ -18,11 +18,76 @@ internal static class BestOfferChecks
         await PayLaterAsync();
         await AutoPayAsync();
         await IdempotentRetryAsync();
+        await NotificationRecipientsAsync();
         Console.WriteLine(
             "Best offers: 5 offers per product across sessions, counteroffers between the two "
                 + "prices, pay-later unpaid order with seller cancel and strike, Auto-Pay charge, "
-                + "idempotent accept/decline/counter retries"
+                + "idempotent accept/decline/counter retries, bell only for the other side"
         );
+    }
+
+    // Each action notifies only the other party; both screens still get a silent refresh.
+    private static async Task NotificationRecipientsAsync()
+    {
+        await using var db = await FixtureAsync();
+        var offers = Service(db);
+        var offer = await offers.CreateAsync(Buyer, Create(70m, "n-1"), default);
+        await ExpectBellAsync(db, notified: Seller, actor: Buyer, "a new offer");
+
+        await offers.SellerCounterAsync(Seller, offer.Id, Counter(90m, "n-counter"), default);
+        await ExpectBellAsync(db, notified: Buyer, actor: Seller, "a seller counteroffer");
+
+        await offers.BuyerCounterAsync(Buyer, offer.Id, Counter(80m, "n-buyer"), default);
+        await ExpectBellAsync(db, notified: Seller, actor: Buyer, "a buyer counteroffer");
+
+        await offers.SellerAcceptAsync(Seller, offer.Id, Key("n-accept"), default);
+        await ExpectBellAsync(db, notified: Buyer, actor: Seller, "a seller accept");
+
+        var declined = await offers.CreateAsync(Buyer, Create(60m, "n-2"), default);
+        await MarkDispatchedAsync(db);
+        await offers.SellerDeclineAsync(Seller, declined.Id, Key("n-decline"), default);
+        await ExpectBellAsync(db, notified: Buyer, actor: Seller, "a seller decline");
+    }
+
+    private static async Task ExpectBellAsync(
+        ApplicationDbContext db,
+        int notified,
+        int actor,
+        string action
+    )
+    {
+        var changes = await db
+            .CommerceChanges.Where(x => x.DispatchedAt == null)
+            .ToListAsync();
+        var bells = changes.Where(x => x.NotificationTitle != null).ToList();
+        Check(bells.Count == 1, $"{action} creates exactly one bell notification");
+        var audiences = await G4.Api.Realtime.CommerceChangeWorker.AudiencesAsync(
+            db,
+            bells[0],
+            default
+        );
+        Check(
+            audiences.Contains("user:" + notified) && !audiences.Contains("user:" + actor),
+            $"{action} notifies only the other side, never the actor"
+        );
+        var refresh = changes.Where(x => x.NotificationTitle == null).ToList();
+        var refreshed = new HashSet<string>();
+        foreach (var change in refresh)
+            refreshed.UnionWith(
+                await G4.Api.Realtime.CommerceChangeWorker.AudiencesAsync(db, change, default)
+            );
+        Check(
+            refreshed.Contains("user:" + Buyer) && refreshed.Contains("user:" + Seller),
+            $"{action} still refreshes both screens silently"
+        );
+        await MarkDispatchedAsync(db);
+    }
+
+    private static async Task MarkDispatchedAsync(ApplicationDbContext db)
+    {
+        foreach (var change in db.CommerceChanges.Where(x => x.DispatchedAt == null))
+            change.DispatchedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
     }
 
     private static async Task QuotaAcrossSessionsAsync()
