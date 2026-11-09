@@ -38,7 +38,7 @@ public sealed class PayPalPaymentService(
             throw new InvalidOperationException(
                 "Đơn nằm trong lượt PayPal cả giỏ. Mở kết quả thanh toán cả giỏ để tiếp tục hoặc hủy lượt đó trước."
             );
-        if (await db.Payments.AnyAsync(x => x.OrderId == orderId && x.Status == "Verifying", ct))
+        if (await db.Payments.AnyAsync(x => x.OrderId == orderId && (x.Status == "Verifying" || x.Method == "Klarna" && (x.Status == "Pending" || x.Status == "Authorized")), ct))
             throw new InvalidOperationException(
                 "PayPal đang xác minh thanh toán. Hãy chờ trước khi tạo lần thanh toán khác."
             );

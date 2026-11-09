@@ -26,6 +26,7 @@
     Pending: 'Đang chờ',
     Processing: 'Đang xử lý',
     Succeeded: 'Thành công',
+    Authorized: 'Đã duyệt · chưa thu tiền',
     Failed: 'Thất bại',
     Verifying: 'Đang xác minh',
     Refunded: 'Đã hoàn tiền',
@@ -57,6 +58,7 @@
     Return: 'Chiều trả hàng',
     Card: 'Thẻ giả lập',
     PayPal: 'PayPal',
+    Klarna: 'Klarna Pay Later',
     Level1: 'Cấp 1',
     Level2: 'Cấp 2',
     Level3: 'Cấp 3',
@@ -70,7 +72,7 @@
     const value = String(raw || '').toLowerCase();
     if (/coupon|promotion|discount/.test(value))
       return 'Mã giảm giá chưa áp dụng được. Vui lòng kiểm tra điều kiện sử dụng hoặc thử mã khác.';
-    if (/card|expiry|payment|paypal/.test(value))
+    if (/card|expiry|payment|paypal|klarna/.test(value))
       return 'Thanh toán chưa hoàn tất. Vui lòng kiểm tra phương thức thanh toán rồi thử lại.';
     if (/stock|inventory|product/.test(value))
       return 'Sản phẩm hoặc số lượng đã thay đổi. Vui lòng cập nhật giỏ hàng rồi thử lại.';
@@ -318,7 +320,7 @@
     const localDate = (value) =>
       date(typeof value === 'string' && !/(Z|[+-]\d{2}:\d{2})$/i.test(value) ? value + 'Z' : value);
     const refunded = o.hasRefund && o.status === 'Closed';
-    const status = refunded ? 'Đã hoàn tiền' : label(o.status);
+    const status = refunded ? 'Đã hoàn tiền' : source === 'buyer' && o.status === 'Paid' ? 'Sẵn sàng giao hàng' : label(o.status);
     const tone = refunded
       ? 'refund'
       : {

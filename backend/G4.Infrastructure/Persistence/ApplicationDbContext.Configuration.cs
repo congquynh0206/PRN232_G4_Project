@@ -72,8 +72,13 @@ public partial class ApplicationDbContext
                 .HasForeignKey(x => x.ActorId)
                 .OnDelete(DeleteBehavior.NoAction);
         });
+        modelBuilder.Entity<Address>().Property(x => x.PostalCode).HasMaxLength(20);
         modelBuilder.Entity<OrderTable>(entity =>
         {
+            entity.Property(x => x.DeliveryNameSnapshot).HasMaxLength(100);
+            entity.Property(x => x.DeliveryStreetSnapshot).HasMaxLength(100);
+            entity.Property(x => x.DeliveryCitySnapshot).HasMaxLength(50);
+            entity.Property(x => x.DeliveryPostalCodeSnapshot).HasMaxLength(20);
             entity.HasIndex(x => x.CheckoutKey).IsUnique().HasFilter("[CheckoutKey] IS NOT NULL");
             entity.Property(x => x.Subtotal).HasColumnType("decimal(10,2)");
             entity.Property(x => x.ShippingFee).HasColumnType("decimal(10,2)");
@@ -96,6 +101,10 @@ public partial class ApplicationDbContext
                 .HasIndex(x => x.ProviderTransactionId)
                 .IsUnique()
                 .HasFilter("[ProviderTransactionId] IS NOT NULL");
+            entity.Property(x => x.KlarnaSessionId).HasMaxLength(100);
+            entity.Property(x => x.KlarnaSessionUrl).HasMaxLength(500);
+            entity.Property(x => x.KlarnaRedirectUrl).HasMaxLength(500);
+            entity.HasIndex(x => x.KlarnaSessionId).IsUnique().HasFilter("[KlarnaSessionId] IS NOT NULL");
             entity.Property(x => x.ProviderOrderId).HasMaxLength(100);
             entity.Property(x => x.ProviderTransactionId).HasMaxLength(100);
             entity.Property(x => x.IdempotencyKey).HasMaxLength(100);

@@ -1,5 +1,15 @@
 # Backlog triển khai theo đặc tả ngày 18/10/2026
 
+## KLARNA1 — Pay Later sandbox (08/11/2026)
+
+- HPP `PLACE_ORDER`, buyer reconcile, worker đối chiếu khi đóng tab, capture
+  toàn bộ khi tạo outbound, cancel authorization hoặc refund sau capture;
+  chi tiết và cách chạy ở [KLARNA_PAY_LATER.md](KLARNA_PAY_LATER.md).
+- Migration bổ sung ZIP/address snapshot và Klarna HPP reference. Test service,
+  HTTP gateway, frontend và toàn bộ hồi quy cần qua trước khi review. Live QA
+  playground cần credential riêng; chưa khẳng định seller đã nhận tiền thật.
+- SRS cần phân biệt authorized/captured/settled; lịch trả góp và risk/fee do
+  Klarna quản lý; không tự ghi payout ngay hay công thức phí chưa được xác nhận.
 ## PERF2 — Nginx chia tải catalog qua hai API
 
 - Compose demo riêng chỉ publish Nginx trên loopback. Nginx chia GET catalog qua

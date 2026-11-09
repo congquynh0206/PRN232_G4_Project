@@ -15,13 +15,25 @@
     let quoteRequest = 0,
       busy = false,
       addressBusy = false;
+    const usCountry = (value) => /^(US|USA|United States|United States of America)$/i.test(String(value || '').trim());
+    const klarnaZipNeeded = () => {
+      if (document.querySelector('input[name="method"]:checked')?.value !== 'klarna') return false;
+      const a = book.selected();
+      return !a || !usCountry(a.country) || !/^\d{5}(?:-\d{4})?$/.test(String(a.postalCode || '').trim());
+    };
+    function updateKlarnaZipNote() {
+      const note = $('klarna-zip-note');
+      note.hidden = document.querySelector('input[name="method"]:checked')?.value !== 'klarna' || !klarnaZipNeeded();
+      note.textContent = note.hidden ? '' : 'Klarna US cần địa chỉ tại Hoa Kỳ với ZIP thật (5 chữ số hoặc ZIP+4). Hãy thêm/sửa địa chỉ giao hàng trước khi đặt hàng.';
+    }
     // The order may only be created from a quote that belongs to the address selected right now.
-    const canPay = () =>
+    const canQuote = () =>
       !busy &&
       !addressBusy &&
       !!state.quote &&
       book.selectedId() != null &&
       state.quoteKey === book.selectedKey();
+    const canPay = () => canQuote() && !klarnaZipNeeded();
     const book = G4.BuyerAddresses.create({
       lock(value) {
         addressBusy = value;
@@ -155,12 +167,12 @@
     }
     function pickCoupon(sellerId, offer) {
       const before = state.quote?.sellers.find((s) => s.sellerId === sellerId)?.quote.total;
-      if (!canPay() || before == null)
+      if (!canQuote() || before == null)
         throw new Error('Chọn địa chỉ và cập nhật báo giá trước khi kiểm tra mã.');
       const token = quoteRequest;
       const addressKey = book.selectedKey();
       function ensureCurrent() {
-        if (token !== quoteRequest || !canPay() || addressKey !== book.selectedKey())
+        if (token !== quoteRequest || !canQuote() || addressKey !== book.selectedKey())
           throw new Error('Báo giá đã thay đổi. Hãy mở lại bộ chọn mã.');
       }
       return G4.BuyerOffers.pick(sellerId, async (code) => {
@@ -270,6 +282,7 @@
         : 'Tạm tính: ' + money(state.items.reduce((n, x) => n + (x.price ?? 0) * x.quantity, 0));
       $('continue').disabled = busy || !state.items.length;
       $('pay').disabled = !canPay();
+      updateKlarnaZipNote();
       document.querySelectorAll('[data-quantity]').forEach(
         (control) =>
         (control.onchange = () =>
@@ -342,6 +355,7 @@
         .forEach((x) => (x.disabled = value));
       $('continue').disabled = value || !state.items.length;
       $('pay').disabled = !canPay();
+      updateKlarnaZipNote();
     }
     function accept(cart) {
       state.items = cart.items;
@@ -464,6 +478,15 @@
           await G4.PayPalCart.begin(checkoutKey);
           return;
         }
+        if (method === 'klarna' && pending.length) {
+          message(
+            `Đã tạo ${orders.length} đơn. Đang chuyển sang Klarna cho đơn #${pending[0].id}. ` +
+              'Các đơn còn lại thanh toán riêng trong Đơn của tôi.',
+            true,
+          );
+          await G4.Klarna.begin(pending[0].id);
+          return;
+        }
         const results = [];
         for (const order of pending) {
           try {
@@ -523,11 +546,14 @@
       .querySelectorAll('input[name="method"]')
       .forEach(
         (r) =>
-        (r.onchange = () =>
+        (r.onchange = () => {
           $('card-fields').classList.toggle(
             'hidden',
             document.querySelector('input[name="method"]:checked').value !== 'card',
-          )),
+          );
+          $('pay').disabled = !canPay();
+          updateKlarnaZipNote();
+        }),
       );
     return safe(async () => {
       setBusy(true);

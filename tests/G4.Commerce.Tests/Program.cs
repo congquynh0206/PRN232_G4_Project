@@ -69,6 +69,11 @@ if (args.Contains("--checkout-limits"))
     await CheckoutLimitChecks.RunAsync();
     return;
 }
+if (args.Contains("--klarna"))
+{
+    await KlarnaChecks.RunAsync();
+    return;
+}
 if (args.Contains("--paypal-reservations"))
 {
     await PayPalReservationChecks.RunAsync();
@@ -260,6 +265,7 @@ await ProductFeedbackChecks.RunAsync();
 await BusinessNotificationChecks.RunAsync();
 await PayPalCartChecks.RunAsync();
 await PayPalReservationChecks.RunAsync();
+await KlarnaChecks.RunAsync();
 NotificationProcessingChecks.CheckRetryRules();
 await NotificationTemplateChecks.RunAsync();
 await NotificationProcessorBehaviorChecks.RunAsync();

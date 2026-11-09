@@ -10,13 +10,20 @@ public sealed class ShipmentService(
     ApplicationDbContext db,
     ICarrierGateway carrier,
     IConfiguration? config = null,
-    TimeProvider? clock = null
+    TimeProvider? clock = null,
+    G4.Infrastructure.Payments.KlarnaPaymentService? klarnaPayments = null
 ) : IShipmentService
 {
     private DateTime Now => (clock ?? TimeProvider.System).GetUtcNow().UtcDateTime;
 
     public async Task<ShippingInfo> CreateOutboundAsync(int orderId, CancellationToken ct = default)
     {
+        if (klarnaPayments != null)
+        {
+            var captured = await klarnaPayments.CaptureForShipmentAsync(orderId, ct);
+            if (captured != null && captured.Status != "Succeeded")
+                throw new InvalidOperationException("Klarna đang xác minh capture; chưa được giao hàng. Thử lại sau.");
+        }
         await using var tx = await PromotionLifecycle.LockOrderAsync(db, orderId, ct);
         var existing = await db.ShippingInfos.SingleOrDefaultAsync(
             s => s.OrderId == orderId && s.Direction == "Outbound",

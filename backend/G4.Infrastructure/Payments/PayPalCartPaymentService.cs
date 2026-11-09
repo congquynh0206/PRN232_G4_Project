@@ -182,6 +182,7 @@ public sealed class PayPalCartPaymentService(
                                     p.Status == "Succeeded"
                                     || p.Status == "Verifying"
                                     || p.PayPalCheckoutId != null && p.Status == "Pending"
+                                    || p.Method == "Klarna" && (p.Status == "Pending" || p.Status == "Authorized")
                                 ),
                             ct
                         )
