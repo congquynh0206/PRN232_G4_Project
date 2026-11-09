@@ -67,9 +67,11 @@ public sealed class KlarnaGateway(HttpClient http, IConfiguration configuration)
         if (!kp.TryGetProperty("payment_method_categories", out var categories)
             || categories.ValueKind != JsonValueKind.Array)
             throw new HttpRequestException("Klarna session has no payment categories");
+        // Newer playground merchants get one unified "klarna" category instead of
+        // the legacy "pay_later" / "pay_over_time" split.
         var bnplCategories = categories.EnumerateArray()
             .Select(x => OptionalString(x, "identifier"))
-            .Where(x => x is "pay_later" or "pay_over_time")
+            .Where(x => x is "klarna" or "pay_later" or "pay_over_time")
             .Distinct().ToArray();
         if (bnplCategories.Length == 0)
             throw new HttpRequestException("Klarna BNPL is not available for this session");
@@ -200,8 +202,33 @@ public sealed class KlarnaGateway(HttpClient http, IConfiguration configuration)
         var response = await http.SendAsync(request, ct);
         if (response.IsSuccessStatusCode) return response;
         var code = response.StatusCode;
+        var detail = await ErrorDetailAsync(response, ct);
         response.Dispose();
-        throw new HttpRequestException($"Klarna API returned {(int)code}", null, code);
+        throw new HttpRequestException($"Klarna API returned {(int)code}{detail}", null, code);
+    }
+
+    // Klarna error bodies carry error_code and correlation_id; keep them for troubleshooting.
+    private static async Task<string> ErrorDetailAsync(
+        HttpResponseMessage response,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            using var document = await JsonDocument.ParseAsync(
+                await response.Content.ReadAsStreamAsync(ct),
+                cancellationToken: ct
+            );
+            var error = OptionalString(document.RootElement, "error_code");
+            var correlation = OptionalString(document.RootElement, "correlation_id");
+            return error == null && correlation == null
+                ? ""
+                : $" ({error ?? "unknown error"}, correlation {correlation ?? "n/a"})";
+        }
+        catch (JsonException)
+        {
+            return "";
+        }
     }
 
     private static string HeaderId(HttpResponseMessage response, string header)

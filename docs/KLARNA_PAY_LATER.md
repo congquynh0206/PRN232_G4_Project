@@ -27,7 +27,11 @@ hợp đồng/settlement feed.
    liệu demo cũ. Buyer khác không được đọc hoặc khởi tạo thanh toán của nhau.
 2. `POST /api/orders/{id}/pay/klarna` với `{ "key": "<UUID ổn định>" }` tạo
    Klarna Payments session và HPP session (`PLACE_ORDER`), lưu hai ID và URL,
-   trả `redirectUrl`. Khóa lặp dùng lại phiên đã tạo. Trang web chỉ chuyển hướng
+   trả `redirectUrl`. Khóa lặp dùng lại phiên đã tạo. Merchant playground mới
+   chỉ trả category hợp nhất `klarna` (không còn `pay_later`/`pay_over_time`);
+   gateway nhận cả ba và gửi đúng category Klarna trả về sang HPP (kiểm tra
+   playground NA ngày 09/11/2026). Lỗi API ghi kèm `error_code` và
+   `correlation_id` để tra cứu với Klarna. Trang web chỉ chuyển hướng
    tới URL HTTPS do Klarna trả về. Với giỏ nhiều seller, các đơn tạo riêng và
    chỉ đơn đầu chuyển sang HPP; các đơn khác thanh toán riêng trong Đơn của tôi.
 3. Buyer về `/Buyer/KlarnaReturn?orderId=...`; frontend gọi
