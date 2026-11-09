@@ -60,7 +60,16 @@
   gap: 0.5rem;
 }
 
-.offer-form input:not([type="checkbox"]),
+.offer-form .offer-payment {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #cbd6e6;
+  border-radius: 0.45rem;
+}
+
+.offer-form input:not([type="checkbox"]):not([type="radio"]),
 .offer-form select,
 .offer-actions input {
   box-sizing: border-box;

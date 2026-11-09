@@ -64,6 +64,11 @@ if (args.Contains("--unpaid-items"))
     await UnpaidItemChecks.RunAsync();
     return;
 }
+if (args.Contains("--best-offers"))
+{
+    await BestOfferChecks.RunAsync();
+    return;
+}
 if (args.Contains("--checkout-limits"))
 {
     await CheckoutLimitChecks.RunAsync();
@@ -266,6 +271,7 @@ await BusinessNotificationChecks.RunAsync();
 await PayPalCartChecks.RunAsync();
 await PayPalReservationChecks.RunAsync();
 await KlarnaChecks.RunAsync();
+await BestOfferChecks.RunAsync();
 NotificationProcessingChecks.CheckRetryRules();
 await NotificationTemplateChecks.RunAsync();
 await NotificationProcessorBehaviorChecks.RunAsync();

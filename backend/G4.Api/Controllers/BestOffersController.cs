@@ -1,3 +1,4 @@
+using G4.Api.Security;
 using G4.Contracts.Checkout;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -17,7 +18,7 @@ public sealed class BestOffersController(
     {
         if (!IsAvailable || !HasRole("buyer"))
             return StatusCode(403);
-        return Ok(await offers.GetOfferableProductsAsync(ct));
+        return Ok(await offers.GetOfferableProductsAsync(CurrentUserId, ct));
     }
 
     [HttpGet("buyer")]
@@ -64,19 +65,28 @@ public sealed class BestOffersController(
     }
 
     [HttpPost("{id:long}/seller/accept")]
-    public async Task<IActionResult> SellerAccept(long id, CancellationToken ct)
+    [RequirePassword("seller", "Chấp nhận đề nghị trả giá")]
+    public async Task<IActionResult> SellerAccept(
+        long id,
+        BestOfferActionInput input,
+        CancellationToken ct
+    )
     {
         if (!IsAvailable || !HasRole("seller"))
             return StatusCode(403);
-        return Ok(await offers.SellerAcceptAsync(CurrentUserId, id, ct));
+        return Ok(await offers.SellerAcceptAsync(CurrentUserId, id, input, ct));
     }
 
     [HttpPost("{id:long}/seller/decline")]
-    public async Task<IActionResult> SellerDecline(long id, CancellationToken ct)
+    public async Task<IActionResult> SellerDecline(
+        long id,
+        BestOfferActionInput input,
+        CancellationToken ct
+    )
     {
         if (!IsAvailable || !HasRole("seller"))
             return StatusCode(403);
-        return Ok(await offers.SellerDeclineAsync(CurrentUserId, id, ct));
+        return Ok(await offers.SellerDeclineAsync(CurrentUserId, id, input, ct));
     }
 
     [HttpPost("{id:long}/seller/counter")]
@@ -92,11 +102,16 @@ public sealed class BestOffersController(
     }
 
     [HttpPost("{id:long}/buyer/accept")]
-    public async Task<IActionResult> BuyerAccept(long id, CancellationToken ct)
+    [RequirePassword("buyer", "Chấp nhận giá phản hồi của người bán")]
+    public async Task<IActionResult> BuyerAccept(
+        long id,
+        BestOfferActionInput input,
+        CancellationToken ct
+    )
     {
         if (!IsAvailable || !HasRole("buyer"))
             return StatusCode(403);
-        return Ok(await offers.BuyerAcceptAsync(CurrentUserId, id, ct));
+        return Ok(await offers.BuyerAcceptAsync(CurrentUserId, id, input, ct));
     }
 
     [HttpPost("{id:long}/buyer/payment-profile")]
@@ -112,11 +127,15 @@ public sealed class BestOffersController(
     }
 
     [HttpPost("{id:long}/buyer/decline")]
-    public async Task<IActionResult> BuyerDecline(long id, CancellationToken ct)
+    public async Task<IActionResult> BuyerDecline(
+        long id,
+        BestOfferActionInput input,
+        CancellationToken ct
+    )
     {
         if (!IsAvailable || !HasRole("buyer"))
             return StatusCode(403);
-        return Ok(await offers.BuyerDeclineAsync(CurrentUserId, id, ct));
+        return Ok(await offers.BuyerDeclineAsync(CurrentUserId, id, input, ct));
     }
 
     [HttpPost("{id:long}/buyer/counter")]

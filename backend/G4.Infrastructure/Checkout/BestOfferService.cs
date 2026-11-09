@@ -1,26 +1,44 @@
 using System.Data;
+using System.Globalization;
 using G4.Contracts.Checkout;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Configuration;
 
 namespace G4.Infrastructure.Checkout;
 
 public sealed class BestOfferService(
     ApplicationDbContext db,
     ISellerFinanceService finance,
-    TimeProvider clock
+    TimeProvider clock,
+    IConfiguration? config = null
 ) : IBestOfferService
 {
-    private const int BuyerOfferLimit = 5;
+    // eBay-style limit: one buyer may send at most 5 offers for one product, across sessions.
+    public const int BuyerOfferLimit = 5;
+
+    // Auto-Pay charges the saved test card on accept; PayLater creates an unpaid order.
+    public const string AutoPayMethod = "Card";
+    public const string PayLaterMethod = "PayLater";
+
     private const int OfferLifetimeHours = 24;
     private const string PendingSeller = "PendingSeller";
     private const string PendingBuyer = "PendingBuyer";
     private static readonly string[] ActiveStatuses = [PendingSeller, PendingBuyer];
+    private static readonly string[] BuyerOfferActions = ["Offer", "Counter"];
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
 
+    private int PaymentHoldMinutes =>
+        UnpaidItemRules.NormalizeHoldMinutes(
+            config?.GetValue<int?>("Checkout:PaymentHoldMinutes")
+        );
+
     public async Task<IReadOnlyList<OfferableProductView>> GetOfferableProductsAsync(
+        int buyerId,
         CancellationToken ct
-    ) =>
-        await (
+    )
+    {
+        var products = await (
             from product in db.Products.AsNoTracking()
             join stock in db.Inventories.AsNoTracking()
                 on product.Id equals stock.ProductId
@@ -30,16 +48,41 @@ public sealed class BestOfferService(
                 && product.Price != null
                 && stock.Quantity > 0
             orderby product.Id
-            select new OfferableProductView(
+            select new
+            {
                 product.Id,
-                product.Title ?? "Sản phẩm",
+                Title = product.Title ?? "Sản phẩm",
                 product.Images,
-                product.Price!.Value,
-                product.WeightKg ?? 0,
-                stock.Quantity ?? 0,
-                product.SellerId ?? 0
-            )
+                Price = product.Price!.Value,
+                WeightKg = product.WeightKg ?? 0,
+                Available = stock.Quantity ?? 0,
+                SellerId = product.SellerId ?? 0,
+            }
         ).ToListAsync(ct);
+        var used = await (
+            from turn in db.BestOfferTurns.AsNoTracking()
+            join offer in db.BestOffers.AsNoTracking() on turn.BestOfferId equals offer.Id
+            where
+                offer.BuyerId == buyerId
+                && turn.ActorId == buyerId
+                && BuyerOfferActions.Contains(turn.Action)
+            group turn by offer.ProductId into productTurns
+            select new { ProductId = productTurns.Key, Count = productTurns.Count() }
+        ).ToDictionaryAsync(x => x.ProductId, x => x.Count, ct);
+        return products
+            .Select(x => new OfferableProductView(
+                x.Id,
+                x.Title,
+                x.Images,
+                x.Price,
+                x.WeightKg,
+                x.Available,
+                x.SellerId,
+                used.GetValueOrDefault(x.Id),
+                BuyerOfferLimit
+            ))
+            .ToList();
+    }
 
     public Task<IReadOnlyList<BestOfferView>> GetBuyerOffersAsync(
         int buyerId,
@@ -59,11 +102,9 @@ public sealed class BestOfferService(
     {
         ValidateKey(input.Key);
         ValidateAmount(input.Amount);
-        ValidateCard(input.CardProfile, input.CardExpiry);
-        if (input.PaymentMethod != "Card")
-            throw new ArgumentException(
-                "Best Offer hiện yêu cầu thẻ giả lập đã lưu để tự thanh toán khi được chấp nhận."
-            );
+        var payLater = IsPayLater(input.PaymentMethod);
+        if (!payLater)
+            ValidateCard(input.CardProfile, input.CardExpiry);
 
         await using var tx = await BeginTransactionAsync(ct);
         var duplicate = await db.BestOffers.SingleOrDefaultAsync(
@@ -74,7 +115,7 @@ public sealed class BestOfferService(
         {
             if (duplicate.BuyerId != buyerId || duplicate.ProductId != input.ProductId)
                 throw new InvalidOperationException("Khóa gửi giá đã được dùng cho yêu cầu khác.");
-            return await ViewAsync(duplicate, "buyer", ct);
+            return await CommitViewAsync(tx, duplicate, "buyer", ct);
         }
 
         var product = await db.Products.SingleOrDefaultAsync(
@@ -109,6 +150,8 @@ public sealed class BestOfferService(
             throw new InvalidOperationException(
                 "Bạn đã có một phiên trả giá đang mở cho sản phẩm này."
             );
+        // Read inside the serializable transaction, so parallel offers cannot pass the limit.
+        await EnsureOfferQuotaAsync(buyerId, product.Id, ct);
 
         var offer = new BestOffer
         {
@@ -120,9 +163,9 @@ public sealed class BestOfferService(
             CurrentActorId = buyerId,
             Status = PendingSeller,
             BuyerOfferCount = 1,
-            PaymentMethod = "Card",
-            CardProfile = input.CardProfile,
-            CardExpiry = input.CardExpiry,
+            PaymentMethod = payLater ? PayLaterMethod : AutoPayMethod,
+            CardProfile = payLater ? null : input.CardProfile,
+            CardExpiry = payLater ? null : input.CardExpiry,
             CreationKey = input.Key,
             CreatedAt = Now,
             UpdatedAt = Now,
@@ -139,7 +182,7 @@ public sealed class BestOfferService(
         }
         else if (product.AutoAcceptOfferPrice is decimal acceptAt && input.Amount >= acceptAt)
         {
-            await AcceptAndChargeAsync(offer, product, input.AddressId, turn, ct);
+            await AcceptAsync(offer, product, turn, ct);
         }
         else
         {
@@ -153,32 +196,36 @@ public sealed class BestOfferService(
 
         offer.UpdatedAt = Now;
         await db.SaveChangesAsync(ct);
-        if (tx is not null)
-            await tx.CommitAsync(ct);
-        return await ViewAsync(offer, "buyer", ct);
+        return await CommitViewAsync(tx, offer, "buyer", ct);
     }
 
     public async Task<BestOfferView> SellerAcceptAsync(
         int sellerId,
         long id,
+        BestOfferActionInput input,
         CancellationToken ct
     )
     {
+        ValidateKey(input.Key);
         await using var tx = await BeginTransactionAsync(ct);
         var offer = await GetOfferAsync(id, sellerId, "seller", ct);
+        if (await IsReplayAsync(offer, sellerId, input.Key!, ct))
+            return await CommitViewAsync(tx, offer, "seller", ct);
         RequireStatus(offer, PendingSeller);
-        var turn = AddTurn(offer, sellerId, offer.CurrentAmount, "Accept");
+        var turn = AddTurn(offer, sellerId, offer.CurrentAmount, "Accept", input.Key);
         var product = await ProductForOfferAsync(offer, ct);
-        await AcceptAndChargeAsync(offer, product, offer.AddressId, turn, ct);
+        await AcceptAsync(offer, product, turn, ct);
         offer.UpdatedAt = Now;
         await db.SaveChangesAsync(ct);
-        if (tx is not null)
-            await tx.CommitAsync(ct);
-        return await ViewAsync(offer, "seller", ct);
+        return await CommitViewAsync(tx, offer, "seller", ct);
     }
 
-    public Task<BestOfferView> SellerDeclineAsync(int sellerId, long id, CancellationToken ct) =>
-        CloseAsync(sellerId, id, "seller", "Declined", "Decline", ct);
+    public Task<BestOfferView> SellerDeclineAsync(
+        int sellerId,
+        long id,
+        BestOfferActionInput input,
+        CancellationToken ct
+    ) => CloseAsync(sellerId, id, "seller", input.Key, ct);
 
     public async Task<BestOfferView> SellerCounterAsync(
         int sellerId,
@@ -191,35 +238,51 @@ public sealed class BestOfferService(
         ValidateKey(input.Key);
         await using var tx = await BeginTransactionAsync(ct);
         var offer = await GetOfferAsync(id, sellerId, "seller", ct);
+        if (await IsReplayAsync(offer, sellerId, input.Key!, ct))
+            return await CommitViewAsync(tx, offer, "seller", ct);
         RequireStatus(offer, PendingSeller);
         var product = await ProductForOfferAsync(offer, ct);
-        if (input.Amount > product.Price)
-            throw new ArgumentException("Giá phản hồi không được cao hơn giá niêm yết.");
-        offer.CurrentAmount = input.Amount!.Value;
+        var amount = input.Amount!.Value;
+        // A counteroffer sits between the buyer's offer and the list price.
+        if (amount <= offer.CurrentAmount || amount >= product.Price)
+            throw new ArgumentException(
+                $"Giá phản hồi phải lớn hơn {Money(offer.CurrentAmount)} (giá người mua đưa) "
+                    + $"và nhỏ hơn {Money(product.Price ?? 0)} (giá niêm yết)."
+            );
+        offer.CurrentAmount = amount;
         offer.CurrentActorId = sellerId;
         offer.Status = PendingBuyer;
         RefreshDeadline(offer);
-        AddTurn(offer, sellerId, offer.CurrentAmount, "Counter", input.Key);
-        AddChange(offer, "Người bán đã phản hồi giá", $"Có phản hồi cho đề nghị #{offer.Id}.", "best-offers");
+        AddTurn(offer, sellerId, amount, "Counter", input.Key);
+        AddChange(
+            offer,
+            "Người bán đã phản hồi giá",
+            $"Có phản hồi cho đề nghị #{offer.Id}.",
+            "best-offers"
+        );
         await db.SaveChangesAsync(ct);
-        if (tx is not null)
-            await tx.CommitAsync(ct);
-        return await ViewAsync(offer, "seller", ct);
+        return await CommitViewAsync(tx, offer, "seller", ct);
     }
 
-    public async Task<BestOfferView> BuyerAcceptAsync(int buyerId, long id, CancellationToken ct)
+    public async Task<BestOfferView> BuyerAcceptAsync(
+        int buyerId,
+        long id,
+        BestOfferActionInput input,
+        CancellationToken ct
+    )
     {
+        ValidateKey(input.Key);
         await using var tx = await BeginTransactionAsync(ct);
         var offer = await GetOfferAsync(id, buyerId, "buyer", ct);
+        if (await IsReplayAsync(offer, buyerId, input.Key!, ct))
+            return await CommitViewAsync(tx, offer, "buyer", ct);
         RequireStatus(offer, PendingBuyer);
-        var turn = AddTurn(offer, buyerId, offer.CurrentAmount, "Accept");
+        var turn = AddTurn(offer, buyerId, offer.CurrentAmount, "Accept", input.Key);
         var product = await ProductForOfferAsync(offer, ct);
-        await AcceptAndChargeAsync(offer, product, offer.AddressId, turn, ct);
+        await AcceptAsync(offer, product, turn, ct);
         offer.UpdatedAt = Now;
         await db.SaveChangesAsync(ct);
-        if (tx is not null)
-            await tx.CommitAsync(ct);
-        return await ViewAsync(offer, "buyer", ct);
+        return await CommitViewAsync(tx, offer, "buyer", ct);
     }
 
     public async Task<BestOfferView> UpdatePaymentProfileAsync(
@@ -234,17 +297,23 @@ public sealed class BestOfferService(
         var offer = await GetOfferAsync(id, buyerId, "buyer", ct);
         if (!ActiveStatuses.Contains(offer.Status) || offer.ExpiresAt <= Now)
             throw new InvalidOperationException("Chỉ có thể cập nhật thẻ cho phiên đang mở.");
+        if (offer.PaymentMethod != AutoPayMethod)
+            throw new InvalidOperationException(
+                "Phiên thanh toán sau không dùng thẻ Auto-Pay; trả tiền trong Đơn hàng."
+            );
         offer.CardProfile = input.CardProfile;
         offer.CardExpiry = input.CardExpiry;
         offer.UpdatedAt = Now;
         await db.SaveChangesAsync(ct);
-        if (tx is not null)
-            await tx.CommitAsync(ct);
-        return await ViewAsync(offer, "buyer", ct);
+        return await CommitViewAsync(tx, offer, "buyer", ct);
     }
 
-    public Task<BestOfferView> BuyerDeclineAsync(int buyerId, long id, CancellationToken ct) =>
-        CloseAsync(buyerId, id, "buyer", "Declined", "Decline", ct);
+    public Task<BestOfferView> BuyerDeclineAsync(
+        int buyerId,
+        long id,
+        BestOfferActionInput input,
+        CancellationToken ct
+    ) => CloseAsync(buyerId, id, "buyer", input.Key, ct);
 
     public async Task<BestOfferView> BuyerCounterAsync(
         int buyerId,
@@ -257,26 +326,33 @@ public sealed class BestOfferService(
         ValidateKey(input.Key);
         await using var tx = await BeginTransactionAsync(ct);
         var offer = await GetOfferAsync(id, buyerId, "buyer", ct);
+        if (await IsReplayAsync(offer, buyerId, input.Key!, ct))
+            return await CommitViewAsync(tx, offer, "buyer", ct);
         RequireStatus(offer, PendingBuyer);
+        await EnsureOfferQuotaAsync(buyerId, offer.ProductId, ct);
         var product = await ProductForOfferAsync(offer, ct);
-        if (input.Amount >= product.Price)
-            throw new ArgumentException("Giá trả phải thấp hơn giá niêm yết.");
-        if (offer.BuyerOfferCount >= BuyerOfferLimit)
-            throw new InvalidOperationException("Bạn đã dùng hết 5 lượt trả giá cho phiên này.");
+        var amount = input.Amount!.Value;
+        var previous = await LastBuyerAmountAsync(offer, ct);
+        // The buyer moves up from their last offer but stays below the seller's counter.
+        if (amount <= previous || amount >= offer.CurrentAmount)
+            throw new ArgumentException(
+                $"Giá trả lại phải lớn hơn {Money(previous)} (giá bạn đưa lần trước) "
+                    + $"và nhỏ hơn {Money(offer.CurrentAmount)} (giá người bán phản hồi)."
+            );
         offer.BuyerOfferCount++;
-        offer.CurrentAmount = input.Amount!.Value;
+        offer.CurrentAmount = amount;
         offer.CurrentActorId = buyerId;
         offer.Status = PendingSeller;
         RefreshDeadline(offer);
-        var turn = AddTurn(offer, buyerId, offer.CurrentAmount, "Counter", input.Key);
-        if (product.AutoDeclineOfferBelow is decimal floor && offer.CurrentAmount < floor)
+        var turn = AddTurn(offer, buyerId, amount, "Counter", input.Key);
+        if (product.AutoDeclineOfferBelow is decimal floor && amount < floor)
         {
             offer.Status = "Declined";
             turn.Result = "AutoDeclined";
         }
-        else if (product.AutoAcceptOfferPrice is decimal acceptAt && offer.CurrentAmount >= acceptAt)
+        else if (product.AutoAcceptOfferPrice is decimal acceptAt && amount >= acceptAt)
         {
-            await AcceptAndChargeAsync(offer, product, offer.AddressId, turn, ct);
+            await AcceptAsync(offer, product, turn, ct);
         }
         else
         {
@@ -289,9 +365,7 @@ public sealed class BestOfferService(
         }
         offer.UpdatedAt = Now;
         await db.SaveChangesAsync(ct);
-        if (tx is not null)
-            await tx.CommitAsync(ct);
-        return await ViewAsync(offer, "buyer", ct);
+        return await CommitViewAsync(tx, offer, "buyer", ct);
     }
 
     public async Task<int> ExpireAsync(CancellationToken ct)
@@ -305,7 +379,12 @@ public sealed class BestOfferService(
         {
             offer.Status = "Expired";
             offer.UpdatedAt = Now;
-            AddChange(offer, "Đề nghị trả giá hết hạn", $"Đề nghị #{offer.Id} đã hết hạn.", "best-offers");
+            AddChange(
+                offer,
+                "Đề nghị trả giá hết hạn",
+                $"Đề nghị #{offer.Id} đã hết hạn.",
+                "best-offers"
+            );
         }
         if (due.Count > 0)
             await db.SaveChangesAsync(ct);
@@ -325,7 +404,9 @@ public sealed class BestOfferService(
         if (input.AllowOffers)
         {
             if (product.IsAuction == true || product.Price is null or <= 0)
-                throw new InvalidOperationException("Chỉ mặt hàng bán giá cố định nhận Best Offer.");
+                throw new InvalidOperationException(
+                    "Chỉ mặt hàng bán giá cố định nhận Best Offer."
+                );
             if (
                 input.AutoAcceptPrice is decimal accept
                 && (accept <= 0 || accept > product.Price)
@@ -351,10 +432,20 @@ public sealed class BestOfferService(
         await db.SaveChangesAsync(ct);
     }
 
+    private Task AcceptAsync(
+        BestOffer offer,
+        Product product,
+        BestOfferTurn turn,
+        CancellationToken ct
+    ) =>
+        offer.PaymentMethod == PayLaterMethod
+            ? AcceptUnpaidAsync(offer, product, turn, ct)
+            : AcceptAndChargeAsync(offer, product, turn, ct);
+
+    // Auto-Pay: the buyer authorized the saved test card when making the offer.
     private async Task AcceptAndChargeAsync(
         BestOffer offer,
         Product product,
-        int addressId,
         BestOfferTurn turn,
         CancellationToken ct
     )
@@ -366,75 +457,17 @@ public sealed class BestOfferService(
         if (CardPaymentSimulator.Outcome(cardNumber, offer.CardExpiry!) != "Succeeded")
         {
             turn.Result = "PaymentFailed";
-            throw new InvalidOperationException("Thẻ giả lập không được chấp nhận; chưa chốt giao dịch.");
+            throw new InvalidOperationException(
+                "Thẻ giả lập không được chấp nhận; chưa chốt giao dịch."
+            );
         }
 
-        await finance.ValidateNewSaleAsync(offer.SellerId, ct);
-        var buyerAddress = await db.Addresses.SingleOrDefaultAsync(
-            x => x.Id == addressId && x.UserId == offer.BuyerId,
-            ct
-        ) ?? throw new InvalidOperationException("Địa chỉ giao hàng không còn hợp lệ.");
-        var pickup = await db.Addresses.Where(x => x.UserId == offer.SellerId && x.IsDefault == true)
-            .OrderBy(x => x.Id).FirstOrDefaultAsync(ct)
-            ?? throw new InvalidOperationException("Người bán cần có địa chỉ lấy hàng mặc định.");
-        var stock = await db.Inventories.SingleOrDefaultAsync(x => x.ProductId == product.Id, ct)
-            ?? throw new InvalidOperationException("Không tìm thấy tồn kho của sản phẩm.");
-        if (stock.Quantity is null or < 1)
-            throw new InvalidOperationException("Sản phẩm vừa hết hàng; chưa chốt đề nghị.");
-
-        var quote = OrderPricing.Calculate(
-            [new PriceLine(offer.CurrentAmount, 1, product.WeightKg!.Value)],
-            0,
-            ShippingPricing.IsHanoiLocal(
-                pickup.State,
-                pickup.Country,
-                buyerAddress.State,
-                buyerAddress.Country
-            )
-        );
-        stock.Quantity--;
-        stock.LastUpdated = Now;
-        var order = new OrderTable
-        {
-            BuyerId = offer.BuyerId,
-            SellerId = offer.SellerId,
-            AddressId = buyerAddress.Id,
-            AddressSnapshot = AddressText(buyerAddress),
-            PickupAddressSnapshot = AddressText(pickup),
-            DeliveryStateSnapshot = buyerAddress.State,
-            DeliveryCountrySnapshot = buyerAddress.Country,
-            PickupStateSnapshot = pickup.State,
-            PickupCountrySnapshot = pickup.Country,
-            OrderDate = Now,
-            UpdatedAt = Now,
-            Subtotal = quote.Subtotal,
-            ShippingFee = quote.Shipping,
-            ShippingBase = quote.Shipping,
-            TotalWeightKg = quote.TotalWeightKg,
-            TotalPrice = quote.Total,
-            SellerGrossSnapshot = quote.Total,
-            PricingSchemaVersion = 1,
-            Currency = "USD",
-            CheckoutKey = $"best-offer-{offer.Id}",
-            Status = "AwaitingPayment",
-        };
-        order.OrderItems.Add(new OrderItem
-        {
-            ProductId = product.Id,
-            Quantity = 1,
-            UnitPrice = offer.CurrentAmount,
-            ProductTitleSnapshot = product.Title,
-            UnitWeightKgSnapshot = product.WeightKg,
-            SellerIdSnapshot = offer.SellerId,
-        });
-        db.OrderTables.Add(order);
-        await db.SaveChangesAsync(ct);
-
+        var order = await CreateOrderAsync(offer, product, null, ct);
         var payment = new Payment
         {
             OrderId = order.Id,
             UserId = offer.BuyerId,
-            Amount = quote.Total,
+            Amount = order.TotalPrice,
             Method = "Card",
             Status = "Succeeded",
             ProviderTransactionId = $"OFFER-CARD-{Guid.NewGuid():N}",
@@ -466,26 +499,148 @@ public sealed class BestOfferService(
         offer.UpdatedAt = Now;
     }
 
+    // Pay later: the accepted offer becomes an unpaid order that holds the stock until the
+    // normal payment deadline. Payment, expiry, seller cancel and strikes reuse that flow.
+    private async Task AcceptUnpaidAsync(
+        BestOffer offer,
+        Product product,
+        BestOfferTurn turn,
+        CancellationToken ct
+    )
+    {
+        var banned = await db
+            .Users.Where(x => x.Id == offer.BuyerId)
+            .Select(x => x.BannedAt)
+            .SingleOrDefaultAsync(ct);
+        if (banned != null)
+            throw new InvalidOperationException(
+                "Tài khoản người mua đã bị khóa; không thể tạo đơn chờ thanh toán."
+            );
+        var deadline = Now.AddMinutes(PaymentHoldMinutes);
+        var order = await CreateOrderAsync(offer, product, deadline, ct);
+        offer.Status = "Accepted";
+        offer.OrderId = order.Id;
+        turn.Result = "AcceptedUnpaid";
+        AddChange(
+            offer,
+            "Best Offer đã chốt, chờ thanh toán",
+            $"Đơn hàng #{order.Id} chờ thanh toán trước "
+                + $"{deadline.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture)} UTC.",
+            "orders"
+        );
+        AddChange(
+            offer,
+            "Đề nghị đã được chấp nhận",
+            $"Đề nghị #{offer.Id} đã được chấp nhận; đơn #{order.Id} đang chờ thanh toán.",
+            "best-offers"
+        );
+        await db.SaveChangesAsync(ct);
+        offer.UpdatedAt = Now;
+    }
+
+    // Creates an AwaitingPayment order for one unit at the agreed price and holds the stock.
+    private async Task<OrderTable> CreateOrderAsync(
+        BestOffer offer,
+        Product product,
+        DateTime? paymentExpiresAt,
+        CancellationToken ct
+    )
+    {
+        await finance.ValidateNewSaleAsync(offer.SellerId, ct);
+        var buyerAddress = await db.Addresses.SingleOrDefaultAsync(
+            x => x.Id == offer.AddressId && x.UserId == offer.BuyerId,
+            ct
+        ) ?? throw new InvalidOperationException("Địa chỉ giao hàng không còn hợp lệ.");
+        var pickup = await db
+            .Addresses.Where(x => x.UserId == offer.SellerId && x.IsDefault == true)
+            .OrderBy(x => x.Id)
+            .FirstOrDefaultAsync(ct)
+            ?? throw new InvalidOperationException("Người bán cần có địa chỉ lấy hàng mặc định.");
+        var stock = await db.Inventories.SingleOrDefaultAsync(x => x.ProductId == product.Id, ct)
+            ?? throw new InvalidOperationException("Không tìm thấy tồn kho của sản phẩm.");
+        if (stock.Quantity is null or < 1)
+            throw new InvalidOperationException("Sản phẩm vừa hết hàng; chưa chốt đề nghị.");
+
+        var quote = OrderPricing.Calculate(
+            [new PriceLine(offer.CurrentAmount, 1, product.WeightKg!.Value)],
+            0,
+            ShippingPricing.IsHanoiLocal(
+                pickup.State,
+                pickup.Country,
+                buyerAddress.State,
+                buyerAddress.Country
+            )
+        );
+        stock.Quantity--;
+        stock.LastUpdated = Now;
+        var order = new OrderTable
+        {
+            BuyerId = offer.BuyerId,
+            SellerId = offer.SellerId,
+            AddressId = buyerAddress.Id,
+            AddressSnapshot = AddressText(buyerAddress),
+            PickupAddressSnapshot = AddressText(pickup),
+            DeliveryNameSnapshot = buyerAddress.FullName,
+            DeliveryStreetSnapshot = buyerAddress.Street,
+            DeliveryCitySnapshot = buyerAddress.City,
+            DeliveryPostalCodeSnapshot = buyerAddress.PostalCode,
+            DeliveryStateSnapshot = buyerAddress.State,
+            DeliveryCountrySnapshot = buyerAddress.Country,
+            PickupStateSnapshot = pickup.State,
+            PickupCountrySnapshot = pickup.Country,
+            OrderDate = Now,
+            UpdatedAt = Now,
+            PaymentExpiresAt = paymentExpiresAt,
+            Subtotal = quote.Subtotal,
+            ShippingFee = quote.Shipping,
+            ShippingBase = quote.Shipping,
+            TotalWeightKg = quote.TotalWeightKg,
+            TotalPrice = quote.Total,
+            SellerGrossSnapshot = quote.Total,
+            PricingSchemaVersion = 1,
+            Currency = "USD",
+            CheckoutKey = $"best-offer-{offer.Id}",
+            Status = "AwaitingPayment",
+        };
+        order.OrderItems.Add(new OrderItem
+        {
+            ProductId = product.Id,
+            Quantity = 1,
+            UnitPrice = offer.CurrentAmount,
+            ProductTitleSnapshot = product.Title,
+            UnitWeightKgSnapshot = product.WeightKg,
+            SellerIdSnapshot = offer.SellerId,
+        });
+        db.OrderTables.Add(order);
+        await db.SaveChangesAsync(ct);
+        return order;
+    }
+
     private async Task<BestOfferView> CloseAsync(
         int actorId,
         long id,
         string role,
-        string status,
-        string action,
+        string? key,
         CancellationToken ct
     )
     {
+        ValidateKey(key);
         await using var tx = await BeginTransactionAsync(ct);
         var offer = await GetOfferAsync(id, actorId, role, ct);
+        if (await IsReplayAsync(offer, actorId, key!, ct))
+            return await CommitViewAsync(tx, offer, role, ct);
         RequireStatus(offer, role == "seller" ? PendingSeller : PendingBuyer);
-        offer.Status = status;
+        offer.Status = "Declined";
         offer.UpdatedAt = Now;
-        AddTurn(offer, actorId, offer.CurrentAmount, action);
-        AddChange(offer, "Đề nghị trả giá đã đóng", $"Đề nghị #{offer.Id} đã được {status}.", "best-offers");
+        AddTurn(offer, actorId, offer.CurrentAmount, "Decline", key);
+        AddChange(
+            offer,
+            "Đề nghị trả giá đã đóng",
+            $"Đề nghị #{offer.Id} đã bị từ chối.",
+            "best-offers"
+        );
         await db.SaveChangesAsync(ct);
-        if (tx is not null)
-            await tx.CommitAsync(ct);
-        return await ViewAsync(offer, role, ct);
+        return await CommitViewAsync(tx, offer, role, ct);
     }
 
     private async Task<IReadOnlyList<BestOfferView>> GetOffersAsync(
@@ -504,7 +659,9 @@ public sealed class BestOfferService(
 
     private async Task<BestOfferView> ViewAsync(BestOffer offer, string role, CancellationToken ct)
     {
-        var product = await db.Products.AsNoTracking().SingleAsync(x => x.Id == offer.ProductId, ct);
+        var product = await db
+            .Products.AsNoTracking()
+            .SingleAsync(x => x.Id == offer.ProductId, ct);
         var turns = await db.BestOfferTurns.AsNoTracking()
             .Where(x => x.BestOfferId == offer.Id).OrderBy(x => x.Id)
             .Select(x => new BestOfferTurnView(
@@ -525,13 +682,26 @@ public sealed class BestOfferService(
             product.Price ?? 0,
             offer.CurrentAmount,
             offer.Status,
-            offer.BuyerOfferCount,
+            await UsedOffersAsync(offer.BuyerId, offer.ProductId, ct),
             BuyerOfferLimit,
             offer.ExpiresAt,
             offer.OrderId,
             role,
-            turns
+            turns,
+            offer.PaymentMethod
         );
+    }
+
+    private async Task<BestOfferView> CommitViewAsync(
+        IDbContextTransaction? tx,
+        BestOffer offer,
+        string role,
+        CancellationToken ct
+    )
+    {
+        if (tx is not null)
+            await tx.CommitAsync(ct);
+        return await ViewAsync(offer, role, ct);
     }
 
     private async Task<BestOffer> GetOfferAsync(
@@ -547,13 +717,55 @@ public sealed class BestOfferService(
     private Task<Product> ProductForOfferAsync(BestOffer offer, CancellationToken ct) =>
         db.Products.SingleAsync(x => x.Id == offer.ProductId, ct);
 
-    private async Task<int> DefaultAddressIdAsync(int buyerId, CancellationToken ct)
+    // Offers and buyer counteroffers on this product, across every session.
+    private Task<int> UsedOffersAsync(int buyerId, int productId, CancellationToken ct) =>
+        (
+            from turn in db.BestOfferTurns
+            join offer in db.BestOffers on turn.BestOfferId equals offer.Id
+            where
+                offer.BuyerId == buyerId
+                && offer.ProductId == productId
+                && turn.ActorId == buyerId
+                && BuyerOfferActions.Contains(turn.Action)
+            select turn.Id
+        ).CountAsync(ct);
+
+    private async Task EnsureOfferQuotaAsync(int buyerId, int productId, CancellationToken ct)
     {
-        var id = await db.Addresses.Where(x => x.UserId == buyerId && x.IsDefault == true)
-            .Select(x => x.Id).FirstOrDefaultAsync(ct);
-        if (id == 0)
-            throw new InvalidOperationException("Buyer cần có địa chỉ giao hàng mặc định.");
-        return id;
+        if (await UsedOffersAsync(buyerId, productId, ct) >= BuyerOfferLimit)
+            throw new InvalidOperationException(
+                $"Bạn đã dùng hết {BuyerOfferLimit} lượt trả giá cho sản phẩm này."
+            );
+    }
+
+    private async Task<decimal> LastBuyerAmountAsync(BestOffer offer, CancellationToken ct) =>
+        await db.BestOfferTurns
+            .Where(x =>
+                x.BestOfferId == offer.Id
+                && x.ActorId == offer.BuyerId
+                && BuyerOfferActions.Contains(x.Action)
+            )
+            .OrderByDescending(x => x.Id)
+            .Select(x => x.Amount)
+            .FirstAsync(ct);
+
+    // A retried request with the same key returns the stored outcome instead of an error.
+    private async Task<bool> IsReplayAsync(
+        BestOffer offer,
+        int actorId,
+        string key,
+        CancellationToken ct
+    )
+    {
+        var turn = await db.BestOfferTurns.AsNoTracking().SingleOrDefaultAsync(
+            x => x.RequestKey == key,
+            ct
+        );
+        if (turn is null)
+            return false;
+        if (turn.BestOfferId != offer.Id || turn.ActorId != actorId)
+            throw new InvalidOperationException("Khóa thao tác đã được dùng cho yêu cầu khác.");
+        return true;
     }
 
     private BestOfferTurn AddTurn(
@@ -564,12 +776,6 @@ public sealed class BestOfferService(
         string? key = null
     )
     {
-        if (!string.IsNullOrWhiteSpace(key))
-        {
-            var existing = db.BestOfferTurns.Local.FirstOrDefault(x => x.RequestKey == key);
-            if (existing is not null)
-                return existing;
-        }
         var turn = new BestOfferTurn
         {
             BestOfferId = offer.Id,
@@ -595,7 +801,7 @@ public sealed class BestOfferService(
             NotificationMessage = message,
         });
 
-    private async Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction?> BeginTransactionAsync(
+    private async Task<IDbContextTransaction?> BeginTransactionAsync(
         CancellationToken ct
     ) => db.Database.IsRelational() && db.Database.CurrentTransaction is null
         ? await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct)
@@ -614,6 +820,19 @@ public sealed class BestOfferService(
         if (offer.ExpiresAt <= Now)
             throw new InvalidOperationException("Lượt trả giá đã hết hạn.");
     }
+
+    private static bool IsPayLater(string? method) =>
+        method switch
+        {
+            PayLaterMethod => true,
+            AutoPayMethod => false,
+            _ => throw new ArgumentException(
+                "Chọn cách thanh toán: thanh toán sau hoặc Auto-Pay bằng thẻ."
+            ),
+        };
+
+    private static string Money(decimal amount) =>
+        amount.ToString("0.00", CultureInfo.InvariantCulture) + " USD";
 
     private static void ValidateAmount(decimal amount)
     {
