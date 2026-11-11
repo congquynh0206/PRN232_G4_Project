@@ -88,7 +88,6 @@ async function main() {
     assert.ok(writeoffs.totalCount >= 2);
     const blacklist = await get('/api/admin/seller-blacklist?page=1&pageSize=10', admin);
     assert.ok(blacklist.totalCount >= 3);
-    await get('/api/buyer/transactions?page=1&pageSize=10', buyer);
     await get('/api/disputes/page?page=1&pageSize=10&filter=all', admin);
     const guide = fs.readFileSync('database/demo/HUONG_DAN_DEMO.md', 'utf8');
     const ids = [...guide.matchAll(/\| [A-Z0-9-]+ \| Order #(\d+) \|/g)].map((match) =>

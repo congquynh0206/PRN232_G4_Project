@@ -574,7 +574,7 @@ public sealed class BestOfferService(
         var quote = OrderPricing.Calculate(
             [new PriceLine(offer.CurrentAmount, 1, product.WeightKg!.Value)],
             0,
-            ShippingPricing.IsHanoiLocal(
+            ShippingPricing.Zone(
                 pickup.State,
                 pickup.Country,
                 buyerAddress.State,
@@ -594,6 +594,7 @@ public sealed class BestOfferService(
             DeliveryStreetSnapshot = buyerAddress.Street,
             DeliveryCitySnapshot = buyerAddress.City,
             DeliveryPostalCodeSnapshot = buyerAddress.PostalCode,
+            DeliveryPhoneSnapshot = buyerAddress.Phone,
             DeliveryStateSnapshot = buyerAddress.State,
             DeliveryCountrySnapshot = buyerAddress.Country,
             PickupStateSnapshot = pickup.State,

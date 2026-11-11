@@ -53,3 +53,75 @@
     width: 100%;
   }
 }
+.address-change-contact {
+  color: #44546f;
+  font-size: 14px;
+}
+/* Shared address form helpers (address-fields.js). */
+.phone-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 0;
+}
+.phone-row .dial-code {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--line, #ccd5df);
+  border-radius: 8px;
+  background: #f4f6f8;
+  color: #172b4d;
+  font-weight: 600;
+}
+.phone-row input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.address-lookup {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.address-lookup[hidden] {
+  display: none;
+}
+.address-suggest {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid var(--line, #ccd5df);
+  border-radius: 8px;
+  background: #fff;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.address-suggest button {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.address-suggest button:hover,
+.address-suggest button:focus-visible {
+  background: #e9f2ff;
+}
+.address-suggest-empty {
+  padding: 8px 10px;
+  color: #44546f;
+}
+.address-suggest-note {
+  color: #44546f;
+}
+.address-suggest-note:empty {
+  display: none;
+}

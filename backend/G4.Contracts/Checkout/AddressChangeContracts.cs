@@ -20,7 +20,12 @@ public sealed record AddressChangeQuoteView(
     decimal SellerCap,
     decimal BuyerRefund,
     int? ShipperId,
-    bool WithinCap
+    bool WithinCap,
+    string? OldPhone = null,
+    string? NewPhone = null,
+    string? OldPostalCode = null,
+    string? NewPostalCode = null,
+    string? ShippingZone = null
 );
 
 public sealed record AddressChangeCapInput(decimal Amount);
@@ -48,5 +53,9 @@ public sealed record AddressChangeView(
     DateTime? AppliedAt = null,
     int? BuyerUserId = null,
     int? SellerUserId = null,
-    int? ShipperUserId = null
+    int? ShipperUserId = null,
+    string? OldPhone = null,
+    string? NewPhone = null,
+    string? OldPostalCode = null,
+    string? NewPostalCode = null
 );

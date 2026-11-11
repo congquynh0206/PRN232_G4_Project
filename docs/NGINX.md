@@ -1,5 +1,23 @@
 # Demo chia tải API catalog bằng Nginx
 
+## Chạy toàn bộ kiểm tra bằng một lệnh
+
+[`scripts/Test-Infra.ps1`](../scripts/Test-Infra.ps1) dựng stack bên dưới (đợi SQL
+Server, import `G4_Demo` nếu chưa có, build image), rồi kiểm tra lần lượt: chia tải
+qua 2 API, failover khi tắt `api-b`, JMeter đo tải và JMeter 429, rate limit login
+và run CI GitHub Actions mới nhất trên `master`. Cuối script in bảng PASS/FAIL/SKIP;
+có FAIL thì exit code 1. Jira và K8s không nằm trong script.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\Test-Infra.ps1
+```
+
+Tùy chọn: `-SkipBuild`, `-SkipJMeter`, `-SkipCi`, `-LocalCi` (chạy lại restore,
+build Release và test như CI), `-Down` (tắt stack khi xong), `-JMeterPath`. Script
+dùng `buyer@demo.test` của database demo và tạm tắt `api-b` khi đo 429 vì mỗi API
+đếm quota riêng; sau đó tự bật lại. Bước login sai 12 lần làm IP bị chặn login
+khoảng 60 giây. Báo cáo JMeter nằm trong `artifacts/jmeter/infra-<thời gian>/`.
+
 Stack [Docker Compose](../docker-compose.nginx.yml) chạy Nginx, hai bản API
 `api-a`/`api-b` dùng cùng image và một SQL Server demo riêng. Nginx nghe trên
 `http://127.0.0.1:8088`. SQL Server và hai API chỉ có mạng nội bộ Docker.

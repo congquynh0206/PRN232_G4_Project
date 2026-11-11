@@ -14,12 +14,17 @@ internal static class BuyerAddressBookChecks
         await db.SaveChangesAsync();
         var book = new BuyerAddressService(db);
         BuyerAddressInput Input(string name, bool preferred = false) =>
-            new(name, "1 Road", "Hanoi", "Hanoi", "Vietnam", preferred);
+            new(name, "1 Road", "Hanoi", "Hanoi", "Vietnam", preferred, Phone: "0912 345 678");
         var first = (await book.CreateAsync(1, Input(" First  Buyer "))).Addresses.Single();
         Check(
             first.FullName == "First Buyer" && first.IsDefault,
             "first address is normalized and default"
         );
+        Check(
+            first.State == "Hà Nội" && first.Country == "Vietnam" && first.Phone == "+84912345678",
+            "province, country and phone are stored in canonical form"
+        );
+        await RulesAsync(book);
         var second = await book.CreateAsync(1, Input("Second", true));
         Check(
             second.Addresses.Count == 2
@@ -114,6 +119,48 @@ internal static class BuyerAddressBookChecks
         );
         Console.WriteLine(
             "Buyer address book: ownership, defaults, archival, order snapshots and idempotent checkout after deletion passed"
+        );
+    }
+
+    // Country list, province/state list, dial code and ZIP rules (review 10/11/2026).
+    private static async Task RulesAsync(BuyerAddressService book)
+    {
+        static BuyerAddressInput Vn(string state, string? phone, string? zip = null) =>
+            new("Lan", "12 Lý Thường Kiệt", "Phường Cửa Nam", state, "Việt Nam", false, zip, phone);
+        static BuyerAddressInput Us(string? phone, string? zip) =>
+            new("Jane", "1 Main St", "Austin", "Texas", "USA", false, zip, phone);
+        void Fails(BuyerAddressInput input, string field, string message) =>
+            Check(BuyerAddressService.Validate(input).ContainsKey(field), message);
+
+        Fails(Vn("Hà Nội", "0912345678") with { Country = "Japan" }, "country", "only VN/US");
+        Fails(Vn("Atlantis", "0912345678"), "state", "province must be in the list");
+        Fails(Vn("Hà Nội", null), "phone", "phone is required");
+        Fails(Vn("Hà Nội", "12345"), "phone", "short Vietnamese number rejected");
+        Fails(Vn("Hà Nội", "+1 212 555 0123"), "phone", "dial code must follow the country");
+        Fails(Vn("Hà Nội", "0912abc678"), "phone", "letters rejected");
+        Fails(Vn("Hà Nội", "0912345678", "12"), "postalCode", "Vietnamese postal code format");
+        Fails(Us("(512) 555-0123", null), "postalCode", "US address needs a ZIP");
+        Fails(Us("+84 912 345 678", "73301"), "phone", "US address needs a +1 number");
+        Fails(Us("(112) 555-0123", "73301"), "phone", "NANP area code cannot start with 1");
+
+        var us = (await book.CreateAsync(2, Us("(512) 555-0123", "73301"))).Addresses.Single();
+        Check(
+            us.State == "TX"
+                && us.Country == "United States"
+                && us.Phone == "+15125550123"
+                && us.PostalCode == "73301",
+            "US address stores the state code, country name and +1 number"
+        );
+        var merged = await book.CreateAsync(2, Vn("Tỉnh Bình Dương", "+84 24 3825 1234"));
+        var row = merged.Addresses.Single(x => x.Id == merged.AffectedId);
+        Check(
+            row.State == "Hồ Chí Minh" && row.Phone == "+842438251234",
+            "old province maps to the merged one; landline keeps the area code"
+        );
+        Check(
+            DeliveryAddressRules.Phone("Vietnam", "84912345678") is null
+                && DeliveryAddressRules.Phone("United States", "1 212 555 0123") == "+12125550123",
+            "dial code without + is not guessed for Vietnam; US leading 1 is accepted"
         );
     }
 

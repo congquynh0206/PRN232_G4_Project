@@ -51,7 +51,9 @@ Outbox mới dùng EventType ổn định AddressChangePending/AwaitingShipper/A
 | `POST /api/shipper/shipments/{shipmentId}/address-change/acknowledge` | Chỉ tương thích ack của Approved lịch sử; không duyệt request mới |
 | `POST /api/seller/shipping/address-change-cap` | Seller cập nhật `{amount}`, server tăng revision nếu cap thay đổi |
 
-Địa chỉ yêu cầu gồm fullName/street tối đa 100, city/state/country tối đa 50 ký tự; reason tối đa 1000, key tối đa 100. Validation trả 400; sai role/quyền sở hữu trả 403; state/quote lỗi trả 409. Decision terminal trả trạng thái hiện tại trên retry; không tự coi Approved nếu chưa đủ xác nhận.
+Địa chỉ yêu cầu gồm fullName/street tối đa 100, city tối đa 50 ký tự; reason tối đa 1000, key tối đa 100.
+
+**Cập nhật 11/11/2026 (ADDR2):** `address` thêm `phone` (bắt buộc) và `postalCode`. Quốc gia chỉ Việt Nam/Hoa Kỳ, tỉnh/bang phải thuộc danh sách server và được lưu dạng chuẩn ("Hà Nội", mã bang "CA"); SĐT lưu `+84…`/`+1…` theo quốc gia; ZIP bắt buộc với Hoa Kỳ. Chỉ đổi SĐT hoặc ZIP vẫn là một yêu cầu đổi địa chỉ, cùng quy trình và dùng lượt đổi duy nhất; trùng hoàn toàn địa chỉ/SĐT/ZIP hiện tại trả 400. Quote trả thêm `oldPhone/newPhone/oldPostalCode/newPostalCode/shippingZone`; view request trả thêm SĐT/ZIP cũ và mới. Khi Approved, đơn cập nhật cả `DeliveryName/Street/City/PostalCode/PhoneSnapshot` (trước đây chỉ chuỗi địa chỉ và tỉnh/quốc gia). Form có ô chọn nhanh từ sổ địa chỉ và tìm số nhà qua VietMap. Migration `20261111034557_AddDeliveryPhoneAndAddressChangeFields` đã áp `G4_Demo`, chưa áp database chính; xem [backlog ADDR2](IMPLEMENTATION_BACKLOG.md#addr2--gợi-ý-địa-chỉ-sđt-theo-địa-chỉ-phí-ship-theo-vùng-11112026). Validation trả 400; sai role/quyền sở hữu trả 403; state/quote lỗi trả 409. Decision terminal trả trạng thái hiện tại trên retry; không tự coi Approved nếu chưa đủ xác nhận.
 
 ## Migration và chạy
 

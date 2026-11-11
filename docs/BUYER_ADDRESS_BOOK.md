@@ -4,6 +4,13 @@ Buyer mở **Quản lý địa chỉ** trong checkout để thêm/sửa/xóa/đ�
 
 Chọn/sửa/xóa địa chỉ đang giao làm mất báo giá cũ và tính lại từng nhóm seller. Nút đặt hàng khóa trong lúc lưu địa chỉ/lấy báo giá; phản hồi báo giá cũ đến muộn bị bỏ qua. Lưu địa chỉ khóa Lưu/Hủy/Đóng và Escape đến khi request kết thúc; lỗi giữ dữ liệu để thử lại.
 
+## Quốc gia, tỉnh/bang, SĐT và gợi ý (11/11/2026)
+
+- Quốc gia là ô chọn Việt Nam/Hoa Kỳ; tỉnh/bang là ô chọn theo danh sách từ `GET api/address-suggestions/regions`. Server kiểm tra lại và lưu dạng chuẩn (tên tỉnh mới, mã bang Hoa Kỳ); tên tỉnh cũ trước sáp nhập được quy về tỉnh mới.
+- Số điện thoại người nhận bắt buộc. Ô đầu số tự đổi `+84`/`+1` theo quốc gia; server lưu `+84…`/`+1…` vào cột `phone` sẵn có. Tài khoản không có số điện thoại. Hoa Kỳ bắt buộc ZIP.
+- Việt Nam có ô **Tìm địa chỉ**: buyer gõ từ 3 ký tự, G4.Api gọi VietMap (khóa `VietMap:ApiKey` ở user-secrets), chọn một dòng thì điền đường, phường, tỉnh. Không có khóa hoặc VietMap lỗi/hết lượt thì ô bị ẩn, buyer nhập tay.
+- Không có migration cho bảng `Address`; đơn mới snapshot SĐT qua migration ADDR2. Chi tiết và kiểm thử ở [backlog ADDR2](IMPLEMENTATION_BACKLOG.md#addr2--gợi-ý-địa-chỉ-sđt-theo-địa-chỉ-phí-ship-theo-vùng-11112026).
+
 ## Bảo vệ đơn cũ và retry
 
 Địa chỉ chưa dùng trong đơn có thể xóa vật lý. Địa chỉ đã được OrderTable tham chiếu giữ lại làm dữ liệu lịch sử: tách UserId và bỏ cờ mặc định để không còn nằm trong sổ buyer. `OrderTable.AddressId`, snapshot địa chỉ và tiền giữ nguyên. Buyer không thể đọc/sửa/chọn địa chỉ lưu trữ qua API sổ hoặc dùng tạo đơn mới. Không nới kiểm tra cùng checkout key khác request; retry đúng yêu cầu cũ vẫn trả đơn ban đầu.

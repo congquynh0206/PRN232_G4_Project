@@ -20,6 +20,13 @@ public partial class ApplicationDbContext
             e.Property(x => x.NewAddress).HasMaxLength(500);
             e.Property(x => x.NewState).HasMaxLength(50);
             e.Property(x => x.NewCountry).HasMaxLength(50);
+            e.Property(x => x.NewFullName).HasMaxLength(100);
+            e.Property(x => x.NewStreet).HasMaxLength(100);
+            e.Property(x => x.NewCity).HasMaxLength(50);
+            e.Property(x => x.NewPostalCode).HasMaxLength(20);
+            e.Property(x => x.NewPhone).HasMaxLength(20);
+            e.Property(x => x.OldPostalCode).HasMaxLength(20);
+            e.Property(x => x.OldPhone).HasMaxLength(20);
             e.Property(x => x.Status).HasMaxLength(20);
             e.Property(x => x.QuoteToken).HasMaxLength(64);
             e.HasIndex(x => x.RequestKey).IsUnique();

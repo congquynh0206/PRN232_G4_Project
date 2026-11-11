@@ -6,6 +6,7 @@ using G4.Infrastructure.Integrations.PayPal;
 using G4.Infrastructure.Integrations.Refunds;
 using G4.Infrastructure.Integrations.Klarna;
 using G4.Infrastructure.Integrations.Shipping;
+using G4.Infrastructure.Integrations.VietMap;
 using G4.Infrastructure.Notifications;
 using G4.Infrastructure.Payments;
 using G4.Infrastructure.Returns;
@@ -64,6 +65,10 @@ public static class DependencyInjection
         services.AddHttpClient<IKlarnaGateway, KlarnaGateway>();
         services.AddHttpClient<IPayPalBatchGateway, PayPalSandboxGateway>();
         services.AddHttpClient<ICarrierGateway, HttpCarrierGateway>();
+        services.AddMemoryCache();
+        // VietMap only accepts the key in the query string; the default HttpClient loggers
+        // would write it (and the buyer's typed address) to the console log.
+        services.AddHttpClient<IAddressLookupGateway, VietMapGateway>().RemoveAllLoggers();
         if (configuration.GetValue("Workers:Enabled", true))
             services.AddHostedService<CommerceMaintenanceWorker>();
         return services;

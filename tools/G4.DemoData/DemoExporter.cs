@@ -12,7 +12,7 @@ namespace G4.DemoData;
 
 internal sealed class DemoExporter(ApplicationDbContext db, DemoFixture fixture)
 {
-    public const string FixtureVersion = "2026-11-09";
+    public const string FixtureVersion = "2026-11-11";
 
     public async Task<string> GenerateAsync(string baseline)
     {
@@ -121,6 +121,7 @@ internal sealed class DemoExporter(ApplicationDbContext db, DemoFixture fixture)
              Run the whole file in SSMS (normal mode) or sqlcmd -f 65001. No SQLCMD variables/includes.
              Creates a dedicated database with baseline + ALL current EF migrations + demo data
              (orders, returns, disputes, finance, Best Offer, Buy It Now, Unpaid Item, coupons).
+             Addresses use the listed provinces/US states and +84/+1 recipient phones (11/11/2026).
              @ReplaceExisting = 1: if the G4_Demo... database already exists it is DROPPED and created
              again from scratch (only names starting with G4_Demo are allowed, never CloneEbayDB).
              Set @ReplaceExisting = 0 to stop instead of replacing.

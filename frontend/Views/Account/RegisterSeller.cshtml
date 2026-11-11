@@ -6,7 +6,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Đăng ký người bán - Sàn G4</title>
+    <title>Đăng ký người bán - eBay</title>
     <link rel="stylesheet" href="~/css/checkout.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/roles.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/ui-refresh.css" asp-append-version="true" />
@@ -15,7 +15,10 @@
 <body class="registration-page">
 <main class="registration-shell">
     <header class="registration-head">
-        <a class="brand" asp-controller="Account" asp-action="Login">Sàn G4</a><a asp-action="Login">Đã có tài khoản? Đăng nhập</a>
+        <a class="brand" asp-controller="Account" asp-action="Login" aria-label="eBay">
+            <span class="ebay"><b>e</b><b>b</b><b>a</b><b>y</b></span>
+        </a>
+        <a asp-action="Login">Đã có tài khoản? Đăng nhập</a>
     </header>
     <div class="registration-intro">
         <span class="eyebrow">Người bán mới</span>

@@ -79,7 +79,7 @@ Cửa sổ **Buyer**.
 3. Chọn thẻ `4000000000000002` → **Đặt hàng & thanh toán** → bị từ chối, đơn vẫn chờ
    thanh toán (không mất đơn, không trừ tiền).
 4. Đổi sang thẻ `4111111111111111` → thanh toán thành công → **Đơn hàng** thấy 2 đơn mới.
-5. ★ Mở **Lịch sử giao dịch**: thấy cả lần thất bại và lần thành công.
+5. ★ Mở chi tiết đơn trong **Đơn hàng**: xem trạng thái thanh toán và số tiền đã thu.
 6. Quay sang cửa sổ **Seller**: chuông thông báo có badge mới (realtime qua SignalR).
 
 Dự phòng nếu lỗi: mở đơn **#242** (PAY-FAILED) trong tab Đơn hàng của buyer, thanh toán lại.

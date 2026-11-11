@@ -13,6 +13,7 @@ public partial class OrderTable
     public string? DeliveryStreetSnapshot { get; set; }
     public string? DeliveryCitySnapshot { get; set; }
     public string? DeliveryPostalCodeSnapshot { get; set; }
+    public string? DeliveryPhoneSnapshot { get; set; }
     public string? PickupAddressSnapshot { get; set; }
     public decimal? TotalWeightKg { get; set; }
     public string? CouponCode { get; set; }

@@ -10,6 +10,13 @@ public sealed class AddressChangeRequest
     public string NewAddress { get; set; } = "";
     public string NewState { get; set; } = "";
     public string NewCountry { get; set; } = "";
+    public string? NewFullName { get; set; }
+    public string? NewStreet { get; set; }
+    public string? NewCity { get; set; }
+    public string? NewPostalCode { get; set; }
+    public string? NewPhone { get; set; }
+    public string? OldPostalCode { get; set; }
+    public string? OldPhone { get; set; }
     public decimal OldShippingCost { get; set; }
     public decimal NewShippingCost { get; set; }
     public decimal SellerCap { get; set; }

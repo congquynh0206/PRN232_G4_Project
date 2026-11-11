@@ -111,42 +111,60 @@ public sealed class AddressChangeService(
         return (parts[^2], parts[^1]);
     }
 
-    private static string Validate(AddressChangeInput input)
+    private static DeliveryAddress Validate(AddressChangeInput input)
     {
         var a = input.Address ?? throw new ArgumentException("Cần nhập địa chỉ mới.");
         if (
-            new[] { a.FullName, a.Street, a.City, a.State, a.Country }.Any(
-                string.IsNullOrWhiteSpace
-            )
-            || a.FullName.Length > 100
-            || a.Street.Length > 100
-            || a.City.Length > 50
-            || a.State.Length > 50
-            || a.Country.Length > 50
-            || string.IsNullOrWhiteSpace(input.Reason)
+            string.IsNullOrWhiteSpace(input.Reason)
             || input.Reason.Length > 1000
             || string.IsNullOrWhiteSpace(input.Key)
             || input.Key.Length > 100
         )
-            throw new ArgumentException(
-                "Nhập đầy đủ địa chỉ và lý do; tên/đường tối đa 100, tỉnh/thành/quốc gia 50, lý do 1000 ký tự."
-            );
-        return string.Join(
-            ", ",
-            new[] { a.FullName, a.Street, a.City, a.State, a.Country }.Select(x => x.Trim())
+            throw new ArgumentException("Nhập lý do đổi địa chỉ, tối đa 1000 ký tự.");
+        var errors = DeliveryAddressRules.Validate(
+            a.FullName,
+            a.Phone,
+            a.Street,
+            a.City,
+            a.State,
+            a.Country,
+            a.PostalCode,
+            phoneRequired: true,
+            out var address
         );
+        if (errors.Count > 0)
+            throw new ArgumentException(string.Join(" ", errors.Values));
+        return address!;
     }
+
+    // Requests store the structured address; rows created before that only have the text.
+    private static DeliveryAddress Requested(AddressChangeRequest r) =>
+        new(
+            r.NewFullName ?? "",
+            r.NewPhone,
+            r.NewStreet ?? "",
+            r.NewCity ?? "",
+            r.NewState,
+            r.NewCountry,
+            r.NewPostalCode
+        );
+
+    private static bool SameAsCurrent(OrderTable order, DeliveryAddress next) =>
+        string.Equals(order.AddressSnapshot, next.Text, StringComparison.OrdinalIgnoreCase)
+        && order.DeliveryPhoneSnapshot == next.Phone
+        && (order.DeliveryPostalCodeSnapshot ?? "") == (next.PostalCode ?? "");
 
     private async Task<(AddressChangeQuoteView Quote, int Revision)> QuoteCoreAsync(
         OrderTable order,
         ShippingInfo? shipment,
-        string address,
-        string state,
-        string country,
+        DeliveryAddress next,
         string reason,
         CancellationToken ct
     )
     {
+        var address = next.Text;
+        var state = next.State;
+        var country = next.Country;
         var pickup = Region(
             order.PickupStateSnapshot,
             order.PickupCountrySnapshot,
@@ -160,19 +178,15 @@ public sealed class AddressChangeService(
         var weight =
             order.TotalWeightKg
             ?? throw new InvalidOperationException("Đơn thiếu khối lượng snapshot.");
-        var oldCost = ShippingPricing.Calculate(
-            weight,
-            ShippingPricing.IsHanoiLocal(
-                pickup.State,
-                pickup.Country,
-                delivery.State,
-                delivery.Country
-            )
+        var oldZone = ShippingPricing.Zone(
+            pickup.State,
+            pickup.Country,
+            delivery.State,
+            delivery.Country
         );
-        var newCost = ShippingPricing.Calculate(
-            weight,
-            ShippingPricing.IsHanoiLocal(pickup.State, pickup.Country, state, country)
-        );
+        var newZone = ShippingPricing.Zone(pickup.State, pickup.Country, state, country);
+        var oldCost = ShippingPricing.Calculate(weight, oldZone);
+        var newCost = ShippingPricing.Calculate(weight, newZone);
         var payment = await db
             .Payments.AsNoTracking()
             .SingleAsync(x => x.OrderId == order.Id && x.Status == "Succeeded", ct);
@@ -203,6 +217,11 @@ public sealed class AddressChangeService(
                 address,
                 state,
                 country,
+                next.Phone,
+                next.PostalCode,
+                OldPhone = order.DeliveryPhoneSnapshot,
+                OldPostalCode = order.DeliveryPostalCodeSnapshot,
+                Zone = newZone.ToString(),
                 reason,
                 weight,
                 PickupState = pickup.State,
@@ -231,7 +250,12 @@ public sealed class AddressChangeService(
                 cap,
                 refund,
                 shipment?.ShipperId,
-                newCost - oldCost <= cap
+                newCost - oldCost <= cap,
+                order.DeliveryPhoneSnapshot,
+                next.Phone,
+                order.DeliveryPostalCodeSnapshot,
+                next.PostalCode,
+                newZone.ToString()
             ),
             revision
         );
@@ -240,7 +264,7 @@ public sealed class AddressChangeService(
     private async Task<(OrderTable Order, ShippingInfo? Shipment)> PrepareAsync(
         int id,
         int buyerId,
-        string address,
+        DeliveryAddress address,
         CancellationToken ct
     )
     {
@@ -257,8 +281,10 @@ public sealed class AddressChangeService(
             )
         )
             throw new InvalidOperationException("Đơn đã có yêu cầu đổi địa chỉ đang chờ xác nhận.");
-        if (string.Equals(order.AddressSnapshot, address, StringComparison.OrdinalIgnoreCase))
-            throw new ArgumentException("Địa chỉ mới cần khác địa chỉ hiện tại.");
+        if (SameAsCurrent(order, address))
+            throw new ArgumentException(
+                "Địa chỉ, số điện thoại hoặc mã bưu chính mới cần khác thông tin hiện tại."
+            );
         return (order, shipment);
     }
 
@@ -272,15 +298,7 @@ public sealed class AddressChangeService(
         var address = Validate(input);
         await using var tx = await PromotionLifecycle.LockOrderAsync(db, id, ct);
         var (order, shipment) = await PrepareAsync(id, buyerId, address, ct);
-        var result = await QuoteCoreAsync(
-            order,
-            shipment,
-            address,
-            input.Address.State.Trim(),
-            input.Address.Country.Trim(),
-            input.Reason.Trim(),
-            ct
-        );
+        var result = await QuoteCoreAsync(order, shipment, address, input.Reason.Trim(), ct);
         if (tx != null)
             await tx.CommitAsync(ct);
         return result.Quote;
@@ -308,7 +326,9 @@ public sealed class AddressChangeService(
                 await db.Entry(existing).ReloadAsync(ct);
             if (
                 existing.OrderId != orderId
-                || existing.NewAddress != address
+                || existing.NewAddress != address.Text
+                || existing.NewPhone != address.Phone
+                || existing.NewPostalCode != address.PostalCode
                 || existing.Reason != input.Reason.Trim()
                 || existing.WorkflowVersion == 1 && existing.QuoteToken != input.QuoteToken
             )
@@ -323,8 +343,6 @@ public sealed class AddressChangeService(
             order,
             shipment,
             address,
-            input.Address.State.Trim(),
-            input.Address.Country.Trim(),
             input.Reason.Trim(),
             ct
         );
@@ -339,8 +357,15 @@ public sealed class AddressChangeService(
             Reason = input.Reason.Trim(),
             OldAddress = quote.OldAddress,
             NewAddress = quote.NewAddress,
-            NewState = input.Address.State.Trim(),
-            NewCountry = input.Address.Country.Trim(),
+            NewState = address.State,
+            NewCountry = address.Country,
+            NewFullName = address.FullName,
+            NewStreet = address.Street,
+            NewCity = address.City,
+            NewPostalCode = address.PostalCode,
+            NewPhone = address.Phone,
+            OldPostalCode = order.DeliveryPostalCodeSnapshot,
+            OldPhone = order.DeliveryPhoneSnapshot,
             OldShippingCost = quote.OldShippingCost,
             NewShippingCost = quote.NewShippingCost,
             SellerCap = quote.SellerCap,
@@ -410,15 +435,7 @@ public sealed class AddressChangeService(
             End(r, "Rejected", ex.Message);
             return false;
         }
-        var (quote, _) = await QuoteCoreAsync(
-            order,
-            shipment,
-            r.NewAddress,
-            r.NewState,
-            r.NewCountry,
-            r.Reason,
-            ct
-        );
+        var (quote, _) = await QuoteCoreAsync(order, shipment, Requested(r), r.Reason, ct);
         if (quote.Token != r.QuoteToken || !quote.WithinCap)
         {
             End(
@@ -546,6 +563,15 @@ public sealed class AddressChangeService(
         order.AddressSnapshot = r.NewAddress;
         order.DeliveryStateSnapshot = r.NewState;
         order.DeliveryCountrySnapshot = r.NewCountry;
+        // Keep the structured snapshot (name/street/city/ZIP/phone) in step with the text.
+        if (r.NewFullName != null)
+        {
+            order.DeliveryNameSnapshot = r.NewFullName;
+            order.DeliveryStreetSnapshot = r.NewStreet;
+            order.DeliveryCitySnapshot = r.NewCity;
+            order.DeliveryPostalCodeSnapshot = r.NewPostalCode;
+            order.DeliveryPhoneSnapshot = r.NewPhone;
+        }
         order.AddressChangeCount++;
         r.AppliedAt = Now;
         End(r, "Approved", null);
@@ -767,6 +793,10 @@ public sealed class AddressChangeService(
             Utc(r.AppliedAt),
             r.BuyerUserId,
             r.SellerUserId,
-            r.ShipperUserId
+            r.ShipperUserId,
+            r.OldPhone,
+            r.NewPhone,
+            r.OldPostalCode,
+            r.NewPostalCode
         );
 }

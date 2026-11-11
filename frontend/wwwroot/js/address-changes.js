@@ -12,13 +12,29 @@
     Rejected: 'Đã từ chối',
     Expired: 'Hết hạn xác nhận',
   };
+  // Phone and ZIP live beside the address text; older requests may not have them.
+  function contact(phone, postalCode) {
+    const parts = [
+      phone ? `SĐT: ${esc(G4.AddressFields?.formatPhone(phone) ?? phone)}` : '',
+      postalCode ? `Mã bưu chính: ${esc(postalCode)}` : '',
+    ].filter(Boolean);
+    return parts.length ? `<p class="address-change-contact">${parts.join(' · ')}</p>` : '';
+  }
+  const zoneLabels = {
+    SameProvince: 'cùng tỉnh',
+    SameArea: 'cùng miền',
+    CrossArea: 'khác miền',
+    UsSameState: 'cùng bang Hoa Kỳ',
+    UsCrossState: 'khác bang Hoa Kỳ',
+    International: 'quốc tế',
+  };
   function summaryHtml(order, role) {
     const changes = order.addressChanges || [];
     if (!changes.length && !order.canRequestAddressChange) return '';
     return `<section class="address-change-summary"><h3>Đổi địa chỉ giao hàng</h3>${role === 'buyer' && order.canRequestAddressChange ? `<p>Được đổi thành công một lần trước khi bắt đầu giao tới bạn. Xem báo giá, seller duyệt và shipper đã nhận chấp thuận trước khi áp dụng.</p><button type="button" data-address-change="request" data-address-order="${order.id}">Yêu cầu đổi địa chỉ</button>` : ''}${changes
       .map((r) => {
         const increase = Math.max(0, r.newShippingCost - r.oldShippingCost);
-        return `<article class="address-change-entry"><p><strong>${esc(labels[r.status] || r.status)}</strong> · ${stamp(r.createdAt)}</p><div class="address-change-grid"><div><strong>Địa chỉ cũ</strong><p>${esc(r.oldAddress)}</p></div><div><strong>Địa chỉ yêu cầu</strong><p>${esc(r.newAddress)}</p></div></div><p>Lý do: ${esc(r.reason)}</p><p>Phí ship theo tuyến: ${money(r.oldShippingCost)} → ${money(r.newShippingCost)}</p>${increase > 0 ? `<p>Seller chịu thêm khi duyệt: <strong>${money(increase)}</strong> · Mức chấp nhận: ${money(r.sellerCap)}</p>` : ''}${r.buyerRefund > 0 ? `<p>${r.status === 'Approved' ? 'Đã hoàn chênh lệch ship bằng giao dịch giả lập' : 'Hoàn chênh lệch ship dự kiến khi đủ xác nhận'}: <strong>${money(r.buyerRefund)}</strong></p>` : ''}${['Pending', 'AwaitingShipper'].includes(r.status) ? `<p>Địa chỉ cũ còn hiệu lực; chưa áp dụng chi phí hoặc hoàn tiền.${r.expiresAt ? ` Hạn chờ: ${esc(stamp(r.expiresAt))}.` : ''}</p>` : ''}${addressCountdown(r)}${r.sellerConfirmedAt ? `<p>Seller chấp thuận: ${esc(stamp(r.sellerConfirmedAt))}</p>` : ''}${r.appliedAt ? `<p>Có hiệu lực: ${esc(stamp(r.appliedAt))}</p>` : ''}${r.decisionReason ? `<p class="address-change-note">${esc(r.decisionReason)}</p>` : ''}${role === 'seller' && r.status === 'Pending' ? `<div class="actions"><button type="button" class="primary" data-address-change="approve" data-address-request="${r.id}" data-address-order="${order.id}">Duyệt địa chỉ mới</button><button type="button" data-address-change="reject" data-address-request="${r.id}" data-address-order="${order.id}">Từ chối đổi địa chỉ</button></div>` : ''}</article>`;
+        return `<article class="address-change-entry"><p><strong>${esc(labels[r.status] || r.status)}</strong> · ${stamp(r.createdAt)}</p><div class="address-change-grid"><div><strong>Địa chỉ cũ</strong><p>${esc(r.oldAddress)}</p>${contact(r.oldPhone, r.oldPostalCode)}</div><div><strong>Địa chỉ yêu cầu</strong><p>${esc(r.newAddress)}</p>${contact(r.newPhone, r.newPostalCode)}</div></div><p>Lý do: ${esc(r.reason)}</p><p>Phí ship theo tuyến: ${money(r.oldShippingCost)} → ${money(r.newShippingCost)}</p>${increase > 0 ? `<p>Seller chịu thêm khi duyệt: <strong>${money(increase)}</strong> · Mức chấp nhận: ${money(r.sellerCap)}</p>` : ''}${r.buyerRefund > 0 ? `<p>${r.status === 'Approved' ? 'Đã hoàn chênh lệch ship bằng giao dịch giả lập' : 'Hoàn chênh lệch ship dự kiến khi đủ xác nhận'}: <strong>${money(r.buyerRefund)}</strong></p>` : ''}${['Pending', 'AwaitingShipper'].includes(r.status) ? `<p>Địa chỉ cũ còn hiệu lực; chưa áp dụng chi phí hoặc hoàn tiền.${r.expiresAt ? ` Hạn chờ: ${esc(stamp(r.expiresAt))}.` : ''}</p>` : ''}${addressCountdown(r)}${r.sellerConfirmedAt ? `<p>Seller chấp thuận: ${esc(stamp(r.sellerConfirmedAt))}</p>` : ''}${r.appliedAt ? `<p>Có hiệu lực: ${esc(stamp(r.appliedAt))}</p>` : ''}${r.decisionReason ? `<p class="address-change-note">${esc(r.decisionReason)}</p>` : ''}${role === 'seller' && r.status === 'Pending' ? `<div class="actions"><button type="button" class="primary" data-address-change="approve" data-address-request="${r.id}" data-address-order="${order.id}">Duyệt địa chỉ mới</button><button type="button" data-address-change="reject" data-address-request="${r.id}" data-address-order="${order.id}">Từ chối đổi địa chỉ</button></div>` : ''}</article>`;
       })
       .join('')}</section>`;
   }
@@ -44,7 +60,7 @@
     if (!request) return '';
     const awaiting = request.status === 'AwaitingShipper';
     const legacyAck = !pending && requiresAck(shipment);
-    return `<section class="address-change-summary"><h3>${pending ? 'Yêu cầu đổi địa chỉ chưa có hiệu lực' : 'Địa chỉ mới đã có hiệu lực'}</h3><div class="address-change-grid"><div><strong>Địa chỉ cũ</strong><p>${esc(request.oldAddress)}</p></div><div><strong>Địa chỉ yêu cầu</strong><p>${esc(request.newAddress)}</p></div></div>${pending ? `<p>Tiếp tục dùng địa chỉ cũ. Chưa được bắt đầu giao tới buyer khi còn chờ xác nhận.${request.expiresAt ? ` Hạn chờ: ${esc(stamp(request.expiresAt))}.` : ''}</p>` : ''}${addressCountdown(request)}${awaiting ? `<p>Seller đã chấp thuận. Hãy xác nhận khả năng giao trước khi địa chỉ và chi phí được áp dụng.</p><div class="actions"><button type="button" class="primary" data-address-shipper="approve" data-shipment="${shipment.id}" data-request="${request.id}">Có thể giao địa chỉ mới</button><button type="button" data-address-shipper="reject" data-shipment="${shipment.id}" data-request="${request.id}">Không thể giao</button></div>` : pending ? '<p>Đang chờ seller duyệt.</p>' : legacyAck ? `<p>Xác nhận đã đọc địa chỉ đã áp dụng theo quy trình cũ.</p><button type="button" class="primary" data-ack-address="${shipment.id}">Xác nhận địa chỉ mới</button>` : '<p>Đã xác nhận địa chỉ mới.</p>'}</section>`;
+    return `<section class="address-change-summary"><h3>${pending ? 'Yêu cầu đổi địa chỉ chưa có hiệu lực' : 'Địa chỉ mới đã có hiệu lực'}</h3><div class="address-change-grid"><div><strong>Địa chỉ cũ</strong><p>${esc(request.oldAddress)}</p>${contact(request.oldPhone, request.oldPostalCode)}</div><div><strong>Địa chỉ yêu cầu</strong><p>${esc(request.newAddress)}</p>${contact(request.newPhone, request.newPostalCode)}</div></div>${pending ? `<p>Tiếp tục dùng địa chỉ cũ. Chưa được bắt đầu giao tới buyer khi còn chờ xác nhận.${request.expiresAt ? ` Hạn chờ: ${esc(stamp(request.expiresAt))}.` : ''}</p>` : ''}${addressCountdown(request)}${awaiting ? `<p>Seller đã chấp thuận. Hãy xác nhận khả năng giao trước khi địa chỉ và chi phí được áp dụng.</p><div class="actions"><button type="button" class="primary" data-address-shipper="approve" data-shipment="${shipment.id}" data-request="${request.id}">Có thể giao địa chỉ mới</button><button type="button" data-address-shipper="reject" data-shipment="${shipment.id}" data-request="${request.id}">Không thể giao</button></div>` : pending ? '<p>Đang chờ seller duyệt.</p>' : legacyAck ? `<p>Xác nhận đã đọc địa chỉ đã áp dụng theo quy trình cũ.</p><button type="button" class="primary" data-ack-address="${shipment.id}">Xác nhận địa chỉ mới</button>` : '<p>Đã xác nhận địa chỉ mới.</p>'}</section>`;
   }
   async function decideShipper(button) {
     const approve = button.dataset.addressShipper === 'approve';
@@ -108,13 +124,64 @@
             drafts.delete(orderId);
             message(labels[result.status] || result.status, result.status === 'Pending');
           } else if (role === 'buyer' && action === 'request') {
-            const addresses = await api('addresses');
+            const [addresses, regions] = await Promise.all([
+              api('addresses'),
+              G4.AddressFields.regions(),
+            ]);
+            const required = (max) => (value) =>
+              !value.trim()
+                ? 'Vui lòng nhập thông tin.'
+                : value.trim().length > max
+                  ? 'Nội dung quá dài.'
+                  : '';
+            const savedLabel = (a) =>
+              `${a.fullName} — ${[a.street, a.city, a.state].filter(Boolean).join(', ')}`;
             const fields = [
-              { name: 'fullName', label: 'Tên người nhận', required: true },
-              { name: 'street', label: 'Đường, số nhà', required: true },
-              { name: 'city', label: 'Thành phố', required: true },
-              { name: 'state', label: 'Tỉnh / vùng', required: true },
-              { name: 'country', label: 'Quốc gia', required: true },
+              {
+                name: 'saved',
+                label: 'Chọn nhanh từ sổ địa chỉ',
+                type: 'select',
+                options: [
+                  { value: '', label: 'Nhập địa chỉ khác' },
+                  ...addresses.map((a) => ({ value: String(a.id), label: savedLabel(a) })),
+                ],
+              },
+              {
+                name: 'fullName',
+                label: 'Tên người nhận',
+                required: true,
+                validate: required(100),
+              },
+              {
+                name: 'phone',
+                label: 'Số điện thoại người nhận',
+                type: 'tel',
+                required: true,
+                validate: required(20),
+              },
+              {
+                name: 'country',
+                label: 'Quốc gia',
+                type: 'select',
+                required: true,
+                options: regions.countries.map((c) => ({ value: c.value, label: c.label })),
+              },
+              {
+                name: 'lookup',
+                label: 'Tìm địa chỉ (số nhà, tên đường)',
+                placeholder: 'Ví dụ: 197 Trần Phú',
+              },
+              {
+                name: 'state',
+                label: 'Tỉnh / thành phố',
+                type: 'select',
+                required: true,
+                options: [],
+                validate: required(50),
+              },
+              { name: 'city', label: 'Phường / xã', required: true, validate: required(50) },
+              { name: 'street', label: 'Đường, số nhà', required: true, validate: required(100) },
+              { name: 'postalCode', label: 'Mã bưu chính (tùy chọn)' },
               {
                 name: 'reason',
                 label: 'Lý do đổi địa chỉ',
@@ -124,43 +191,42 @@
                 validate: (value) => (value.trim() ? '' : 'Vui lòng nhập lý do đổi địa chỉ.'),
               },
             ];
-            for (const field of fields)
-              if (field.name !== 'reason')
-                field.validate = (value) =>
-                  !value.trim()
-                    ? 'Vui lòng nhập thông tin.'
-                    : value.trim().length > (['fullName', 'street'].includes(field.name) ? 100 : 50)
-                      ? 'Nội dung quá dài.'
-                      : '';
             const pending = modal({
               title: 'Yêu cầu đổi địa chỉ',
-              description: `Đơn #${orderId}. Seller sẽ duyệt; phí tăng vượt mức seller chịu sẽ bị từ chối. Địa chỉ mới chỉ áp dụng cho đơn này.`,
+              description: `Đơn #${orderId}. Có thể đổi địa chỉ, số điện thoại hoặc mã bưu chính; mọi thay đổi dùng chung một lượt đổi thành công. Seller sẽ duyệt; phí tăng vượt mức seller chịu sẽ bị từ chối.`,
               fields,
               confirm: 'Xem báo giá',
             });
+            const form = await G4.AddressFields.attach('action-', { lookup: true });
             const address = addresses.find((x) => x.isDefault) || addresses[0];
-            if (address)
-              for (const field of fields.filter((x) => x.name !== 'reason'))
-                $(`action-${field.name}`).value = address[field.name] || '';
-            if (drafts.has(orderId))
-              for (const field of fields)
-                $(`action-${field.name}`).value = drafts.get(orderId)[field.name] || '';
+            form.fill(drafts.get(orderId) || address || {});
+            if (drafts.has(orderId)) $('action-reason').value = drafts.get(orderId).reason || '';
+            else if (address) $('action-saved').value = String(address.id);
+            $('action-saved').addEventListener('change', (event) => {
+              const chosen = addresses.find((a) => String(a.id) === event.target.value);
+              if (chosen) form.fill(chosen);
+            });
             const input = await pending;
             if (!input) return;
-            drafts.set(orderId, input);
+            const values = form.values();
+            drafts.set(orderId, { ...values, reason: input.reason });
             const payload = {
-              address: Object.fromEntries(
-                fields
-                  .filter((x) => x.name !== 'reason')
-                  .map((x) => [x.name, input[x.name].trim()]),
-              ),
+              address: values,
               reason: input.reason.trim(),
               key: crypto.randomUUID(),
             };
             const quote = await api(`orders/${orderId}/address-changes/quote`, 'POST', payload);
+            const phoneLine =
+              quote.oldPhone !== quote.newPhone
+                ? `\nSố điện thoại: ${quote.oldPhone ? G4.AddressFields.formatPhone(quote.oldPhone) : 'chưa có'} → ${G4.AddressFields.formatPhone(quote.newPhone)}`
+                : '';
+            const zipLine =
+              (quote.oldPostalCode || '') !== (quote.newPostalCode || '')
+                ? `\nMã bưu chính: ${quote.oldPostalCode || 'chưa có'} → ${quote.newPostalCode || 'không có'}`
+                : '';
             const confirm = await modal({
               title: 'Xác nhận báo giá đổi địa chỉ',
-              description: `Địa chỉ cũ: ${quote.oldAddress}\nĐịa chỉ yêu cầu: ${quote.newAddress}\nPhí tuyến: ${money(quote.oldShippingCost)} → ${money(quote.newShippingCost)}. Seller chịu thêm: ${money(Math.max(0, quote.newShippingCost - quote.oldShippingCost))}; cap ${money(quote.sellerCap)}.\nBuyer không trả thêm. Hoàn ship giả lập dự kiến nếu đủ xác nhận: ${money(quote.buyerRefund)}.\n${quote.withinCap ? (quote.shipperId ? 'Cần seller và shipper đã nhận chấp thuận.' : 'Chưa có shipper: seller là bên duyệt cuối.') : 'Vượt cap seller: yêu cầu sẽ bị từ chối, giữ địa chỉ cũ.'}`,
+              description: `Địa chỉ cũ: ${quote.oldAddress}\nĐịa chỉ yêu cầu: ${quote.newAddress}${phoneLine}${zipLine}\nPhí tuyến: ${money(quote.oldShippingCost)} → ${money(quote.newShippingCost)}${quote.shippingZone ? ` (${zoneLabels[quote.shippingZone] || quote.shippingZone})` : ''}. Seller chịu thêm: ${money(Math.max(0, quote.newShippingCost - quote.oldShippingCost))}; cap ${money(quote.sellerCap)}.\nBuyer không trả thêm. Hoàn ship giả lập dự kiến nếu đủ xác nhận: ${money(quote.buyerRefund)}.\n${quote.withinCap ? (quote.shipperId ? 'Cần seller và shipper đã nhận chấp thuận.' : 'Chưa có shipper: seller là bên duyệt cuối.') : 'Vượt cap seller: yêu cầu sẽ bị từ chối, giữ địa chỉ cũ.'}`,
               confirm: 'Xác nhận và gửi yêu cầu',
             });
             if (!confirm) return;

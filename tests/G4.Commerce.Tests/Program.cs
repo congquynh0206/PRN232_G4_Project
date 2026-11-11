@@ -55,11 +55,6 @@ if (args.Contains("--admin-order-lookup"))
     await AdminOrderLookupChecks.RunAsync();
     return;
 }
-if (args.Contains("--buyer-transactions"))
-{
-    await BuyerTransactionChecks.RunAsync();
-    return;
-}
 if (args.Contains("--buyer-offers"))
 {
     await BuyerOfferChecks.RunAsync();
@@ -105,9 +100,20 @@ if (args.Contains("--shipping-reattempts"))
     await ShipmentReattemptChecks.RunAsync();
     return;
 }
+if (args.Contains("--vietmap-live"))
+{
+    await VietMapChecks.LiveAsync();
+    return;
+}
+if (args.Contains("--vietmap"))
+{
+    await VietMapChecks.RunAsync();
+    return;
+}
 if (args.Contains("--address-confirmations"))
 {
     await AddressConfirmationChecks.RunAsync();
+    await AddressContactChecks.RunAsync();
     return;
 }
 if (args.Contains("--return-window"))
@@ -275,6 +281,8 @@ await BuyerCartChecks.RunAsync();
 await CheckoutLimitChecks.RunAsync();
 await AddressChangeChecks.RunAsync();
 await AddressConfirmationChecks.RunAsync();
+await AddressContactChecks.RunAsync();
+await VietMapChecks.RunAsync();
 await ReturnWindowChecks.RunAsync();
 await PayoutWorkflowChecks.RunAsync();
 await PromotionFinanceChecks.RunAsync();

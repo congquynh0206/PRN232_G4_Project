@@ -70,15 +70,36 @@ public sealed class BuyerAddressService(ApplicationDbContext db) : IBuyerAddress
         }
     }
 
-    private static void Apply(Address address, BuyerAddressInput input)
+    private static void Apply(Address address, DeliveryAddress input)
     {
         address.FullName = input.FullName;
+        address.Phone = input.Phone;
         address.Street = input.Street;
         address.City = input.City;
         address.State = input.State;
         address.Country = input.Country;
         address.PostalCode = input.PostalCode;
     }
+
+    /// <summary>Field name → message; empty when the address can be stored.</summary>
+    public static Dictionary<string, string> Validate(BuyerAddressInput input) =>
+        Validate(input, out _);
+
+    private static Dictionary<string, string> Validate(
+        BuyerAddressInput input,
+        out DeliveryAddress? address
+    ) =>
+        DeliveryAddressRules.Validate(
+            input.FullName,
+            input.Phone,
+            input.Street,
+            input.City,
+            input.State,
+            input.Country,
+            input.PostalCode,
+            phoneRequired: true,
+            out address
+        );
 
     /// <summary>Guarantees exactly one default when the book is not empty. preferred wins when set.</summary>
     private static void NormalizeDefault(IReadOnlyList<Address> book, int? preferred)
@@ -97,11 +118,12 @@ public sealed class BuyerAddressService(ApplicationDbContext db) : IBuyerAddress
         }
     }
 
-    private static void EnsureValid(BuyerAddressInput input)
+    private static DeliveryAddress EnsureValid(BuyerAddressInput input)
     {
-        var errors = BuyerAddressRules.Validate(input);
+        var errors = Validate(input, out var address);
         if (errors.Count > 0)
             throw new ArgumentException(errors.First().Value);
+        return address!;
     }
 
     public async Task<BuyerAddressBook> CreateAsync(
@@ -110,8 +132,7 @@ public sealed class BuyerAddressService(ApplicationDbContext db) : IBuyerAddress
         CancellationToken ct = default
     )
     {
-        EnsureValid(input);
-        input = BuyerAddressRules.Normalize(input);
+        var valid = EnsureValid(input);
         await using var tx = await LockAsync(buyerId, ct);
         var book = await db.Addresses.Where(a => a.UserId == buyerId).ToListAsync(ct);
         if (book.Count >= BuyerAddressRules.MaxAddresses)
@@ -119,7 +140,7 @@ public sealed class BuyerAddressService(ApplicationDbContext db) : IBuyerAddress
                 $"Mỗi tài khoản chỉ lưu tối đa {BuyerAddressRules.MaxAddresses} địa chỉ. Hãy xóa bớt địa chỉ không dùng."
             );
         var address = new Address { UserId = buyerId, IsDefault = false };
-        Apply(address, input);
+        Apply(address, valid);
         db.Addresses.Add(address);
         await db.SaveChangesAsync(ct);
         book.Add(address);
@@ -138,14 +159,13 @@ public sealed class BuyerAddressService(ApplicationDbContext db) : IBuyerAddress
         CancellationToken ct = default
     )
     {
-        EnsureValid(input);
-        input = BuyerAddressRules.Normalize(input);
+        var valid = EnsureValid(input);
         await using var tx = await LockAsync(buyerId, ct);
         var book = await db.Addresses.Where(a => a.UserId == buyerId).ToListAsync(ct);
         var address =
             book.SingleOrDefault(a => a.Id == id)
             ?? throw new KeyNotFoundException("Không tìm thấy địa chỉ.");
-        Apply(address, input);
+        Apply(address, valid);
         NormalizeDefault(book, input.IsDefault ? id : null);
         await db.SaveChangesAsync(ct);
         if (tx is not null)

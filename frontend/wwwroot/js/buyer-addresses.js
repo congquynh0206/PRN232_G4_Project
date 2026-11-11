@@ -2,18 +2,25 @@
   const { $, esc, api, message, modal } = G4;
   const FIELDS = [
     ['fullName', 'Tên người nhận', 100],
-    ['street', 'Đường / số nhà', 100],
-    ['city', 'Thành phố', 50],
-    ['state', 'Tỉnh / vùng', 50],
+    ['phone', 'Số điện thoại', 20],
     ['country', 'Quốc gia', 50],
+    ['state', 'Tỉnh / thành phố', 50],
+    ['city', 'Phường / xã hoặc thành phố', 50],
+    ['street', 'Đường / số nhà', 100],
     ['postalCode', 'Mã bưu chính / ZIP', 20],
   ];
   const MAX_ADDRESSES = 10;
+  const US = 'United States';
   const clean = (value) =>
     String(value ?? '')
       .trim()
       .replace(/\s+/g, ' ');
-  const lineOf = (a) => [a.street, a.city, a.state, a.postalCode, a.country].filter(Boolean).join(', ');
+  const phoneText = (a) => (a.phone ? G4.AddressFields.formatPhone(a.phone) : 'Chưa có SĐT');
+  const countryText = (value) =>
+    value === US ? 'Hoa Kỳ' : value === 'Vietnam' ? 'Việt Nam' : value;
+  const lineOf = (a) =>
+    [a.street, a.city, a.state, a.postalCode, countryText(a.country)].filter(Boolean).join(', ');
+  // Quick checks only; the server validates the list values, dial code and ZIP format.
   function validate(values) {
     const errors = {};
     for (const [field, label, max] of FIELDS) {
@@ -21,8 +28,7 @@
       if (!values[field] && field !== 'postalCode') errors[field] = `Vui lòng nhập ${text}.`;
       else if (values[field].length > max) errors[field] = `Tối đa ${max} ký tự cho ${text}.`;
     }
-    if (/^(US|USA|United States|United States of America)$/i.test(values.country) &&
-      values.postalCode && !/^\d{5}(?:-\d{4})?$/.test(values.postalCode))
+    if (values.country === US && !/^\d{5}(?:-\d{4})?$/.test(values.postalCode))
       errors.postalCode = 'ZIP Hoa Kỳ cần 5 chữ số hoặc ZIP+4.';
     return errors;
   }
@@ -41,7 +47,18 @@
       saving = false,
       opener = null;
     const key = (a) =>
-      a ? [a.id, a.fullName, a.street, a.city, a.state, a.postalCode, a.country].join('|') : '';
+      a
+        ? [a.id, a.fullName, a.phone, a.street, a.city, a.state, a.postalCode, a.country].join(
+            '|',
+          )
+        : '';
+    // Region selects and VietMap search load the first time the form opens.
+    let form = null;
+    const formFields = () =>
+      (form ??= G4.AddressFields.attach('address-form-', { lookup: true }).catch((error) => {
+        form = null;
+        throw error;
+      }));
     const current = () => addresses.find((a) => a.id === selectedId) || null;
 
     function adopt(list, { select = null, silent = false } = {}) {
@@ -59,7 +76,13 @@
       return `${a.isDefault ? '<span class="address-badge">Mặc định</span>' : ''}${a.id === selectedId ? '<span class="address-badge chosen">Đang giao tới đây</span>' : ''}`;
     }
     function body(a) {
-      return `<span class="address-title"><strong>${esc(a.fullName)}</strong>${badges(a)}</span><span>${esc(a.street)}</span><span>${esc(a.city)}, ${esc(a.state)}${a.postalCode ? ', ' + esc(a.postalCode) : ''}, ${esc(a.country)}</span>`;
+      return (
+        `<span class="address-title"><strong>${esc(a.fullName)}</strong>${badges(a)}</span>` +
+        `<span class="address-phone">${esc(phoneText(a))}</span>` +
+        `<span>${esc(a.street)}</span>` +
+        `<span>${esc(a.city)}, ${esc(a.state)}${a.postalCode ? ', ' + esc(a.postalCode) : ''}, ` +
+        `${esc(countryText(a.country))}</span>`
+      );
     }
     function render() {
       const list = $('address-list'),
@@ -88,7 +111,8 @@
       $('address-form-save').disabled = disabled || saving;
       $('address-form-cancel').disabled = saving;
       $('address-dialog-close').disabled = saving;
-      for (const [field] of FIELDS) $(`address-form-${field}`).disabled = disabled || saving;
+      for (const field of [...FIELDS.map(([f]) => f), 'lookup'])
+        if ($(`address-form-${field}`)) $(`address-form-${field}`).disabled = disabled || saving;
       $('address-form-default').disabled =
         disabled ||
         saving ||
@@ -136,10 +160,13 @@
       }
       if (first) input(first).focus();
     }
-    function openForm(a) {
+    async function openForm(a) {
       editingId = a?.id ?? null;
       $('address-form-title').textContent = a ? 'Sửa địa chỉ' : 'Thêm địa chỉ mới';
-      for (const [field] of FIELDS) input(field).value = a?.[field] ?? '';
+      const fields = await formFields();
+      fields.fill(
+        Object.fromEntries(FIELDS.map(([field]) => [field, a?.[field] ?? ''])),
+      );
       $('address-form-default').checked = !!a?.isDefault || !addresses.length;
       $('address-form-default').disabled = !!a?.isDefault || !addresses.length;
       $('address-form-hint').hidden = !!addresses.length && !a?.isDefault;
@@ -233,11 +260,11 @@
       closeForm();
       renderManage();
       if (!dialog.open) dialog.showModal();
-      if (addNew || !addresses.length) openForm(null);
+      if (addNew || !addresses.length) return G4.safe(() => openForm(null));
     }
     $('manage-addresses').onclick = () => openManage(false);
     $('address-empty-add').onclick = () => openManage(true);
-    $('address-add').onclick = () => openForm(null);
+    $('address-add').onclick = () => G4.safe(() => openForm(null));
     $('address-form').onsubmit = (e) => G4.safe(() => submit(e));
     $('address-form-cancel').onclick = () => {
       if (!saving) closeForm();

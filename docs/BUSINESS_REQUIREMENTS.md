@@ -60,12 +60,25 @@ khẩu rõ hoặc bỏ idempotency/transaction/retry. Worker tự động không
 
 Khối lượng đơn bằng tổng `khối lượng sản phẩm × số lượng` và phải lớn hơn 0. **Tính theo kg lẻ thực tế, không làm tròn lên nguyên kg**:
 
+**Bảng vùng chốt ngày 11/11/2026** (thay hai mức nội Hà Nội/khác vùng cũ). Vùng xét theo cặp
+tỉnh/bang nơi lấy hàng và nơi giao; chiều trả dùng cùng vùng theo chiều ngược lại.
+
 | Vùng giao | Công thức, với `w` là kg | Ví dụ `w = 1,2 kg` |
 | --- | --- | ---: |
-| Nội vùng Hà Nội | `2,00 + max(0, w - 1) × 0,50` USD | 2,10 USD |
-| Khác vùng | `5,00 + max(0, w - 1) × 1,00` USD | 5,20 USD |
+| Cùng tỉnh/thành (Việt Nam) | `2,00 + max(0, w - 1) × 0,50` USD | 2,10 USD |
+| Cùng miền, khác tỉnh | `3,50 + max(0, w - 1) × 0,75` USD | 3,65 USD |
+| Khác miền | `5,00 + max(0, w - 1) × 1,00` USD | 5,20 USD |
+| Trong Hoa Kỳ, cùng bang | `4,00 + max(0, w - 1) × 0,75` USD | 4,15 USD |
+| Trong Hoa Kỳ, khác bang | `6,00 + max(0, w - 1) × 1,00` USD | 6,20 USD |
+| Việt Nam ↔ Hoa Kỳ | `15,00 + max(0, w - 1) × 5,00` USD | 16,00 USD |
 
-Áp dụng phí cơ bản cho mọi đơn lớn hơn 0 đến 1 kg; làm tròn kết quả cuối cùng đến 0,01 USD. Chỉ dùng mức nội Hà Nội khi cả nơi lấy và nơi giao ở Hà Nội, Việt Nam. Seller phải khai báo khối lượng sản phẩm; thiếu khối lượng không được checkout. Không dùng `ceil(kg)`.
+Áp dụng phí cơ bản cho mọi đơn lớn hơn 0 đến 1 kg; làm tròn kết quả cuối cùng đến 0,01 USD. Seller phải khai báo khối lượng sản phẩm; thiếu khối lượng không được checkout. Không dùng `ceil(kg)`.
+
+**Địa chỉ được hỗ trợ:** chỉ Việt Nam và Hoa Kỳ. Việt Nam dùng 34 tỉnh/thành từ 01/07/2025, chia ba miền Bắc (15), Trung (11), Nam (8); tên tỉnh cũ trước sáp nhập được nhận và quy về tỉnh mới. Hoa Kỳ dùng 50 bang + DC, lưu mã bang hai chữ (`CA`). Dữ liệu cũ có tỉnh không nhận diện được tính mức khác miền, trừ khi hai đầu ghi cùng tên.
+
+**Số điện thoại người nhận (review 10/11/2026):** bắt buộc với mọi địa chỉ nhận hàng, gắn với địa chỉ chứ không gắn tài khoản; tài khoản/đăng ký không có số điện thoại. Đầu số do quốc gia của địa chỉ quyết định: Việt Nam `+84` (9 số sau đầu số, di động 3/5/7/8/9 hoặc cố định 10 số bắt đầu 2), Hoa Kỳ `+1` (10 số NANP). Lưu dạng `+84…`/`+1…`; đơn snapshot số lúc checkout. Địa chỉ Hoa Kỳ bắt buộc ZIP 5 số hoặc ZIP+4; mã bưu chính Việt Nam tùy chọn (5–6 số).
+
+**Gợi ý địa chỉ:** danh sách quốc gia/tỉnh/bang lấy từ server. Địa chỉ Việt Nam có ô tìm số nhà/tên đường qua VietMap Autocomplete v4 (gọi qua G4.Api, khóa giữ ở server); chọn gợi ý chỉ điền form, server vẫn kiểm tra và chuẩn hóa. VietMap lỗi/hết hạn mức thì buyer nhập tay.
 
 ## 4. Promotions
 
@@ -102,7 +115,7 @@ Payment thành công chốt giá order, ghi mã giao dịch và chuyển đơn s
 
 **Webhook tùy chọn:** PayPal chủ động gửi sự kiện đến endpoint HTTPS; chưa bắt buộc cho đợt code này. Nếu bổ sung, xác minh chữ ký, chống trùng event ID, xử lý chung với capture/reconcile và giữ đối soát dự phòng. Không mô tả endpoint webhook/chữ ký như đã có hoặc dùng thông báo trình duyệt làm bằng chứng thu tiền.
 
-**Lịch sử buyer B2:** đủ các lần thử và refund, số tiền/tiền tệ, trạng thái, thời gian, tham chiếu, lý do/lỗi, lọc/phân trang. Chỉ Succeeded cộng vào tổng thu/hoàn; tổng vòng đời order không bị cắt theo trang hoặc bộ lọc thời gian. Hoàn ship giả lập có nhãn riêng. Chi tiết xem [bốn task ưu tiên](FOUR_TASK_REQUIREMENTS_2026-10-17.md).
+**Lịch sử buyer B2:** đủ các lần thử và refund, số tiền/tiền tệ, trạng thái, thời gian, tham chiếu, lý do/lỗi, lọc/phân trang. Chỉ Succeeded cộng vào tổng thu/hoàn; tổng vòng đời order không bị cắt theo trang hoặc bộ lọc thời gian. Hoàn ship giả lập có nhãn riêng. Chi tiết xem [bốn task ưu tiên](FOUR_TASK_REQUIREMENTS_2026-10-17.md). **Quyết định 11/11/2026:** bỏ tab và API lịch sử giao dịch buyer; buyer xem tiền đã thu/đã hoàn trong chi tiết đơn ([PAYMENT_HISTORY.md](PAYMENT_HISTORY.md)).
 
 ## 6. Giao hàng và đổi địa chỉ
 
@@ -114,7 +127,7 @@ Làm rõ SH1 ngày 20/10: khi tạo lịch phải chọn thời điểm tương 
 
 Hai chiều dùng cùng bộ trạng thái và `ShippingInfo.Direction = Outbound/Return`, tracking và timeline riêng; không thêm `ReturnPickedUp/ReturnDelivered` thành bộ trạng thái khác. `Return` Delivered là hàng về seller, không ghi thêm giao thành công cho buyer. Mỗi `ShippingEvent` phải có actor, thời điểm UTC, event ID chống trùng, location/note và vận đơn liên quan.
 
-Buyer được **đổi địa chỉ thành công tối đa một lần**, trước `OutForDelivery`. Yêu cầu phải có lý do, địa chỉ cũ và mới. Seller cấu hình trước mức tăng phí ship tối đa mình sẵn sàng chịu cho một lần đổi địa chỉ. Server tính lại phí theo địa chỉ mới và khối lượng snapshot:
+Buyer được **đổi địa chỉ thành công tối đa một lần**, trước `OutForDelivery`. Yêu cầu phải có lý do, địa chỉ cũ và mới. Từ 11/11/2026 yêu cầu gồm cả số điện thoại người nhận (bắt buộc) và mã bưu chính/ZIP; chỉ đổi số điện thoại hoặc ZIP cũng là một yêu cầu đổi địa chỉ, đi qua cùng quy trình xác nhận và dùng chính lượt đổi thành công duy nhất. Khi Approved, đơn cập nhật đủ tên, đường, phường/thành phố, tỉnh/bang, quốc gia, ZIP và số điện thoại. Seller cấu hình trước mức tăng phí ship tối đa mình sẵn sàng chịu cho một lần đổi địa chỉ. Server tính lại phí theo địa chỉ mới và khối lượng snapshot:
 
 - Nếu phí mới tăng **không quá** hạn mức seller chịu, seller có thể duyệt; buyer không trả thêm, khoản tăng được ghi là chi phí của seller.
 - Nếu phí mới tăng **vượt** hạn mức, hệ thống **từ chối đổi địa chỉ**, giữ nguyên địa chỉ và vận đơn cũ.
@@ -256,7 +269,7 @@ Thông báo/email được tạo cho payment thành công/thất bại cần hà
 Các kịch bản tối thiểu để nghiệm thu:
 
 1. Buyer đổi số lượng/địa chỉ và áp dụng coupon seller hoặc toàn sàn; checkout và payment lưu cùng một giá, không thu trùng.
-2. Phí ship 1,2 kg đúng 2,10 USD nội Hà Nội hoặc 5,20 USD khác vùng; đổi địa chỉ tăng phí vượt cap seller bị từ chối.
+2. Phí ship 1,2 kg đúng bảng vùng mục 3.1 (2,10 USD cùng tỉnh, 3,65 USD cùng miền, 5,20 USD khác miền…); đổi địa chỉ tăng phí vượt cap seller bị từ chối.
 3. Seller tạo vận đơn; một shipper nhận; tracking giao thành công và giao thất bại/chuyển hoàn đều đúng thứ tự.
 4. Return được duyệt khóa tiền, có tracking chiều về; seller xác nhận thì tự refund; không phản hồi 48 giờ thì worker tự refund một lần.
 5. Seller từ chối return; buyer mở dispute trong 3 ngày; Admin xử lý thắng/thua/hoàn một phần, tiền OnHold và fee credit khớp refund.

@@ -92,7 +92,7 @@ dotnet run --project frontend --launch-profile http
 
 Vào `http://localhost:5131`, buyer đăng nhập, thêm địa chỉ US/ZIP **có thật**,
 checkout chọn Klarna. Kiểm tra redirect, hoàn tất/từ chối trong playground và
-quay về; mở Đơn của tôi hoặc Lịch sử giao dịch để xem Pending/Authorized.
+quay về; mở Đơn của tôi để xem Pending/Authorized.
 Seller tạo outbound để capture; xem transaction `Succeeded`, `PaidAt` và seller
 finance một lần; sau đó tạo return/refund và xem provider refund trong portal.
 Với nhiều seller, lặp thanh toán riêng cho từng đơn.

@@ -96,7 +96,8 @@ public static class ShipperShipmentList
                             ),
                         o.TotalWeightKg,
                         s.ReattemptAt,
-                        s.ReattemptReason
+                        s.ReattemptReason,
+                        s.Direction == "Outbound" ? o.DeliveryPhoneSnapshot : null
                     )
             )
             .ToListAsync(ct);

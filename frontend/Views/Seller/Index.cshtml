@@ -245,26 +245,14 @@
             <label>Đường, số nhà
                 <input id="pickup-street" required maxlength="100" autocomplete="street-address" />
             </label>
-            <label>Thành phố
-                <input id="pickup-city" required maxlength="50" autocomplete="address-level2" />
-            </label>
-            <label>Tỉnh / vùng
-                <input
-                    id="pickup-state"
-                    required
-                    maxlength="50"
-                    placeholder="Hà Nội"
-                    autocomplete="address-level1"
-                />
-            </label>
             <label>Quốc gia
-                <input
-                    id="pickup-country"
-                    required
-                    maxlength="50"
-                    placeholder="Việt Nam"
-                    autocomplete="country-name"
-                />
+                <select id="pickup-country" required autocomplete="country-name"></select>
+            </label>
+            <label>Tỉnh / thành phố (bang)
+                <select id="pickup-state" required autocomplete="address-level1"></select>
+            </label>
+            <label>Phường / xã hoặc thành phố
+                <input id="pickup-city" required maxlength="50" autocomplete="address-level2" />
             </label>
         </div>
         <button type="submit" class="primary">Lưu địa chỉ lấy hàng</button>
@@ -309,6 +297,7 @@
     <script src="~/js/role-navigation.js" asp-append-version="true"></script>
 <script src="~/lib/signalr/signalr.min.js" asp-append-version="true"></script>
 <script src="~/js/realtime.js" asp-append-version="true"></script>
+<script src="~/js/address-fields.js" asp-append-version="true"></script>
 <script src="~/js/address-changes.js" asp-append-version="true"></script>
 <script src="~/js/returns.js" asp-append-version="true"></script>
 <script src="~/js/notifications.js" asp-append-version="true"></script>

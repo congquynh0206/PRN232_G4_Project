@@ -53,6 +53,7 @@ internal static class AddressChangeChecks
                 City = state,
                 State = state,
                 Country = "Vietnam",
+                Phone = "+84901112223",
             },
             new Address
             {
@@ -136,7 +137,7 @@ internal static class AddressChangeChecks
 
     private static AddressChangeInput Input(string state, string key) =>
         new(
-            new("Buyer", "New street", state, state, "Vietnam"),
+            new("Buyer", "New street", state, state, "Vietnam", Phone: "0912345678"),
             "Change delivery destination",
             key
         );
@@ -284,7 +285,11 @@ internal static class AddressChangeChecks
             db,
             f.Order.Id,
             1,
-            new(new("Buyer", "Other street", "Hanoi", "Hanoi", "Vietnam"), "Move house", "same-fee")
+            new(
+                new("Buyer", "Other street", "Hanoi", "Hanoi", "Vietnam", Phone: "0912345678"),
+                "Move house",
+                "same-fee"
+            )
         );
         await shipping.RecordEventAsync(shipment.Id, "pickup", "PickedUp", shipperId: 3);
         await shipping.RecordEventAsync(shipment.Id, "transit", "InTransit", shipperId: 3);

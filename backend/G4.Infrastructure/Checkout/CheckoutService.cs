@@ -215,6 +215,7 @@ public sealed class CheckoutService(
                 DeliveryStreetSnapshot = address.Street,
                 DeliveryCitySnapshot = address.City,
                 DeliveryPostalCodeSnapshot = address.PostalCode,
+                DeliveryPhoneSnapshot = address.Phone,
                 PickupStateSnapshot = pickup.State,
                 PickupCountrySnapshot = pickup.Country,
                 AddressSnapshot = string.Join(
@@ -944,7 +945,7 @@ public sealed class CheckoutService(
                 products.Single(p => p.Id == i.ProductId).WeightKg!.Value
             )),
             0,
-            ShippingPricing.IsHanoiLocal(
+            ShippingPricing.Zone(
                 pickup.State,
                 pickup.Country,
                 address.State,
@@ -1046,7 +1047,7 @@ public sealed class CheckoutService(
                 products.Single(p => p.Id == i.ProductId).WeightKg!.Value
             )),
             coupon?.DiscountPercent ?? 0m,
-            ShippingPricing.IsHanoiLocal(
+            ShippingPricing.Zone(
                 pickup.State,
                 pickup.Country,
                 address.State,

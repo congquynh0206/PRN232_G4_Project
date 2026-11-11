@@ -165,6 +165,16 @@ public sealed class SellerShippingSettingsController(
                     error = "Nhập đầy đủ địa chỉ lấy hàng; tên/đường tối đa 100 ký tự, thành phố/tỉnh/quốc gia tối đa 50 ký tự.",
                 }
             );
+        // The zone price table needs a known country and province/state on both ends.
+        var country = AddressRegions.Country(request.Country);
+        var state = AddressRegions.State(country, request.State);
+        if (country is null || state is null)
+            return BadRequest(
+                new
+                {
+                    error = "Địa chỉ lấy hàng cần ở Việt Nam hoặc Hoa Kỳ, với tỉnh/bang trong danh sách.",
+                }
+            );
         var pickup = await db
             .Addresses.Where(a => a.UserId == CurrentUserId && a.IsDefault == true)
             .OrderBy(a => a.Id)
@@ -178,8 +188,8 @@ public sealed class SellerShippingSettingsController(
         pickup.FullName = request.FullName.Trim();
         pickup.Street = request.Street.Trim();
         pickup.City = request.City.Trim();
-        pickup.State = request.State.Trim();
-        pickup.Country = request.Country.Trim();
+        pickup.State = state;
+        pickup.Country = country;
         await db.SaveChangesAsync(ct);
         return Ok(new { pickup.Id });
     }

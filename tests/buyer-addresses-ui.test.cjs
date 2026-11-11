@@ -40,6 +40,15 @@ function harness(write) {
     message() {},
     safe: (fn) => fn(),
     modal: async () => true,
+    // Region selects are covered by the browser check; here fill() only copies values.
+    AddressFields: {
+      attach: async (prefix) => ({
+        fill(values) {
+          for (const [key, value] of Object.entries(values)) $(prefix + key).value = value ?? '';
+        },
+      }),
+      formatPhone: (value) => value,
+    },
     api: async (route, method, payload) => {
       if (route === 'addresses') return [];
       calls.push({ route, payload });
@@ -57,6 +66,7 @@ function harness(write) {
   const fill = () => {
     for (const key of ['fullName', 'street', 'city', 'state', 'country'])
       $('address-form-' + key).value = 'Example';
+    $('address-form-phone').value = '0912345678';
   };
   return { $, book, calls, locks, changes, fill };
 }
@@ -69,7 +79,7 @@ test('pending address save locks save/cancel/close and Escape, prevents duplicat
       }),
   );
   await h.book.load();
-  h.book.openManage(true);
+  await h.book.openManage(true);
   h.fill();
   const pending = h.$('address-form').onsubmit({ preventDefault() {} });
   for (const id of ['address-form-save', 'address-form-cancel', 'address-dialog-close'])
@@ -112,7 +122,7 @@ test('failed save keeps form and values, unlocks retry, and disabled checkout pr
     throw new Error('Server unavailable');
   });
   await h.book.load();
-  h.book.openManage(true);
+  await h.book.openManage(true);
   h.fill();
   await h.$('address-form').onsubmit({ preventDefault() {} });
   assert.equal(h.$('address-form').hidden, false);

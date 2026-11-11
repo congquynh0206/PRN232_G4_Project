@@ -368,10 +368,10 @@ internal sealed class DemoFixture
                 {
                     UserId = seller.Id,
                     FullName = name,
-                    Phone = "0900000000",
+                    Phone = $"+849000001{index:00}",
                     Street = "10 Phố Demo",
-                    City = "Hanoi",
-                    State = "Hanoi",
+                    City = "Phường Hoàn Kiếm",
+                    State = "Hà Nội",
                     Country = "Vietnam",
                     IsDefault = true,
                 }
@@ -403,10 +403,10 @@ internal sealed class DemoFixture
         {
             UserId = Buyer.Id,
             FullName = "Buyer Demo",
-            Phone = "0900000011",
+            Phone = "+84900000011",
             Street = "20 Phố Demo",
-            City = "Hanoi",
-            State = "Hanoi",
+            City = "Phường Hoàn Kiếm",
+            State = "Hà Nội",
             Country = "Vietnam",
             IsDefault = true,
         };
@@ -416,11 +416,26 @@ internal sealed class DemoFixture
             {
                 UserId = Buyer.Id,
                 FullName = "Buyer Demo",
-                Phone = "0900000011",
+                Phone = "+84900000011",
                 Street = "30 Đường Demo",
-                City = "Ho Chi Minh",
-                State = "HCM",
+                City = "Phường Bến Thành",
+                State = "Hồ Chí Minh",
                 Country = "Vietnam",
+                PostalCode = "70000",
+            }
+        );
+        // US address to demo the +1 dial code, required ZIP and the VN ↔ US zone.
+        db.Addresses.Add(
+            new Address
+            {
+                UserId = Buyer.Id,
+                FullName = "Buyer Demo",
+                Phone = "+12125550123",
+                Street = "350 5th Ave",
+                City = "New York",
+                State = "NY",
+                Country = "United States",
+                PostalCode = "10118",
             }
         );
         db.Addresses.Add(
@@ -428,9 +443,10 @@ internal sealed class DemoFixture
             {
                 UserId = OtherBuyer.Id,
                 FullName = "Buyer khác",
+                Phone = "+84900000012",
                 Street = "40 Phố Demo",
-                City = "Hanoi",
-                State = "Hanoi",
+                City = "Phường Ba Đình",
+                State = "Hà Nội",
                 Country = "Vietnam",
                 IsDefault = true,
             }
@@ -440,9 +456,10 @@ internal sealed class DemoFixture
             {
                 UserId = HistoryBuyer.Id,
                 FullName = "Buyer lịch sử",
+                Phone = "+84900000013",
                 Street = "50 Phố Demo",
-                City = "Hanoi",
-                State = "Hanoi",
+                City = "Phường Cửa Nam",
+                State = "Hà Nội",
                 Country = "Vietnam",
                 IsDefault = true,
             }
@@ -515,6 +532,9 @@ internal sealed class DemoFixture
         );
     }
 
+    private static string Text(Address a) =>
+        string.Join(", ", a.FullName, a.Street, a.City, a.State, a.Country);
+
     public async Task<OrderTable> OrderAsync(
         User seller,
         string code,
@@ -526,6 +546,9 @@ internal sealed class DemoFixture
         buyer ??= Buyer;
         var address = await db.Addresses.FirstAsync(x =>
             x.UserId == buyer.Id && x.IsDefault == true
+        );
+        var pickup = await db.Addresses.FirstAsync(x =>
+            x.UserId == seller.Id && x.IsDefault == true
         );
         var product = Products[seller.Id];
         var shipping = 2.10m;
@@ -544,12 +567,18 @@ internal sealed class DemoFixture
             TotalWeightKg = 1.2m,
             Currency = "USD",
             CheckoutKey = "demo-" + code,
-            AddressSnapshot = "Buyer Demo, 20 Phố Demo, Hanoi, Hanoi, Vietnam",
-            PickupAddressSnapshot = "Shop Demo, 10 Phố Demo, Hanoi, Hanoi, Vietnam",
-            DeliveryStateSnapshot = "Hanoi",
-            DeliveryCountrySnapshot = "Vietnam",
-            PickupStateSnapshot = "Hanoi",
-            PickupCountrySnapshot = "Vietnam",
+            // Same snapshot shape as CheckoutService (Hà Nội → Hà Nội: 2,10 USD for 1,2 kg).
+            AddressSnapshot = Text(address),
+            PickupAddressSnapshot = Text(pickup),
+            DeliveryNameSnapshot = address.FullName,
+            DeliveryStreetSnapshot = address.Street,
+            DeliveryCitySnapshot = address.City,
+            DeliveryPostalCodeSnapshot = address.PostalCode,
+            DeliveryPhoneSnapshot = address.Phone,
+            DeliveryStateSnapshot = address.State,
+            DeliveryCountrySnapshot = address.Country,
+            PickupStateSnapshot = pickup.State,
+            PickupCountrySnapshot = pickup.Country,
             PricingSchemaVersion = 1,
             ShippingBase = shipping,
             SellerGrossSnapshot = goods + shipping,
@@ -644,7 +673,7 @@ internal sealed class DemoFixture
                     ReceivedAt = i == 4 ? delivered : created.AddHours(i),
                     ActorUserId = i == 0 ? null : Shipper.Id,
                     ActorRole = i == 0 ? "system" : "shipper",
-                    Location = "Hanoi",
+                    Location = "Hà Nội",
                     Note = "Sự kiện dữ liệu demo lịch sử",
                 }
             );
@@ -680,7 +709,7 @@ internal sealed class DemoFixture
                 shipment.Id,
                 $"demo-event-{shipment.Id}-{state}",
                 state,
-                "Hanoi",
+                "Hà Nội",
                 "Mốc chuẩn bị demo",
                 shipperId: Shipper.Id
             );
@@ -812,7 +841,7 @@ internal sealed class DemoFixture
                 s.Id,
                 "demo-failed-" + s.Id,
                 "DeliveryFailed",
-                "Hanoi",
+                "Hà Nội",
                 "Buyer vắng nhà",
                 shipperId: Shipper.Id
             );
@@ -821,7 +850,7 @@ internal sealed class DemoFixture
                     s.Id,
                     "demo-schedule-" + s.Id,
                     "ReattemptScheduled",
-                    "Hanoi",
+                    "Hà Nội",
                     "Giao lại theo hẹn",
                     shipperId: Shipper.Id,
                     reattemptAt: new DateTimeOffset(Anchor.AddMinutes(30))
@@ -842,7 +871,7 @@ internal sealed class DemoFixture
             srts.Id,
             "demo-rts-fail",
             "DeliveryFailed",
-            "Hanoi",
+            "Hà Nội",
             "Không liên lạc được",
             shipperId: Shipper.Id
         );
@@ -850,7 +879,7 @@ internal sealed class DemoFixture
             srts.Id,
             "demo-rts",
             "ReturningToSender",
-            "Hanoi",
+            "Hà Nội",
             "Chuyển hoàn thực tế",
             shipperId: Shipper.Id
         );
@@ -1017,7 +1046,7 @@ internal sealed class DemoFixture
                 s.Id,
                 $"demo-return-event-{s.Id}-{state}",
                 state,
-                "Hanoi",
+                "Hà Nội",
                 "Tracking chiều trả",
                 shipperId: Shipper.Id
             );
@@ -1109,8 +1138,15 @@ internal sealed class DemoFixture
                 await Shipping.ClaimAsync(shipment.Id, Shipper.Id);
             }
             var input = new AddressChangeInput(
-                new("Buyer Demo", "21 Phố Demo", "Hanoi", "Hanoi", "Vietnam"),
-                "Đổi địa chỉ trong Hà Nội để demo quy trình xác nhận.",
+                new(
+                    "Buyer Demo",
+                    "21 Phố Demo",
+                    "Phường Hoàn Kiếm",
+                    "Hà Nội",
+                    "Vietnam",
+                    Phone: "0912345678"
+                ),
+                "Đổi địa chỉ và số điện thoại trong Hà Nội để demo quy trình xác nhận.",
                 "demo-address-" + code
             );
             var quote = await service.QuoteAsync(order.Id, Buyer.Id, input);

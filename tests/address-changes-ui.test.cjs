@@ -9,7 +9,8 @@ function helpers(overrides = {}) {
     calls = [],
     messages = [];
   const element = (id) => {
-    if (!elements.has(id)) elements.set(id, { value: '', disabled: false });
+    if (!elements.has(id))
+      elements.set(id, { value: '', disabled: false, addEventListener() {} });
     return elements.get(id);
   };
   const G4 = {
@@ -27,6 +28,15 @@ function helpers(overrides = {}) {
     api: async (route, verb, body) => {
       calls.push({ route, body });
       return { status: 'Approved' };
+    },
+    // Real selects/lookup run in the browser check; values() returns what the test sets.
+    AddressFields: {
+      formValues: {},
+      regions: async () => ({
+        countries: [{ value: 'Vietnam', label: 'Việt Nam', dialCode: '+84', states: [] }],
+      }),
+      attach: async () => ({ fill() {}, values: () => G4.AddressFields.formValues }),
+      formatPhone: (value) => 'fmt:' + value,
     },
   };
   Object.assign(G4, overrides);
@@ -161,6 +171,9 @@ test('buyer confirms a server quote before submit; unknown response reuses key a
           buyerRefund: 3.1,
           withinCap: true,
           shipperId: 3,
+          oldPhone: '+84901112223',
+          newPhone: '+84912345678',
+          shippingZone: 'SameProvince',
         };
       if (fail) {
         fail = false;
@@ -169,6 +182,16 @@ test('buyer confirms a server quote before submit; unknown response reuses key a
       return { status: 'Pending' };
     },
   });
+  const address = {
+    fullName: 'Buyer',
+    phone: '0912345678',
+    street: 'New',
+    city: 'Phường Cửa Nam',
+    state: 'Hà Nội',
+    country: 'Vietnam',
+    postalCode: '',
+  };
+  h.G4.AddressFields.formValues = address;
   h.init('buyer', async () => {});
   const event = {
     target: { closest: () => ({ dataset: { addressChange: 'request', addressOrder: '8' } }) },
@@ -176,13 +199,51 @@ test('buyer confirms a server quote before submit; unknown response reuses key a
   await assert.rejects(h.listeners[0](event), /network/);
   await h.listeners[0](event);
   assert.equal(modals.length, 2);
+  assert.deepEqual(
+    Array.from(modals[0].fields, (x) => x.name),
+    [
+      'saved',
+      'fullName',
+      'phone',
+      'country',
+      'lookup',
+      'state',
+      'city',
+      'street',
+      'postalCode',
+      'reason',
+    ],
+  );
   assert.match(modals[1].description, /Buyer không trả thêm/);
   assert.match(modals[1].description, /\$3.10/);
+  assert.match(modals[1].description, /fmt:\+84901112223 → fmt:\+84912345678/);
+  assert.match(modals[1].description, /cùng tỉnh/);
   const sends = calls.filter((x) => x.route === 'orders/8/address-changes');
   assert.equal(sends.length, 2);
   assert.deepEqual(sends[0].body, sends[1].body);
+  assert.deepEqual(sends[0].body.address, address);
   assert.equal(sends[0].body.quoteToken, 'server-quote');
   assert.equal(calls.filter((x) => x.route.endsWith('/quote')).length, 1);
+});
+
+test('history shows old and new phone/ZIP next to the address, escaped', () => {
+  const html = helpers().summaryHtml(
+    {
+      id: 1,
+      addressChanges: [
+        {
+          ...row,
+          oldPhone: '+84901112223',
+          newPhone: '+84912345678',
+          newPostalCode: '<70000>',
+        },
+      ],
+    },
+    'buyer',
+  );
+  assert.match(html, /SĐT: fmt:\+84901112223/);
+  assert.match(html, /SĐT: fmt:\+84912345678 · Mã bưu chính: &lt;70000&gt;/);
+  assert.doesNotMatch(html, /<70000>/);
 });
 
 test('shipper decision includes request identity and a reason when refusing', async () => {

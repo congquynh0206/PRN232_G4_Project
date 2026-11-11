@@ -26,6 +26,17 @@ public static class OrderPricing
         IEnumerable<PriceLine> lines,
         decimal couponPercent,
         bool sameState
+    ) =>
+        Calculate(
+            lines,
+            couponPercent,
+            sameState ? ShippingZone.SameProvince : ShippingZone.CrossArea
+        );
+
+    public static PriceQuote Calculate(
+        IEnumerable<PriceLine> lines,
+        decimal couponPercent,
+        ShippingZone zone
     )
     {
         if (couponPercent is < 0 or > 20)
@@ -46,7 +57,7 @@ public static class OrderPricing
             MidpointRounding.AwayFromZero
         );
         var kilograms = materialized.Sum(line => line.UnitWeightKg * line.Quantity);
-        var shipping = ShippingPricing.Calculate(kilograms, sameState);
+        var shipping = ShippingPricing.Calculate(kilograms, zone);
         return new PriceQuote(
             subtotal,
             discount,

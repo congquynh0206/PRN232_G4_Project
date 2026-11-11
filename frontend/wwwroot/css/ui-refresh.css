@@ -1349,7 +1349,8 @@ section.case-proposal-summary {
   flex-direction: column;
   gap: 8px;
 }
-.shipping-settings-fields input {
+.shipping-settings-fields input,
+.shipping-settings-fields select {
   width: 100%;
   min-width: 0;
 }

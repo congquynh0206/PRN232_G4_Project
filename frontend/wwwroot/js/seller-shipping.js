@@ -1,13 +1,15 @@
 (() => {
   const { $, esc, api, safe, message, pager } = G4;
   let page = 1,
-    initialized = false;
+    initialized = false,
+    pickupForm = null;
   async function load(next = page) {
     const result = await api(`seller/shipping/settings?page=${next}&pageSize=10`);
     page = result.page;
     if (!initialized) {
-      for (const key of ['fullName', 'street', 'city', 'state', 'country'])
-        $('pickup-' + key).value = result.pickup?.[key] || '';
+      // Country/state come from the server list so the zone price table recognises them.
+      pickupForm = await G4.AddressFields.attach('pickup-');
+      pickupForm.fill(result.pickup || {});
       initialized = true;
       $('address-change-cap').value = Number(result.addressChangeCap || 0);
     }

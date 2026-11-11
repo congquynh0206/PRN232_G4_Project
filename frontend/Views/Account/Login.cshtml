@@ -1,19 +1,52 @@
 @{
     Layout = null;
     ViewData["Title"] = "Đăng nhập";
+
+    // Tài khoản có sẵn trong database/demo/G4_Demo.sql (xem HUONG_DAN_DEMO.md).
+    var demoAccountGroups = new (string Role, (string Email, string Note)[] Accounts)[]
+    {
+        ("Buyer", new[]
+        {
+            ("buyer@demo.test", "Buyer trình diễn"),
+            ("buyer.other@demo.test", "Có 1 điểm phạt Unpaid Item"),
+            ("buyer.history@demo.test", "Lịch sử hỗ trợ xét level")
+        }),
+        ("Seller", new[]
+        {
+            ("seller.l1@demo.test", "Cấp 1 - đơn hàng/return/dispute"),
+            ("seller.l2@demo.test", "Cấp 2 - giữ tiền 15 phút"),
+            ("seller.l3@demo.test", "Cấp 3 - tiền vào ví ngay"),
+            ("seller.up2@demo.test", "Đủ tiêu chí lên cấp 2"),
+            ("seller.up3@demo.test", "Đủ tiêu chí lên cấp 3"),
+            ("seller.debt@demo.test", "Nợ chưa đến hạn"),
+            ("seller.overdue@demo.test", "Nợ quá hạn - bị hạn chế"),
+            ("seller.writeoff@demo.test", "Đã write-off - khóa bán"),
+            ("seller.recovered@demo.test", "Trả hết sau write-off - vẫn khóa bán"),
+            ("seller.limit@demo.test", "Cấp 1 gần chạm hạn mức tháng")
+        }),
+        ("Shipper", new[]
+        {
+            ("shipper@demo.test", "Shipper chính"),
+            ("shipper.other@demo.test", "Shipper khác để kiểm tra quyền")
+        }),
+        ("Admin", new[]
+        {
+            ("admin@demo.test", "Admin trình diễn")
+        })
+    };
 }
 <!doctype html>
 <html lang="vi">
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width,initial-scale=1" />
-        <title>Đăng nhập - Sàn G4</title>
-        <link rel="stylesheet" href="~/css/checkout.css" />
-        <link rel="stylesheet" href="~/css/roles.css" />
-        <link rel="stylesheet" href="~/css/ui-refresh.css" />
+        <title>Đăng nhập - eBay</title>
+        <link rel="stylesheet" href="~/css/checkout.css" asp-append-version="true" />
+        <link rel="stylesheet" href="~/css/roles.css" asp-append-version="true" />
+        <link rel="stylesheet" href="~/css/ui-refresh.css" asp-append-version="true" />
     </head>
     <body class="login-page">
-        <main class="login-shell">
+        <main class="login-shell login-shell-accounts">
             <section class="login-card">
                 <div class="login-brand">
                     <span class="ebay">
@@ -22,7 +55,6 @@
                         <b>a</b>
                         <b>y</b>
                     </span>
-                    <strong>Sàn G4</strong>
                 </div>
                 <h1>Đăng nhập</h1>
                 <p>Đăng nhập để mở không gian làm việc của bạn.</p>
@@ -46,16 +78,39 @@
                         <a asp-action="RegisterSeller">Đăng ký người bán thử nghiệm</a>
                     </p>
                 }
-                <div class="demo-accounts">
-                    <strong>Tài khoản phát triển</strong>
-                    <code>buyer@example.test</code>
-                    <code>seller@example.test</code>
-                    <code>shipper@example.test</code>
-                    <code>admin@example.test</code>
-                    <small>Mật khẩu chung: G4@@123456</small>
-                </div>
             </section>
+            <aside class="demo-accounts" aria-labelledby="demo-accounts-title">
+                <h2 id="demo-accounts-title">Tài khoản</h2>
+                <p class="demo-accounts-password">
+                    Mật khẩu chung:
+                    <code>G4@@123456</code>
+                </p>
+                <p class="demo-accounts-hint">Bấm vào một tài khoản để điền email.</p>
+                @foreach (var group in demoAccountGroups)
+                {
+                    <section class="demo-account-group">
+                        <h3>@group.Role</h3>
+                        <ul>
+                            @foreach (var account in group.Accounts)
+                            {
+                                <li>
+                                    <button
+                                        type="button"
+                                        class="demo-account"
+                                        data-email="@account.Email"
+                                        aria-label="Điền email @account.Email"
+                                    >
+                                        <code>@account.Email</code>
+                                        <small>@account.Note</small>
+                                    </button>
+                                </li>
+                            }
+                        </ul>
+                    </section>
+                }
+            </aside>
         </main>
         <script src="~/js/login-rate-limit.js" asp-append-version="true"></script>
+        <script src="~/js/login-accounts.js" asp-append-version="true"></script>
     </body>
 </html>

@@ -5,6 +5,26 @@ Bộ file nằm trong `database/demo/`: `G4_Demo.sql`, `HUONG_DAN_DEMO.md`,
 bộ kiểm thử tải/đồng thời/provider hoặc báo cáo hoàn thành tất cả backlog.
 Gói ZIP `G4_Demo_2026-10-31.zip` là bản cũ trước Best Offer/Buy It Now; không dùng.
 
+## Cập nhật 11/11/2026 — địa chỉ, SĐT, phí vùng (ADDR2)
+
+- `G4_Demo.sql` sinh lại bằng `tools/G4.DemoData` đã sửa: gồm migration
+  `20261111034557_AddDeliveryPhoneAndAddressChangeFields`; địa chỉ dùng tỉnh/phường chuẩn
+  ("Hà Nội", "Phường Hoàn Kiếm", "Hồ Chí Minh") và SĐT `+84…`; buyer chính có thêm địa chỉ
+  Hoa Kỳ (`+1 (212) 555-0123`, NY 10118) để demo đầu số +1, ZIP bắt buộc và phí VN ↔ US.
+  Đơn mẫu lưu đủ snapshot người nhận (tên/đường/phường/tỉnh/SĐT) như checkout thật.
+  Ca `ADDRESS-SELLER`/`ADDRESS-SHIPPER` đổi cả địa chỉ và SĐT.
+- Database `G4_Demo` đang có trên máy: đã áp migration trên bằng `dotnet ef database update`
+  (không tạo lại) và chuẩn hóa 14 địa chỉ + thêm địa chỉ Hoa Kỳ + điền SĐT người nhận cho
+  279 đơn. Chuỗi snapshot địa chỉ của đơn cũ trong database này vẫn dạng "Hanoi", và hai
+  yêu cầu `ADDRESS-SELLER`/`ADDRESS-SHIPPER` cũ sẽ bị từ chối khi duyệt vì báo giá nay gồm
+  SĐT/ZIP; chạy lại `G4_Demo.sql` để có bộ dữ liệu mới hoàn toàn khớp file.
+- Kiểm chứng 11/11: generator sinh 50 kịch bản; SQL nhập vào QA, `@ReplaceExisting = 0` từ
+  chối, chạy lại với `1` tạo lại; 16 đăng nhập, 10 ví, blacklist, 50 kịch bản đạt. Database
+  build/QA tạm của lần sinh này đã xóa (ổ C còn ít chỗ). App qua `Run-Demo.ps1` trên
+  `G4_Demo`: đăng nhập buyer, sổ địa chỉ, gợi ý VietMap thật và báo giá đổi địa chỉ đạt.
+- Gợi ý số nhà VietMap dùng khóa trong user-secrets của G4.Api; `Run-Demo.ps1` chạy
+  Development nên tự đọc khóa, không cần biến môi trường thêm.
+
 ## Cập nhật 09/11/2026
 
 Theo yêu cầu người dùng: chỉ cần chạy một file SQL trong SSMS là có database demo đủ.

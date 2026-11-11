@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kiến trúc G4</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --surface: #ffffff;
+      --surface-2: #f0f2f5;
+      --text: #1b1f24;
+      --muted: #59636e;
+      --border: #d5dae0;
+      --line: #6b7682;
+      --c-client: #2f6fd6;
+      --c-client-bg: #eaf1fd;
+      --c-web: #0f8a6c;
+      --c-web-bg: #e6f5f0;
+      --c-api: #7a4fd0;
+      --c-api-bg: #f4effc;
+      --c-ext: #c26a12;
+      --c-ext-bg: #fdf2e6;
+      --c-db: #b33a5b;
+      --c-db-bg: #fcebef;
+      --chip-bg: #6a46c4;
+      --chip-text: #ffffff;
+      --chip-sub: #ece5fc;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #111418;
+        --surface: #1a1e24;
+        --surface-2: #222830;
+        --text: #e7eaee;
+        --muted: #a2acb7;
+        --border: #343c46;
+        --line: #8b96a3;
+        --c-client: #7aa7f2;
+        --c-client-bg: #18253a;
+        --c-web: #4cc9a6;
+        --c-web-bg: #13292388;
+        --c-api: #b394f0;
+        --c-api-bg: #221b33;
+        --c-ext: #f0a35a;
+        --c-ext-bg: #2e2216;
+        --c-db: #ec7d9b;
+        --c-db-bg: #321a22;
+        --chip-bg: #3b2d63;
+        --chip-text: #f1ecff;
+        --chip-sub: #cbbcf3;
+      }
+    }
+
+    :root[data-theme="dark"] {
+      --bg: #111418;
+      --surface: #1a1e24;
+      --surface-2: #222830;
+      --text: #e7eaee;
+      --muted: #a2acb7;
+      --border: #343c46;
+      --line: #8b96a3;
+      --c-client: #7aa7f2;
+      --c-client-bg: #18253a;
+      --c-web: #4cc9a6;
+      --c-web-bg: #13292388;
+      --c-api: #b394f0;
+      --c-api-bg: #221b33;
+      --c-ext: #f0a35a;
+      --c-ext-bg: #2e2216;
+      --c-db: #ec7d9b;
+      --c-db-bg: #321a22;
+      --chip-bg: #3b2d63;
+      --chip-text: #f1ecff;
+      --chip-sub: #cbbcf3;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+      line-height: 1.5;
+    }
+
+    main {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 32px 16px 64px;
+    }
+
+    header h1 {
+      margin: 0 0 4px;
+      font-size: 28px;
+    }
+
+    header p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    section {
+      margin-top: 40px;
+    }
+
+    h2 {
+      margin: 0 0 6px;
+      font-size: 20px;
+    }
+
+    .lead {
+      margin: 0 0 16px;
+      color: var(--muted);
+      max-width: 820px;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .scroll {
+      overflow-x: auto;
+    }
+
+    .scroll svg {
+      display: block;
+      width: 100%;
+      min-width: 880px;
+      height: auto;
+    }
+
+    .scroll svg.small {
+      min-width: 640px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    /* SVG styling */
+    .box { fill: var(--surface); stroke: var(--border); stroke-width: 1.2; }
+    .b-client { fill: var(--c-client-bg); stroke: var(--c-client); }
+    .b-web { fill: var(--c-web-bg); stroke: var(--c-web); }
+    .b-api { fill: var(--c-api-bg); stroke: var(--c-api); stroke-dasharray: 6 4; }
+    .b-inner { fill: var(--surface); stroke: var(--c-api); }
+    .b-ext { fill: var(--c-ext-bg); stroke: var(--c-ext); }
+    .b-db { fill: var(--c-db-bg); stroke: var(--c-db); }
+    .t-title { font-size: 15px; font-weight: 600; fill: var(--text); }
+    .t-api { font-size: 15px; font-weight: 700; fill: var(--c-api); }
+    .t-body { font-size: 12.5px; fill: var(--muted); }
+    .t-small { font-size: 11.5px; fill: var(--muted); }
+    .t-label {
+      font-size: 11.5px;
+      fill: var(--text);
+      paint-order: stroke;
+      stroke: var(--bg);
+      stroke-width: 4px;
+      stroke-linejoin: round;
+    }
+    .edge { fill: none; stroke: var(--line); stroke-width: 1.6; }
+    .edge-rt { fill: none; stroke: var(--c-client); stroke-width: 1.6; stroke-dasharray: 5 4; }
+    .arrowhead { fill: var(--line); }
+    .arrowhead-rt { fill: var(--c-client); }
+
+    /* Sơ đồ tổng quan (phần 1): luôn đen trắng, kể cả chế độ tối */
+    .panel.bw {
+      --bg: #ffffff;
+      --surface: #ffffff;
+      --text: #000000;
+      --muted: #000000;
+      --border: #000000;
+      --line: #000000;
+      --c-client: #000000;
+      --c-client-bg: #ffffff;
+      --c-web: #000000;
+      --c-web-bg: #ffffff;
+      --c-api: #000000;
+      --c-db: #000000;
+      --c-db-bg: #ffffff;
+      --c-ext: #000000;
+      --c-ext-bg: #ffffff;
+      --chip-bg: #ffffff;
+      --chip-text: #000000;
+      --chip-sub: #000000;
+      background: #ffffff;
+      color: #000000;
+    }
+
+    .host { fill: none; stroke: var(--c-api); stroke-width: 1.4; stroke-dasharray: 6 4; }
+    .group { fill: none; stroke: var(--line); stroke-width: 1.2; stroke-dasharray: 6 4; }
+    .chip { fill: var(--chip-bg); stroke: var(--c-api); stroke-width: 1; }
+    .chip-t { font-size: 13px; font-weight: 600; fill: var(--chip-text); }
+    .chip-s { font-size: 11px; fill: var(--chip-sub); }
+    .t-host { font-size: 17px; font-weight: 600; fill: var(--c-api); }
+    .t-group { font-size: 16px; fill: var(--muted); }
+    .t-row {
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      fill: var(--c-api);
+    }
+    .t-node { font-size: 13px; font-weight: 600; fill: var(--text); }
+    .flow-edge {
+      fill: none;
+      stroke: var(--line);
+      stroke-width: 1.8;
+      stroke-dasharray: 7 5;
+    }
+    .flow-rt {
+      fill: none;
+      stroke: var(--c-client);
+      stroke-width: 2;
+      stroke-dasharray: 2 5;
+      stroke-linecap: round;
+    }
+    .ic-client { fill: var(--c-client-bg); stroke: var(--c-client); stroke-width: 1.6; }
+    .ic-web { fill: var(--c-web-bg); stroke: var(--c-web); stroke-width: 1.6; }
+    .ic-db { fill: var(--c-db-bg); stroke: var(--c-db); stroke-width: 1.6; }
+    .ic-ext { fill: var(--c-ext-bg); stroke: var(--c-ext); stroke-width: 1.6; }
+    .ic-line { fill: none; stroke-width: 1.6; }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 20px;
+      margin-top: 12px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1.5px solid;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 12px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+
+    .card h3 {
+      margin: 0 0 8px;
+      font-size: 15px;
+    }
+
+    .card ul,
+    .card ol {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .card li + li {
+      margin-top: 3px;
+    }
+
+    .tag {
+      display: inline-block;
+      font-size: 12px;
+      padding: 1px 8px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      color: var(--muted);
+      margin-left: 6px;
+      vertical-align: middle;
+      font-weight: 500;
+    }
+
+    code {
+      font-family: Consolas, "Cascadia Mono", monospace;
+      font-size: 0.92em;
+      background: var(--surface-2);
+      padding: 0 4px;
+      border-radius: 4px;
+    }
+
+    .flow {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: stretch;
+      gap: 8px;
+    }
+
+    .step {
+      flex: 1 1 170px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--c-client);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .step b {
+      display: block;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+
+    .arrow {
+      align-self: center;
+      color: var(--line);
+      font-size: 20px;
+    }
+
+    .deploy {
+      font-family: Consolas, "Cascadia Mono", monospace;
+      font-size: 13px;
+      background: var(--surface-2);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin: 8px 0 10px;
+      white-space: pre;
+      overflow-x: auto;
+      color: var(--text);
+    }
+
+    footer {
+      margin-top: 48px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 640px) {
+      header h1 {
+        font-size: 23px;
+      }
+
+      .arrow {
+        transform: rotate(90deg);
+        flex-basis: 100%;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Kiến trúc hệ thống G4</h1>
+    <p>Sàn thương mại điện tử kiểu eBay · ASP.NET Core 8 · SQL Server · vẽ từ source tại commit
+      <code>7c25f74</code></p>
+  </header>
+
+  <!-- 1. Tổng quan -->
+  <section>
+    <h2>1. Tổng quan thành phần</h2>
+    <p class="lead">
+      Đọc từ trái sang phải theo đường đi của request: trình duyệt → <b>frontend</b> (MVC,
+      proxy) → <b>G4.Api</b>. Riêng kết nối realtime SignalR đi thẳng tới API. Trong khung
+      G4.Api, các hàng xếp theo tầng: hàng trên gọi hàng dưới. Dữ liệu nằm bên phải, dịch vụ
+      ngoài nằm bên dưới.
+    </p>
+    <div class="panel scroll bw">
+      <svg viewBox="0 0 1200 650" role="img"
+           aria-label="Sơ đồ tổng quan: trình duyệt, frontend MVC, G4.Api, SQL Server và dịch vụ ngoài">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7"
+                  orient="auto-start-reverse">
+            <path class="arrowhead" d="M0 0 L10 5 L0 10 z"/>
+          </marker>
+          <marker id="ah-rt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7"
+                  markerHeight="7" orient="auto-start-reverse">
+            <path class="arrowhead-rt" d="M0 0 L10 5 L0 10 z"/>
+          </marker>
+        </defs>
+
+        <!-- Trình duyệt -->
+        <rect class="ic-client" x="40" y="150" width="60" height="46" rx="6"/>
+        <line class="ic-line" x1="40" y1="162" x2="100" y2="162" stroke="var(--c-client)"/>
+        <circle cx="48" cy="156" r="2" fill="var(--c-client)"/>
+        <circle cx="55" cy="156" r="2" fill="var(--c-client)"/>
+        <circle cx="62" cy="156" r="2" fill="var(--c-client)"/>
+        <line class="ic-line" x1="50" y1="174" x2="90" y2="174" stroke="var(--c-client)"/>
+        <line class="ic-line" x1="50" y1="184" x2="78" y2="184" stroke="var(--c-client)"/>
+        <text class="t-node" x="70" y="220" text-anchor="middle">Trình duyệt</text>
+        <text class="t-small" x="70" y="238" text-anchor="middle">Buyer · Seller</text>
+        <text class="t-small" x="70" y="254" text-anchor="middle">Shipper · Admin</text>
+
+        <!-- Frontend MVC -->
+        <rect class="ic-web" x="193" y="146" width="44" height="24" rx="4"/>
+        <rect class="ic-web" x="193" y="176" width="44" height="24" rx="4"/>
+        <circle cx="203" cy="158" r="2.4" fill="var(--c-web)"/>
+        <circle cx="203" cy="188" r="2.4" fill="var(--c-web)"/>
+        <line class="ic-line" x1="212" y1="158" x2="229" y2="158" stroke="var(--c-web)"/>
+        <line class="ic-line" x1="212" y1="188" x2="229" y2="188" stroke="var(--c-web)"/>
+        <text class="t-node" x="215" y="220" text-anchor="middle">frontend MVC</text>
+        <text class="t-small" x="215" y="238" text-anchor="middle">cổng 5000</text>
+        <text class="t-small" x="215" y="254" text-anchor="middle">proxy /api/proxy</text>
+
+        <!-- Request: trình duyệt -> frontend -> API -->
+        <path class="flow-edge" d="M104 173 H184" marker-end="url(#ah)"/>
+        <text class="t-label" x="144" y="164" text-anchor="middle">HTTP · cookie</text>
+        <path class="flow-edge" d="M244 173 H340" marker-end="url(#ah)"/>
+        <text class="t-label" x="291" y="164" text-anchor="middle">REST · JWT</text>
+
+        <!-- Realtime: đi thẳng tới CommerceHub -->
+        <path class="flow-rt" d="M70 146 V36 H831 V146" marker-end="url(#ah-rt)"/>
+        <text class="t-label" x="450" y="28" text-anchor="middle">
+          WebSocket SignalR + JWT (không qua frontend)
+        </text>
+
+        <!-- Khung G4.Api -->
+        <text class="t-host" x="620" y="94" text-anchor="middle">G4.Api</text>
+        <rect class="host" x="320" y="110" width="600" height="334" rx="10"/>
+
+        <!-- Hàng 1: điểm vào -->
+        <text class="t-row" x="344" y="140">ĐIỂM VÀO</text>
+        <rect class="chip" x="344" y="150" width="129" height="46" rx="6"/>
+        <text class="chip-t" x="408.5" y="170" text-anchor="middle">Controllers</text>
+        <text class="chip-s" x="408.5" y="186" text-anchor="middle">28 · JWT · rate limit</text>
+        <rect class="chip" x="485" y="150" width="129" height="46" rx="6"/>
+        <text class="chip-t" x="549.5" y="170" text-anchor="middle">Maintenance</text>
+        <text class="chip-s" x="549.5" y="186" text-anchor="middle">worker · mỗi 5 giây</text>
+        <rect class="chip" x="626" y="150" width="129" height="46" rx="6"/>
+        <text class="chip-t" x="690.5" y="170" text-anchor="middle">ChangeWorker</text>
+        <text class="chip-s" x="690.5" y="186" text-anchor="middle">outbox · 500 ms</text>
+        <rect class="chip" x="767" y="150" width="129" height="46" rx="6"/>
+        <text class="chip-t" x="831.5" y="170" text-anchor="middle">CommerceHub</text>
+        <text class="chip-s" x="831.5" y="186" text-anchor="middle">SignalR · nhóm user</text>
+
+        <!-- Hàng 2: nghiệp vụ -->
+        <text class="t-row" x="344" y="225">NGHIỆP VỤ · G4.INFRASTRUCTURE</text>
+        <rect class="chip" x="344" y="234" width="129" height="46" rx="6"/>
+        <text class="chip-t" x="408.5" y="254" text-anchor="middle">Checkout · Cart</text>
+        <text class="chip-s" x="408.5" y="270" text-anchor="middle">giỏ, Buy It Now</text>
+        <rect class="chip" x="485" y="234" width="129" height="46" rx="6"/>
+        <text class="chip-t" x="549.5" y="254" text-anchor="middle">Best Offer</text>
+        <text class="chip-s" x="549.5" y="270" text-anchor="middle">trả giá</text>
+        <rect class="chip" x="626" y="234" width="129" height="46" rx="6"/>
+        <text class="chip-t" x="690.5" y="254" text-anchor="middle">Payments</text>
+        <text class="chip-s" x="690.5" y="270" text-anchor="middle">capture, đối soát</text>
+        <rect class="chip" x="767" y="234" width="129" height="46" rx="6"/>
+        <text class="chip-t" x="831.5" y="254" text-anchor="middle">Shipping</text>
+        <text class="chip-s" x="831.5" y="270" text-anchor="middle">kiện, đổi địa chỉ</text>
+
+        <rect class="chip" x="344" y="290" width="129" height="46" rx="6"/>
+        <text class="chip-t" x="408.5" y="310" text-anchor="middle">Returns · Disputes</text>
+        <text class="chip-s" x="408.5" y="326" text-anchor="middle">trả hàng, tranh chấp</text>
+        <rect class="chip" x="485" y="290" width="129" height="46" rx="6"/>
+        <text class="chip-t" x="549.5" y="310" text-anchor="middle">Seller Finance</text>
+        <text class="chip-s" x="549.5" y="326" text-anchor="middle">số dư, payout, nợ</text>
+        <rect class="chip" x="626" y="290" width="129" height="46" rx="6"/>
+        <text class="chip-t" x="690.5" y="310" text-anchor="middle">Fees · Promotions</text>
+        <text class="chip-s" x="690.5" y="326" text-anchor="middle">phí sàn, khuyến mãi</text>
+        <rect class="chip" x="767" y="290" width="129" height="46" rx="6"/>
+        <text class="chip-t" x="831.5" y="310" text-anchor="middle">Notifications</text>
+        <text class="chip-s" x="831.5" y="326" text-anchor="middle">chuông, email outbox</text>
+
+        <!-- Hàng 3: hạ tầng -->
+        <text class="t-row" x="344" y="365">HẠ TẦNG · ADAPTER &amp; DỮ LIỆU</text>
+        <rect class="chip" x="344" y="374" width="129" height="46" rx="6"/>
+        <text class="chip-t" x="408.5" y="394" text-anchor="middle">Carrier gateway</text>
+        <text class="chip-s" x="408.5" y="410" text-anchor="middle">→ CarrierSimulator</text>
+        <rect class="chip" x="485" y="374" width="129" height="46" rx="6"/>
+        <text class="chip-t" x="549.5" y="394" text-anchor="middle">Payment gateways</text>
+        <text class="chip-s" x="549.5" y="410" text-anchor="middle">PayPal · Klarna · thẻ</text>
+        <rect class="chip" x="626" y="374" width="129" height="46" rx="6"/>
+        <text class="chip-t" x="690.5" y="394" text-anchor="middle">Email sender</text>
+        <text class="chip-s" x="690.5" y="410" text-anchor="middle">Smtp hoặc Capture</text>
+        <rect class="chip" x="767" y="374" width="129" height="46" rx="6"/>
+        <text class="chip-t" x="831.5" y="394" text-anchor="middle">EF Core</text>
+        <text class="chip-s" x="831.5" y="410" text-anchor="middle">ApplicationDbContext</text>
+
+        <!-- Dữ liệu (bên phải) -->
+        <text class="t-group" x="1075" y="306" text-anchor="middle">Dữ liệu</text>
+        <rect class="group" x="980" y="318" width="190" height="126" rx="8"/>
+        <path class="ic-db"
+              d="M1041 344 V384 A34 10 0 0 0 1109 384 V344 A34 10 0 0 0 1041 344 Z"/>
+        <ellipse class="ic-db" cx="1075" cy="344" rx="34" ry="10"/>
+        <path class="ic-line" d="M1041 364 A34 10 0 0 0 1109 364" stroke="var(--c-db)"/>
+        <text class="t-node" x="1075" y="422" text-anchor="middle">SQL Server 2022</text>
+        <path class="flow-edge" d="M898 397 H976" marker-end="url(#ah)"/>
+        <text class="t-label" x="938" y="388" text-anchor="middle">SQL</text>
+
+        <!-- Dịch vụ ngoài (bên dưới) -->
+        <text class="t-group" x="340" y="516">Dịch vụ ngoài</text>
+        <rect class="group" x="340" y="528" width="560" height="110" rx="8"/>
+        <path class="flow-edge" d="M549.5 422 V524" marker-end="url(#ah)"/>
+        <text class="t-label" x="558" y="490">HTTPS</text>
+        <path class="flow-edge" d="M690.5 422 V478 H800 V524" marker-end="url(#ah)"/>
+        <text class="t-label" x="745" y="470" text-anchor="middle">SMTP</text>
+
+        <rect class="ic-ext" x="453" y="546" width="34" height="22" rx="3"/>
+        <line class="ic-line" x1="453" y1="553" x2="487" y2="553" stroke="var(--c-ext)"/>
+        <text class="t-node" x="470" y="592" text-anchor="middle">PayPal Sandbox</text>
+        <text class="t-small" x="470" y="610" text-anchor="middle">order · capture · payout</text>
+
+        <rect class="ic-ext" x="613" y="546" width="34" height="22" rx="3"/>
+        <line class="ic-line" x1="613" y1="553" x2="647" y2="553" stroke="var(--c-ext)"/>
+        <text class="t-node" x="630" y="592" text-anchor="middle">Klarna Playground</text>
+        <text class="t-small" x="630" y="610" text-anchor="middle">Pay Later</text>
+
+        <rect class="ic-ext" x="783" y="545" width="34" height="24" rx="3"/>
+        <path class="ic-line" d="M783 547 L800 560 L817 547" stroke="var(--c-ext)"/>
+        <text class="t-node" x="800" y="592" text-anchor="middle">SMTP · MailHog</text>
+        <text class="t-small" x="800" y="610" text-anchor="middle">khi Mail:Mode = Smtp</text>
+      </svg>
+      <div class="legend">
+        <span>- - - Nét đứt: gọi HTTP / SQL / SMTP</span>
+        <span>· · · Nét chấm: realtime SignalR</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Projects -->
+  <section>
+    <h2>2. Các project trong solution</h2>
+    <p class="lead">
+      Mũi tên là <code>ProjectReference</code>. Domain và Contracts không phụ thuộc gì;
+      Application chỉ khai báo interface; Infrastructure triển khai chúng. Api và
+      Infrastructure cũng tham chiếu thẳng Contracts/Domain (không vẽ để đỡ rối).
+    </p>
+    <div class="panel scroll">
+      <svg class="small" viewBox="0 0 900 420" role="img"
+           aria-label="Sơ đồ phụ thuộc giữa các project .NET">
+        <defs>
+          <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7"
+                  markerHeight="7" orient="auto-start-reverse">
+            <path class="arrowhead" d="M0 0 L10 5 L0 10 z"/>
+          </marker>
+        </defs>
+
+        <rect class="box b-web" x="40" y="20" width="200" height="56" rx="8"/>
+        <text class="t-title" x="140" y="44" text-anchor="middle">frontend</text>
+        <text class="t-small" x="140" y="63" text-anchor="middle">MVC, Razor, proxy</text>
+
+        <rect class="box b-api" x="330" y="20" width="200" height="56" rx="8"
+              style="stroke-dasharray:none"/>
+        <text class="t-title" x="430" y="44" text-anchor="middle">G4.Api</text>
+        <text class="t-small" x="430" y="63" text-anchor="middle">controller, hub, Program.cs</text>
+
+        <rect class="box" x="650" y="20" width="210" height="56" rx="8"/>
+        <text class="t-title" x="755" y="44" text-anchor="middle">G4.Commerce.Tests</text>
+        <text class="t-small" x="755" y="63" text-anchor="middle">kiểm thử backend</text>
+
+        <rect class="box" x="40" y="130" width="200" height="56" rx="8"/>
+        <text class="t-title" x="140" y="154" text-anchor="middle">G4.WebCommon</text>
+        <text class="t-small" x="140" y="173" text-anchor="middle">rate limit, proxy tin cậy</text>
+
+        <rect class="box b-inner" x="420" y="130" width="200" height="56" rx="8"/>
+        <text class="t-title" x="520" y="154" text-anchor="middle">G4.Infrastructure</text>
+        <text class="t-small" x="520" y="173" text-anchor="middle">EF Core, service, worker</text>
+
+        <rect class="box" x="680" y="130" width="180" height="56" rx="8"/>
+        <text class="t-title" x="770" y="154" text-anchor="middle">G4.DemoData</text>
+        <text class="t-small" x="770" y="173" text-anchor="middle">tool tạo dữ liệu demo</text>
+
+        <rect class="box b-inner" x="220" y="240" width="200" height="56" rx="8"/>
+        <text class="t-title" x="320" y="264" text-anchor="middle">G4.Application</text>
+        <text class="t-small" x="320" y="283" text-anchor="middle">interface use case + cổng</text>
+
+        <rect class="box b-inner" x="200" y="350" width="200" height="56" rx="8"/>
+        <text class="t-title" x="300" y="374" text-anchor="middle">G4.Contracts</text>
+        <text class="t-small" x="300" y="393" text-anchor="middle">request / response DTO</text>
+
+        <rect class="box b-inner" x="480" y="350" width="200" height="56" rx="8"/>
+        <text class="t-title" x="580" y="374" text-anchor="middle">G4.Domain</text>
+        <text class="t-small" x="580" y="393" text-anchor="middle">entity + luật thuần</text>
+
+        <path class="edge" d="M140 76 V128" marker-end="url(#ah2)"/>
+        <path class="edge" d="M360 76 L205 128" marker-end="url(#ah2)"/>
+        <path class="edge" d="M480 76 L505 128" marker-end="url(#ah2)"/>
+        <path class="edge" d="M400 76 L330 238" marker-end="url(#ah2)"/>
+        <path class="edge" d="M470 186 L390 238" marker-end="url(#ah2)"/>
+        <path class="edge" d="M300 296 V348" marker-end="url(#ah2)"/>
+        <path class="edge" d="M380 296 L540 348" marker-end="url(#ah2)"/>
+        <path class="edge" d="M580 186 L590 348" marker-end="url(#ah2)"/>
+        <path class="edge" d="M650 48 H532" marker-end="url(#ah2)"/>
+        <path class="edge" d="M700 76 L600 128" marker-end="url(#ah2)"/>
+        <path class="edge" d="M680 158 H622" marker-end="url(#ah2)"/>
+      </svg>
+    </div>
+  </section>
+
+  <!-- 3. Realtime -->
+  <section>
+    <h2>3. Luồng realtime và thông báo</h2>
+    <p class="lead">
+      Theo kiểu outbox: thay đổi được ghi vào bảng <code>CommerceChange</code> trong cùng
+      transaction nghiệp vụ, nên rollback thì không có thông báo "ma".
+    </p>
+    <div class="flow">
+      <div class="step"><b>1. Service nghiệp vụ</b>Ghi <code>CommerceChange</code> (topic, đơn,
+        buyer, seller) cùng transaction.</div>
+      <div class="arrow">→</div>
+      <div class="step"><b>2. CommerceChangeWorker</b>Mỗi 500 ms lấy tối đa 100 dòng
+        <code>DispatchedAt = null</code>.</div>
+      <div class="arrow">→</div>
+      <div class="step"><b>3. Thông báo chuông</b>Tính người nhận, tạo bản ghi chuông cho từng
+        user.</div>
+      <div class="arrow">→</div>
+      <div class="step"><b>4. CommerceHub</b>Gửi <code>CommerceChanged</code> tới nhóm
+        <code>user:{id}</code>.</div>
+      <div class="arrow">→</div>
+      <div class="step"><b>5. realtime.js</b>Gọi lại các listener đăng ký đúng topic để tải
+        lại dữ liệu.</div>
+    </div>
+  </section>
+
+  <!-- 4. Workers -->
+  <section>
+    <h2>4. CommerceMaintenanceWorker làm gì mỗi 5 giây</h2>
+    <p class="lead">
+      Chạy tuần tự trong một scope mới mỗi vòng. Tắt bằng <code>Workers:Enabled = false</code>
+      (bản demo nginx tắt worker).
+    </p>
+    <div class="grid">
+      <div class="card">
+        <h3>Thanh toán</h3>
+        <ul>
+          <li>Buy It Now: tiếp tục authorize / capture / void dở dang</li>
+          <li>Đối soát PayPal đang <code>Verifying</code></li>
+          <li>Klarna và giỏ PayPal nhiều seller</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Đơn hàng</h3>
+        <ul>
+          <li>Hết hạn yêu cầu đổi địa chỉ</li>
+          <li>Hết hạn đơn chưa thanh toán → hoàn kho</li>
+          <li>Hết hạn Best Offer</li>
+          <li>Đóng đơn đã giao quá hạn trả hàng</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Trả hàng &amp; tranh chấp</h3>
+        <ul>
+          <li>Deadline trả hàng / nhận hàng trả</li>
+          <li>Deadline tranh chấp</li>
+          <li>Hoàn tiền tranh chấp còn <code>RefundPending</code></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Tài chính seller</h3>
+        <ul>
+          <li>Nợ, backfill settlement</li>
+          <li>Giải phóng tiền đến hạn, đẩy payout</li>
+          <li>Write-off, cập nhật level</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Email</h3>
+        <ul>
+          <li><code>NotificationProcessor</code> gửi tối đa 20 email/vòng</li>
+          <li>Lease <code>ProcessingToken</code> để không gửi trùng</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Deploy -->
+  <section>
+    <h2>5. Cách triển khai</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>docker-compose.yml <span class="tag">chạy đầy đủ</span></h3>
+        <div class="deploy">browser ─▶ frontend  :5000 ─▶ backend :8080
+browser ─▶ backend   :8080  (SignalR)
+backend ─▶ sqlserver :14333→1433
+backend ─▶ mailhog   :1025 / :8025
+backend ─▶ backend   (Carrier__BaseUrl)</div>
+        <ul>
+          <li>Mạng chung <code>g4-net</code>, volume <code>sql_data</code></li>
+          <li>Frontend là proxy tin cậy của API (<code>TrustedProxies</code>)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>docker-compose.nginx.yml <span class="tag">demo cân bằng tải</span></h3>
+        <div class="deploy">nginx 127.0.0.1:8088
+ ├─ GET  /api/catalog/random ─▶ api-a | api-b
+ ├─ POST /api/auth/login     ─▶ api-a
+ └─ còn lại                  ─▶ 404
+api-a, api-b ─▶ sqlserver (G4_Demo)</div>
+        <ul>
+          <li>Catalog: round-robin, lỗi thì thử máy còn lại 1 lần</li>
+          <li>Worker tắt, email ở chế độ Capture</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. Principles -->
+  <section>
+    <h2>6. Nguyên tắc xuyên suốt</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Quyền ở server</h3>
+        <ul>
+          <li>Role và user ID lấy từ JWT, không tin header client</li>
+          <li>Controller kiểm tra quyền sở hữu đơn trước khi gọi service</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Đồng thời &amp; tiền</h3>
+        <ul>
+          <li>UPDATE có điều kiện cho tồn kho</li>
+          <li>Khóa dòng / khóa theo tên + transaction Serializable</li>
+          <li>Idempotency key có unique index</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Provider không chắc chắn</h3>
+        <ul>
+          <li>Lỗi mạng → <code>Verifying</code>, không giả <code>Succeeded</code></li>
+          <li>Worker hỏi lại provider rồi mới retry</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Tạo ngày 10/11/2026 từ source nhánh master. Sơ đồ chi tiết cũ (25/10) vẫn ở
+    <code>.archify/architecture-g4-overview-20261025-155434/</code>.
+  </footer>
+</main>
+</body>
+</html>

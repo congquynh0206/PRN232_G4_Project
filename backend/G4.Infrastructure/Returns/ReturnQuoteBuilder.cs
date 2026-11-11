@@ -137,7 +137,7 @@ internal static class ReturnQuoteBuilder
             throw new InvalidOperationException("Đơn thiếu snapshot địa chỉ để tạo vận đơn trả.");
         var returnFee = ShippingPricing.Calculate(
             weight,
-            ShippingPricing.IsHanoiLocal(
+            ShippingPricing.Zone(
                 delivery.State,
                 delivery.Country,
                 pickup.State,

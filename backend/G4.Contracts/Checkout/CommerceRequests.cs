@@ -36,5 +36,7 @@ public sealed record AddressUpdateRequest(
     string Street,
     string City,
     string State,
-    string Country
+    string Country,
+    string? PostalCode = null,
+    string? Phone = null
 );

@@ -1,5 +1,12 @@
 # Buyer — Lịch sử giao dịch (B2)
 
+> **Đã gỡ ngày 11/11/2026 theo quyết định của người dùng.** Tab Lịch sử giao dịch,
+> nút mở tab từ chi tiết đơn, `buyer-transactions.js/.css`, hai endpoint
+> `GET /api/buyer/transactions` và `GET /api/buyer/transactions/{type}/{id}`, regression
+> `--buyer-transactions` và `tests/buyer-transactions-ui.test.cjs` đã bị xóa. Buyer xem
+> tiền đã thu/đã hoàn trong chi tiết đơn. Bảng Payment/Refund giữ nguyên, không có
+> migration. Phần dưới chỉ là lịch sử triển khai cũ.
+
 Buyer mở tab **Lịch sử giao dịch** để xem mọi lần thanh toán và refund, có thể lọc theo mã đơn, thời gian tạo, loại và trạng thái. Danh sách sắp xếp mới nhất trước, phân trang 20 dòng; làm mới chỉ đọc dữ liệu hiện có. Mã đơn mở chi tiết; nút trong chi tiết đơn mở tab này với bộ lọc đơn.
 
 API `GET /api/buyer/transactions` chỉ nhận role buyer và ràng buộc mọi truy vấn qua `OrderTable.BuyerId == JWT user id`. Query hỗ trợ `page`, `pageSize` (tối đa 100), `orderId`, `from`, `to` (to exclusive), `type` và `status`. `paidFrom/paidTo` giới hạn tổng theo `Payment.PaidAt`; `completedFrom/completedTo` giới hạn tổng refund theo `Refund.CompletedAt`. Không tự thay timestamp thiếu bằng ngày tạo. Tổng vòng đời từng đơn trả về cùng response, độc lập trang, filter và kỳ; chỉ Payment/Refund `Succeeded` được tính. `GET /api/buyer/transactions/{type}/{id}` trả chi tiết riêng và vẫn kiểm tra chủ đơn. Không có thao tác tạo/capture/refund.

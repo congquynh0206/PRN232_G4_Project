@@ -131,3 +131,19 @@
 #buyer-coupon-picker .buyer-offer-list {
   grid-template-columns: minmax(0, 1fr);
 }
+
+/* Detail dialog definition lists (e.g. dispute decision amounts). */
+.detail-dialog dl {
+  display: grid;
+  grid-template-columns: minmax(9rem, 1fr) 2fr;
+  gap: 0.6rem;
+}
+
+.detail-dialog dt {
+  font-weight: 600;
+}
+
+.detail-dialog dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

@@ -1,5 +1,45 @@
 # Backlog triển khai theo đặc tả ngày 18/10/2026
 
+## ADDR2 — Gợi ý địa chỉ, SĐT theo địa chỉ, phí ship theo vùng (11/11/2026)
+
+Nguồn: ghi chú review 10/11/2026 và quyết định của người dùng ngày 11/11/2026. Đặc tả ở
+[§3.1](BUSINESS_REQUIREMENTS.md#31-phí-vận-chuyển-chiều-đi) và §6.
+
+- **Phí ship mức 1:** `ShippingPricing.Zone` thay `IsHanoiLocal`: cùng tỉnh / cùng miền /
+  khác miền (VN), cùng bang / khác bang (US), VN ↔ US; vẫn tính kg lẻ. Checkout, Best
+  Offer, đổi địa chỉ và báo giá trả hàng dùng chung. Đơn đã tạo giữ phí snapshot.
+- **Địa chỉ:** chỉ Việt Nam/Hoa Kỳ (`AddressRegions`: 34 tỉnh từ 01/07/2025 + tên cũ quy
+  về tỉnh mới; 50 bang + DC lưu mã). `DeliveryAddressRules` dùng chung cho sổ địa chỉ và
+  đổi địa chỉ; địa chỉ lấy hàng seller cũng phải thuộc danh sách.
+- **SĐT:** bắt buộc, lưu `+84…`/`+1…` theo quốc gia, không thêm vào tài khoản. Đơn mới
+  snapshot `DeliveryPhoneSnapshot`; seller/shipper thấy SĐT người nhận chiều đi.
+- **Đổi địa chỉ:** body thêm `phone` (bắt buộc), `postalCode`; chỉ đổi SĐT/ZIP cũng là một
+  yêu cầu và dùng lượt đổi duy nhất. Request lưu tên/đường/phường/ZIP/SĐT mới và SĐT/ZIP
+  cũ; khi Approved cập nhật đủ snapshot cấu trúc của đơn (trước đây chỉ cập nhật chuỗi
+  địa chỉ và tỉnh/quốc gia). Quote token và kiểm tra trùng key gồm cả SĐT/ZIP.
+- **Gợi ý:** `GET api/address-suggestions/regions` (mọi role), `GET api/address-suggestions?q=`
+  và `.../detail?ref=` (buyer). VietMap Autocomplete v4 `display_type=1`; dòng có phường +
+  tỉnh dùng luôn, không gọi Place (1 lượt/lần chọn). Cache 10 phút, timeout 5 giây, lỗi
+  401/423/mạng trả 503 để UI ẩn ô tìm. Khóa `VietMap:ApiKey` trong user-secrets G4.Api.
+  VietMap chỉ nhận khóa trên URL nên client VietMap tắt logger mặc định của HttpClient
+  (`RemoveAllLoggers`), log tích hợp riêng không chứa khóa/chữ buyer gõ.
+- **Migration:** `20261111034557_AddDeliveryPhoneAndAddressChangeFields`, chỉ thêm 8 cột
+  nullable ([SQL duyệt](../database/delivery-phone-address-fields-migration.sql)). Đã áp
+  lên database demo `G4_Demo` (11/11, theo yêu cầu người dùng) và có trong `G4_Demo.sql`
+  sinh lại; **chưa áp `CloneEbayDB`**. `has-pending-model-changes`: không đổi.
+- **Kiểm thử 11/11:** build solution 0 warning/error; bộ backend mặc định đạt (gồm bảng
+  vùng, `--buyer-address-book`, `--address-confirmations` + AddressContactChecks,
+  `--vietmap` với HTTP giả); `--vietmap-live` gọi VietMap thật bằng key đạt; Node 160/160.
+  Browser pane với code UI thật + API giả: sổ địa chỉ, đổi quốc gia/đầu số, tìm và chọn
+  gợi ý, đổi địa chỉ có SĐT đến bước gửi; desktop và 375px không tràn ngang.
+- **Demo:** `tools/G4.DemoData` và `G4_Demo.sql` dùng địa chỉ/SĐT chuẩn mới; xem
+  [DEMO_DATABASE.md](DEMO_DATABASE.md). E2E 11/11 trên `G4_Demo` qua `Run-Demo.ps1`: sổ
+  địa chỉ hiện +84/+1, tìm VietMap thật rồi lưu (server lưu `+84…`), báo giá đổi địa chỉ
+  đúng vùng (chỉ SĐT 2,10; TP.HCM 5,20; Hoa Kỳ 16,00; số +1 cho địa chỉ VN bị 400).
+- **Còn lại:** SQL QA tranh chấp/rollback riêng cho phần SĐT; áp migration lên
+  `CloneEbayDB` khi người dùng yêu cầu. Gợi ý chưa ưu tiên theo vị trí (không có
+  `focus`), nên cùng số nhà có thể ra tỉnh khác trước.
+
 ## BEST-OFFER — Trả giá buyer/seller ngày 08/11/2026
 
 - Đã thêm cấu hình nhận trả giá theo sản phẩm, auto-accept/auto-decline, phiên thương lượng,
@@ -223,13 +263,14 @@
 | Mã | Nội dung | Mốc hiện trạng | Đặc tả |
 | --- | --- | --- | --- |
 | B1 | CRUD địa chỉ/mặc định và lấy báo giá lại | Đã có source và hồi quy hợp nhất; chờ SQL QA/E2E địa chỉ | §3; bốn task ưu tiên §2; BUYER_ADDRESS_BOOK.md |
-| B2 | Lịch sử payment/refund buyer | Source, regression backend/UI và browser fixture điều hướng đã đạt; còn QA browser dữ liệu và SQL/provider QA riêng | §5; bốn task ưu tiên §1; [PAYMENT_HISTORY.md](PAYMENT_HISTORY.md) |
+| B2 | Lịch sử payment/refund buyer | Đã gỡ 11/11/2026 theo quyết định người dùng: xóa tab, API, JS/CSS và test riêng; không migration | §5; bốn task ưu tiên §1; [PAYMENT_HISTORY.md](PAYMENT_HISTORY.md) |
 | S1 | Báo cáo tài chính theo thời gian | Đã có source API/UI, test InMemory/UI, LocalDB QA riêng và HTTP role/filter; chờ QA browser, review và nghiệm thu | §2, §9; bốn task ưu tiên §4 |
 | S2 | Feedback sản phẩm và trả lời | Có source, cần xác minh triển khai; giữ tách seller feedback | §2; PRODUCT_FEEDBACK.md |
 | A1 | Admin tra cứu order/payment/refund | Đã có source tra cứu chỉ đọc; chờ build và QA nghiệm thu | §2; bốn task ưu tiên §3; [ADMIN_ORDER_LOOKUP.md](ADMIN_ORDER_LOOKUP.md) |
 | A2 | Admin yêu cầu trả trước phán quyết | Cần triển khai; không nhầm với ReturnRefund qua thương lượng | §8 |
 | N1 | Email nghiệp vụ đã bổ sung | Có source, cần xác minh triển khai; nối sự kiện mới theo từng task | §12 |
 | AD1 | Đổi địa chỉ áp dụng sau đủ xác nhận | Đã triển khai/nghiệm thu source 20/10: backend, SQL QA và browser fixture đạt; migration chưa áp database chính | §6; ORDER_ADDRESS_CHANGES.md |
+| ADDR2 | Gợi ý địa chỉ VietMap, SĐT theo địa chỉ, phí ship theo vùng | Source 11/11: backend/Node/VietMap thật/browser fixture đạt; migration đã áp `G4_Demo`, chưa áp database chính | §3.1, §6; mục ADDR2 đầu file |
 | SH1 | ReattemptScheduled và actor từng event | Đã triển khai/nghiệm thu source 20/10: backend, SQL QA và browser fixture đạt; migration chưa áp database chính | §6; RETURNS_AND_SHIPPING.md |
 | RT1 | Return window và snapshot deadline | Đã triển khai/nghiệm thu source 20/10: backend, SQL QA và browser fixture đạt; migration chưa áp database chính | §7, §12.1; RETURN_WINDOW_POLICY.md |
 | RT2 | Đóng/kháng nghị return từ chối | Cần triển khai deadline/worker; chưa có nhánh đủ theo RejectedAt | §7 |

@@ -20,7 +20,7 @@ internal static class AddressConfirmationChecks
 
     internal static AddressChangeInput Input(string state = "Hanoi") =>
         new(
-            new("Buyer", "AD1 new street", state, state, "Vietnam"),
+            new("Buyer", "AD1 new street", state, state, "Vietnam", Phone: "0912345678"),
             "Recipient moved",
             Guid.NewGuid().ToString("N")
         );

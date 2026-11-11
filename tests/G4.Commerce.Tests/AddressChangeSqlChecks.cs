@@ -52,7 +52,7 @@ internal static class AddressChangeSqlChecks
             shipmentId = shipment.Id;
             await new ShipmentService(db, new Carrier()).ClaimAsync(shipmentId, shipper);
             input = new(
-                new("Buyer", "New Hanoi street", "Hanoi", "Hanoi", "Vietnam"),
+                new("Buyer", "New Hanoi street", "Hanoi", "Hanoi", "Vietnam", Phone: "0912345678"),
                 "SQL address change test",
                 Guid.NewGuid().ToString()
             );

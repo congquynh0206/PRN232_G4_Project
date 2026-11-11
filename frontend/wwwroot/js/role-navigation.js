@@ -35,7 +35,7 @@
     });
     const label = id === 'checkout' ? 'Thanh toán' : nav.querySelector('.active').dataset.navLabel;
     if ($('navigation-current')) $('navigation-current').textContent = label;
-    document.title = `${label} - Sàn G4`;
+    document.title = `${label} - eBay`;
     if (historyMode && hashId() !== id) {
       const url = new URL(location.href);
       url.hash = id;

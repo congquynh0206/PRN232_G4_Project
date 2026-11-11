@@ -319,11 +319,11 @@
           <label class="offer-check">
             <input type="radio" name="paymentMethod" value="Card" />
             <span><strong>Auto-Pay</strong>
-              <small>Thu tiền thẻ thử ngay khi đề nghị được chấp nhận.</small></span>
+              <small>Thu tiền credit card ngay khi đề nghị được chấp nhận.</small></span>
           </label>
         </fieldset>
         <div data-card-fields hidden class="offer-card-fields">
-          ${cardFields('Thẻ thử đã lưu')}
+          ${cardFields('Credit card đã lưu')}
         </div>
         <button class="primary">Gửi đề nghị</button>
       </form>
@@ -464,7 +464,7 @@
   };
   const results = {
     AutoDeclined: ['Tự động từ chối (dưới ngưỡng của người bán)', 'muted'],
-    PaymentFailed: ['Thanh toán thẻ thử thất bại', 'danger'],
+    PaymentFailed: ['Thanh toán credit card thất bại', 'danger'],
     AcceptedAndPaid: ['Đã chốt và thanh toán', 'success'],
     AcceptedUnpaid: ['Đã chốt, đơn chờ thanh toán', 'success'],
   };
@@ -510,8 +510,8 @@
     else
       hint =
         role === 'buyer'
-          ? 'Chấp nhận sẽ thu tiền thẻ thử ngay và tạo đơn đã thanh toán.'
-          : 'Chấp nhận sẽ thu tiền thẻ thử của người mua ngay.';
+          ? 'Chấp nhận sẽ thu tiền credit card ngay và tạo đơn đã thanh toán.'
+          : 'Chấp nhận sẽ thu tiền credit card của người mua ngay.';
     let counter = counterForm(offer);
     if (role === 'buyer' && offer.buyerOfferCount >= offer.buyerOfferLimit)
       counter = '<small class="offer-hint">Bạn đã dùng hết lượt trả giá cho sản phẩm này.</small>';
@@ -555,10 +555,10 @@
     let payment = '';
     if (active(offer) && offer.viewerRole === 'buyer' && !payLater(offer)) {
       payment = `<details class="offer-more">
-        <summary>Đổi thẻ thử dùng khi chốt đơn</summary>
+        <summary>Đổi credit card dùng khi chốt đơn</summary>
         <form data-offer-payment="${offer.id}" class="offer-form">
-          ${cardFields('Thẻ thử dùng khi chốt đơn')}
-          <button>Cập nhật thẻ thử</button>
+          ${cardFields('Credit card dùng khi chốt đơn')}
+          <button>Cập nhật credit card</button>
         </form>
       </details>`;
     }

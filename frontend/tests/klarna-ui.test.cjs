@@ -101,12 +101,10 @@ test('authorization is approval, not capture, and clears the attempt key', async
   assert.equal((await h.G4.Klarna.reconcile(8)).status, 'Authorized');
   assert.equal(h.saved.has('g4-klarna-attempt:8'), false);
   const orders = source('wwwroot/js/buyer.js');
-  const transactions = source('wwwroot/js/buyer-transactions.js');
   assert.match(orders, /klarnaAuthorized.*'Authorized'/);
   assert.match(orders, /Chưa thu tiền; tiền sẽ được thu khi giao hàng/);
   assert.match(orders, /result.status === 'Authorized'/);
   assert.match(orders, /payment.status === 'Succeeded'/);
   assert.match(source('wwwroot/js/common.js'), /source === 'buyer' && o.status === 'Paid' \? 'Sẵn sàng giao hàng'/);
   assert.ok(orders.includes("p.get('paymentProvider') !== 'klarna'"));
-  assert.match(transactions, /Authorized: 'Đã duyệt · chưa thu tiền'/);
 });

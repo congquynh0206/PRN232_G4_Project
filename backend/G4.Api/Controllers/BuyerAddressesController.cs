@@ -12,7 +12,7 @@ public sealed class BuyerAddressesController(
 {
     private IActionResult? Invalid(BuyerAddressInput input)
     {
-        var fields = BuyerAddressRules.Validate(input);
+        var fields = G4.Infrastructure.Checkout.BuyerAddressService.Validate(input);
         return fields.Count == 0
             ? null
             : BadRequest(

@@ -26,6 +26,47 @@
                     aria-describedby="address-error-fullName"
                 />
                 <small id="address-error-fullName" class="field-error" role="alert"></small>
+                <label for="address-form-phone">Số điện thoại người nhận</label>
+                <input
+                    id="address-form-phone"
+                    maxlength="20"
+                    type="tel"
+                    inputmode="tel"
+                    autocomplete="tel-national"
+                    aria-describedby="address-error-phone"
+                />
+                <small id="address-error-phone" class="field-error" role="alert"></small>
+                <label for="address-form-country">Quốc gia</label>
+                <select
+                    id="address-form-country"
+                    autocomplete="country-name"
+                    aria-describedby="address-error-country"
+                ></select>
+                <small id="address-error-country" class="field-error" role="alert"></small>
+                <div class="address-lookup">
+                    <label for="address-form-lookup">Tìm địa chỉ (số nhà, tên đường)</label>
+                    <input
+                        id="address-form-lookup"
+                        maxlength="100"
+                        placeholder="Ví dụ: 197 Trần Phú"
+                    />
+                </div>
+                <label for="address-form-state">Tỉnh / thành phố</label>
+                <select
+                    id="address-form-state"
+                    autocomplete="address-level1"
+                    aria-describedby="address-error-state address-state-help"
+                ></select>
+                <small id="address-state-help" class="small">Phí ship tính theo vùng giữa tỉnh/bang lấy hàng và giao hàng.</small>
+                <small id="address-error-state" class="field-error" role="alert"></small>
+                <label for="address-form-city">Phường / xã</label>
+                <input
+                    id="address-form-city"
+                    maxlength="50"
+                    autocomplete="address-level2"
+                    aria-describedby="address-error-city"
+                />
+                <small id="address-error-city" class="field-error" role="alert"></small>
                 <label for="address-form-street">Đường / số nhà</label>
                 <input
                     id="address-form-street"
@@ -34,32 +75,7 @@
                     aria-describedby="address-error-street"
                 />
                 <small id="address-error-street" class="field-error" role="alert"></small>
-                <label for="address-form-city">Thành phố</label>
-                <input
-                    id="address-form-city"
-                    maxlength="50"
-                    autocomplete="address-level2"
-                    aria-describedby="address-error-city"
-                />
-                <small id="address-error-city" class="field-error" role="alert"></small>
-                <label for="address-form-state">Tỉnh / vùng</label>
-                <input
-                    id="address-form-state"
-                    maxlength="50"
-                    autocomplete="address-level1"
-                    aria-describedby="address-error-state address-state-help"
-                />
-                <small id="address-state-help" class="small">Phí ship nội vùng chỉ áp dụng khi tỉnh/vùng giao hàng là Hà Nội và pickup của seller cũng ở Hà Nội.</small>
-                <small id="address-error-state" class="field-error" role="alert"></small>
-                <label for="address-form-country">Quốc gia</label>
-                <input
-                    id="address-form-country"
-                    maxlength="50"
-                    autocomplete="country-name"
-                    aria-describedby="address-error-country"
-                />
-                <small id="address-error-country" class="field-error" role="alert"></small>
-                <label for="address-form-postalCode">Mã bưu chính / ZIP (tùy chọn)</label>
+                <label for="address-form-postalCode">Mã bưu chính (tùy chọn)</label>
                 <input
                     id="address-form-postalCode"
                     maxlength="20"
@@ -67,7 +83,7 @@
                     inputmode="text"
                     aria-describedby="address-error-postalCode address-postal-help"
                 />
-                <small id="address-postal-help" class="small">Klarna US cần ZIP thật của địa chỉ giao hàng tại Hoa Kỳ.</small>
+                <small id="address-postal-help" class="small">Địa chỉ Hoa Kỳ cần ZIP 5 số (Klarna US cũng dùng ZIP này).</small>
                 <small id="address-error-postalCode" class="field-error" role="alert"></small>
                 <label class="address-default-check">
                     <input type="checkbox" id="address-form-default" />
