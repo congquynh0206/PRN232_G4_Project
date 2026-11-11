@@ -55,8 +55,15 @@ docker compose -f docker-compose.nginx.yml exec @sql -Q 'SELECT 1'
 ```
 
 Chờ SQL Server sẵn sàng và chạy lại `SELECT 1` nếu kết nối đầu tiên báo lỗi.
-Nhập database một lần khi volume còn mới. Bộ SQL sẽ báo lỗi nếu `G4_Demo` đã tồn
-tại. Nếu đã nhập trước đó, dùng lại database và bỏ qua hai lệnh nhập.
+Kiểm tra database trước khi import. Chỉ nhập một lần nếu truy vấn không trả về
+`G4_Demo`; database nằm trong volume Compose riêng, không phải database local khác.
+
+```powershell
+docker compose -f docker-compose.nginx.yml exec @sql `
+    -Q "SELECT name FROM sys.databases WHERE name = 'G4_Demo'"
+```
+
+Nếu chưa có `G4_Demo`, chạy hai lệnh import bên dưới. Nếu đã có thì bỏ qua chúng.
 
 ```powershell
 docker compose -f docker-compose.nginx.yml cp database/demo/G4_Demo.sql sqlserver:/tmp/G4_Demo.sql
@@ -70,6 +77,29 @@ Project Compose riêng dùng volume `g4-nginx-demo_catalog_sql` và tài khoản
 Dừng stack bằng `docker compose -f docker-compose.nginx.yml down` để giữ dữ liệu
 cho lần demo sau.
 
+## Chạy giao diện để demo SignalR
+
+Sau khi Compose đã chạy, mở PowerShell **thứ hai** tại thư mục repo. Trỏ API proxy
+và URL hub của frontend tới Nginx public, rồi chạy frontend:
+
+```powershell
+Set-Location D:\PRN232_G4_Project
+$env:ApiSettings__BaseUrl = 'http://127.0.0.1:8088'
+$env:Realtime__PublicApiBaseUrl = 'http://127.0.0.1:8088'
+dotnet run --project frontend --urls http://localhost:5131
+```
+
+Mở `http://localhost:5131` và đăng nhập `buyer@demo.test` với mật khẩu demo
+`G4@123456`. Nếu đã có phiên đăng nhập thì dùng lại. CORS Development đã cho
+phép origin frontend `http://localhost:5131`. Giữ cửa sổ frontend mở trong lúc demo.
+
+Để quan sát sự kiện trên UI, mở buyer trong hai tab cùng tài khoản và mở chuông
+thông báo ở cả hai. Ở một tab, đánh dấu một thông báo chưa đọc; tab còn lại cần
+tự cập nhật trạng thái/badge mà không reload. Có thể mở DevTools → Network → WS →
+`/hubs/commerce` → Messages/Frames để xem frame `CommerceChanged`. Hub dùng
+`ip_hash`, nên cùng máy sẽ vào cùng API instance; dispatcher của demo chỉ chạy
+trên `api-a`, còn Redis chuyển sự kiện tới API giữ hub nếu đó là `api-b`.
+
 ## Kiểm tra chia tải
 
 Dùng bước đăng nhập PowerShell trong [hướng dẫn JMeter](JMETER.md#chuẩn-bị), đặt
@@ -78,7 +108,8 @@ Dùng bước đăng nhập PowerShell trong [hướng dẫn JMeter](JMETER.md#c
 ```powershell
 $headers = @{ Authorization = "Bearer $env:G4_JMETER_BUYER_TOKEN" }
 1..6 | ForEach-Object {
-    $response = Invoke-WebRequest "$baseUrl/api/catalog/random?count=3" -Headers $headers
+    $response = Invoke-WebRequest "$baseUrl/api/catalog/random?count=3" `
+        -Headers $headers -UseBasicParsing
     [PSCustomObject]@{
         Status = $response.StatusCode
         Upstream = $response.Headers['X-G4-Upstream'] -join ', '
@@ -124,7 +155,6 @@ browser. Chưa kiểm tra mất instance, reconnect hoặc dispatcher HA.
 
 Chạy [bài đo catalog](JMETER.md#đo-tải-catalog) với `$target` trỏ vào 8088. Giữ
 nguyên dữ liệu và tham số để so sánh với bài đo một instance. Bài JMeter kiểm tra
-quota dùng đích một instance vì mỗi API có bộ đếm riêng. Demo này chỉ kiểm chứng
-chia tải catalog, đăng nhập demo và khả năng đọc khi mất một upstream. Việc đo
-sức tải tối đa và đánh giá phiên đăng nhập MVC, SignalR, thanh toán hay cập nhật
-không gián đoạn cần kịch bản riêng.
+quota dùng đích một instance vì mỗi API có bộ đếm riêng. Demo realtime hiện dùng
+hai API và một dispatcher; chưa đo sức tải tối đa, HA dispatcher, hoặc thanh toán
+qua nhiều instance.
