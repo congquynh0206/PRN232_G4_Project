@@ -19,17 +19,25 @@ dùng `buyer@demo.test` của database demo và tạm tắt `api-b` khi đo 429 
 khoảng 60 giây. Báo cáo JMeter nằm trong `artifacts/jmeter/infra-<thời gian>/`.
 
 Stack [Docker Compose](../docker-compose.nginx.yml) chạy Nginx, hai bản API
-`api-a`/`api-b` dùng cùng image và một SQL Server demo riêng. Nginx nghe trên
-`http://127.0.0.1:8088`. SQL Server và hai API chỉ có mạng nội bộ Docker.
+`api-a`/`api-b` dùng cùng image, Redis SignalR backplane và một SQL Server demo
+riêng. Nginx nghe trên `http://127.0.0.1:8088`. SQL Server, Redis và hai API chỉ
+có mạng nội bộ Docker.
 
 - `GET /api/catalog/random?count=3` đi luân phiên qua hai API. Header
   `X-G4-Upstream` và log Nginx ghi địa chỉ upstream. Nếu thử lại sau lỗi kết nối,
   địa chỉ cuối cùng trong header là instance trả phản hồi.
 - `POST /api/auth/login` đi riêng tới `api-a` để lấy JWT buyer. Nginx gửi request
   đăng nhập một lần. Cả hai API dùng cùng khóa JWT demo.
-- Các route còn lại trả 404. Compose đặt `Workers__Enabled=false` để hai tiến
-  trình demo không chạy worker bảo trì và phát thông báo trên database dùng chung.
-  Cấu hình API mặc định bật hai worker.
+- `/api/` và `/hubs/commerce` đi qua cả hai API. Nginx hỗ trợ WebSocket cho hub;
+  `hub_backends` dùng `ip_hash` giữ negotiate/WebSocket của một IP ở cùng API;
+  Redis chuyển tiếp thông điệp SignalR giữa các instance.
+- Chỉ `api-a` chạy `CommerceChangeWorker` qua cấu hình riêng
+  `Realtime:DispatcherEnabled`; cả hai API vẫn tắt worker bảo trì. `api-b` không
+  chạy dispatcher để tránh hai tiến trình cùng phát một outbox event. Nếu `api-a` dừng, realtime dispatcher
+  tạm dừng tới khi `api-a` chạy lại. Đây là cấu hình demo một dispatcher, chưa
+  phải worker HA cho production/Kubernetes.
+- Redis chỉ là backplane truyền thông điệp, không phải nguồn dữ liệu nghiệp vụ.
+  `CommerceChange` và inbox vẫn nằm trong SQL; client tải bù qua API sau reconnect.
 
 ## Chạy lần đầu trên Docker Desktop
 
@@ -88,6 +96,31 @@ docker compose -f docker-compose.nginx.yml stop api-b
 # Gửi lại GET catalog, sau đó bật lại instance đã dừng.
 docker compose -f docker-compose.nginx.yml start api-b
 ```
+
+## Kiểm tra realtime xuyên instance
+
+Đăng nhập qua `/api/auth/login`, kết nối SignalR bằng JWT tới
+`http://127.0.0.1:8088/hubs/commerce`, rồi gửi một thao tác nghiệp vụ hợp lệ
+qua API. Xác nhận thao tác được xử lý ở instance khác với instance đang giữ hub
+(dùng log Nginx/API trong QA), client nhận `CommerceChanged`, rồi tải lại dữ liệu
+qua API. Kiểm tra buyer/seller liên quan nhận sự kiện và tài khoản khác không
+nhận sự kiện riêng.
+
+Ngắt kết nối client hoặc dừng một API, khôi phục rồi xác nhận client reconnect
+và tải bù trạng thái. Redis Pub/Sub không phải hàng đợi bền vững; `CommerceChange`
+và inbox trong SQL là nguồn để đối soát/tải lại. Bài này chưa đo sức tải tối đa,
+thanh toán hay HA dispatcher.
+
+### Kết quả demo 11/11/2026
+
+Người dùng đã build API bằng Docker, chạy đủ năm service và xác nhận `nginx -t`
+thành công. Sáu request catalog trả HTTP 200, luân phiên giữa hai upstream
+`172.18.0.4:8080` và `172.18.0.5:8080`. Browser hiển thị trạng thái SignalR đang
+kết nối; Nginx ghi negotiate HTTP 200 và WebSocket HTTP 101 tới api-b. Khi
+dispatcher chỉ chạy ở api-a, `CommerceChange` ID 2653 (`notification-inbox`) có
+`DispatchedAt` sau `CreatedAt` khoảng 0,1 giây. Đây là bằng chứng dispatcher xử
+lý và phát sự kiện qua cấu hình backplane; chưa có log xác nhận callback đã tới
+browser. Chưa kiểm tra mất instance, reconnect hoặc dispatcher HA.
 
 Chạy [bài đo catalog](JMETER.md#đo-tải-catalog) với `$target` trỏ vào 8088. Giữ
 nguyên dữ liệu và tham số để so sánh với bài đo một instance. Bài JMeter kiểm tra

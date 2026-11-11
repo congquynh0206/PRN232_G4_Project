@@ -23,7 +23,10 @@ builder.Services.AddCommerceRateLimiting(
 );
 builder.Services.AddSingleton<PasswordAttemptLimiter>();
 builder.Services.AddTrustedProxyHeaders(builder.Configuration);
-builder.Services.AddSignalR();
+var signalR = builder.Services.AddSignalR();
+var redisBackplane = builder.Configuration["Realtime:RedisConnectionString"];
+if (!string.IsNullOrWhiteSpace(redisBackplane))
+    signalR.AddStackExchangeRedis(redisBackplane);
 var frontendOrigins =
     builder.Configuration.GetSection("Realtime:AllowedOrigins").Get<string[]>()
     ?? new[] { builder.Configuration["Frontend:PublicBaseUrl"] ?? "http://localhost:5131" };
@@ -38,7 +41,11 @@ builder.Services.AddCors(options =>
                 .AllowCredentials()
     )
 );
-if (builder.Configuration.GetValue("Workers:Enabled", true))
+var realtimeDispatcherEnabled = builder.Configuration.GetValue(
+    "Realtime:DispatcherEnabled",
+    builder.Configuration.GetValue("Workers:Enabled", true)
+);
+if (realtimeDispatcherEnabled)
     builder.Services.AddHostedService<G4.Api.Realtime.CommerceChangeWorker>();
 var jwtKey =
     builder.Configuration["Authentication:JwtKey"]

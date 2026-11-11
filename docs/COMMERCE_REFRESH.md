@@ -65,7 +65,20 @@ Thư viện `@microsoft/signalr` **8.0.17** được đóng gói tại `frontend
 
 Cấu hình local mặc định: frontend `http://localhost:5131`, API `http://localhost:5251`. API `Realtime:AllowedOrigins` phải chứa đúng origin frontend; không dùng wildcard. Nếu đổi host/port hoặc chạy HTTPS, đặt frontend `Realtime:PublicApiBaseUrl` thành API public có thể truy cập từ browser, và `Frontend:PublicBaseUrl` trên API thành frontend public để PayPal return đúng nơi. Ví dụ HTTPS: API `https://localhost:7087`, frontend `https://localhost:7018`. Không ghi token query vào access log của reverse proxy.
 
-Docker Compose đã đặt public frontend 5000, public API 8080, API nội bộ `backend:8080` và Carrier trỏ cùng API. Browser hub dùng public API, không dùng hostname nội bộ container. Chạy nhiều API instance cần SignalR backplane/managed service và thiết kế dispatcher tương ứng; cấu hình hiện tại phục vụ một API instance như dự án local.
+Docker Compose chính đặt public frontend 5000, public API 8080, API nội bộ
+`backend:8080` và Carrier trỏ cùng API. Browser hub dùng public API, không dùng
+hostname nội bộ container. API hỗ trợ cấu hình tùy chọn
+`Realtime:RedisConnectionString`; khi có giá trị, SignalR dùng Redis backplane.
+Local Development không cấu hình giá trị này nên tiếp tục chạy một instance.
+
+Demo Nginx nhiều instance có Redis backplane trong `docker-compose.nginx.yml`.
+Trong demo chỉ `api-a` chạy `CommerceChangeWorker` qua cấu hình riêng
+`Realtime:DispatcherEnabled`; worker bảo trì vẫn tắt trên cả hai API. `api-b`
+nhận API/hub và chuyển thông điệp qua Redis. Điều này tránh hai worker cùng đọc/phát một hàng
+outbox, nhưng dispatcher chưa HA: nếu `api-a` dừng thì dispatch tạm dừng tới khi
+instance đó chạy lại. Production/Kubernetes cần worker deployment riêng có
+lease/claim phân tán trước khi cho phép nhiều worker đồng thời; Redis backplane
+chỉ chia thông điệp SignalR, không khóa công việc outbox.
 
 ## Migration và khởi động
 

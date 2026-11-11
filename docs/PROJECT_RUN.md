@@ -190,10 +190,13 @@ browser E2E và smoke test cần môi trường riêng. Workflow chỉ cần quy
 Chạy trên API Development nối database demo/QA riêng. Hai kịch bản và cách xuất
 báo cáo HTML có trong [hướng dẫn JMeter](JMETER.md).
 
-### Demo Nginx chia tải catalog
+### Demo Nginx chia tải API và SignalR nhiều instance
 
-Dùng file Compose riêng với hai API và SQL Server demo, xem upstream qua response
-header và log. [Khởi động stack và chạy lại JMeter](NGINX.md).
+Dùng file Compose riêng với hai API, Redis SignalR backplane và SQL Server demo.
+Nginx chia catalog/API, hỗ trợ WebSocket hub; chỉ api-a chạy outbox dispatcher.
+Xem upstream qua response header/log và kiểm tra thao tác cập nhật xuyên hai API.
+[Khởi động stack và kịch bản kiểm tra](NGINX.md). Đây là demo dispatcher đơn,
+chưa kiểm chứng HA khi api-a dừng lâu hoặc Kubernetes nhiều worker.
 
 
 

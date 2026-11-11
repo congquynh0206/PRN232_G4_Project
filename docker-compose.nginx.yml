@@ -6,7 +6,9 @@ x-catalog-api: &catalog-api
     ASPNETCORE_ENVIRONMENT: Development
     ASPNETCORE_HTTP_PORTS: '8080'
     Workers__Enabled: 'false'
+    Realtime__DispatcherEnabled: 'false'
     Mail__Mode: Capture
+    Realtime__RedisConnectionString: redis:6379,abortConnect=false
     SellerIdentity__HmacKey: g4-nginx-local-catalog-demo-only-key
     Authentication__JwtKey: g4-nginx-local-jwt-demo-only-key-20261104
     ConnectionStrings__DefaultConnection: >-
@@ -26,12 +28,33 @@ services:
 
   api-a:
     <<: *catalog-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: '8080'
+      Workers__Enabled: 'false'
+      Realtime__DispatcherEnabled: 'true'
+      Mail__Mode: Capture
+      Realtime__RedisConnectionString: redis:6379,abortConnect=false
+      SellerIdentity__HmacKey: g4-nginx-local-catalog-demo-only-key
+      Authentication__JwtKey: g4-nginx-local-jwt-demo-only-key-20261104
+      ConnectionStrings__DefaultConnection: >-
+        Server=sqlserver,1433;Database=G4_Demo;User Id=sa;
+        Password=G4@123456Strong!;TrustServerCertificate=True;
+    depends_on:
+      - sqlserver
+      - redis
     build:
       context: .
       dockerfile: backend/G4.Api/Dockerfile
 
   api-b:
     <<: *catalog-api
+    depends_on:
+      - sqlserver
+      - redis
+
+  redis:
+    image: redis:7.4-alpine
 
   nginx:
     image: nginx:1.28.3-alpine
@@ -45,6 +68,7 @@ services:
     depends_on:
       - api-a
       - api-b
+      - redis
 
 volumes:
   catalog_sql:
