@@ -12,7 +12,20 @@ public sealed class BuyerController(IHttpClientFactory factory, IConfiguration c
 
     public IActionResult Products() => View();
 
-    public IActionResult Checkout() => View();
+    // Buy It Now now runs in the "Thanh toán" tab; old links keep the product and session.
+    public IActionResult Checkout(int? product, string? checkout)
+    {
+        var session = Guid.TryParse(checkout, out var id) ? id.ToString() : null;
+        var url = Url.Action(
+            nameof(Index),
+            null,
+            new { tab = "checkout", product, checkout = session },
+            null,
+            null,
+            "checkout"
+        );
+        return Redirect(url ?? "/Buyer?tab=checkout#checkout");
+    }
 
     [HttpGet]
     public async Task<IActionResult> PayPalCartReturn(

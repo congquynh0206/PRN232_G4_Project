@@ -306,7 +306,7 @@ Khi code: migration giữ dữ liệu và snapshot cũ, kiểm tra quyền phía
 
 ## 14. Phạm vi và căn cứ quyết định
 
-- Phạm vi chính: một seller/order, cart tối đa hai seller, một kiện mỗi chiều, return toàn bộ; USD, Sandbox/thẻ/ngân hàng giả lập, bốn vai trò. Giữ các quy tắc kết hợp promotion và xét cấp đang có trừ khi có quyết định mới.
+- Phạm vi chính: một seller/order, cart không giới hạn số seller (quyết định 11/11/2026, trước đó tối đa hai seller), một kiện mỗi chiều, return toàn bộ; USD, Sandbox/thẻ/ngân hàng giả lập, bốn vai trò. Giữ các quy tắc kết hợp promotion và xét cấp đang có trừ khi có quyết định mới.
 - Được bổ sung policy free returns theo mặt hàng để công bố/snapshot tại checkout; không mở rộng thành catalog/CRUD sản phẩm hoặc tồn kho đầy đủ của nhóm khác. Không thêm chat, COD hay quản trị người dùng toàn diện.
 - Tùy chọn, không tự đưa vào kế hoạch bắt buộc: webhook, kế toán kép đầy đủ, payout theo lịch/ngân hàng thật, chargeback, appeal blacklist, order nhiều seller hoặc tách nhiều kiện.
 - Các mặc định mô phỏng cụ thể hóa trong báo cáo 2.0 (deadline phản đối demo 45 giây, INR 30 ngày/5 phút, phân phí return hỗn hợp theo khối lượng) dùng làm đầu vào triển khai; không nhận là policy eBay hoặc hiện trạng code. Giá trị snapshot/lịch sử cũ được giữ và nâng cấp có chính sách tương thích.
@@ -340,3 +340,27 @@ Unknown giữ trạng thái đối soát, không thu lại bằng giao dịch kh
 sau capture phải tự khôi phục hoặc Refund; Void/Refund lỗi phải có worker retry.
 Claim tồn ở bước Pay Now khác với giữ chỗ khi mở checkout. Provider mô phỏng
 phải có trạng thái độc lập với transaction order để kiểm thử các lỗi này.
+
+## Quyết định 11/11/2026 — Mua hàng kiểu eBay: Buy It Now, giỏ hàng, checkout chung
+
+- **Trang Sản phẩm** (`/Buyer/Products`, có trong menu buyer): mỗi sản phẩm có
+  **Buy It Now**, **Thêm vào giỏ** và **Trả giá** (chỉ khi người bán bật Best Offer).
+  Đây là danh sách đơn giản, không phải catalog đầy đủ (không tìm kiếm/danh mục).
+- **Buy It Now** đi thẳng vào checkout với đúng một sản phẩm, không qua giỏ. Checkout
+  mặc định là tab Thanh toán của trang buyer (`/Buyer?tab=checkout&product={id}`), cùng
+  giao diện với thanh toán giỏ; không còn trang checkout riêng.
+- **Giỏ hàng** không giới hạn số người bán; mỗi người bán vẫn là một đơn riêng. Giỏ
+  có nút "Tiếp tục thanh toán" cho cả giỏ và, khi có từ hai người bán, "Chỉ thanh
+  toán người bán này". Thanh toán xong chỉ nhóm người bán đó rời giỏ. Giỏ và một đơn
+  không giới hạn số sản phẩm; mỗi sản phẩm vẫn 1–5. Nút Random vẫn chỉ tạo 2–5 sản
+  phẩm từ hai người bán.
+- Bỏ nút "Buy It Now (Không ép trả ngay)" trong giỏ và API `POST /api/cart/buy-now`.
+  Đơn chờ thanh toán chỉ còn xuất hiện khi thanh toán tại checkout lỗi hoặc bị bỏ dở
+  (hoặc từ Best Offer); buyer trả lại ở "Đơn hàng" trong hạn giữ hàng.
+- **Checkout** có một nút "Xác nhận và thanh toán": tạo đơn rồi thu tiền ngay.
+  Sản phẩm thường: credit card, PayPal, Klarna. Sản phẩm "Yêu cầu thanh toán ngay"
+  (Immediate): chỉ credit card, chỉ tạo đơn khi thu tiền thành công; không được thêm
+  vào giỏ. PayPal cho sản phẩm Immediate là đợt riêng sau, chưa triển khai.
+- PayPal thanh toán cả giỏ trong một lượt tối đa 10 người bán (giới hạn purchase
+  unit của gateway). Checkout cả giỏ quá 10 người bán thì ẩn PayPal; buyer dùng credit
+  card hoặc thanh toán riêng từng người bán.

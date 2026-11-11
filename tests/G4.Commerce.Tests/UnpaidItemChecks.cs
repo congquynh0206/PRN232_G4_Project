@@ -2,7 +2,7 @@ using G4.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
-// Buy It Now order that is created first and paid later: hold deadline, seller cancel after the
+// Order that is created first and paid later (payment failed or abandoned at checkout): hold deadline, seller cancel after the
 // deadline, Unpaid Item Strike, stock restore and permanent ban after two strikes.
 internal static class UnpaidItemChecks
 {
@@ -10,12 +10,12 @@ internal static class UnpaidItemChecks
     {
         Rules();
         await HoldDeadlineAsync();
-        await BuyItNowAsync();
+        await PayOnlyOneSellerAsync();
         await SellerCancelAsync();
         await TwoStrikesBanAsync();
         await StrikeWindowAsync();
         Console.WriteLine(
-            "Unpaid items: Buy It Now creates one seller order as unpaid, configurable hold deadline, seller cancel only after deadline, one strike per order, stock restored once, two strikes lock the buyer, old strikes expire from the window"
+            "Unpaid items: paying only one seller creates that seller's order as unpaid, configurable hold deadline, seller cancel only after deadline, one strike per order, stock restored once, two strikes lock the buyer, old strikes expire from the window"
         );
     }
 
@@ -55,33 +55,40 @@ internal static class UnpaidItemChecks
         Check(minutes is > 14.9 and < 15.2, $"missing config keeps the 15 minute hold, got {minutes}");
     }
 
-    private static async Task BuyItNowAsync()
+    // "Pay only this seller": checkout one seller group of a multi-seller cart.
+    private static async Task PayOnlyOneSellerAsync()
     {
         await using var db = await FixtureAsync();
         var checkout = new CheckoutService(db, config: Config(("Checkout:PaymentHoldMinutes", "5")));
         var carts = new BuyerCartService(db, checkout);
         var cart = await carts.GetAsync(1);
         cart = await carts.SaveAsync(1, new(cart.Version, [new(1, 2), new(2, 1)]));
-        var quote = await checkout.QuoteAsync(1, Request("bn-quote", quantity: 2));
-        var request = new BuyItNowRequest(
+        var quote = await checkout.QuoteAsync(1, Request("one-seller-quote", quantity: 2));
+        var request = new CartCheckoutRequest(
             1,
             cart.Version,
-            2,
-            "bn-key",
-            null,
-            quote.Total,
-            quote.PricingFingerprint
+            [new SellerCheckoutRequest(2, null, quote.Total, quote.PricingFingerprint)],
+            "one-seller-key"
         );
 
-        await RejectAsync(() => carts.BuyItNowAsync(1, request with { PricingFingerprint = "stale" }));
+        await RejectAsync(() => carts.CheckoutAsync(
+            1,
+            request with { Sellers = [request.Sellers[0] with { PricingFingerprint = "stale" }] }
+        ));
         Check(await db.OrderTables.CountAsync() == 0, "a stale quote must not create an order");
+        await RejectAsync(() => carts.CheckoutAsync(
+            1,
+            request with { Sellers = [request.Sellers[0] with { SellerId = 99 }] }
+        ));
+        Check(await db.OrderTables.CountAsync() == 0, "a seller outside the cart is rejected");
 
-        var order = await carts.BuyItNowAsync(1, request);
+        var orders = await carts.CheckoutAsync(1, request);
+        var order = orders.Single();
         Check(
             order.Status == "AwaitingPayment" && order.SellerId == 2,
-            "Buy It Now creates the seller order as unpaid (AwaitingPayment)"
+            "paying one seller creates only that seller's order, waiting for payment"
         );
-        Check(order.PaymentExpiresAt != null, "the unpaid order has a payment deadline");
+        Check(order.PaymentExpiresAt != null, "the order has a payment deadline");
         Check((await db.Inventories.FindAsync(1))!.Quantity == 18, "the item is held at once");
         Check(
             (await db.Inventories.FindAsync(2))!.Quantity == 20,
@@ -90,17 +97,17 @@ internal static class UnpaidItemChecks
         var after = await carts.GetAsync(1);
         Check(
             after.Items.Count == 1 && after.Items[0].SellerId == 3,
-            "only the bought seller's lines leave the cart"
+            "only the paid seller's lines leave the cart"
         );
-        Check(after.Version != cart.Version, "the cart version changes after Buy It Now");
+        Check(after.Version != cart.Version, "the cart version changes after checkout");
 
-        var again = await carts.BuyItNowAsync(1, request);
+        var again = await carts.CheckoutAsync(1, request);
         Check(
-            again.Id == order.Id && await db.OrderTables.CountAsync() == 1,
+            again.Single().Id == order.Id && await db.OrderTables.CountAsync() == 1,
             "retrying the same key returns the same order"
         );
         Check((await db.Inventories.FindAsync(1))!.Quantity == 18, "a retry cannot hold stock twice");
-        await RejectAsync(() => carts.BuyItNowAsync(1, request with { CheckoutKey = "bn-key-2" }));
+        await RejectAsync(() => carts.CheckoutAsync(1, request with { CheckoutKey = "one-seller-2" }));
         Check(await db.OrderTables.CountAsync() == 1, "an old cart version cannot create a second order");
     }
 
@@ -301,7 +308,7 @@ internal static class UnpaidItemChecks
         {
             await work();
         }
-        catch (InvalidOperationException)
+        catch (Exception error) when (error is InvalidOperationException or ArgumentException)
         {
             return;
         }

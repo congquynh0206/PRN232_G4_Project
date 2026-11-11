@@ -230,6 +230,7 @@ bảng trạng thái riêng, không cần PayPal credential. Xem IMMEDIATE_PAYME
 ### Checkout riêng Buy It Now và đăng ký buyer — 09/11/2026
 
 Restart API/frontend để nhận view/API mới; không có migration. Buy It Now mở
-/Buyer/Checkout?product={id}. Trang đăng nhập (Development) có link "Đăng ký người mua"
+tab Thanh toán /Buyer?tab=checkout&product={id}#checkout (từ 11/11/2026; link cũ
+/Buyer/Checkout?product={id} chuyển hướng về đây). Trang đăng nhập (Development) có link "Đăng ký người mua"
 tới /Account/RegisterBuyer: Tên, Họ, Email, Mật khẩu (8–128 ký tự, có chữ và số), tạo
 xong tự đăng nhập. Test riêng: `dotnet run --project tests/G4.Commerce.Tests -- --buyer-registration`.

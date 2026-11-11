@@ -11,6 +11,8 @@
       attempt: null,
       quoteKey: null,
       baseline: null,
+      // null = pay the whole cart; a seller id = "Chỉ thanh toán người bán này".
+      scope: null,
     };
     let quoteRequest = 0,
       busy = false,
@@ -30,9 +32,11 @@
     const canQuote = () =>
       !busy &&
       !addressBusy &&
-      !!state.quote &&
-      book.selectedId() != null &&
-      state.quoteKey === book.selectedKey();
+      (buyNow.active()
+        ? buyNow.ready(book.selectedKey())
+        : !!state.quote &&
+          book.selectedId() != null &&
+          state.quoteKey === book.selectedKey());
     const canPay = () => canQuote() && !klarnaZipNeeded();
     const book = G4.BuyerAddresses.create({
       lock(value) {
@@ -47,6 +51,15 @@
       },
     });
     G4.BuyerCart.addressBook = book;
+    // Buy It Now (?product={id}) reuses this tab for one product without touching the cart.
+    const buyNow = G4.BuyNow.create({
+      book,
+      tab,
+      loadOrders,
+      showOrder,
+      quoteStatus,
+      onChange: () => render(),
+    });
     function groups() {
       const result = new Map();
       for (const item of state.items) {
@@ -55,12 +68,34 @@
       }
       return [...result.entries()];
     }
+    // Seller groups being checked out right now.
+    const checkoutGroups = () =>
+      groups().filter(([sellerId]) => state.scope == null || sellerId === state.scope);
+    // One PayPal checkout carries at most 10 sellers (one purchase unit per seller order).
+    const PAYPAL_MAX_SELLERS = 10;
+    const paypalBlocked = () =>
+      !buyNow.active() && checkoutGroups().length > PAYPAL_MAX_SELLERS;
+    function updatePayPalLimit() {
+      const blocked = paypalBlocked();
+      $('paypal-limit-note').hidden = !blocked;
+      $('cart-method-paypal').disabled = blocked || busy;
+      if (!blocked) return;
+      if ($('cart-method-paypal').checked) {
+        $('cart-method-card').checked = true;
+        $('card-fields').classList.toggle('hidden', false);
+      }
+    }
+    function setScope(sellerId) {
+      state.scope = sellerId;
+      reset();
+      render();
+    }
     function request(confirmed = false) {
       return {
         addressId: book.selectedId(),
         cartVersion: state.version,
         checkoutKey: state.key,
-        sellers: groups().map(([sellerId]) => {
+        sellers: checkoutGroups().map(([sellerId]) => {
           const q = state.quote?.sellers.find((x) => x.sellerId === sellerId)?.quote;
           return {
             sellerId,
@@ -79,6 +114,7 @@
       state.attempt = null;
       $('pay').disabled = true;
       state.quoteKey = null;
+      buyNow.clear();
       $('checkout-promotions').innerHTML = '';
       for (const id of ['subtotal', 'discount', 'shipping', 'total'])
         $(id).textContent = 'Chưa có báo giá';
@@ -193,6 +229,12 @@
       .map(([, items]) => items[0]);
     G4.BuyerCart.openOffer = async (sellerId, offer) => {
       if (busy || addressBusy) return;
+      // A coupon is picked for one seller, so show the whole cart where that seller is.
+      if (buyNow.active()) {
+        buyNow.exit();
+        setScope(null);
+      }
+      if (state.scope != null && state.scope !== sellerId) setScope(null);
       tab('checkout');
       if (!book.count()) {
         book.openManage(true);
@@ -210,65 +252,46 @@
         : `<span>SL ${item.quantity}</span>`;
       return `<div class="item">${productThumbnail(item.imageUrl, item.title)}<div class="item-info"><strong>${esc(item.title)}</strong><small>Còn ${item.available} · ${item.weightKg ?? 'Chưa có'} kg/sản phẩm</small>${item.quantity > item.available ? '<p class="cart-stock-error">Không đủ tồn kho. Giảm số lượng hoặc xóa sản phẩm.</p>' : ''}</div>${quantity}${G4.Promotions.linePriceHtml(line, (item.price ?? 0) * item.quantity, q?.promotions)}</div>`;
     }
-    function buyNowHtml(sellerId) {
+    // Only shown when the cart has more than one seller; one seller is the whole cart.
+    function paySellerHtml(sellerId) {
+      if (groups().length < 2) return '';
       return (
-        '<div class="buy-now-box">' +
-        `<button type="button" class="primary buy-now" data-buy-now="${sellerId}" ${busy ? 'disabled' : ''}>` +
-        '<span class="buy-now-title">Buy It Now</span>' +
-        '<small class="buy-now-note">(Không ép trả ngay)</small></button></div>'
+        '<div class="cart-seller-pay">' +
+        `<button type="button" data-pay-seller="${sellerId}" ${busy ? 'disabled' : ''}>` +
+        'Chỉ thanh toán người bán này</button></div>'
       );
     }
-    const localTime = (value) =>
-      new Date(/(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? value : value + 'Z').toLocaleString('vi-VN');
-    // Create only this seller's order as UNPAID and hold the stock; payment is done later (PayPal).
-    async function buyNow(sellerId) {
-      if (busy || addressBusy) return;
-      if (!book.count() || book.selectedId() == null) {
-        tab('checkout');
-        book.openManage(true);
-        message('Hãy thêm hoặc chọn địa chỉ giao hàng trước khi đặt Buy It Now.', false);
-        return;
-      }
-      const quote = state.quote?.sellers.find((x) => x.sellerId === sellerId)?.quote;
-      if (!quote || state.quoteKey !== book.selectedKey()) {
-        message('Đang cập nhật báo giá. Hãy thử lại sau giây lát.', false);
-        safe(recalculate);
-        return;
-      }
-      setBusy(true);
-      try {
-        const order = await api('cart/buy-now', 'POST', {
-          addressId: book.selectedId(),
-          cartVersion: state.version,
-          sellerId,
-          couponCode: state.coupons.get(sellerId) || null,
-          expectedTotal: quote.total,
-          pricingFingerprint: quote.pricingFingerprint,
-          checkoutKey: crypto.randomUUID(),
-        });
-        state.coupons.delete(sellerId);
-        accept(await api('cart'));
-        await loadOrders(1);
-        message(
-          `Đã tạo đơn #${order.id} ở trạng thái Chờ thanh toán (UNPAID) và giữ hàng cho bạn đến ` +
-          `${localTime(order.paymentExpiresAt)}. Vào tab Đơn hàng, chọn "Thanh toán PayPal" ` +
-          'trước hạn này. Quá hạn, người bán có thể hủy đơn và bạn bị cộng 1 điểm phạt.',
-          true,
-        );
-        await recalculate();
-      } finally {
-        setBusy(false);
-        render();
-      }
+    function openCheckout(sellerId = null) {
+      buyNow.exit();
+      setScope(sellerId);
+      tab('checkout');
+      safe(recalculate);
+      if (!book.count()) book.openManage(true);
+    }
+    function renderScope() {
+      const box = $('checkout-scope');
+      if (!box) return;
+      const group = state.scope == null
+        ? null
+        : groups().find(([sellerId]) => sellerId === state.scope);
+      box.hidden = !group || buyNow.active();
+      box.innerHTML = group
+        ? `<span>Bạn đang thanh toán riêng người bán <strong>${esc(group[1][0].sellerName)}</strong>. ` +
+          'Các người bán khác vẫn ở trong giỏ.</span>' +
+          `<button type="button" data-pay-all ${busy ? 'disabled' : ''}>Thanh toán cả giỏ</button>`
+        : '';
     }
     function render() {
+      // Drop a stale scope (seller removed from the cart or already paid).
+      if (state.scope != null && !groups().some(([sellerId]) => sellerId === state.scope))
+        state.scope = null;
       const html = (editable) =>
-        groups()
+        (editable ? groups() : checkoutGroups())
           .map(([sellerId, items]) => {
             const q = quoteFor(items[0]);
             const lines = items.map((x) => itemHtml(x, editable)).join('');
             const body = editable
-              ? `<div class="cart-seller-body"><div class="cart-seller-items">${lines}</div>${buyNowHtml(sellerId)}</div>`
+              ? `<div class="cart-seller-body"><div class="cart-seller-items">${lines}</div>${paySellerHtml(sellerId)}</div>`
               : lines;
             return `<section class="cart-seller"><h3>${esc(items[0].sellerName)}</h3>${body}${!editable ? `<div class="seller-coupon"><label for="coupon-${sellerId}">Mã giảm giá của ${esc(items[0].sellerName)}</label><div class="coupon-row"><input id="coupon-${sellerId}" data-seller-coupon="${sellerId}" maxlength="50" value="${esc(state.coupons.get(sellerId) || '')}" ${busy ? 'disabled' : ''}/><button type="button" data-apply-coupon="${sellerId}" ${busy ? 'disabled' : ''}>Áp dụng</button></div>${couponActions(sellerId)}</div><div class="seller-quote">${q ? `Phí ship: <strong>${money(q.shipping)}</strong>${q.shippingDiscount > 0 ? ` <span class="ship-detail">(gốc ${money(q.shippingBase)}, giảm ${money(q.shippingDiscount)})</span>` : ''} · Tổng đơn: <strong>${money(q.total)}</strong>${G4.Promotions.breakdownHtml(q)}` : 'Cập nhật báo giá để xem phí ship và tổng của seller.'}</div>` : ''}</section>`;
           })
@@ -276,12 +299,24 @@
       $('cart').classList.toggle('empty', !state.items.length);
       $('cart').innerHTML = state.items.length
         ? html(true)
-        : 'Giỏ đang trống. Tạo giỏ ngẫu nhiên để bắt đầu.';
+        : 'Giỏ đang trống. Chọn sản phẩm ở trang <a href="/Buyer/Products">Sản phẩm</a> ' +
+          'hoặc tạo giỏ ngẫu nhiên.';
       $('checkout-items').innerHTML = html(false);
-      $('cart-subtotal').textContent = state.quote
+      if (buyNow.active()) {
+        $('checkout-items').innerHTML = buyNow.html(busy);
+        buyNow.bind(() => {
+          reset();
+          render();
+          safe(recalculate);
+        });
+      }
+      renderScope();
+      // A one-seller quote is not the cart subtotal, so only show quotes for the whole cart.
+      $('cart-subtotal').textContent = state.quote && state.scope == null
         ? 'Tiền hàng sau giảm: ' + money(state.quote.subtotal - state.quote.discount)
         : 'Tạm tính: ' + money(state.items.reduce((n, x) => n + (x.price ?? 0) * x.quantity, 0));
       $('continue').disabled = busy || !state.items.length;
+      updatePayPalLimit();
       $('pay').disabled = !canPay();
       updateKlarnaZipNote();
       document.querySelectorAll('[data-quantity]').forEach(
@@ -339,8 +374,15 @@
       document.querySelectorAll('[data-remove-coupon]').forEach((button) => {
         button.onclick = () => safe(() => useCoupon(Number(button.dataset.removeCoupon), ''));
       });
-      document.querySelectorAll('[data-buy-now]').forEach((button) => {
-        button.onclick = () => safe(() => buyNow(Number(button.dataset.buyNow)));
+      document.querySelectorAll('[data-pay-seller]').forEach((button) => {
+        button.onclick = () => {
+          if (!busy) openCheckout(Number(button.dataset.paySeller));
+        };
+      });
+      document.querySelectorAll('[data-pay-all]').forEach((button) => {
+        button.onclick = () => {
+          if (!busy) openCheckout(null);
+        };
       });
     }
     function setBusy(value) {
@@ -350,11 +392,15 @@
       book.setDisabled(value);
       document
         .querySelectorAll(
-          '[data-quantity],[data-remove],[data-buy-now],[data-seller-coupon],[data-apply-coupon],'
-          + '[data-pick-coupon],[data-remove-coupon],input[name="method"],#card-number,#card-expiry',
+          '[data-quantity],[data-remove],[data-pay-seller],[data-pay-all],[data-seller-coupon],'
+          + '[data-apply-coupon],'
+          + '[data-pick-coupon],[data-remove-coupon],[data-buy-now-input],'
+          + 'input[name="method"],#card-number,#card-expiry',
         )
         .forEach((x) => (x.disabled = value));
       $('continue').disabled = value || !state.items.length;
+      // Re-enabling every method above must not re-open PayPal for a too-large checkout.
+      updatePayPalLimit();
       $('pay').disabled = !canPay();
       updateKlarnaZipNote();
     }
@@ -414,6 +460,7 @@
       }
     }
     async function recalculate() {
+      if (buyNow.active()) return buyNow.quote();
       if (!state.items.length) return;
       const addressKey = book.selectedKey();
       if (book.selectedId() == null) {
@@ -458,10 +505,24 @@
     }
     async function pay() {
       if (!canPay()) return;
+      const method = document.querySelector('input[name="method"]:checked').value;
+      if (buyNow.active()) {
+        setBusy(true);
+        $('pay').textContent = 'Đang thanh toán…';
+        try {
+          await buyNow.pay(method);
+        } finally {
+          setBusy(false);
+          render();
+          $('pay').textContent = 'Xác nhận và thanh toán';
+        }
+        return;
+      }
+      if (method === 'paypal' && paypalBlocked())
+        throw new Error('PayPal thanh toán tối đa 10 người bán một lượt. Hãy chọn credit card.');
       setBusy(true);
       $('pay').textContent = 'Đang tạo đơn…';
       let orders = null;
-      const method = document.querySelector('input[name="method"]:checked').value;
       try {
         state.attempt ??= request(true);
         orders = await api('cart/checkout', 'POST', state.attempt);
@@ -526,17 +587,13 @@
         throw new Error(error.message + ' Hãy kiểm tra Đơn của tôi hoặc thử lại với giỏ hiện tại.');
       } finally {
         setBusy(false);
-        $('pay').textContent = 'Đặt hàng & thanh toán';
+        $('pay').textContent = 'Xác nhận và thanh toán';
         $('paypal-loading').classList.add('hidden');
       }
     }
     $('random').onclick = () => safe(random);
     $('reload-cart').onclick = () => safe(reload);
-    $('continue').onclick = () => {
-      tab('checkout');
-      safe(recalculate);
-      if (!book.count()) book.openManage(true);
-    };
+    $('continue').onclick = () => openCheckout(null);
     $('pay').onclick = () => safe(pay);
     $('refresh-quote').onclick = () =>
       safe(async () => {
@@ -560,6 +617,7 @@
       setBusy(true);
       try {
         await book.load();
+        await buyNow.start();
         accept(await api('cart'));
         await recalculate();
       } finally {

@@ -36,7 +36,19 @@ Migration `20261107090000_AddUnpaidItemStrikes` (chưa áp dụng lên database 
 `User.BannedAt`, `User.BanReason`, `OrderTable.CancelReasonCode` và bảng `UnpaidItemStrike`.
 Chạy `dotnet ef database update` trên database có dữ liệu; không chạy lại baseline.
 
-## Nút Buy It Now trong giỏ hàng
+## Thay đổi 11/11/2026: thanh toán riêng một người bán
+
+Nút **Buy It Now (Không ép trả ngay)** và `POST api/cart/buy-now` đã bị gỡ theo thiết kế
+kiểu eBay ([quyết định](BUSINESS_REQUIREMENTS.md)). Thay vào đó, khi giỏ có từ hai người
+bán, mỗi nhóm có **Chỉ thanh toán người bán này**: mở tab Thanh toán chỉ với nhóm đó và
+dùng `POST api/cart/checkout` với một seller; đơn được tạo rồi thu tiền ngay theo phương
+thức đã chọn. Chỉ nhóm đã thanh toán rời giỏ. Thanh toán lỗi thì đơn ở `AwaitingPayment`
+và áp dụng hạn giữ hàng / Unpaid Item như mô tả ở trên. Test: `PayOnlyOneSellerAsync`
+trong `--unpaid-items` và test 8 trong `tests/buyer-cart-ui.test.cjs`.
+
+Phần dưới là mô tả nút cũ, chỉ giữ làm lịch sử.
+
+### (Đã gỡ) Nút Buy It Now trong giỏ hàng
 
 Mỗi nhóm seller trong tab Giỏ hàng có nút **Buy It Now (Không ép trả ngay)** ở cuối khung;
 số lượng, nút Xóa và giá nằm bên trái nút.

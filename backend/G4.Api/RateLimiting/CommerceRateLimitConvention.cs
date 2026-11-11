@@ -42,7 +42,7 @@ public sealed class CommerceRateLimitConvention : IApplicationModelConvention
         if (
             controller == "PayPalCart"
             || controller == "ImmediateCheckout"
-            || controller == "Cart" && action is "Checkout" or "BuyItNow"
+            || controller == "Cart" && action == "Checkout"
             || controller == "Checkout" && action == "CreateOrder"
             || controller == "BestOffers" && action is "Create" or "SellerAccept" or "BuyerAccept"
         )

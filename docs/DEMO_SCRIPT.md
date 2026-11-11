@@ -72,7 +72,8 @@ Nói ngắn:
 Cửa sổ **Buyer**.
 
 1. **Giỏ hàng → Tạo giỏ từ 2 seller → Tiếp tục thanh toán.**
-   Nói: giỏ tối đa 2 seller, khi đặt sẽ tách thành 2 đơn riêng.
+   Nói: giỏ có bao nhiêu seller cũng được, mỗi seller thành một đơn riêng; có thể
+   bấm "Chỉ thanh toán người bán này" để trả riêng một seller.
 2. Ở trang Thanh toán: chọn địa chỉ, nhập mã `SAN5` (mã sàn) hoặc `DEMO10` (mã shop),
    bấm **Cập nhật báo giá**.
    Nói: phí ship tính theo kg, giảm giá/miễn ship do seller cấu hình.
@@ -151,10 +152,11 @@ Dữ liệu đã chuẩn bị sẵn: 3 sản phẩm đầu của `seller.l1` đ�
    gửi 40 USD → tự bị từ chối; gửi 96 USD → tự được chấp nhận và tạo đơn.
    Nói: tối đa 5 lượt/sản phẩm, mỗi lượt hết hạn sau 24 giờ.
 4. ★ **Buyer** → **Đơn hàng** → đơn **#273** (tạo từ Best Offer, 85 USD) → thanh toán thẻ.
-5. **Buy It Now**: Buyer vào `/Buyer/Products` → "[L1] Buy It Now - Portable Charger
-   (trả ngay)" → xem báo giá → **Pay Now** thẻ `4111…` → đơn Paid ngay. Nói: tiền được giữ
-   (authorize) trước, chỉ thu khi chắc chắn còn hàng.
-   ★ Món "[L1] Buy It Now - Compact Camera (chỉ còn 1 cái)": hai cửa sổ buyer cùng Pay Now
+5. **Buy It Now**: Buyer → menu **Sản phẩm** → "[L1] Buy It Now - Portable Charger
+   (trả ngay)" → xem báo giá → **Xác nhận và thanh toán** thẻ `4111…` → đơn Paid ngay.
+   Nói: sản phẩm "Yêu cầu thanh toán ngay" chỉ nhận credit card và không vào giỏ; tiền
+   được giữ (authorize) trước, chỉ thu khi chắc chắn còn hàng.
+   ★ Món "[L1] Buy It Now - Compact Camera (chỉ còn 1 cái)": hai cửa sổ buyer cùng thanh toán
    → chỉ một người mua được, người kia được hủy giữ tiền.
 6. **Unpaid Item**: **Seller** → Đơn hàng → đơn **#243** (quá hạn thanh toán) →
    **Hủy đơn quá hạn thanh toán** (nhập lại mật khẩu) → hoàn kho, buyer bị 1 điểm phạt.

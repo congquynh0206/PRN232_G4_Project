@@ -32,16 +32,6 @@ public sealed record CartCheckoutRequest(
     string CheckoutKey
 );
 
-public sealed record BuyItNowRequest(
-    int AddressId,
-    Guid CartVersion,
-    int SellerId,
-    string CheckoutKey,
-    string? CouponCode = null,
-    decimal? ExpectedTotal = null,
-    string? PricingFingerprint = null
-);
-
 public sealed record CartOrderResponse(
     int Id,
     int? SellerId,

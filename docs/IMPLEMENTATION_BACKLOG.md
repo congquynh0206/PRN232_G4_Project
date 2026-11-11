@@ -551,3 +551,45 @@ Seller có cả tab Best Offer và link Sản phẩm). Snapshot EF sinh lại t�
 --klarna/--best-offers/--unpaid-items/--immediate-checkout/--buyer-registration/--rate-limits
 đạt, Node 156/156. Klarna đã có trên master nên ghi chú "không tìm thấy Klarna" ở BIN-IP
 không còn đúng. Chưa chạy browser E2E/SQL Server sau merge.
+
+**Mua hàng kiểu eBay — 11/11/2026** ([quyết định](BUSINESS_REQUIREMENTS.md)):
+
+- Trang `/Buyer/Products` (mục "Sản phẩm" trong menu buyer): Buy It Now / Thêm vào giỏ /
+  Trả giá. `catalog/products` trả thêm seller, ảnh, `allowOffers`; sửa `catalog/products/{id}`
+  lọc trước khi projection (SQL không dịch được filter sau projection có subquery).
+- Buy It Now sản phẩm thường: checkout một món, tạo đơn rồi thu tiền ngay (credit card /
+  PayPal / Klarna); thẻ lỗi thì thử lại trên cùng đơn hoặc trả sau ở Đơn hàng. Sản phẩm
+  Immediate: chỉ credit card, không vào giỏ, luồng authorize/capture giữ nguyên.
+- Giỏ không giới hạn seller; "Chỉ thanh toán người bán này" dùng `cart/quote`/`cart/checkout`
+  với tập con seller, chỉ nhóm đã thanh toán rời giỏ. Gỡ `cart/buy-now` + nút "Buy It Now
+  (Không ép trả ngay)". Nút thanh toán: "Xác nhận và thanh toán". Không có migration.
+- Kiểm thử: build API/frontend/test 0 warning/error; bộ backend mặc định đạt;
+  `--checkout-limits` (3 seller quote/checkout), `--unpaid-items` (`PayOnlyOneSellerAsync`),
+  `--immediate-checkout`, `--rate-limits` đạt; Node 169/171 (2 lỗi `klarna-address-ui` có từ
+  trước, thuộc thay đổi sổ địa chỉ đang làm dở). Browser trên API/frontend riêng nối
+  `G4_Demo` (worker tắt): trang Sản phẩm desktop/mobile, thêm giỏ 3 seller, thanh toán riêng
+  một seller (báo giá đúng một nhóm), báo giá cả giỏ 3 seller, checkout Buy It Now sản phẩm
+  thường hiện đủ 3 phương thức, link Trả giá mở đúng form; giỏ buyer demo đã trả về trống.
+  Chưa bấm thanh toán thật trên trình duyệt; chưa chạy `role-navigation.e2e.cjs`.
+- Còn lại: PayPal cho sản phẩm Immediate (đợt riêng); `tools/G4.DemoData` vẫn ghi "Pay Now"
+  trong hướng dẫn demo sinh tự động.
+- Bổ sung cùng ngày: bỏ giới hạn 5 sản phẩm của giỏ (`cart/save`) và của một đơn
+  (`CheckoutService`); số lượng mỗi sản phẩm vẫn 1–5, Random vẫn 2–5 sản phẩm. Checkout cả
+  giỏ quá 10 seller thì ẩn PayPal (giới hạn purchase unit). Test: `ProductCountAsync` trong
+  `--checkout-limits` (giỏ 8 sản phẩm, một đơn 6 sản phẩm) và test 9 trong
+  `tests/buyer-cart-ui.test.cjs`.
+- Bổ sung cùng ngày (2): Buy It Now dùng tab Thanh toán `/Buyer?tab=checkout&product={id}`
+  thay cho trang riêng `/Buyer/Checkout` (đã xóa view và `immediate-checkout.js`; action cũ
+  chuyển hướng, giữ `product`/`checkout`). Module mới `buyer-buy-now.js`, `buyer-cart.js`
+  nhường tab khi có `product`; "Tiếp tục thanh toán" từ giỏ thoát chế độ này. Immediate tạo
+  session khi bấm "Xác nhận và thanh toán". Không có migration, không đổi API. Test: Node
+  164/164 (`tests/buyer-buy-now-ui.test.cjs` 15 test, `tests/buyer-products-ui.test.cjs`),
+  build frontend 0 warning/error. Browser trên frontend riêng cổng 5191 nối API đang chạy:
+  redirect link cũ, báo giá sản phẩm Immediate (chỉ credit card) và sản phẩm thường (đủ 3
+  phương thức), đổi số lượng/địa chỉ tự báo giá lại, quay về giỏ, mobile 375px không tràn.
+  Chưa bấm thanh toán thật trên trình duyệt; chưa chạy `role-navigation.e2e.cjs`.
+- Bổ sung cùng ngày (3): khối "Thanh toán bằng" ở tab Thanh toán đổi sang thẻ có viền theo
+  kiểu eBay "Pay with": logo PayPal, logo Visa/Mastercard/Discover/Diners cho credit card,
+  logo Klarna (`frontend/wwwroot/images/payments/`); form thẻ thử nghiệm mở ngay dưới ô
+  credit card. Giữ nguyên id/name các radio nên JS không đổi. Node 164/164; kiểm tra trình
+  duyệt desktop và mobile 375px (không tràn ngang).

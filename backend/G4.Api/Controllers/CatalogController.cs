@@ -137,28 +137,35 @@ public sealed class CatalogController(
     {
         if (!IsAvailable || !HasRole("buyer"))
             return StatusCode(403);
-        var product = await ProductList(null).SingleOrDefaultAsync(p => p.Id == id, ct);
+        var product = await ProductList(null, id).SingleOrDefaultAsync(ct);
         if (product == null)
             return NotFound(new { error = "Sản phẩm không còn được bán." });
         return Ok(product);
     }
 
     // Newest products first, so a just-published product is never cut off by Take(100).
-    private IQueryable<ProductListing> ProductList(int? sellerId) =>
+    // Filter before the projection: SQL cannot filter on the projected record's subqueries.
+    private IQueryable<ProductListing> ProductList(int? sellerId, int? productId = null) =>
         db.Products.AsNoTracking()
             .Where(p => p.IsAuction != true && p.Price != null
                 && (sellerId != null || p.IsListed)
-                && (sellerId == null || p.SellerId == sellerId))
+                && (sellerId == null || p.SellerId == sellerId)
+                && (productId == null || p.Id == productId))
             .OrderByDescending(p => p.Id)
             .Select(p => new ProductListing(
                 p.Id, p.Title, p.Description, p.Price, p.WeightKg,
                 p.ImmediatePaymentRequired, p.IsListed,
-                db.Inventories.Where(i => i.ProductId == p.Id).Sum(i => i.Quantity) ?? 0
+                db.Inventories.Where(i => i.ProductId == p.Id).Sum(i => i.Quantity) ?? 0,
+                p.SellerId,
+                db.Users.Where(u => u.Id == p.SellerId).Select(u => u.Username).FirstOrDefault(),
+                p.Images,
+                p.AllowOffers
             ));
 
     private sealed record ProductListing(
         int Id, string? Title, string? Description, decimal? Price, decimal? WeightKg,
-        bool ImmediatePaymentRequired, bool IsListed, int Available
+        bool ImmediatePaymentRequired, bool IsListed, int Available,
+        int? SellerId, string? SellerName, string? ImageUrl, bool AllowOffers
     );
 
     [HttpGet("catalog/random")]

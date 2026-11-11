@@ -1,0 +1,114 @@
+.buyer-products-page .section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.buyer-products-page .section-head .button-link {
+  flex-shrink: 0;
+}
+.products-message:empty {
+  display: none;
+}
+.products-message {
+  margin: 12px 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #eaf6ee;
+  color: #1e5b33;
+}
+.products-message.error {
+  background: #fdeceb;
+  color: #8a1f17;
+}
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+.product-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+.product-card-thumb {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 0;
+}
+.product-card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+}
+.product-card-body h2 {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.product-card-body p {
+  margin: 0;
+}
+.product-card-seller,
+.product-card-stock,
+.product-card-note {
+  color: #617087;
+  font-size: 13px;
+}
+.product-card-price {
+  font-size: 20px;
+  font-weight: 700;
+}
+.product-badge {
+  align-self: flex-start;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #fff4dc;
+  color: #7a4b00;
+  font-size: 12px;
+  font-weight: 700;
+}
+.product-card-thumb {
+  background: #f6f8fb;
+}
+.product-card-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+}
+.product-card-actions button,
+.product-card-actions .product-action {
+  width: 100%;
+  white-space: nowrap;
+}
+.product-card-actions .product-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  border: 1px solid #ced8e5;
+  border-radius: 22px;
+  color: #244169;
+  font-weight: 600;
+  text-decoration: none;
+}
+.product-card-actions .product-action:hover {
+  background: #eaf1ff;
+}
+.product-card-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

@@ -32,6 +32,10 @@ async function harness(handler, method = 'card') {
         querySelectorAll() {
           return [];
         },
+        closest() {
+          this.label ??= { hidden: false };
+          return this.label;
+        },
         focus() {},
       });
     return elements.get(id);
@@ -39,7 +43,7 @@ async function harness(handler, method = 'card') {
   const controls = (selector) => {
     const result = [];
     for (const match of (element('cart').innerHTML + element('checkout-items').innerHTML).matchAll(
-      /<(?:input|select|button)[^>]*\bdata-(quantity|remove|buy-now|seller-coupon|apply-coupon)="([^"]+)"[^>]*>/g,
+      /<(?:input|select|button)[^>]*\bdata-(quantity|remove|pay-seller|seller-coupon|apply-coupon)="([^"]+)"[^>]*>/g,
     )) {
       const camel = match[1].replace(/-([a-z])/g, (_, x) => x.toUpperCase());
       if (!selector.includes('[data-' + match[1] + ']')) continue;
@@ -81,7 +85,14 @@ async function harness(handler, method = 'card') {
   const context = {
     G4,
     crypto: { randomUUID: () => Math.random().toString() },
-    location: { assign: (url) => redirects.push(url) },
+    location: {
+      search: '',
+      href: 'http://localhost/Buyer?tab=checkout#checkout',
+      assign: (url) => redirects.push(url),
+    },
+    history: { replaceState() {} },
+    URL,
+    URLSearchParams,
     document: { querySelectorAll: controls, querySelector: () => ({ value: method }) },
   };
   G4.PayPalCart = {
@@ -95,6 +106,7 @@ async function harness(handler, method = 'card') {
   };
   vm.runInNewContext(fs.readFileSync('frontend/wwwroot/js/buyer-addresses.js', 'utf8'), context);
   vm.runInNewContext(fs.readFileSync('frontend/wwwroot/js/buyer-cart.js', 'utf8'), context);
+  vm.runInNewContext(fs.readFileSync('frontend/wwwroot/js/buyer-buy-now.js', 'utf8'), context);
   await G4.BuyerCart.init({ tab: noop, loadOrders: async () => {}, showOrder: async () => {} });
   return { element, messages, redirects, calls, controls };
 }
@@ -297,43 +309,74 @@ test('PayPal starts one checkout for the whole cart and preserves the original c
   assert.equal(h.calls.filter((x) => x.route.endsWith('/pay/paypal')).length, 0);
 });
 
-test('Buy It Now creates only the chosen seller order as unpaid and stays on the cart', async () => {
+test('pay only one seller checks out that seller and keeps the other seller in the cart', async () => {
   let submitted;
-  let bought = false;
+  let quotedSellers;
+  let paid = false;
   const rest = { version: 'v2', items: [items[1]] };
   const h = await harness(async (route, verb, body) => {
-    if (route === 'cart') return bought ? rest : cart;
-    if (route === 'cart/quote') return bought ? { ...quoted, sellers: [quoted.sellers[1]] } : quoted;
-    if (route === 'cart/buy-now') {
-      submitted = body;
-      bought = true;
+    if (route === 'cart') return paid ? rest : cart;
+    if (route === 'cart/quote') {
+      quotedSellers = body.sellers.map((x) => x.sellerId);
       return {
-        id: 77,
-        sellerId: 2,
-        status: 'AwaitingPayment',
-        totalPrice: 12,
-        paymentExpiresAt: '2026-11-07T10:05:00',
+        ...quoted,
+        sellers: quoted.sellers.filter((x) => quotedSellers.includes(x.sellerId)),
       };
     }
+    if (route === 'cart/checkout') {
+      submitted = body;
+      paid = true;
+      return [{ id: 77, sellerId: 2, status: 'AwaitingPayment' }];
+    }
+    if (route === 'orders/77/pay/card') return { status: 'Succeeded' };
     throw new Error(route);
   });
-  assert.match(h.element('cart').innerHTML, /Buy It Now/);
-  assert.match(h.element('cart').innerHTML, /\(Không ép trả ngay\)/);
-  await h.element('buy-now-2').onclick();
-  assert.equal(submitted.sellerId, 2);
-  assert.equal(submitted.cartVersion, 'v1');
-  assert.equal(submitted.addressId, 1);
-  assert.equal(submitted.expectedTotal, 12);
-  assert.equal(submitted.pricingFingerprint, 'fp-a');
-  assert.ok(submitted.checkoutKey);
+  assert.doesNotMatch(h.element('cart').innerHTML, /Buy It Now/);
+  assert.match(h.element('cart').innerHTML, /Chỉ thanh toán người bán này/);
+  h.controls('[data-pay-seller]').find((x) => x.dataset.paySeller === '2').onclick();
+  for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(JSON.stringify(quotedSellers), '[2]');
+  assert.match(h.element('checkout-scope').innerHTML, /&lt;Shop A&gt;/);
+  assert.doesNotMatch(h.element('checkout-items').innerHTML, /Item B/);
+  await h.element('pay').onclick();
   assert.equal(
-    h.calls.some((x) => x.route === 'cart/checkout'),
-    false,
+    JSON.stringify(
+      submitted.sellers.map((x) => [x.sellerId, x.expectedTotal, x.pricingFingerprint]),
+    ),
+    JSON.stringify([[2, 12, 'fp-a']]),
   );
-  const last = h.messages.at(-1);
-  assert.equal(last.success, true);
-  assert.match(last.value, /#77/);
-  assert.match(last.value, /Chờ thanh toán/);
+  assert.equal(submitted.cartVersion, 'v1');
+  assert.equal(h.messages.at(-1).success, true);
   assert.doesNotMatch(h.element('cart').innerHTML, /Item A/);
   assert.match(h.element('cart').innerHTML, /Item B/);
+  assert.equal(h.element('checkout-scope').hidden, true);
+});
+
+test('more than 10 sellers hides PayPal for the whole cart but not for one seller', async () => {
+  const many = Array.from({ length: 11 }, (_, i) => ({
+    ...items[0],
+    productId: 100 + i,
+    title: 'Item ' + i,
+    sellerId: 200 + i,
+    sellerName: 'Shop ' + i,
+  }));
+  const h = await harness(async (route, verb, body) => {
+    if (route === 'cart') return { version: 'v1', items: many };
+    if (route === 'cart/quote')
+      return {
+        ...quoted,
+        sellers: body.sellers.map((x) => ({ sellerId: x.sellerId, quote: quoted.sellers[0].quote })),
+      };
+    throw new Error(route);
+  }, 'paypal');
+  h.element('cart-method-paypal').checked = true;
+  h.controls('[data-pay-seller]')[0].onclick();
+  for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(h.element('cart-method-paypal').disabled, false);
+  assert.equal(h.element('paypal-limit-note').hidden, true);
+  h.element('continue').onclick();
+  for (let i = 0; i < 5; i++) await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(h.element('cart-method-paypal').disabled, true);
+  assert.equal(h.element('cart-method-card').checked, true);
+  assert.equal(h.element('paypal-limit-note').hidden, false);
 });

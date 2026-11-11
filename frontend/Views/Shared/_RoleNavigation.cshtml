@@ -71,9 +71,14 @@
         ["identity"] = "M3 4h18v16H3z M7 9a2 2 0 1 0 4 0 2 2 0 0 0-4 0 M6 17v-2a3 3 0 0 1 6 0v2 M15 9h3 M15 13h3",
         ["log"] = "M5 3h14v18H5z M8 8h8 M8 12h8 M8 16h5",
         ["search"] = "M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14 M15 15l6 6",
-        ["shield"] = "m12 2 9 4v6c0 5-9 10-9 10S3 17 3 12V6z M8 12h8"
+        ["shield"] = "m12 2 9 4v6c0 5-9 10-9 10S3 17 3 12V6z M8 12h8",
+        ["store"] = "M3 9l2-5h14l2 5 M3 9h18v2a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0z "
+            + "M5 13v8h14v-8 M10 21v-5h4v5"
     };
     var defaultId = Model == "buyer" ? "summary" : Model == "admin" ? "disputes" : "orders";
+    // The product list is its own page, so it is a link instead of a tab button.
+    var path = Context.Request.Path.Value ?? "";
+    var onProductPage = path.StartsWith("/Buyer/Products", StringComparison.OrdinalIgnoreCase);
 }
 <nav
     class="role-tabs workspace-nav @(Model == "buyer" ? "buyer-nav" : "sidebar-nav")"
@@ -86,6 +91,27 @@
             @if (!string.IsNullOrEmpty(group.Label))
             {
                 <p class="navigation-group-label">@group.Label</p>
+            }
+            @if (Model == "buyer" && group == groups[0])
+            {
+                <a
+                    href="/Buyer/Products"
+                    class="navigation-item @(onProductPage ? "active" : "")"
+                    aria-current="@(onProductPage ? "page" : null)"
+                    data-nav-link="products"
+                >
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.7"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                        focusable="false"
+                    ><path d="@paths["store"]" /></svg>
+                    <span class="navigation-label">Sản phẩm</span>
+                </a>
             }
             @foreach (var item in group.Items)
             {

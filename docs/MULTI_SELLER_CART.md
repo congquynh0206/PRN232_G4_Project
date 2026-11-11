@@ -1,5 +1,12 @@
 # Giỏ hàng hai seller
 
+> **Cập nhật 11/11/2026:** giỏ và một đơn không còn giới hạn số seller hay số sản phẩm
+> (mỗi sản phẩm vẫn 1–5). Buyer thêm sản phẩm từ trang `/Buyer/Products` hoặc dùng Random
+> (vẫn chỉ 2–5 sản phẩm từ đúng hai seller để demo). Checkout cả giỏ quá 10 seller thì
+> ẩn PayPal. Quote/checkout nhận một tập con seller trong giỏ cho
+> "Chỉ thanh toán người bán này"; chỉ nhóm đã thanh toán rời giỏ. Phần giới hạn hai
+> seller bên dưới là lịch sử. Xem [quyết định](BUSINESS_REQUIREMENTS.md).
+
 Buyer tạo giỏ ngẫu nhiên gồm 2–5 sản phẩm khác nhau từ đúng hai seller. Các seller phải có địa chỉ lấy hàng mặc định; hàng phải có giá, khối lượng và còn tồn kho. Không bổ sung trang danh sách hoặc chi tiết sản phẩm.
 
 Giỏ lưu trong bảng `BuyerCart` theo buyer đăng nhập, khôi phục khi mở lại trang hoặc đăng nhập lại. Buyer đổi số lượng (1–5), xóa sản phẩm hoặc tạo giỏ mới. Tạo giỏ mới thay thế giỏ cũ. Giỏ chưa giữ tồn kho hay lượt khuyến mãi. Phiên bản giỏ ngăn hai tab ghi đè thay đổi; khi báo xung đột, bấm **Tải lại giỏ**. Nếu xóa hết hàng của một seller, checkout một seller vẫn hoạt động.

@@ -26,13 +26,21 @@
     document.querySelectorAll('.tab-panel').forEach((panel) => {
       panel.classList.toggle('active', panel.id === id);
     });
-    const selectedId = id === 'checkout' ? 'summary' : id;
+    // Buy It Now checkout (?product=) belongs to "Sản phẩm"; cart checkout to "Giỏ hàng".
+    const buyNow = id === 'checkout' && new URLSearchParams(location.search).has('product');
+    const selectedId = id === 'checkout' ? (buyNow ? null : 'summary') : id;
     nav.querySelectorAll('[data-tab]').forEach((button) => {
       const active = button.dataset.tab === selectedId;
       button.classList.toggle('active', active);
       if (active) button.setAttribute('aria-current', 'page');
       else button.removeAttribute('aria-current');
     });
+    const products = nav.querySelector('[data-nav-link="products"]');
+    if (products) {
+      products.classList.toggle('active', buyNow);
+      if (buyNow) products.setAttribute('aria-current', 'page');
+      else products.removeAttribute('aria-current');
+    }
     const label = id === 'checkout' ? 'Thanh toán' : nav.querySelector('.active').dataset.navLabel;
     if ($('navigation-current')) $('navigation-current').textContent = label;
     document.title = `${label} - eBay`;

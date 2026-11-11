@@ -166,6 +166,24 @@
     ]);
     restore();
     renderFilters();
+    openRequestedOffer();
+  }
+
+  // "Trả giá" on the product page links here with ?offer={productId}; open that form once.
+  function openRequestedOffer() {
+    const url = new URL(location.href);
+    const productId = url.searchParams.get('offer');
+    if (!productId) return;
+    url.searchParams.delete('offer');
+    history.replaceState(history.state, '', url);
+    const compose = document.getElementById(`offer-compose-${productId}`);
+    if (!compose) {
+      G4.message('Sản phẩm này hiện không nhận trả giá hoặc bạn đã hết lượt trả giá.', false);
+      return;
+    }
+    compose.open = true;
+    compose.scrollIntoView({ block: 'center' });
+    compose.querySelector('input[name="amount"]')?.focus({ preventScroll: true });
   }
 
   async function sellerLoad() {

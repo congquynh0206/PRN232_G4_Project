@@ -891,14 +891,15 @@ public sealed class CheckoutService(
         bool skipInventory = false
     )
     {
+        // Decision 11/11/2026: no limit on distinct products per order; quantity stays 1-5.
         if (
             request.Items is null
-            || request.Items.Count is < 1 or > 5
+            || request.Items.Count < 1
             || request.Items.Any(i => i.Quantity is < 1 or > 5)
             || request.Items.Select(i => i.ProductId).Distinct().Count() != request.Items.Count
         )
             throw new ArgumentException(
-                "Giỏ hàng cần từ 1 đến 5 sản phẩm khác nhau, mỗi sản phẩm có số lượng từ 1 đến 5."
+                "Đơn hàng cần ít nhất 1 sản phẩm khác nhau, mỗi sản phẩm có số lượng từ 1 đến 5."
             );
         var address =
             await db.Addresses.AsNoTracking().SingleOrDefaultAsync(

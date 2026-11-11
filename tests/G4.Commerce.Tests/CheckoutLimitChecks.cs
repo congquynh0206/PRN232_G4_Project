@@ -7,9 +7,65 @@ internal static class CheckoutLimitChecks
     public static async Task RunAsync()
     {
         await SellerCountAsync();
+        await ProductCountAsync();
         await QuantityAsync();
         Console.WriteLine(
-            "Checkout limits: at most two sellers, quantities 1-5 across cart/quote/create, rejected requests preserve data, legacy retries passed"
+            "Checkout limits: any number of sellers and products, quantities 1-5 across cart/quote/create, rejected requests preserve data, legacy retries passed"
+        );
+    }
+
+    // Decision 11/11/2026: the cart and one seller order may hold more than five products.
+    private static async Task ProductCountAsync()
+    {
+        await using var db = await FixtureAsync();
+        for (var id = 4; id <= 8; id++)
+        {
+            db.Products.Add(
+                new Product
+                {
+                    Id = id,
+                    SellerId = 2,
+                    Title = "Extra " + id,
+                    Price = 10m,
+                    WeightKg = .5m,
+                }
+            );
+            db.Inventories.Add(new Inventory { Id = id, ProductId = id, Quantity = 20 });
+        }
+        await db.SaveChangesAsync();
+        var carts = new BuyerCartService(db, new CheckoutService(db));
+        var cart = await carts.GetAsync(1);
+        cart = await carts.SaveAsync(
+            1,
+            new(cart.Version, Enumerable.Range(1, 8).Select(id => new CartLine(id, 1)).ToArray())
+        );
+        Check(cart.Items.Count == 8, "the cart accepts more than five products");
+        var sellers = cart
+            .Items.Select(x => x.SellerId!.Value)
+            .Distinct()
+            .Select(x => new SellerCheckoutRequest(x))
+            .ToArray();
+        var quote = await carts.QuoteAsync(1, new(1, cart.Version, sellers, "many-quote"));
+        var orders = await carts.CheckoutAsync(
+            1,
+            new(
+                1,
+                cart.Version,
+                quote
+                    .Sellers.Select(x => new SellerCheckoutRequest(
+                        x.SellerId,
+                        null,
+                        x.Quote.Total,
+                        x.Quote.PricingFingerprint
+                    ))
+                    .ToArray(),
+                "many-checkout"
+            )
+        );
+        var big = orders.Single(x => x.SellerId == 2);
+        Check(
+            await db.OrderItems.CountAsync(x => x.OrderId == big.Id) == 6,
+            "one seller order may contain six products"
         );
     }
 
@@ -18,36 +74,40 @@ internal static class CheckoutLimitChecks
         await using var db = await FixtureAsync();
         var carts = new BuyerCartService(db, new CheckoutService(db));
         var cart = await carts.GetAsync(1);
-        cart = await carts.SaveAsync(1, new(cart.Version, [new(1, 1), new(2, 5)]));
-        var before = await SnapshotAsync(db);
-        await RejectAsync(() =>
-            carts.SaveAsync(1, new(cart.Version, [new(1, 1), new(2, 5), new(3, 1)]))
+        // Decision 11/11/2026: the cart has no seller limit (one order per seller still).
+        cart = await carts.SaveAsync(1, new(cart.Version, [new(1, 1), new(2, 5), new(3, 1)]));
+        Check(
+            cart.Items.Select(x => x.SellerId).Distinct().Count() == 3,
+            "a cart may hold three sellers"
+        );
+        var sellers = cart
+            .Items.Select(x => new SellerCheckoutRequest(x.SellerId!.Value))
+            .ToArray();
+        var quote = await carts.QuoteAsync(1, new(1, cart.Version, sellers, "three-quote"));
+        Check(quote.Sellers.Count == 3, "the quote covers every seller in the cart");
+        var orders = await carts.CheckoutAsync(
+            1,
+            new(
+                1,
+                cart.Version,
+                quote
+                    .Sellers.Select(x => new SellerCheckoutRequest(
+                        x.SellerId,
+                        null,
+                        x.Quote.Total,
+                        x.Quote.PricingFingerprint
+                    ))
+                    .ToArray(),
+                "three-checkout"
+            )
         );
         Check(
-            await SnapshotAsync(db) == before,
-            "rejecting a third seller must preserve persisted cart, version, stock and checkout data"
+            orders.Count == 3 && orders.Select(x => x.SellerId).Distinct().Count() == 3,
+            "checkout creates one order per seller"
         );
-
-        // A cart saved before this fix may already contain three sellers. Validate
-        // all requested lines, including unchanged ones, while allowing its repair.
-        var stored = await db.BuyerCarts.SingleAsync();
-        stored.ItemsJson = JsonSerializer.Serialize(
-            new CartLine[] { new(1, 1), new(2, 1), new(3, 1) }
-        );
-        await db.SaveChangesAsync();
-        before = await SnapshotAsync(db);
-        await RejectAsync(() =>
-            carts.SaveAsync(1, new(stored.Version, [new(1, 1), new(2, 1), new(3, 1)]))
-        );
-        Check(
-            await SnapshotAsync(db) == before,
-            "an unchanged legacy three-seller cart must also be rejected without writes"
-        );
-        cart = await carts.SaveAsync(1, new(stored.Version, [new(1, 1), new(2, 1)]));
-        Check(
-            cart.Items.Select(x => x.SellerId).Distinct().Count() == 2,
-            "legacy cart can be reduced to two sellers"
-        );
+        cart = await carts.GetAsync(1);
+        Check(cart.Items.Count == 0, "paying every seller empties the cart");
+        cart = await carts.SaveAsync(1, new(cart.Version, [new(1, 1), new(2, 1)]));
 
         // Existing unavailable items must remain removable after the new check.
         (await db.Products.FindAsync(1))!.Price = null;
@@ -255,7 +315,7 @@ internal static class CheckoutLimitChecks
             return;
         }
         throw new Exception(
-            "Invalid seller count or quantity was accepted instead of raising ArgumentException"
+            "Invalid quantity was accepted instead of raising ArgumentException"
         );
     }
 

@@ -171,7 +171,7 @@ async function main() {
         continue;
       }
       const nav = page.locator('[data-role-navigation]');
-      const expected = role === 'buyer' ? 5 : role === 'seller' ? 12 : 9;
+      const expected = role === 'buyer' ? 6 : role === 'seller' ? 12 : 9;
       await page.waitForFunction(() => !!G4.Navigation.current);
       assert.equal(await nav.locator('[data-tab]').count(), expected);
       assert.equal(await nav.locator('[data-tab=checkout]').count(), 0);

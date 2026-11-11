@@ -92,9 +92,22 @@ SQL để duyệt: database/immediate-checkout-migration.sql (migration đầu) 
 | POST | buyer/immediate-checkouts/{guid}/pay/card | Pay Now, Number/Expiry/Key |
 | POST | buyer/immediate-checkouts/{guid}/reconcile | Owner kiểm tra và khôi phục attempt |
 
+**Cập nhật 11/11/2026:** `/Buyer/Products` là trang Sản phẩm chung (menu buyer), mỗi
+sản phẩm có Buy It Now / Thêm vào giỏ / Trả giá; `catalog/products` trả thêm seller, ảnh
+và `allowOffers`. Sản phẩm Immediate có nhãn "Yêu cầu thanh toán ngay", không thêm được
+vào giỏ, checkout chỉ hiện credit card và nút đổi tên "Xác nhận và thanh toán". Sản phẩm
+thường cũng dùng trang checkout này nhưng tạo đơn rồi thu tiền ngay bằng credit card,
+PayPal hoặc Klarna. PayPal cho Immediate chưa làm (đợt riêng).
+
+**Cập nhật 11/11/2026 (2):** bỏ trang riêng `/Buyer/Checkout` (link cũ chuyển hướng). Buy It
+Now mở tab Thanh toán `/Buyer?tab=checkout&product={id}#checkout` (`buyer-buy-now.js`, tab
+do `buyer-cart.js` quản lý): báo giá tự tính theo địa chỉ/số lượng/mã qua `POST quote`;
+sản phẩm Immediate chỉ tạo session khi bấm "Xác nhận và thanh toán" (tổng session khác báo
+giá đang xem thì dừng để buyer xác nhận lại), cùng session được thử lại với key mới sau
+thẻ lỗi. Đổi số lượng/mã/địa chỉ thì tạo session mới.
+
 Seller: /Seller/Products. Buyer: /Buyer/Products chỉ là danh sách; Buy It Now
-chuyển sang trang riêng /Buyer/Checkout?product={id} (giao diện như tab Thanh toán,
-chỉ thẻ giả lập). Sau khi lấy báo giá, URL thêm &checkout={session}. UI giữ session qua URL,
+mở tab Thanh toán như trên. Khi đã tạo session, URL thêm &checkout={session}. UI giữ session qua URL,
 khóa double submit, xóa số thẻ sau gửi và không cho thanh toán lại khi Pending/
 Verifying. Chỉ báo Void/Refund đã xong sau kết quả server. Order History và Seller
 Order Management dùng dữ liệu Paid hiện có. Normal checkout vẫn tạo unpaid order
@@ -165,11 +178,11 @@ InMemory. Webhook ngoài không được bật; query/reconciliation là luồng
 - backend/G4.Infrastructure/Persistence/Migrations/20261108151440_AddSimulatedCardRefundHistory.cs
 - Designer của hai migration và ApplicationDbContextModelSnapshot.cs
 - backend/G4.Api/Controllers/ImmediateCheckoutController.cs
-- frontend/wwwroot/js/immediate-checkout.js
+- frontend/wwwroot/js/buyer-buy-now.js (thay immediate-checkout.js từ 11/11/2026)
 - tests/G4.Commerce.Tests/ImmediateCheckoutChecks.cs
 - tests/G4.Commerce.Tests/ImmediateAuthorizationChecks.cs
 - tests/G4.Commerce.Tests/ImmediateCheckoutSqlChecks.cs
-- tests/immediate-checkout-ui.test.cjs
+- tests/buyer-buy-now-ui.test.cjs (thay immediate-checkout-ui.test.cjs)
 - database/immediate-authorization-saga-migration.sql
 - docs/BUSINESS_REQUIREMENTS.md, docs/IMPLEMENTATION_BACKLOG.md,
   docs/PROJECT_RUN.md, docs/BUYER_CHECKOUT_FLOW.md, docs/IMMEDIATE_PAYMENT.md

@@ -1,5 +1,16 @@
 # Luồng màn hình checkout buyer
 
+> **Cập nhật 11/11/2026:** có ba lối vào checkout. (1) Trang Sản phẩm → **Buy It Now** →
+> tab Thanh toán `/Buyer?tab=checkout&product={id}#checkout` với một món (cùng giao diện
+> địa chỉ/phương thức/tổng kết với giỏ, không đụng giỏ; link cũ `/Buyer/Checkout` chuyển
+> hướng về đây): sản phẩm thường chọn credit card / PayPal /
+> Klarna, bấm **Xác nhận và thanh toán** thì tạo đơn (`POST api/orders`, khóa checkout cố
+> định) rồi thu tiền ngay; thẻ lỗi thì thử lại trên cùng đơn hoặc trả sau ở Đơn hàng.
+> Sản phẩm Immediate chỉ credit card và giữ luồng authorize/capture bên dưới. (2) Giỏ →
+> **Tiếp tục thanh toán** cho cả giỏ. (3) Giỏ → **Chỉ thanh toán người bán này** cho một
+> nhóm. Nút thanh toán đổi tên thành "Xác nhận và thanh toán". Sơ đồ Archify bên dưới là
+> bản 25/10, chưa vẽ lại.
+
 Đối chiếu source tại commit `e7997b03bd86bb5160332dd94bd5dc853b441963` ngày
 25/10/2026. Đây là luồng đang có trong source, không phải đề xuất màn hình mới.
 
