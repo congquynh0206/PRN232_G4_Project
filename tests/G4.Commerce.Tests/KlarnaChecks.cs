@@ -20,6 +20,8 @@ internal static class KlarnaChecks
         await RejectProviderMismatch();
         await FailedSessionStaysRetryable();
         await CancelledSessionReleasesAttempt();
+        await CancelUrlDisablesDeclinedSession();
+        await CancelUrlKeepsCompletedAuthorization();
         await MaintenanceReconcilesAbandonedSession();
         await MaintenanceDisablesExpiredSession();
         await VoidUncapturedAuthorization();
@@ -92,6 +94,41 @@ internal static class KlarnaChecks
         Check((await service.ReconcileAsync(id)).Status == "Failed", "HPP cancellation is final");
         await service.StartAsync(id, "klarna-new-key");
         Check(fake.StartCount == 2, "new payment key after cancellation");
+    }
+
+    private static async Task CancelUrlDisablesDeclinedSession()
+    {
+        await using var db = Memory();
+        var id = await Seed(db);
+        var fake = new Gateway { HppStatus = "FAILED" };
+        var service = Service(db, fake);
+        await service.StartAsync(id, "klarna-declined-then-cancel");
+        var abandoned = await service.AbandonAsync(id);
+        Check(fake.DisableCount == 1 && abandoned?.Status == "Failed" && abandoned.ErrorCode == "DISABLED",
+            "cancel URL disables a declined HPP session and ends the attempt");
+        Check((await service.AbandonAsync(id))?.Status == "Failed" && fake.DisableCount == 1,
+            "repeated cancel does not disable again");
+        Check((await db.OrderTables.SingleAsync(x => x.Id == id)).Status == "AwaitingPayment"
+            && !await db.SellerSettlements.AnyAsync(), "order stays payable without seller credit");
+        await new CheckoutService(db, Finance(db), Config).PayCardAsync(
+            id, "4111111111111111", "12/30", "card-after-klarna-cancel");
+        Check((await db.OrderTables.SingleAsync(x => x.Id == id)).Status == "Paid",
+            "buyer can pay with another method right after cancelling Klarna");
+    }
+
+    private static async Task CancelUrlKeepsCompletedAuthorization()
+    {
+        await using var db = Memory();
+        var id = await Seed(db);
+        var fake = new Gateway { HppStatus = "COMPLETED" };
+        var service = Service(db, fake);
+        await service.StartAsync(id, "klarna-late-approval");
+        Check((await service.AbandonAsync(id))?.Status == "Authorized" && fake.DisableCount == 0,
+            "a session Klarna already completed is reconciled, not disabled");
+        await using var empty = Memory();
+        var noAttempt = await Seed(empty);
+        Check(await Service(empty, new Gateway()).AbandonAsync(noAttempt) == null,
+            "cancel without a Klarna attempt is a no-op");
     }
 
     private static async Task MaintenanceReconcilesAbandonedSession()

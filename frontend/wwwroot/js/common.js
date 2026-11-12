@@ -70,6 +70,11 @@
   function friendlyError(status, raw) {
     if (status !== 500 && /[À-ỹ]/.test(String(raw || ''))) return raw;
     const value = String(raw || '').toLowerCase();
+    if (/monthly sales limit/.test(value))
+      return (
+        'Shop đã chạm hạn mức doanh số tháng nên chưa thể nhận thêm đơn này. ' +
+        'Vui lòng giảm giá trị đơn hoặc mua từ shop khác.'
+      );
     if (/coupon|promotion|discount/.test(value))
       return 'Mã giảm giá chưa áp dụng được. Vui lòng kiểm tra điều kiện sử dụng hoặc thử mã khác.';
     if (/card|expiry|payment|paypal|klarna/.test(value))

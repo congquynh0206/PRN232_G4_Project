@@ -70,10 +70,11 @@ test('buyer checkout and return routes wire the order-specific flow', () => {
   assert.match(orders, /G4\.Klarna\.reconcile\(id\)\.then/);
   assert.match(orders, /}, 30000\)/);
   assert.match(controller, /KlarnaReturn\(int orderId, CancellationToken ct\)/);
-  assert.match(controller, /KlarnaCancel\(int orderId\)/);
+  assert.match(controller, /KlarnaCancel\(int orderId, CancellationToken ct\)/);
   assert.match(controller, /api\/orders\/\{orderId\}\/pay\/klarna\/reconcile/);
+  assert.match(controller, /api\/orders\/\{orderId\}\/pay\/klarna\/cancel/);
   assert.match(controller, /User\.FindFirstValue\("access_token"\)/);
-  assert.match(controller, /KlarnaCancel[\s\S]*?paymentResult = "cancelled"/);
+  assert.match(controller, /KlarnaCancel[\s\S]*?status == "Failed" \? "cancelled"/);
 });
 
 test('uncertain start reuses key; terminal reconciliation permits a fresh attempt', async () => {

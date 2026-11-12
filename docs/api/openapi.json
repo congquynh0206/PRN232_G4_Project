@@ -2848,6 +2848,29 @@
         }
       }
     },
+    "/api/orders/{id}/pay/klarna/cancel": {
+      "post": {
+        "tags": [
+          "Payments"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/seller/orders/{id}/refund": {
       "post": {
         "tags": [

@@ -97,6 +97,17 @@ public sealed class PaymentsController(
         return Ok(new { payment.Id, payment.Status, payment.ErrorCode });
     }
 
+    [HttpPost("orders/{id:int}/pay/klarna/cancel")]
+    public async Task<IActionResult> CancelKlarna(int id, CancellationToken ct)
+    {
+        if (!IsAvailable || !HasRole("buyer")) return StatusCode(403);
+        if (!await db.OrderTables.AnyAsync(o => o.Id == id && o.BuyerId == CurrentUserId, ct)) return StatusCode(403);
+        var payment = await klarna.AbandonAsync(id, ct);
+        return payment is null
+            ? NotFound()
+            : Ok(new { payment.Id, payment.Status, payment.ErrorCode });
+    }
+
     [HttpPost("seller/orders/{id:int}/refund")]
     [RequirePassword("seller", "Xác nhận hoàn tiền")]
     public async Task<IActionResult> Refund(int id, ReasonRequest request, CancellationToken ct)

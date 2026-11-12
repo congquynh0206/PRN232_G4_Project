@@ -68,7 +68,7 @@ bốn vai trò. Cách dùng chức năng nằm ở End-user Manual và Administr
 | API | `http://localhost:5251` (HTTPS `7087`) | `http://localhost:5257` | `http://localhost:8080` |
 | Swagger | `http://localhost:5251/swagger` | `http://localhost:5257/swagger` | `http://localhost:8080/swagger` |
 | SQL Server | theo máy (thường `localhost,1433`) | theo máy | `localhost,14333` |
-| MailHog | SMTP `1025`, web `http://localhost:8025` | không dùng (Mail Capture) | SMTP `1025`, web `8025` |
+| MailHog | SMTP `1025`, web `http://localhost:8025` | mặc định Mail Capture; `-UseMailHog` gửi SMTP `1025` | SMTP `1025`, web `8025` |
 | Nginx (demo tải) | — | — | `http://127.0.0.1:8088` |
 
 ---
@@ -192,7 +192,10 @@ User Secrets. Nó dùng:
 
 - Database `G4_Demo` qua Windows Authentication.
 - Khóa HMAC demo cố định khớp với định danh seller giả lập trong dữ liệu.
-- `Mail:Mode = Capture`: email chỉ lưu trong ứng dụng, không cần MailHog.
+- `Mail:Mode = Capture`: email chỉ lưu trong ứng dụng, không cần MailHog. Muốn xem thư
+  trong MailHog, bật `start-mailhog.cmd` rồi chạy API kèm `-UseMailHog`:
+  `...\Run-Demo.ps1 -App Api -SqlServer localhost -UseMailHog`. Chế độ này gửi SMTP tới
+  `127.0.0.1:1025`; thư đã Capture trước đó không được gửi lại.
 - Bộ đếm thời gian demo dài hơn (cửa sổ trả hàng, tranh chấp 6 giờ) để kịp trình diễn.
 
 Nếu SQL Server dùng instance khác, đổi `-SqlServer`. Nếu chạy script từ ngoài repo, thêm
@@ -614,6 +617,7 @@ RESTORE DATABASE CloneEbayDB FROM DISK = N'D:\Backup\CloneEbayDB.bak' WITH REPLA
 | `dotnet ef` báo không tìm thấy lệnh | Chưa cài công cụ EF | `dotnet tool install --global dotnet-ef --version 8.0.*` |
 | Đăng nhập được nhưng các trang báo lỗi 401/403 | API chạy HTTPS profile trong khi frontend gọi HTTP, hoặc API không ở Development | Dùng profile `http` cho cả hai (mục 6) |
 | Không thấy email | MailHog chưa bật | Chạy `start-mailhog.cmd`, hoặc đặt `Mail__Mode=Capture` để xem email trong ứng dụng |
+| MailHog trống khi chạy demo | `Run-Demo.ps1` mặc định Mail Capture | Chạy lại API demo kèm `-UseMailHog` |
 | Thông báo không cập nhật theo thời gian thực | Origin frontend không có trong `Realtime:AllowedOrigins` hoặc sai `Realtime:PublicApiBaseUrl` | Cập nhật hai khóa này theo cổng thực tế rồi khởi động lại |
 | Đăng nhập báo HTTP 429 | Vượt giới hạn đăng nhập (10 lần/60 giây theo IP) | Đợi khoảng 1 phút |
 | Định danh seller cũ báo không khớp | Khóa HMAC bị đổi hoặc mất thư mục `.local-security` | Khôi phục khóa cũ; với `G4_Demo` luôn chạy qua `Run-Demo.ps1` |

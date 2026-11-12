@@ -41,6 +41,12 @@ hợp đồng/settlement feed.
    `BACK`, `ERROR` chưa kết thúc và có thể thử tiếp cùng phiên; `CANCELLED` và
    `DISABLED` kết thúc lượt. Worker đọc lại các phiên Pending ngay cả khi buyer
    đóng tab. Trước khi hết hạn và giải phóng stock, worker tắt HPP rồi đối chiếu.
+   Nếu buyer quay về qua cancel URL (`/Buyer/KlarnaCancel`), frontend gọi
+   `POST /api/orders/{id}/pay/klarna/cancel`: server đối chiếu trước, nếu phiên
+   vẫn `Pending` (ví dụ bị từ chối rồi thoát, HPP `FAILED`/`BACK`) thì tắt HPP rồi
+   đối chiếu lại. Payment thành `Failed` (`DISABLED`) ngay, buyer chọn được thẻ,
+   PayPal hoặc lượt Klarna mới thay vì chờ worker tới hạn. Phiên Klarna đã
+   `COMPLETED` thì chỉ được ghi nhận `Authorized`, không bị tắt.
 4. Seller tạo vận đơn outbound: capture toàn bộ một lần với idempotency key.
    Kết quả mạng chưa rõ giữ `Verifying`, không giao khi chưa xác minh; worker
    đọc trạng thái capture rồi mới ghi nhận tiền, consume coupon và ghi ledger.
@@ -108,7 +114,8 @@ dotnet ef migrations has-pending-model-changes --project backend/G4.Infrastructu
 
 Test gateway HTTP giả lập và service InMemory chứng minh hợp đồng request,
 trạng thái HPP, idempotency, capture/refund/cancel, lệch amount, stock/finance
-và không credit khi mới authorize. Không chứng minh Klarna sẽ duyệt người mua,
+và không credit khi mới authorize. Hủy từ cancel URL: tắt phiên bị từ chối một
+lần, thanh toán thẻ ngay sau đó, không tắt phiên đã `COMPLETED`. Không chứng minh Klarna sẽ duyệt người mua,
 trả tiền/settle ở thời điểm nào, hoàn tiền vào ngân hàng, hoặc giao dịch thật.
 Cần QA end-to-end trên Merchant playground với credential do nhóm cung cấp;
 không seed payment Klarna `Succeeded` giả vào database chính.
