@@ -11,6 +11,7 @@
 | Đối chiếu source/test thực tế ngày 19/10, lỗi đã tái hiện | [IMPLEMENTATION_AUDIT_2026-10-19.md](IMPLEMENTATION_AUDIT_2026-10-19.md) |
 | Chạy API/frontend, database và cấu hình hiện tại | [PROJECT_RUN.md](PROJECT_RUN.md) |
 | Cài đặt và triển khai từ đầu (tài liệu nộp) | [INSTALLATION_DEPLOYMENT_GUIDE.md](INSTALLATION_DEPLOYMENT_GUIDE.md) |
+| Danh sách API (tài liệu nộp) | [API_DOCUMENTATION.md](API_DOCUMENTATION.md), [OpenAPI JSON](api/openapi.json) |
 | Đồng hồ demo tại thao tác và tiền giữ từng đơn | [DEMO_COUNTDOWNS.md](DEMO_COUNTDOWNS.md) |
 | Phân lớp và nơi đặt code | [BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md) |
 | Yêu cầu chi tiết B2/B1/A1/S1 vẫn còn hiệu lực | [FOUR_TASK_REQUIREMENTS_2026-10-17.md](FOUR_TASK_REQUIREMENTS_2026-10-17.md) |
