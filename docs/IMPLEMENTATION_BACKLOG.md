@@ -79,6 +79,18 @@ Nguồn: ghi chú review 10/11/2026 và quyết định của người dùng ng�
   test UI. Chưa QA trên playground thật; không có migration.
 ## PERF2 — Nginx chia tải catalog qua hai API
 
+- **Bổ sung realtime nhiều instance (11/11/2026):** API có cấu hình tùy chọn Redis
+  SignalR backplane; Nginx demo chuyển tiếp `/api/` và WebSocket `/hubs/`; Compose
+  chỉ bật `CommerceChangeWorker` trên `api-a` bằng `Realtime:DispatcherEnabled`,
+  đồng thời giữ worker bảo trì tắt. Hướng dẫn và kịch bản ở [NGINX.md](NGINX.md).
+  Đã build API trong Docker, chạy đủ 5 service, `nginx -t` thành công; 6 request
+  catalog đều HTTP 200 và chia luân phiên qua hai API. Browser báo SignalR connected;
+  log Nginx có negotiate 200 và WebSocket 101 tới api-b trong khi dispatcher ở
+  api-a. CommerceChange `2653` (`notification-inbox`) được đánh dấu dispatched
+  khoảng 0,1 giây sau khi tạo. Bằng chứng do người dùng chạy trên Docker Desktop
+  ngày 11/11; chưa có client-side ack riêng để khẳng định browser nhận đúng callback.
+  Chưa áp migration. Dispatcher hiện là single instance, chưa HA khi `api-a` dừng.
+
 - Compose demo riêng chỉ publish Nginx trên loopback. Nginx chia GET catalog qua
   hai API, chuyển POST login tới `api-a` và trả 404 cho route ngoài demo. Hai API
   dùng JWT chung và tắt worker bảo trì/phát thông báo. [Cách chạy](NGINX.md).
