@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.14.36429.23
@@ -27,6 +27,10 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "shared", "shared", "{4F52FD11-658E-A102-6CD3-7D7C16FFA15B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "G4.WebCommon", "shared\G4.WebCommon\G4.WebCommon.csproj", "{00F02232-CD65-48C4-A3C6-75E4CE9125A9}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "G4.RealtimeSmoke", "tests\G4.RealtimeSmoke\G4.RealtimeSmoke.csproj", "{E7DC9535-6CF3-4DC2-B0B0-506CABC7CD5A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -134,6 +138,18 @@ Global
 		{00F02232-CD65-48C4-A3C6-75E4CE9125A9}.Release|x64.Build.0 = Release|Any CPU
 		{00F02232-CD65-48C4-A3C6-75E4CE9125A9}.Release|x86.ActiveCfg = Release|Any CPU
 		{00F02232-CD65-48C4-A3C6-75E4CE9125A9}.Release|x86.Build.0 = Release|Any CPU
+		{E7DC9535-6CF3-4DC2-B0B0-506CABC7CD5A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E7DC9535-6CF3-4DC2-B0B0-506CABC7CD5A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E7DC9535-6CF3-4DC2-B0B0-506CABC7CD5A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E7DC9535-6CF3-4DC2-B0B0-506CABC7CD5A}.Debug|x64.Build.0 = Debug|Any CPU
+		{E7DC9535-6CF3-4DC2-B0B0-506CABC7CD5A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{E7DC9535-6CF3-4DC2-B0B0-506CABC7CD5A}.Debug|x86.Build.0 = Debug|Any CPU
+		{E7DC9535-6CF3-4DC2-B0B0-506CABC7CD5A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E7DC9535-6CF3-4DC2-B0B0-506CABC7CD5A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E7DC9535-6CF3-4DC2-B0B0-506CABC7CD5A}.Release|x64.ActiveCfg = Release|Any CPU
+		{E7DC9535-6CF3-4DC2-B0B0-506CABC7CD5A}.Release|x64.Build.0 = Release|Any CPU
+		{E7DC9535-6CF3-4DC2-B0B0-506CABC7CD5A}.Release|x86.ActiveCfg = Release|Any CPU
+		{E7DC9535-6CF3-4DC2-B0B0-506CABC7CD5A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -146,6 +162,7 @@ Global
 		{57700517-D378-468C-965B-ECA2CB293A5F} = {1AE8ACA6-933B-BF2A-3671-3E2EAC007D16}
 		{802FD92D-7DAB-4A0B-82DF-5B66CF810D58} = {1AE8ACA6-933B-BF2A-3671-3E2EAC007D16}
 		{00F02232-CD65-48C4-A3C6-75E4CE9125A9} = {4F52FD11-658E-A102-6CD3-7D7C16FFA15B}
+		{E7DC9535-6CF3-4DC2-B0B0-506CABC7CD5A} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {B7FB4688-3C3B-465D-A0E7-645811301DC4}
