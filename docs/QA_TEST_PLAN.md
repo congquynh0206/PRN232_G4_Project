@@ -46,7 +46,7 @@ Script tự kiểm: Docker stack, Nginx config, login, chia tải, failover, rea
 powershell -ExecutionPolicy Bypass -File scripts\Test-RealtimeCrossInstance.ps1
 ```
 
-Script chỉ làm việc với **G4_Demo**: đưa một notification demo của buyer về unread, gọi API thật `POST /api/me/notifications/{id}/read`, rồi kiểm:
+Script chỉ làm việc với **G4_Demo**: đưa một notification demo của buyer về unread, gọi API thật `POST /api/me/notifications/{id}/read`, rồi kiểm. Để bằng chứng xuyên instance không bị sai vì IP host luôn hash về `api-a`, script build smoke client, chạy nó trong mạng Docker tạm `172.23.0.0/24` nối riêng với Nginx, rồi dọn mạng đó ở `finally`.
 
 1. hai client buyer SignalR qua Nginx nhận topic `notification-inbox` với version mới;
 2. seller không liên quan không nhận event;

@@ -43,6 +43,31 @@ $sql = @(
 $results = New-Object System.Collections.Generic.List[object]
 $apiBStopped = $false
 
+$previousJavaHome = $null
+$previousJavaPath = $null
+
+function Find-JMeterJavaHome {
+    $roots = @(
+        'C:\Program Files\Microsoft',
+        'C:\Program Files\Eclipse Adoptium',
+        'C:\Program Files\Java'
+    )
+    $candidates = foreach ($root in $roots) {
+        if (Test-Path $root) {
+            Get-ChildItem $root -Directory -Filter 'jdk-21*' -ErrorAction SilentlyContinue |
+                Sort-Object Name -Descending |
+                ForEach-Object { $_.FullName }
+        }
+    }
+    foreach ($candidate in $candidates) {
+        if (Test-Path (Join-Path $candidate 'bin\java.exe')) {
+            return $candidate
+        }
+    }
+    throw 'JMeter 5.6.3 needs a supported JDK (8-21). Install JDK 21 and set JAVA_HOME.'
+}
+
+
 function Write-Step([string]$Text) {
     Write-Host ''
     Write-Host "=== $Text ===" -ForegroundColor Cyan
@@ -277,6 +302,11 @@ try {
         Add-Result 'JMeter do tai' 'SKIP' "khong thay $JMeterPath (dung -JMeterPath)"
         Add-Result 'JMeter rate limit' 'SKIP' 'khong co JMeter'
     } else {
+        $previousJavaHome = $env:JAVA_HOME
+        $env:JAVA_HOME = Find-JMeterJavaHome
+        $previousJavaPath = $env:Path
+        $env:Path = "$(Join-Path $env:JAVA_HOME 'bin');$env:Path"
+        Write-Host "    JMeter uses JAVA_HOME=$env:JAVA_HOME" -ForegroundColor DarkGray
         $target = @('-Jprotocol=http', '-Jhost=127.0.0.1', '-Jport=8088')
         New-Item -ItemType Directory -Force -Path $RunDir | Out-Null
 
@@ -412,6 +442,14 @@ try {
         Invoke-Native { docker @compose start api-b } -Quiet | Out-Null
     }
     Remove-Item Env:G4_JMETER_BUYER_TOKEN -ErrorAction SilentlyContinue
+    if ($null -ne $previousJavaHome) {
+        $env:JAVA_HOME = $previousJavaHome
+    } else {
+        Remove-Item Env:JAVA_HOME -ErrorAction SilentlyContinue
+    }
+    if ($null -ne $previousJavaPath) {
+        $env:Path = $previousJavaPath
+    }
     $client.Dispose()
     if ($Down) {
         Invoke-Native { docker @compose down } -Quiet | Out-Null

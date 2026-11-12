@@ -15,7 +15,7 @@
 #>
 param(
     [string]$BuyerEmail = 'buyer@demo.test',
-    [string]$SellerEmail = 'seller@demo.test',
+    [string]$SellerEmail = 'seller.l1@demo.test',
     [string]$Password = 'G4@123456',
     [int]$TimeoutSeconds = 15
 )
@@ -27,7 +27,7 @@ $ComposeFile = 'docker-compose.nginx.yml'
 $compose = @('compose', '-f', $ComposeFile)
 $sql = @(
     'exec', '-T', '-e', 'SQLCMDPASSWORD=G4@123456Strong!', 'sqlserver',
-    '/opt/mssql-tools18/bin/sqlcmd', '-S', 'localhost', '-U', 'sa', '-C', '-I', '-b'
+    '/opt/mssql-tools18/bin/sqlcmd', '-S', 'localhost', '-U', 'sa', '-d', 'G4_Demo', '-C', '-I', '-b'
 )
 $baseUrl = 'http://127.0.0.1:8088'
 
@@ -95,11 +95,64 @@ if (-not [long]::TryParse($minimumVersion, [ref]$parsedMinimumVersion)) {
 
 $startedAt = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
 Write-Host "Prepared buyer notification $notificationId. Waiting for CommerceChanged version > $minimumVersion..." -ForegroundColor Cyan
-& dotnet run --project tests/G4.RealtimeSmoke/G4.RealtimeSmoke.csproj --configuration Release -- `
-    --base-url $baseUrl --buyer-email $BuyerEmail --seller-email $SellerEmail `
-    --password $Password --min-version $minimumVersion --timeout-seconds $TimeoutSeconds
-if ($LASTEXITCODE -ne 0) {
-    throw "SignalR client assertions failed (exit code $LASTEXITCODE)."
+
+# The host Docker bridge hashes to api-a on this machine. A temporary client network uses
+# a different source subnet so Nginx ip_hash holds the SignalR connection on api-b.
+$probeNetwork = "g4-realtime-smoke-$PID"
+$probeSubnet = '172.23.0.0/24'
+$nginxContainer = (@(Invoke-Native { docker @compose ps -q nginx }).Output |
+    Select-Object -First 1).Trim()
+if (-not $nginxContainer) {
+    throw 'Could not resolve the running nginx container for the realtime probe.'
+}
+$smokeOutput = Join-Path $ProjectRoot 'tests/G4.RealtimeSmoke/bin/Release/net8.0'
+$networkCreated = $false
+$networkAttached = $false
+try {
+    $build = Invoke-Native {
+        dotnet build tests/G4.RealtimeSmoke/G4.RealtimeSmoke.csproj --configuration Release
+    }
+    if ($build.ExitCode -ne 0) {
+        throw "Could not build the realtime smoke client: $($build.Output -join [Environment]::NewLine)"
+    }
+    if (-not (Test-Path (Join-Path $smokeOutput 'G4.RealtimeSmoke.dll'))) {
+        throw "Realtime smoke output is missing at $smokeOutput."
+    }
+
+    $created = Invoke-Native {
+        docker network create --driver bridge --subnet $probeSubnet $probeNetwork
+    }
+    if ($created.ExitCode -ne 0) {
+        throw "Could not create the temporary realtime probe network: $($created.Output -join [Environment]::NewLine)"
+    }
+    $networkCreated = $true
+
+    $attached = Invoke-Native {
+        docker network connect --alias nginx $probeNetwork $nginxContainer
+    }
+    if ($attached.ExitCode -ne 0) {
+        throw "Could not attach nginx to the realtime probe network: $($attached.Output -join [Environment]::NewLine)"
+    }
+    $networkAttached = $true
+
+    $mount = "${smokeOutput}:/app:ro"
+    $smoke = Invoke-Native {
+        docker run --rm --network $probeNetwork -v $mount mcr.microsoft.com/dotnet/runtime:8.0 `
+            dotnet /app/G4.RealtimeSmoke.dll --base-url http://nginx:8088 `
+            --buyer-email $BuyerEmail --seller-email $SellerEmail --password $Password `
+            --min-version $minimumVersion --timeout-seconds $TimeoutSeconds
+    }
+    $smoke.Output | ForEach-Object { Write-Host $_ -ForegroundColor DarkGray }
+    if ($smoke.ExitCode -ne 0) {
+        throw "SignalR client assertions failed (exit code $($smoke.ExitCode))."
+    }
+} finally {
+    if ($networkAttached) {
+        Invoke-Native { docker network disconnect -f $probeNetwork $nginxContainer } | Out-Null
+    }
+    if ($networkCreated) {
+        Invoke-Native { docker network rm $probeNetwork } | Out-Null
+    }
 }
 
 $dispatched = Get-SqlScalar "SET NOCOUNT ON; SELECT ISNULL(MAX(Id), 0) FROM dbo.CommerceChange WHERE Id > $minimumVersion AND DispatchedAt IS NOT NULL;"
@@ -113,8 +166,8 @@ $apiBAddress = @(Invoke-Native { docker @compose exec -T api-b hostname -i }).Ou
 $apiBAddress = ($apiBAddress -split '\s+')[0].Trim()
 $nginxLogs = (Invoke-Native { docker @compose logs --since $startedAt nginx }).Output -join "`n"
 $hubLogs = @($nginxLogs -split "`r?`n" | Where-Object { $_ -match '/hubs/commerce' }) -join "`n"
-if ($apiBAddress -and $hubLogs -match [regex]::Escape("upstream=$apiBAddress:8080")) {
-    Write-Host "PASS: Nginx hub traffic reached api-b ($apiBAddress:8080); api-a is the only configured dispatcher." -ForegroundColor Green
+if ($apiBAddress -and $hubLogs -match [regex]::Escape("upstream=${apiBAddress}:8080")) {
+    Write-Host "PASS: Nginx hub traffic reached api-b (${apiBAddress}:8080); api-a is the only configured dispatcher." -ForegroundColor Green
     Write-Host "PASS: CommerceChange $dispatched was dispatched and audience isolation passed." -ForegroundColor Green
     exit 0
 }
