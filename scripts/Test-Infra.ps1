@@ -14,6 +14,7 @@ param(
     [int]$QuotaWaitSeconds = 65,
     [switch]$SkipBuild,
     [switch]$SkipJMeter,
+    [switch]$SkipRealtimeE2E,
     [switch]$SkipCi,
     [switch]$LocalCi,
     [switch]$Down
@@ -41,6 +42,31 @@ $sql = @(
 
 $results = New-Object System.Collections.Generic.List[object]
 $apiBStopped = $false
+
+$previousJavaHome = $null
+$previousJavaPath = $null
+
+function Find-JMeterJavaHome {
+    $roots = @(
+        'C:\Program Files\Microsoft',
+        'C:\Program Files\Eclipse Adoptium',
+        'C:\Program Files\Java'
+    )
+    $candidates = foreach ($root in $roots) {
+        if (Test-Path $root) {
+            Get-ChildItem $root -Directory -Filter 'jdk-21*' -ErrorAction SilentlyContinue |
+                Sort-Object Name -Descending |
+                ForEach-Object { $_.FullName }
+        }
+    }
+    foreach ($candidate in $candidates) {
+        if (Test-Path (Join-Path $candidate 'bin\java.exe')) {
+            return $candidate
+        }
+    }
+    throw 'JMeter 5.6.3 needs a supported JDK (8-21). Install JDK 21 and set JAVA_HOME.'
+}
+
 
 function Write-Step([string]$Text) {
     Write-Host ''
@@ -251,7 +277,24 @@ try {
         Write-Host '    Canh bao: api-b chua tra loi lai sau khi bat.' -ForegroundColor Yellow
     }
 
-    # ------------------------------------------------------------------ 4. JMeter
+    # ------------------------------------------------------------------ 4. Realtime across instances
+    if ($SkipRealtimeE2E) {
+        Add-Result 'Realtime cross-instance' 'SKIP' 'bo qua theo -SkipRealtimeE2E'
+    } else {
+        Write-Step '4. SignalR qua Nginx + Redis: 2 buyer tabs nhan event, seller khong nhan'
+        $realtime = Invoke-Native {
+            powershell -NoProfile -ExecutionPolicy Bypass -File scripts\Test-RealtimeCrossInstance.ps1
+        } -Quiet
+        if ($realtime.ExitCode -eq 0) {
+            Add-Result 'Realtime cross-instance' 'PASS' 'api-a dispatcher -> Redis -> hub tren api-b; kiem tra audience passed'
+        } else {
+            $realtime.Output | Select-Object -Last 20 | ForEach-Object {
+                Write-Host "    $_" -ForegroundColor DarkGray
+            }
+            Add-Result 'Realtime cross-instance' 'FAIL' 'xem output Test-RealtimeCrossInstance.ps1'
+        }
+    }
+    # ------------------------------------------------------------------ 5. JMeter
     if ($SkipJMeter) {
         Add-Result 'JMeter do tai' 'SKIP' 'bo qua theo -SkipJMeter'
         Add-Result 'JMeter rate limit' 'SKIP' 'bo qua theo -SkipJMeter'
@@ -259,10 +302,15 @@ try {
         Add-Result 'JMeter do tai' 'SKIP' "khong thay $JMeterPath (dung -JMeterPath)"
         Add-Result 'JMeter rate limit' 'SKIP' 'khong co JMeter'
     } else {
+        $previousJavaHome = $env:JAVA_HOME
+        $env:JAVA_HOME = Find-JMeterJavaHome
+        $previousJavaPath = $env:Path
+        $env:Path = "$(Join-Path $env:JAVA_HOME 'bin');$env:Path"
+        Write-Host "    JMeter uses JAVA_HOME=$env:JAVA_HOME" -ForegroundColor DarkGray
         $target = @('-Jprotocol=http', '-Jhost=127.0.0.1', '-Jport=8088')
         New-Item -ItemType Directory -Force -Path $RunDir | Out-Null
 
-        Write-Step '4a. JMeter do tai catalog qua Nginx (4 luong, 30 giay)'
+        Write-Step '5a. JMeter do tai catalog qua Nginx (4 luong, 30 giay)'
         $loadDir = Join-Path $RunDir 'load'
         Invoke-Native {
             & $JMeterPath -n -t tests/jmeter/catalog-load.jmx @target `
@@ -279,7 +327,7 @@ try {
             Add-Result 'JMeter do tai' 'FAIL' "$($rows.Count) mau, $bad loi (xem $loadDir.jtl)"
         }
 
-        Write-Step '4b. JMeter 150 request de thay 429 (chi api-a, quota dem rieng moi API)'
+        Write-Step '5b. JMeter 150 request de thay 429 (chi api-a, quota dem rieng moi API)'
         Write-Host "    Doi $QuotaWaitSeconds giay cho quota read hoi lai..."
         Start-Sleep -Seconds $QuotaWaitSeconds
         Invoke-Native { docker @compose stop api-b } -Quiet | Out-Null
@@ -308,8 +356,8 @@ try {
         Wait-Upstreams -Expected 2 | Out-Null
     }
 
-    # ------------------------------------------------------------------ 5. Login rate limit
-    Write-Step '5. Rate limiting login: 12 lan sai lien tiep (gioi han 10 lan/60 giay theo IP)'
+    # ------------------------------------------------------------------ 6. Login rate limit
+    Write-Step '6. Rate limiting login: 12 lan sai lien tiep (gioi han 10 lan/60 giay theo IP)'
     $bad = @{ email = 'khongtontai@demo.test'; password = 'sai-mat-khau' }
     $attempts = 1..12 | ForEach-Object {
         $r = Send-Http 'POST' '/api/auth/login' $bad $null
@@ -330,8 +378,8 @@ try {
         Add-Result 'Rate limit login' 'FAIL' 'khong thay 429 hop le sau 12 lan login sai'
     }
 
-    # ------------------------------------------------------------------ 6. CI
-    Write-Step '6. CI GitHub Actions'
+    # ------------------------------------------------------------------ 7. CI
+    Write-Step '7. CI GitHub Actions'
     if ($SkipCi) {
         Add-Result 'CI GitHub Actions' 'SKIP' 'bo qua theo -SkipCi'
     } elseif (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
@@ -361,7 +409,7 @@ try {
     }
 
     if ($LocalCi) {
-        Write-Step '6b. Chay lai cac buoc CI tren may (build Release + test)'
+        Write-Step '7b. Chay lai cac buoc CI tren may (build Release + test)'
         $steps = @(
             @{ Name = 'restore'; Run = { dotnet restore G4_Project.sln } },
             @{ Name = 'build'; Run = { dotnet build G4_Project.sln -c Release --no-restore } },
@@ -394,6 +442,14 @@ try {
         Invoke-Native { docker @compose start api-b } -Quiet | Out-Null
     }
     Remove-Item Env:G4_JMETER_BUYER_TOKEN -ErrorAction SilentlyContinue
+    if ($null -ne $previousJavaHome) {
+        $env:JAVA_HOME = $previousJavaHome
+    } else {
+        Remove-Item Env:JAVA_HOME -ErrorAction SilentlyContinue
+    }
+    if ($null -ne $previousJavaPath) {
+        $env:Path = $previousJavaPath
+    }
     $client.Dispose()
     if ($Down) {
         Invoke-Native { docker @compose down } -Quiet | Out-Null

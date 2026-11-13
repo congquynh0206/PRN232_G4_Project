@@ -6,7 +6,7 @@ Development tại `http://localhost:5257` dùng database demo riêng có sản p
 
 ## Chuẩn bị
 
-1. Cài Java và giải nén [Apache JMeter 5.6.3](https://jmeter.apache.org/download_jmeter.cgi).
+1. Cài **JDK 21** và giải nén [Apache JMeter 5.6.3](https://jmeter.apache.org/download_jmeter.cgi). JMeter 5.6.3 không chạy được với Java 25; đặt `JAVA_HOME` trỏ tới JDK 21. `Test-Infra.ps1` tự ưu tiên JDK 21 trong `C:\Program Files\Microsoft`, `Eclipse Adoptium` hoặc `Java` khi chạy JMeter.
    Kiểm tra `java -version` và chạy `bin/jmeter.bat --version`.
 2. Khởi động API theo [hướng dẫn database demo](DEMO_DATABASE.md). Dùng tài khoản
    buyer trên database demo hoặc QA. Chạy các lệnh dưới đây từ thư mục gốc repo.

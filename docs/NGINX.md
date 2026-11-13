@@ -4,7 +4,7 @@
 
 [`scripts/Test-Infra.ps1`](../scripts/Test-Infra.ps1) dựng stack bên dưới (đợi SQL
 Server, import `G4_Demo` nếu chưa có, build image), rồi kiểm tra lần lượt: chia tải
-qua 2 API, failover khi tắt `api-b`, JMeter đo tải và JMeter 429, rate limit login
+qua 2 API, failover khi tắt `api-b`, realtime SignalR/Redis xuyên instance, JMeter đo tải và JMeter 429, rate limit login
 và run CI GitHub Actions mới nhất trên `master`. Cuối script in bảng PASS/FAIL/SKIP;
 có FAIL thì exit code 1. Jira và K8s không nằm trong script.
 
@@ -12,7 +12,7 @@ có FAIL thì exit code 1. Jira và K8s không nằm trong script.
 powershell -ExecutionPolicy Bypass -File scripts\Test-Infra.ps1
 ```
 
-Tùy chọn: `-SkipBuild`, `-SkipJMeter`, `-SkipCi`, `-LocalCi` (chạy lại restore,
+Tùy chọn: `-SkipBuild`, `-SkipRealtimeE2E`, `-SkipJMeter`, `-SkipCi`, `-LocalCi` (chạy lại restore,
 build Release và test như CI), `-Down` (tắt stack khi xong), `-JMeterPath`. Script
 dùng `buyer@demo.test` của database demo và tạm tắt `api-b` khi đo 429 vì mỗi API
 đếm quota riêng; sau đó tự bật lại. Bước login sai 12 lần làm IP bị chặn login
@@ -129,6 +129,19 @@ docker compose -f docker-compose.nginx.yml start api-b
 ```
 
 ## Kiểm tra realtime xuyên instance
+
+Có script tự động để kiểm tra đúng luồng `api-a` dispatcher → Redis → hub tại
+`api-b`, hai tab buyer nhận event và seller không liên quan không nhận:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\Test-RealtimeCrossInstance.ps1
+```
+
+Script chỉ chạy trên G4_Demo và sử dụng thao tác nghiệp vụ thật `mark read` cho
+một notification demo. Nếu Nginx log không chứng minh hub vào `api-b`, script
+fail có chủ đích: realtime có thể hoạt động nhưng chưa đủ bằng chứng xuyên
+instance. Xem kế hoạch tổng thể tại [QA_TEST_PLAN.md](QA_TEST_PLAN.md).
+
 
 Đăng nhập qua `/api/auth/login`, kết nối SignalR bằng JWT tới
 `http://127.0.0.1:8088/hubs/commerce`, rồi gửi một thao tác nghiệp vụ hợp lệ

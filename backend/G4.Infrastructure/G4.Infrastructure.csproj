@@ -6,7 +6,7 @@
     </PropertyGroup>
     <ItemGroup>
         <FrameworkReference Include="Microsoft.AspNetCore.App" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.31" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.34" />
     </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="..\G4.Application\G4.Application.csproj" />
