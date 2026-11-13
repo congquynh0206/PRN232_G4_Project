@@ -231,6 +231,18 @@
   function paymentCountdown(o) {
     return window.G4?.Countdown?.payment(o) || '';
   }
+  function handlingCountdown(o) {
+    return window.G4?.Countdown?.handling(o) || '';
+  }
+  function handlingSummary(o) {
+    if (!o.handlingDeadlineAt) return '';
+    if (!o.handedOverAt) return handlingCountdown(o);
+    const late = o.handedOverOnTime === false;
+    return `<p class="handling-result ${late ? 'is-late' : 'is-on-time'}">
+      <strong>${late ? 'Bàn giao trễ hạn' : 'Bàn giao đúng hạn'}</strong>
+      <span>Tạo vận đơn: ${esc(shippingDate(o.handedOverAt))}</span>
+      <span>Hạn bàn giao: ${esc(shippingDate(o.handlingDeadlineAt))}</span></p>`;
+  }
   function returnSummary(o) {
     const r = o.returnRequest;
     if (!r) return '';
@@ -290,7 +302,7 @@
     const timeline = events.length
       ? `<div class="timeline-scroll"><ol class="timeline">${events.map((e) => `<li><strong>${esc(shippingStatus(e.status, direction))}</strong><small>${shippingDate(e.occurredAt)}</small><span>${esc(shippingActor(e))}</span>${e.reattemptAt ? `<span>Dự kiến giao lại: ${esc(shippingDate(e.reattemptAt))}</span>` : ''}${e.location ? `<span>${esc(eventText(e.location))}</span>` : ''}${e.note ? `<span>${esc(eventText(e.note))}</span>` : ''}</li>`).join('')}</ol></div>`
       : '<p class="empty-note">Chưa có mốc vận chuyển.</p>';
-    return `<section class="tracking-card${direction === 'Return' ? ' tracking-return' : ''}"><div class="tracking-head"><h4>${direction === 'Return' ? 'Người mua → Người bán' : 'Người bán → Người mua'}</h4><strong class="tracking-status">${esc(shippingStatus(shipment?.status, direction))}</strong></div><p class="tracking-number">Mã vận đơn: <strong>${esc(shipment?.trackingNumber ?? 'Chưa có')}</strong></p>${timeline}${actions ? `<div class="tracking-actions"><div class="actions">${actions}</div></div>` : ''}</section>`;
+    return `<section class="tracking-card${direction === 'Return' ? ' tracking-return' : ''}"><div class="tracking-head"><h4>${direction === 'Return' ? 'Người mua → Người bán' : 'Người bán → Người mua'}</h4><strong class="tracking-status">${esc(shippingStatus(shipment?.status, direction))}</strong></div><p class="tracking-number">Mã vận đơn: <strong>${esc(shipment?.trackingNumber ?? 'Chưa có')}</strong></p>${direction === 'Outbound' && shipment?.estimatedArrival ? `<p class="tracking-eta">Giao dự kiến trước: <strong>${esc(shippingDate(shipment.estimatedArrival))}</strong></p>` : ''}${timeline}${actions ? `<div class="tracking-actions"><div class="actions">${actions}</div></div>` : ''}</section>`;
   }
   function trackingHtml(o, actionFactory) {
     const outbound = o.shipments.find((s) => s.direction === 'Outbound');
@@ -349,6 +361,7 @@
         <div class="seller-product-info"><strong class="seller-product-title" title="${esc(title)}">${esc(title)}</strong><span class="seller-product-count">${extras}${items}</span><span class="seller-buyer">${source === 'buyer' ? 'Người bán' : 'Người mua'}: ${esc((source === 'buyer' ? o.sellerName : o.buyerName) || 'Chưa có thông tin')}</span></div>
         <div class="seller-order-total"><span>Tổng đơn</span><strong>${money(o.totalPrice)}</strong></div></div>
       ${paymentCountdown(o)}
+      ${handlingCountdown(o)}
       <footer class="seller-order-foot"><div class="seller-order-badges"><span class="seller-status seller-status-${tone}">${esc(status)}</span>${o.hasRefund && !refunded ? '<span class="seller-status seller-status-refund">Đã hoàn tiền</span>' : ''}${o.attention ? `<span class="seller-attention">${esc(o.attention)}</span>` : ''}${disputeBadge(o.dispute)}</div><button type="button" data-open-order="${o.id}" data-source="${source}" aria-label="Xem chi tiết đơn #${o.id}">Xem chi tiết</button></footer></article>`;
   }
   function orderCard(o, source = 'orders') {
@@ -515,6 +528,7 @@
     returnStatus,
     returnSummary,
     paymentCountdown,
+    handlingSummary,
     shipmentHtml,
     shippingActor,
     shipperShipmentCard,

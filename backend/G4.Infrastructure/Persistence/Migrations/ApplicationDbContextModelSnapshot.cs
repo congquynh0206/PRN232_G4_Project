@@ -1486,6 +1486,15 @@ namespace G4.Infrastructure.Persistence.Migrations
                     b.Property<decimal>("DiscountAmount")
                         .HasColumnType("decimal(10,2)");
 
+                    b.Property<DateTime?>("HandedOverAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("HandlingDeadlineAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("HandlingSeconds")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("OrderDate")
                         .HasColumnType("datetime")
                         .HasColumnName("orderDate");

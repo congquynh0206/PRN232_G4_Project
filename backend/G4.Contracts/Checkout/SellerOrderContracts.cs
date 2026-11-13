@@ -17,7 +17,9 @@ public sealed record SellerOrderCard(
     string? Attention,
     SellerOrderCaseBadge? Dispute,
     string? ImageUrl = null,
-    DateTime? PaymentExpiresAt = null
+    DateTime? PaymentExpiresAt = null,
+    DateTime? HandlingDeadlineAt = null,
+    DateTime? HandedOverAt = null
 );
 
 public sealed record SellerOrderListPage(

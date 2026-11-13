@@ -15,7 +15,9 @@ public sealed record BuyerOrderCard(
     bool HasRefund,
     string? Attention,
     SellerOrderCaseBadge? Dispute,
-    DateTime? PaymentExpiresAt = null
+    DateTime? PaymentExpiresAt = null,
+    DateTime? HandlingDeadlineAt = null,
+    DateTime? HandedOverAt = null
 );
 
 public sealed record BuyerOrderListPage(

@@ -3,6 +3,11 @@ using G4.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
+if (args.Contains("--handling-time"))
+{
+    await HandlingTimeChecks.RunAsync();
+    return;
+}
 if (args.Contains("--immediate-checkout"))
 {
     await ImmediateCheckoutChecks.RunAsync();
@@ -273,6 +278,7 @@ await DisputeDecisionChecks.RunAsync();
 await ShippingWeightChecks.RunAsync();
 await ShipmentClaimChecks.RunAsync();
 await ShipmentReattemptChecks.RunAsync();
+await HandlingTimeChecks.RunAsync();
 await PromotionManagementChecks.RunAsync();
 await BuyerOfferChecks.RunAsync();
 PromotionPricingChecks.Run();

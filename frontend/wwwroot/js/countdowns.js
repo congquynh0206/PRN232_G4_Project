@@ -95,6 +95,18 @@
       : '';
   }
 
+  // Seller handling time: shown until the outbound label exists. Legacy orders have no deadline.
+  function handling(order) {
+    if (order?.handedOverAt || !['Paid', 'Preparing', 'CancelRequested'].includes(order?.status))
+      return '';
+    return html(order.handlingDeadlineAt, {
+      label: 'Hạn bàn giao cho vận chuyển còn',
+      expired: 'Đã quá hạn bàn giao — vẫn tạo được vận đơn, đơn sẽ ghi nhận bàn giao trễ',
+      kind: 'handling',
+      scope: order.id,
+    });
+  }
+
   function receipt(request, blocked = false, scope = request?.id) {
     if (!request?.confirmationDueAt || !['Approved', 'ReturnShipping'].includes(request.status))
       return '';
@@ -175,6 +187,7 @@
     subscribe,
     update,
     payment,
+    handling,
     receipt,
     address,
     dispute,

@@ -60,6 +60,8 @@ QA điều hướng không cần API/SQL đang chạy: `dotnet build frontend/fr
 
 Giỏ buyer hiện random từ đúng hai seller, lưu theo tài khoản và checkout thành các đơn riêng. Cần migration `AddBuyerCartCheckoutBatch` và seed thêm seller thứ hai trước khi dùng; xem [MULTI_SELLER_CART.md](MULTI_SELLER_CART.md).
 
+**SH2 ngày 13/11/2026:** hạn bàn giao seller và ngày giao dự kiến cần migration `20261113034257_AddOrderHandlingDeadline` ([SQL](../database/order-handling-deadline-migration.sql)); chạy `dotnet ef database update` rồi restart API/frontend. Cấu hình `Shipping:HandlingSeconds` (mặc định 172800, Development 120) và `Shipping:TransitSeconds` (259200 / 300). Migration **chưa áp** `G4_Demo` hay database chính. Xem [RETURNS_AND_SHIPPING.md](RETURNS_AND_SHIPPING.md#hạn-bàn-giao-của-seller-sh2-phần-1-13112026).
+
 Đổi địa chỉ đơn đã thanh toán cần migration gốc `AddOrderAddressChanges` và AD1 `20261020153620_AddAddressChangeConfirmations` (sau SH1). Buyer xem/xác nhận quote, seller chấp thuận và shipper đã nhận chấp thuận khả năng giao trước khi áp dụng địa chỉ/tiền. Chưa gán shipper thì seller duyệt cuối; trong lúc chờ chặn OutForDelivery, giữ địa chỉ cũ. Deadline snapshot mặc định 24 giờ, Development 120 giây/2 phút (`AddressChanges:ConfirmationSeconds`), worker 5 giây. Xem [ORDER_ADDRESS_CHANGES.md](ORDER_ADDRESS_CHANGES.md).
 
 ## Chạy với SQL Server

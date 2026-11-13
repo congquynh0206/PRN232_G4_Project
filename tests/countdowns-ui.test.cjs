@@ -147,3 +147,26 @@ test('seller funds show separate remaining buckets, blocked holds and unshipped 
   assert.match(row({ ...item, releaseAt: null }), /Chưa bắt đầu đếm/);
   assert.doesNotMatch(row({ ...item, processing: 0 }), /data-countdown=/);
 });
+
+test('handling countdown shows only while the seller has not handed over a paid order', () => {
+  const h = harness();
+  h.timer.sync('2026-10-23T00:00:00Z');
+  const order = {
+    id: 7,
+    status: 'Paid',
+    handlingDeadlineAt: '2026-10-23T00:02:00',
+    handedOverAt: null,
+  };
+  const html = h.timer.handling(order);
+  assert.match(html, /Hạn bàn giao cho vận chuyển còn/);
+  assert.match(html, /02:00/);
+  assert.match(html, /data-countdown-kind="handling"/);
+  assert.match(html, /data-countdown-scope="7"/);
+  assert.match(h.timer.handling({ ...order, status: 'Preparing' }), /02:00/);
+  assert.equal(h.timer.handling({ ...order, handedOverAt: '2026-10-23T00:01:00' }), '');
+  assert.equal(h.timer.handling({ ...order, status: 'Shipping' }), '');
+  assert.equal(h.timer.handling({ ...order, status: 'AwaitingPayment' }), '');
+  assert.equal(h.timer.handling({ ...order, handlingDeadlineAt: null }), '');
+  h.advance(121);
+  assert.match(h.timer.handling(order), /Đã quá hạn bàn giao/);
+});
