@@ -80,60 +80,114 @@ if (-not [long]::TryParse($notificationId, [ref]$parsedNotificationId)) {
     throw "No durable notification exists for buyer $BuyerEmail in G4_Demo. Re-import the demo database."
 }
 
-# Preparation changes only disposable demo data; the following API mutation returns it to read state.
-Invoke-Sql @"
-;WITH chosen AS (
-    SELECT TOP (1) * FROM dbo.UserNotification WHERE Id = $notificationId ORDER BY Id DESC
-)
-UPDATE chosen SET ReadAt = NULL;
-"@
-$minimumVersion = Get-SqlScalar 'SET NOCOUNT ON; SELECT ISNULL(MAX(Id), 0) FROM dbo.CommerceChange;'
-$parsedMinimumVersion = [long]0
-if (-not [long]::TryParse($minimumVersion, [ref]$parsedMinimumVersion)) {
-    throw 'Could not read the current CommerceChange version.'
+$apiBAddress = @(Invoke-Native { docker @compose exec -T api-b hostname -i }).Output |
+    Select-Object -First 1
+$apiBAddress = ($apiBAddress -split '\s+')[0].Trim()
+if (-not $apiBAddress) {
+    throw 'Could not resolve the api-b container IP address for the realtime probe.'
 }
 
-$startedAt = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
-Write-Host "Prepared buyer notification $notificationId. Waiting for CommerceChanged version > $minimumVersion..." -ForegroundColor Cyan
-
-# The host Docker bridge hashes to api-a on this machine. A temporary client network uses
-# a different source subnet so Nginx ip_hash holds the SignalR connection on api-b.
-$probeNetwork = "g4-realtime-smoke-$PID"
-$probeSubnet = '172.23.0.0/24'
 $nginxContainer = (@(Invoke-Native { docker @compose ps -q nginx }).Output |
     Select-Object -First 1).Trim()
 if (-not $nginxContainer) {
     throw 'Could not resolve the running nginx container for the realtime probe.'
 }
+
 $smokeOutput = Join-Path $ProjectRoot 'tests/G4.RealtimeSmoke/bin/Release/net8.0'
+$build = Invoke-Native {
+    dotnet build tests/G4.RealtimeSmoke/G4.RealtimeSmoke.csproj --configuration Release
+}
+if ($build.ExitCode -ne 0) {
+    throw "Could not build the realtime smoke client: $($build.Output -join [Environment]::NewLine)"
+}
+if (-not (Test-Path (Join-Path $smokeOutput 'G4.RealtimeSmoke.dll'))) {
+    throw "Realtime smoke output is missing at $smokeOutput."
+}
+
+
+# Nginx ip_hash uses the first three IPv4 octets. Docker may assign api-a/api-b different
+# addresses after a restart, so create short-lived client networks until one maps to api-b.
+$probeNetwork = $null
 $networkCreated = $false
 $networkAttached = $false
 try {
-    $build = Invoke-Native {
-        dotnet build tests/G4.RealtimeSmoke/G4.RealtimeSmoke.csproj --configuration Release
-    }
-    if ($build.ExitCode -ne 0) {
-        throw "Could not build the realtime smoke client: $($build.Output -join [Environment]::NewLine)"
-    }
-    if (-not (Test-Path (Join-Path $smokeOutput 'G4.RealtimeSmoke.dll'))) {
-        throw "Realtime smoke output is missing at $smokeOutput."
+    foreach ($networkOctet in 22..33) {
+        $candidateNetwork = "g4-realtime-probe-$PID-$networkOctet"
+        $candidateSubnet = "172.$networkOctet.0.0/24"
+        $created = Invoke-Native {
+            docker network create --driver bridge --subnet $candidateSubnet $candidateNetwork
+        }
+        if ($created.ExitCode -ne 0) {
+            Write-Warning "Could not reserve $candidateSubnet; trying the next probe subnet."
+            continue
+        }
+
+        $candidateAttached = $false
+        try {
+            $attached = Invoke-Native {
+                docker network connect --alias nginx $candidateNetwork $nginxContainer
+            }
+            if ($attached.ExitCode -ne 0) {
+                throw "Could not attach nginx to realtime probe network: $($attached.Output -join [Environment]::NewLine)"
+            }
+            $candidateAttached = $true
+
+            $probeStartedAt = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+            # Authentication is intentionally omitted: this request only selects an Nginx ip_hash route.
+            $preflight = Invoke-Native {
+                docker run --rm --network $candidateNetwork curlimages/curl:8.13.0 `
+                    -sS -o /dev/null -w '%{http_code}' -X POST `
+                    'http://nginx:8088/hubs/commerce/negotiate?negotiateVersion=1'
+            }
+            $preflightStatus = ($preflight.Output -join '').Trim()
+            Start-Sleep -Milliseconds 250
+            $probeLogs = (Invoke-Native {
+                docker @compose logs --since $probeStartedAt nginx
+            }).Output -join "`n"
+
+            $probeHitsApiB = $probeLogs -match [regex]::Escape("upstream=${apiBAddress}:8080")
+            $probeHubLogs = @($probeLogs -split "`r?`n" | Where-Object {
+                $_ -match '/hubs/commerce'
+            }) -join '; '
+            Write-Verbose "Probe ${candidateSubnet}: HTTP $preflightStatus; api-b hit=$probeHitsApiB; $probeHubLogs"
+            if ($preflight.ExitCode -eq 0 -and $probeHitsApiB) {
+                $probeNetwork = $candidateNetwork
+                $networkCreated = $true
+                $networkAttached = $true
+                Write-Host "Selected source network $probeNetwork; Nginx hashes it to api-b." -ForegroundColor Cyan
+                break
+            }
+        } finally {
+            if ($probeNetwork -ne $candidateNetwork) {
+                if ($candidateAttached) {
+                    Invoke-Native {
+                        docker network disconnect -f $candidateNetwork $nginxContainer
+                    } | Out-Null
+                }
+                Invoke-Native { docker network rm $candidateNetwork } | Out-Null
+            }
+        }
     }
 
-    $created = Invoke-Native {
-        docker network create --driver bridge --subnet $probeSubnet $probeNetwork
+    if (-not $probeNetwork) {
+        throw 'Could not find a Docker client source network that Nginx hashes to api-b after checking 12 source subnets.'
     }
-    if ($created.ExitCode -ne 0) {
-        throw "Could not create the temporary realtime probe network: $($created.Output -join [Environment]::NewLine)"
-    }
-    $networkCreated = $true
 
-    $attached = Invoke-Native {
-        docker network connect --alias nginx $probeNetwork $nginxContainer
+    # Preparation changes only disposable demo data; the following API mutation returns it to read state.
+    Invoke-Sql @"
+;WITH chosen AS (
+    SELECT TOP (1) * FROM dbo.UserNotification WHERE Id = $notificationId ORDER BY Id DESC
+)
+UPDATE chosen SET ReadAt = NULL;
+"@
+    $minimumVersion = Get-SqlScalar 'SET NOCOUNT ON; SELECT ISNULL(MAX(Id), 0) FROM dbo.CommerceChange;'
+    $parsedMinimumVersion = [long]0
+    if (-not [long]::TryParse($minimumVersion, [ref]$parsedMinimumVersion)) {
+        throw 'Could not read the current CommerceChange version.'
     }
-    if ($attached.ExitCode -ne 0) {
-        throw "Could not attach nginx to the realtime probe network: $($attached.Output -join [Environment]::NewLine)"
-    }
-    $networkAttached = $true
+
+    $startedAt = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+    Write-Host "Prepared buyer notification $notificationId. Waiting for CommerceChanged version > $minimumVersion..." -ForegroundColor Cyan
 
     $mount = "${smokeOutput}:/app:ro"
     $smoke = Invoke-Native {
@@ -161,16 +215,13 @@ if (-not [long]::TryParse($dispatched, [ref]$parsedDispatched) -or $parsedDispat
     throw 'The new CommerceChange was not marked DispatchedAt after the API mutation.'
 }
 
-$apiBAddress = @(Invoke-Native { docker @compose exec -T api-b hostname -i }).Output |
-    Select-Object -First 1
-$apiBAddress = ($apiBAddress -split '\s+')[0].Trim()
 $nginxLogs = (Invoke-Native { docker @compose logs --since $startedAt nginx }).Output -join "`n"
 $hubLogs = @($nginxLogs -split "`r?`n" | Where-Object { $_ -match '/hubs/commerce' }) -join "`n"
-if ($apiBAddress -and $hubLogs -match [regex]::Escape("upstream=${apiBAddress}:8080")) {
+if ($hubLogs -match [regex]::Escape("upstream=${apiBAddress}:8080")) {
     Write-Host "PASS: Nginx hub traffic reached api-b (${apiBAddress}:8080); api-a is the only configured dispatcher." -ForegroundColor Green
     Write-Host "PASS: CommerceChange $dispatched was dispatched and audience isolation passed." -ForegroundColor Green
     exit 0
 }
 
 Write-Host $hubLogs -ForegroundColor DarkGray
-throw 'SignalR event and audience checks passed, but Nginx logs did not prove the hub was held by api-b. Re-run from a client/source IP that hashes to api-b; do not claim cross-instance proof yet.'
+throw 'SignalR event and audience checks passed, but Nginx logs did not prove the hub was held by api-b.'
