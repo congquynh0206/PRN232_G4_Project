@@ -180,6 +180,31 @@ public sealed class KlarnaPaymentService(
         return payment;
     }
 
+    // The buyer came back through the HPP cancel URL. A FAILED/BACK session would stay
+    // Pending and block other payment methods until expiry, so disable it at Klarna first
+    // (a late authorization can no longer race another method), then confirm the final status.
+    public async Task<Payment?> AbandonAsync(int orderId, CancellationToken ct = default)
+    {
+        if (!await db.Payments.AnyAsync(x => x.OrderId == orderId && x.Method == "Klarna", ct))
+            return null;
+        var payment = await ReconcileAsync(orderId, ct);
+        if (payment.Status != "Pending" || payment.KlarnaSessionUrl == null)
+            return payment;
+        try
+        {
+            await klarna.DisableHppAsync(payment.KlarnaSessionUrl, ct);
+        }
+        catch (HttpRequestException)
+        {
+            // Another request may already have disabled or completed this session.
+            var current = await ReconcileAsync(orderId, ct);
+            if (current.Status != "Pending")
+                return current;
+            throw;
+        }
+        return await ReconcileAsync(orderId, ct);
+    }
+
     // The buyer may close the Klarna tab without returning. Poll the provider independently.
     // Once the checkout window expires, disable HPP before releasing stock, so a late
     // authorization cannot race with our local order expiry.

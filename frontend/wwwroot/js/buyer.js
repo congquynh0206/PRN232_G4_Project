@@ -340,7 +340,7 @@
               ? p.get('paymentResult') === 'checked'
                 ? 'Đã kiểm tra Klarna. Xem trạng thái thanh toán của đơn bên dưới.'
                 : p.get('paymentResult') === 'cancelled'
-                  ? 'Bạn đã rời trang Klarna. Chưa xác nhận kết quả thanh toán; hãy kiểm tra đơn trước khi thử lại.'
+                  ? 'Đã hủy lượt thanh toán Klarna. Đơn vẫn chờ thanh toán; bạn có thể chọn cách thanh toán khác.'
                   : 'Chưa kiểm tra được Klarna. Vui lòng kiểm tra lại trạng thái đơn.'
               : p.get('paymentResult') === 'checked'
                 ? 'Đã kiểm tra thanh toán PayPal. Xem trạng thái đơn hàng bên dưới.'

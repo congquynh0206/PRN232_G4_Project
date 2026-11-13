@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,7 +13,6 @@ public sealed class BuyerController(IHttpClientFactory factory, IConfiguration c
 
     public IActionResult Products() => View();
 
-    // Buy It Now now runs in the "Thanh toán" tab; old links keep the product and session.
     public IActionResult Checkout(int? product, string? checkout)
     {
         var session = Guid.TryParse(checkout, out var id) ? id.ToString() : null;
@@ -128,13 +128,41 @@ public sealed class BuyerController(IHttpClientFactory factory, IConfiguration c
     }
 
     [HttpGet]
-    public IActionResult KlarnaCancel(int orderId) =>
-        orderId <= 0
-            ? RedirectToAction(nameof(Index))
-            : RedirectToAction(
-                nameof(Index),
-                new { orderId, paymentProvider = "klarna", paymentResult = "cancelled" }
-            );
+    public async Task<IActionResult> KlarnaCancel(int orderId, CancellationToken ct)
+    {
+        if (orderId <= 0)
+            return RedirectToAction(nameof(Index));
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            BackendUrl($"api/orders/{orderId}/pay/klarna/cancel")
+        );
+        request.Headers.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            User.FindFirstValue("access_token")
+        );
+        request.Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json");
+        using var response = await factory.CreateClient().SendAsync(request, ct);
+        // Failed: the session is disabled and the buyer may pick another method.
+        // Any other status (e.g. Authorized after a late approval) is shown as a normal check.
+        var status = response.IsSuccessStatusCode
+            ? (await response.Content.ReadFromJsonAsync<KlarnaAttempt>(ct))?.Status
+            : null;
+        return RedirectToAction(
+            nameof(Index),
+            new
+            {
+                orderId,
+                paymentProvider = "klarna",
+                paymentResult = status == "Failed" ? "cancelled"
+                    : status != null ? "checked"
+                    : (int)response.StatusCode == 429 ? "rate-limited"
+                    : "error",
+                retryAfterSeconds = RetrySeconds(response),
+            }
+        );
+    }
+
+    private sealed record KlarnaAttempt(string? Status);
 
     private string BackendUrl(string path) =>
         (config["ApiSettings:BaseUrl"] ?? "http://localhost:5251").TrimEnd('/') + "/" + path;

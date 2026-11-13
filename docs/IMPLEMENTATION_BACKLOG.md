@@ -73,6 +73,10 @@ Nguồn: ghi chú review 10/11/2026 và quyết định của người dùng ng�
   playground cần credential riêng; chưa khẳng định seller đã nhận tiền thật.
 - SRS cần phân biệt authorized/captured/settled; lịch trả góp và risk/fee do
   Klarna quản lý; không tự ghi payout ngay hay công thức phí chưa được xác nhận.
+- 12/11/2026: cancel URL gọi `POST /api/orders/{id}/pay/klarna/cancel` để tắt
+  phiên HPP còn `Pending` (bị từ chối rồi thoát) và đối chiếu; payment `Failed`
+  ngay, buyer chọn cách thanh toán khác. Đạt `--klarna`, bộ commerce mặc định và
+  test UI. Chưa QA trên playground thật; không có migration.
 ## PERF2 — Nginx chia tải catalog qua hai API
 
 - **Bổ sung realtime nhiều instance (11/11/2026):** API có cấu hình tùy chọn Redis

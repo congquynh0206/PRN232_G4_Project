@@ -4,7 +4,9 @@ param(
     [string]$SqlServer = 'localhost',
     [ValidatePattern('^G4_Demo[A-Za-z0-9_]*$')]
     [string]$DatabaseName = 'G4_Demo',
-    [string]$ProjectRoot
+    [string]$ProjectRoot,
+    # API only: send demo email over SMTP to the local MailHog instead of Mail Capture.
+    [switch]$UseMailHog
 )
 
 $ErrorActionPreference = 'Stop'
@@ -57,6 +59,30 @@ $settings = @{
     Realtime__PublicApiBaseUrl = 'http://localhost:5257'
     Realtime__AllowedOrigins__0 = 'http://localhost:5137'
     Realtime__AllowedOrigins__1 = 'http://127.0.0.1:5137'
+}
+if ($UseMailHog) {
+    # Local MailHog only (scripts/start-mailhog.ps1 or Docker); mail never leaves this machine.
+    $settings.Mail__Mode = 'Smtp'
+    $settings.Mail__Host = '127.0.0.1'
+    $settings.Mail__Port = '1025'
+    $settings.Mail__EnableSsl = 'false'
+    $settings.Mail__From = 'g4@example.test'
+    if ($App -eq 'Api') {
+        $probe = New-Object System.Net.Sockets.TcpClient
+        try {
+            $probe.Connect('127.0.0.1', 1025)
+            Write-Host 'Mail: SMTP -> MailHog 127.0.0.1:1025 (http://localhost:8025)'
+        }
+        catch {
+            Write-Warning (
+                'MailHog is not listening on 127.0.0.1:1025. Run start-mailhog.cmd; ' +
+                'emails will retry and then stay Pending/Failed until it is running.'
+            )
+        }
+        finally {
+            $probe.Dispose()
+        }
+    }
 }
 $previous = @{}
 foreach ($entry in $settings.GetEnumerator()) {

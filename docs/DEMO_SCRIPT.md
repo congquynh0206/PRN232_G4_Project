@@ -1,199 +1,166 @@
-# Kịch bản demo báo cáo G4 (10/11/2026)
+================================================================================
+KỊCH BẢN DEMO BÁO CÁO G4 (10/11/2026)
+================================================================================
 
-Ý tưởng chính: **theo chân một đơn hàng** từ lúc buyer mua → seller giao → shipper giao →
-buyer trả hàng/tranh chấp → admin phán quyết → seller nhận và rút tiền. Mỗi bước dùng đơn
+Ý tưởng chính: Theo chân một đơn hàng từ lúc buyer mua -> seller giao -> shipper giao ->
+buyer trả hàng/tranh chấp -> admin phán quyết -> seller nhận và rút tiền. Mỗi bước dùng đơn
 đã chuẩn bị sẵn trong database demo nên không phải chờ đồng hồ, không bị loạn.
 
-Thời lượng: khoảng **15–18 phút**. Phần đánh dấu ★ có thể cắt nếu thiếu thời gian.
+Thời lượng: khoảng 15-18 phút. Phần đánh dấu (★) có thể cắt nếu thiếu thời gian.
+Tài liệu gốc: database/demo/HUONG_DAN_DEMO.md
 
-Tài liệu gốc: [database/demo/HUONG_DAN_DEMO.md](../database/demo/HUONG_DAN_DEMO.md)
-(bảng kịch bản và tài khoản).
 
----
-
-## 0. Chuẩn bị
-
-`G4_Demo.sql` đã có đủ schema (mọi migration) và dữ liệu, kể cả Best Offer, Buy It Now và
+--------------------------------------------------------------------------------
+0. CHUẨN BỊ
+--------------------------------------------------------------------------------
+G4_Demo.sql đã có đủ schema (mọi migration) và dữ liệu, kể cả Best Offer, Buy It Now và
 Unpaid Item. Mỗi lần muốn demo chỉ cần:
 
 1. Tắt API demo nếu đang chạy.
-2. Mở `database/demo/G4_Demo.sql` trong SSMS → **Execute**. File tự xóa `G4_Demo` cũ (nếu có)
-   và tạo lại từ đầu.
-3. Mở hai PowerShell tại repo:
+2. Mở database/demo/G4_Demo.sql trong SSMS -> Execute (F5). File tự xóa G4_Demo cũ và tạo lại từ đầu.
+3. Mở 2 cửa sổ PowerShell tại repo:
+   Cửa sổ 1: powershell -ExecutionPolicy Bypass -File .\database\demo\Run-Demo.ps1 -App Api -SqlServer localhost
+   Cửa sổ 2: powershell -ExecutionPolicy Bypass -File .\database\demo\Run-Demo.ps1 -App Frontend
+4. Mở http://localhost:5137.
 
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\database\demo\Run-Demo.ps1 -App Api -SqlServer localhost
-   ```
+Mốc thời gian tính từ lúc chạy SQL; trạng thái chuẩn bị sẵn giữ đúng khoảng 4 giờ.
+Tối nay chạy một lượt để tập, sáng mai chạy lại file SQL trong vòng 1-2 giờ trước giờ báo cáo.
 
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\database\demo\Run-Demo.ps1 -App Frontend
-   ```
+MỞ SẴN 4 CỬA SỔ TRÌNH DUYỆT (Đăng nhập trước khi lên báo cáo, Mật khẩu: G4@123456):
+- Chrome thường: buyer@demo.test (Vai trò: Buyer)
+- Chrome ẩn danh: seller.l1@demo.test (Vai trò: Seller cấp 1, phần lớn đơn demo thuộc shop này)
+- Edge thường: shipper@demo.test (Vai trò: Shipper)
+- Edge InPrivate: admin@demo.test (Vai trò: Admin)
 
-   `-ExecutionPolicy Bypass` tránh lỗi "running scripts is disabled" của Windows, chỉ áp dụng
-   cho lệnh đó.
+Thẻ mô phỏng: 4111111111111111 (thành công), 4000000000000002 (bị từ chối), hạn 12/30.
 
-4. Mở `http://localhost:5137`.
 
-Mốc thời gian tính từ **lúc chạy SQL**; trạng thái chuẩn bị sẵn giữ đúng khoảng **4 giờ**.
-Tối nay chạy một lượt để tập, sáng mai chạy lại file SQL trong vòng 1–2 giờ trước giờ báo cáo.
-Phải chạy API bằng `Run-Demo.ps1` (không chạy bằng Visual Studio) để dùng đúng database,
-khóa định danh và thời hạn demo.
-
-### Mở sẵn 4 cửa sổ trình duyệt, mỗi role một cửa sổ
-
-Đăng nhập sẵn **trước** khi lên báo cáo (đăng nhập giới hạn 10 lần/phút/IP, đổi tài khoản
-liên tục dễ bị chặn 429). Mật khẩu chung: `G4@123456`.
-
-| Cửa sổ | Tài khoản | Ghi chú |
-| --- | --- | --- |
-| Chrome thường | `buyer@demo.test` | Buyer |
-| Chrome ẩn danh | `seller.l1@demo.test` | Seller cấp 1, phần lớn đơn demo thuộc shop này |
-| Edge thường | `shipper@demo.test` | Shipper |
-| Edge InPrivate | `admin@demo.test` | Admin |
-
-Các tài khoản seller khác (`seller.l3`, `seller.up2`) đăng nhập lại trong cửa sổ seller khi
-tới phần tài chính. Để zoom trình duyệt khoảng 90% cho dễ nhìn trên máy chiếu.
-
-Thẻ mô phỏng: `4111111111111111` (thành công), `4000000000000002` (bị từ chối), hạn `12/30`.
-
----
-
-## 1. Mở đầu (1 phút)
-
+--------------------------------------------------------------------------------
+1. MỞ ĐẦU (1 phút)
+--------------------------------------------------------------------------------
 Nói ngắn:
-
 - Sàn thương mại điện tử kiểu eBay, 4 vai trò: Buyer, Seller, Shipper, Admin.
-- Kiến trúc: ASP.NET Core 8 Web API + frontend Razor MVC, SQL Server, EF Core,
-  SignalR cho thông báo realtime, worker nền xử lý hạn/tiền.
+- Kiến trúc: ASP.NET Core 8 Web API + frontend Razor MVC, SQL Server, EF Core, SignalR, worker nền.
 - Hôm nay đi theo vòng đời một đơn hàng, từ lúc mua đến lúc seller rút được tiền.
 
-## 2. Mua hàng — Buyer (3 phút)
 
-Cửa sổ **Buyer**.
+--------------------------------------------------------------------------------
+2. MUA HÀNG — BUYER (3 phút)
+--------------------------------------------------------------------------------
+Cửa sổ Buyer:
+1. Giỏ hàng -> Tạo giỏ từ 2 seller -> Tiếp tục thanh toán.
+   (Nói: giỏ có bao nhiêu seller cũng được, mỗi seller thành một đơn riêng; có thể trả riêng từng seller).
+2. Chọn địa chỉ, nhập mã SAN5 hoặc DEMO10, bấm Cập nhật báo giá.
+   (Nói: phí ship tính theo kg, giảm giá/miễn ship do seller cấu hình).
+3. Chọn thẻ 4000000000000002 -> Đặt hàng & thanh toán -> Bị từ chối, đơn vẫn chờ thanh toán.
+4. Đổi sang thẻ 4111111111111111 -> Thanh toán thành công -> Đơn hàng thấy 2 đơn mới.
+5. (★) Mở chi tiết đơn trong Đơn hàng: xem trạng thái thanh toán và số tiền đã thu.
+6. Quay sang cửa sổ Seller: chuông thông báo có badge mới (realtime qua SignalR).
 
-1. **Giỏ hàng → Tạo giỏ từ 2 seller → Tiếp tục thanh toán.**
-   Nói: giỏ có bao nhiêu seller cũng được, mỗi seller thành một đơn riêng; có thể
-   bấm "Chỉ thanh toán người bán này" để trả riêng một seller.
-2. Ở trang Thanh toán: chọn địa chỉ, nhập mã `SAN5` (mã sàn) hoặc `DEMO10` (mã shop),
-   bấm **Cập nhật báo giá**.
-   Nói: phí ship tính theo kg, giảm giá/miễn ship do seller cấu hình.
-3. Chọn thẻ `4000000000000002` → **Đặt hàng & thanh toán** → bị từ chối, đơn vẫn chờ
-   thanh toán (không mất đơn, không trừ tiền).
-4. Đổi sang thẻ `4111111111111111` → thanh toán thành công → **Đơn hàng** thấy 2 đơn mới.
-5. ★ Mở chi tiết đơn trong **Đơn hàng**: xem trạng thái thanh toán và số tiền đã thu.
-6. Quay sang cửa sổ **Seller**: chuông thông báo có badge mới (realtime qua SignalR).
+*Dự phòng nếu lỗi: mở đơn #242 (PAY-FAILED) trong tab Đơn hàng của buyer, thanh toán lại.
 
-Dự phòng nếu lỗi: mở đơn **#242** (PAY-FAILED) trong tab Đơn hàng của buyer, thanh toán lại.
 
-## 3. Giao hàng — Seller và Shipper (3 phút)
+--------------------------------------------------------------------------------
+3. GIAO HÀNG — SELLER VÀ SHIPPER (3 phút)
+--------------------------------------------------------------------------------
+Dùng đơn #247 (đã thanh toán, chưa có vận đơn):
+1. Seller -> Đơn hàng -> đơn #247 -> Chuẩn bị hàng -> Tạo vận đơn.
+2. Shipper -> Quản lý vận đơn -> tab chờ nhận -> Nhận vận đơn của #247.
+3. Shipper chọn Thao tác tiếp theo -> Lưu cập nhật lần lượt: PickedUp -> InTransit -> Bắt đầu giao hàng -> Giao thành công.
+   (Nói: mỗi bước có lịch sử và người thao tác; seller/buyer thấy trạng thái cập nhật).
+4. (★) Giao thất bại: mở đơn #253 -> Lên lịch giao lại (nhập lý do, thời gian).
+   (Nói: lên lịch không tăng lượt giao, chỉ khi bấm bắt đầu giao lại mới tăng lượt).
 
-Dùng đơn **#247** (đã thanh toán, chưa có vận đơn) để chạy liên tục một đơn.
+*Dự phòng: Nếu #247 lỗi tạo vận đơn, dùng #249 cho shipper nhận, và #252 để bấm Giao thành công.
 
-1. **Seller** → Đơn hàng → đơn #247 → **Chuẩn bị hàng** → **Tạo vận đơn**.
-2. **Shipper** → Quản lý vận đơn → tab chờ nhận → **Nhận vận đơn** của #247.
-3. Shipper chọn **Thao tác tiếp theo** → **Lưu cập nhật** lần lượt: PickedUp → InTransit →
-   **Bắt đầu giao hàng** (OutForDelivery) → **Giao thành công** (Delivered).
-   Nói: mỗi bước có lịch sử và người thao tác; seller/buyer thấy trạng thái cập nhật.
-4. ★ Giao thất bại: mở đơn **#253** → **Lên lịch giao lại** (nhập lý do, thời gian).
-   Nói: lên lịch không tăng lượt giao, chỉ khi bấm bắt đầu giao lại mới tăng lượt.
 
-Dự phòng: nếu #247 lỗi khi tạo vận đơn, dùng **#249** (đã có vận đơn) cho shipper nhận, và
-**#252** (đang giao) để bấm Giao thành công.
+--------------------------------------------------------------------------------
+4. SAU KHI NHẬN HÀNG — ĐÁNH GIÁ VÀ TRẢ HÀNG (3 phút)
+--------------------------------------------------------------------------------
+1. Buyer -> Đơn hàng -> đơn #247 (vừa giao) hoặc #256:
+   - Gửi đánh giá sản phẩm.
+   - Bấm Yêu cầu trả hàng, chọn lý do -> xem popup báo giá (Lỗi seller = Seller chịu ship, Đổi ý = Trừ tiền ship). Gửi yêu cầu.
+2. Seller -> Trả hàng / Hoàn tiền -> đơn #261 (hàng sai mô tả) -> Duyệt trả hàng.
+   (Nói: duyệt xong hệ thống tạo vận đơn chiều trả riêng).
+3. (★) Seller -> đơn #264 (hàng trả đã về) -> Xác nhận nhận hàng hợp lệ -> Hoàn tiền.
+4. Mở đơn #265 (đã hoàn tiền) để xem kết quả hoàn.
+5. (★) Seller -> Đánh giá sản phẩm -> đơn #266 -> Trả lời review.
 
-## 4. Sau khi nhận hàng — đánh giá và trả hàng (3 phút)
 
-1. **Buyer** → Đơn hàng → đơn #247 (vừa giao) hoặc **#256**:
-   - **Gửi đánh giá sản phẩm** (số sao + nhận xét).
-   - Bấm **Yêu cầu trả hàng**, chọn lý do → xem popup báo giá: phí trả hàng thay đổi theo
-     lý do (đổi ý thì buyer chịu ship chiều về, hàng sai mô tả thì seller chịu).
-     Chỉ ra đồng hồ đếm ngược hạn trả hàng. Có thể gửi luôn.
-2. **Seller** → **Trả hàng / Hoàn tiền** → đơn **#261** (hàng không đúng mô tả) →
-   **Duyệt trả hàng**. Nói: duyệt xong hệ thống tạo vận đơn chiều trả riêng.
-3. ★ **Seller** → đơn **#264** (hàng trả đã về) → xác nhận nhận hàng hợp lệ → hoàn tiền.
-4. Mở đơn **#265** (đã hoàn tiền) để xem kết quả: số tiền hoàn, phí trả hàng, bút toán.
-5. ★ **Seller** → **Đánh giá sản phẩm** → đơn **#266** → trả lời review.
+--------------------------------------------------------------------------------
+5. TRANH CHẤP VÀ ADMIN (2,5 phút)
+--------------------------------------------------------------------------------
+1. (★) Buyer -> đơn #262 (seller từ chối trả hàng) -> Mở tranh chấp.
+   (Nói: bị từ chối thì không tự hoàn tiền, buyer phải mở tranh chấp).
+2. Admin -> Tranh chấp -> hồ sơ của đơn #269 -> Xem lịch sử -> Xem trước số tiền -> Xác nhận và lưu phán quyết.
+   (Popup bắt nhập lại mật khẩu vì liên quan đến tiền).
+3. Admin -> Tra cứu đơn -> nhập 265 -> Xem toàn bộ thanh toán, vận đơn, email ở một chỗ.
 
-## 5. Tranh chấp và Admin (2,5 phút)
 
-1. ★ **Buyer** → đơn **#262** (seller từ chối trả hàng) → **Mở tranh chấp**.
-   Nói: bị từ chối thì không tự hoàn tiền, buyer phải mở tranh chấp.
-2. **Admin** → **Tranh chấp** → hồ sơ của đơn **#269** → xem lịch sử, bằng chứng hai bên
-   → chọn kết luận, xem trước số tiền → **Xác nhận và lưu phán quyết**.
-   Popup bắt **nhập lại mật khẩu** (thao tác quan trọng về tiền).
-3. **Admin** → **Tra cứu đơn** → nhập `265` → xem toàn bộ thanh toán, vận đơn, hoàn tiền,
-   email của một đơn ở một chỗ.
+--------------------------------------------------------------------------------
+6. TIỀN CỦA SELLER (3 phút)
+--------------------------------------------------------------------------------
+1. Đăng nhập seller.l3@demo.test -> Ví & Rút tiền:
+   - Cấp 3 nhận tiền ngay; Cấp 1/2 bị giữ tiền một thời gian. Xem bảng "Tiền giữ theo từng đơn".
+   - Nhập số tiền -> Rút tiền -> Nhập lại mật khẩu.
+   - (★) Xem payout #6 bị ngân hàng trả lại: tiền tự động cộng lại vào ví.
+2. (★) Báo cáo tài chính: Doanh thu, phí sàn (12% + 0.3 USD), hoàn tiền.
+3. Đăng nhập seller.up2@demo.test -> Cấp người bán -> Đánh giá lại cấp của tôi -> Lên cấp 2.
+4. Admin -> Khoản nợ và Nợ khó thu / Danh sách chặn:
+   - Quá hạn bị hạn chế bán/rút. Quá lâu bị write-off và vào danh sách chặn.
+5. (★) Mở cửa sổ ẩn danh -> Đăng ký seller -> dùng nút mẫu định danh bị chặn (999100000008) -> Bị từ chối.
 
-## 6. Tiền của seller (3 phút)
 
-1. Cửa sổ Seller đăng nhập `seller.l3@demo.test` → **Ví & Rút tiền**:
-   - Seller cấp 3 nhận tiền vào Available ngay sau thanh toán; cấp 1/2 phải giữ tiền một
-     thời gian sau khi giao (demo: 4/2 giờ). Chỉ bảng **Tiền giữ theo từng đơn**.
-   - Nhập số tiền → **Rút tiền** (nếu có popup thì nhập lại mật khẩu). Trạng thái tự chạy qua
-     Created → InProgress → FundsSent → Completed do worker nền.
-   - ★ Xem payout **#6** bị ngân hàng trả lại: tiền vào lại ví đúng một lần.
-2. ★ **Báo cáo tài chính**: doanh thu, phí sàn (12% + 0,30 USD), hoàn tiền theo kỳ.
-3. Đăng nhập `seller.up2@demo.test` → **Cấp người bán** → **Đánh giá lại cấp của tôi**
-   → lên cấp 2. Nói: hệ thống xét dựa trên số đơn, giao đúng hạn, feedback thật.
-4. **Admin** → **Khoản nợ** và **Nợ khó thu / Danh sách chặn**:
-   - Seller nợ quá hạn bị hạn chế bán/rút.
-   - Seller bị write-off nằm trong danh sách chặn.
-5. ★ Mở cửa sổ ẩn danh mới → trang đăng nhập → **Đăng ký seller** → dùng nút mẫu định danh
-   bị chặn (hoặc nhập `999100000008`) → bị từ chối vì định danh đã bị blacklist.
+--------------------------------------------------------------------------------
+7. TÍNH NĂNG MỚI: BEST OFFER, BUY IT NOW, UNPAID ITEM (3 phút)
+--------------------------------------------------------------------------------
+(Dữ liệu chuẩn bị: 3 sản phẩm đầu của seller.l1 đã bật trả giá).
+1. Seller (seller.l1) -> Best Offer -> phiên #2: buyer đề nghị 100$ cho món 120$ -> Trả giá lại 110$.
+2. Buyer -> Trả giá -> phiên #3: seller đã counter 130$ -> Chấp nhận (nhập mật khẩu) -> Đơn chờ thanh toán được tạo.
+3. Buyer -> Trả giá -> "[L1] Wireless Headphones" (100$): Gửi 40$ tự bị từ chối; Gửi 96$ tự được chấp nhận tạo đơn.
+4. (★) Buyer -> Đơn hàng -> đơn #273 (tạo từ Best Offer, 85$) -> Thanh toán thẻ.
+5. Buy It Now (Mua ngay): Buyer -> Sản phẩm -> "[L1] Buy It Now..." -> Trả thẻ ngay. Đơn Paid lập tức.
+   (★) 2 người cùng lúc thanh toán món cuối cùng -> Chỉ 1 người mua được, người kia được hoàn tiền giữ.
+6. Unpaid Item: Seller -> Đơn hàng -> đơn #243 (quá hạn) -> Hủy đơn quá hạn -> Hoàn kho, buyer bị 1 điểm phạt.
+   (★) Đơn #245 (buyer.other) hủy tương tự -> buyer này đủ 2 điểm phạt -> Bị khóa tài khoản không cho đăng nhập.
 
-## 7. Tính năng mới: Best Offer, Buy It Now, Unpaid Item (3 phút)
 
-Dữ liệu đã chuẩn bị sẵn: 3 sản phẩm đầu của `seller.l1` đã bật trả giá, có sẵn 3 phiên.
+--------------------------------------------------------------------------------
+8. KẾT (30 giây)
+--------------------------------------------------------------------------------
+Nói nhanh phần kỹ thuật:
+- Rate limit theo user/IP, chia tải Nginx, test tải JMeter, CI.
+- Chống gửi trùng (idempotency key), kiểm tra quyền bằng JWT.
+- Email và log xem ở Nhật ký tích hợp.
 
-1. **Seller** (`seller.l1`) → **Best Offer** → phiên **#2**: buyer đề nghị 100 USD cho món
-   120 USD → **trả giá lại** 110 USD (hoặc chấp nhận, nhập lại mật khẩu).
-2. **Buyer** → **Trả giá** → phiên **#3**: seller đã counter 130 USD → **chấp nhận**
-   (nhập lại mật khẩu) → đơn chờ thanh toán được tạo theo giá đã chốt.
-3. **Buyer** → **Trả giá** → "[L1] Wireless Headphones" (100 USD, ngưỡng tự động):
-   gửi 40 USD → tự bị từ chối; gửi 96 USD → tự được chấp nhận và tạo đơn.
-   Nói: tối đa 5 lượt/sản phẩm, mỗi lượt hết hạn sau 24 giờ.
-4. ★ **Buyer** → **Đơn hàng** → đơn **#273** (tạo từ Best Offer, 85 USD) → thanh toán thẻ.
-5. **Buy It Now**: Buyer → menu **Sản phẩm** → "[L1] Buy It Now - Portable Charger
-   (trả ngay)" → xem báo giá → **Xác nhận và thanh toán** thẻ `4111…` → đơn Paid ngay.
-   Nói: sản phẩm "Yêu cầu thanh toán ngay" chỉ nhận credit card và không vào giỏ; tiền
-   được giữ (authorize) trước, chỉ thu khi chắc chắn còn hàng.
-   ★ Món "[L1] Buy It Now - Compact Camera (chỉ còn 1 cái)": hai cửa sổ buyer cùng thanh toán
-   → chỉ một người mua được, người kia được hủy giữ tiền.
-6. **Unpaid Item**: **Seller** → Đơn hàng → đơn **#243** (quá hạn thanh toán) →
-   **Hủy đơn quá hạn thanh toán** (nhập lại mật khẩu) → hoàn kho, buyer bị 1 điểm phạt.
-   ★ Đơn **#245** của `buyer.other`: hủy tương tự → buyer này đủ 2 điểm, đăng nhập
-   `buyer.other@demo.test` bị từ chối vì tài khoản bị khóa.
 
-## 8. Kết (30 giây)
+================================================================================
+MẸO ĐỂ KHÔNG BỊ LOẠN
+================================================================================
+- Đi theo thứ tự: Buyer -> Seller -> Shipper -> Buyer -> Seller -> Admin -> Seller.
+- Ghi giấy mã đơn: 247, 253, 256, 261, 264, 265, 266, 262, 269, 273, 243, 245; phiên Best Offer #2, #3.
+- Nếu một bước lỗi: Nói "bước này em chuyển sang đơn đã chuẩn bị sẵn" và mở đơn dự phòng, không debug trước lớp.
+- Không demo PayPal/Klarna live (chỉ nói là có hỗ trợ).
 
-Kể nhanh phần kỹ thuật không hiện trên giao diện:
 
-- Rate limit theo user/IP, test tải bằng JMeter, chia tải bằng Nginx, CI.
-- Mọi thao tác tiền có kiểm tra quyền phía server, chống gửi trùng (idempotency key),
-  transaction và nhập lại mật khẩu.
-- Email và log tích hợp xem ở **Nhật ký tích hợp**.
+================================================================================
+CÂU HỎI GIẢNG VIÊN HAY HỎI
+================================================================================
+Hỏi: Sao seller không nhận tiền ngay?
+Đáp: Giữ tiền để còn hoàn cho buyer khi trả hàng/tranh chấp. Cấp 3 thì được nhận ngay.
 
----
+Hỏi: Bấm thanh toán 2 lần thì sao?
+Đáp: Mỗi thao tác tiền có gửi kèm key (idempotency). Trùng key thì trả về kết quả cũ, không thu hai lần.
 
-## Mẹo để không bị loạn
+Hỏi: Hai người mua món cuối cùng cùng lúc?
+Đáp: Buy It Now giữ tiền trước, chỉ 1 người thu tiền và tạo đơn thành công, người kia tự động được hủy giữ tiền.
 
-- **Đi theo thứ tự cửa sổ**: Buyer → Seller → Shipper → Buyer → Seller → Admin → Seller.
-  Mỗi lần chuyển cửa sổ nói một câu "giờ sang vai trò ...".
-- **Ghi giấy mã đơn** cho từng bước: 247, 253, 256, 261, 264, 265, 266, 262, 269, 273,
-  243, 245; phiên Best Offer #2, #3. Bảng đầy đủ ở `database/demo/HUONG_DAN_DEMO.md`.
-- Mã đơn chỉ đúng khi database được tạo từ file `G4_Demo.sql` hiện tại và chưa ai thao tác.
-  Nếu đã tập dượt trên database đó, chạy lại file SQL trước giờ báo cáo.
-- Nếu một bước lỗi: nói "bước này em chuyển sang đơn đã chuẩn bị sẵn" và mở đơn dự phòng,
-  không debug trước lớp.
-- Không demo PayPal/Klarna live (cần tài khoản sandbox và mạng). Chỉ nói là có hỗ trợ.
-- Nếu nhóm chia người trình bày: mỗi người phụ trách một phần 2–7 theo chức năng mình làm.
+Hỏi: Buyer không trả tiền?
+Đáp: Quá hạn seller hủy đơn, kho trả lại, buyer bị cộng 1 điểm phạt. 2 điểm / 30 ngày = Khóa tài khoản.
 
-## Câu hỏi giảng viên hay hỏi
+Hỏi: Seller nợ không trả?
+Đáp: Quá hạn bị cấm bán/rút tiền. Quá lâu bị write-off và chặn định danh vĩnh viễn.
 
-| Câu hỏi | Trả lời ngắn |
-| --- | --- |
-| Sao seller không nhận tiền ngay? | Giữ tiền để còn hoàn tiền nếu buyer trả hàng/tranh chấp; cấp càng cao giữ càng ngắn, cấp 3 nhận ngay. |
-| Bấm thanh toán 2 lần thì sao? | Mỗi thao tác tiền gửi kèm key; gửi lại cùng key trả về kết quả cũ, không thu hai lần. |
-| Hai người mua món cuối cùng cùng lúc? | Buy It Now giữ tiền trước, chỉ một người được thu tiền và tạo đơn, người kia được hủy giữ tiền. |
-| Buyer không trả tiền? | Hàng được giữ đến hạn thanh toán; quá hạn seller hủy đơn, kho được trả lại, buyer bị 1 điểm phạt, 2 điểm trong 30 ngày thì bị khóa. |
-| Seller nợ không trả? | Quá hạn bị hạn chế bán/rút; quá lâu thì write-off và chặn định danh vĩnh viễn. |
-| Thông báo realtime làm thế nào? | SignalR đẩy tín hiệu, dữ liệu lưu trong bảng thông báo theo tài khoản. |
+Hỏi: Thông báo realtime làm thế nào?
+Đáp: SignalR đẩy tín hiệu, dữ liệu lưu trong bảng thông báo theo tài khoản.
+================================================================================

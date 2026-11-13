@@ -1528,7 +1528,8 @@ internal sealed class DemoFixture
                 + "powershell -ExecutionPolicy Bypass -File .\\database\\demo\\Run-Demo.ps1 -App Frontend\n```\n"
         );
         text.AppendLine(
-            "Mở http://localhost:5137. API demo ở http://localhost:5257. Helper trỏ đúng G4_Demo, dùng HMAC demo và Mail Capture; không gửi thư/call cổng tiền thật."
+            "Mở http://localhost:5137. API demo ở http://localhost:5257. Helper trỏ đúng G4_Demo, dùng HMAC demo và Mail Capture; không gửi thư/call cổng tiền thật. "
+                + "Muốn xem thư trong MailHog: bật start-mailhog.cmd rồi thêm -UseMailHog khi chạy -App Api."
         );
         text.AppendLine(
             "Nếu giải nén ở ngoài repo, thêm `-ProjectRoot 'D:\\...\\G4_Project'`. Nếu SQL Server dùng instance khác, thay -SqlServer. Kết nối mặc định Windows Authentication."
