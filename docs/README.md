@@ -60,3 +60,7 @@ Nhánh mới dùng thẻ giả lập hiện có; chưa nghiệm thu SQL concurre
 Nhánh Immediate hiện đã bổ sung authorize/Capture/Void, Refund và worker đối soát;
 Order chỉ INSERT Paid sau Capture. Xem bản cập nhật IMMEDIATE_PAYMENT.md và
 BIN-IP-SAGA trong backlog. Kết quả SQL concurrency vẫn chưa xác minh do socket.
+
+## Kubernetes và ngân sách
+
+[Kubernetes: giới hạn 4 API, countdown, ngân sách và nghiệm thu](KUBERNETES_BUDGET.md).

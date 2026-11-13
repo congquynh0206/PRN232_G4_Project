@@ -593,3 +593,15 @@ không còn đúng. Chưa chạy browser E2E/SQL Server sau merge.
   logo Klarna (`frontend/wwwroot/images/payments/`); form thẻ thử nghiệm mở ngay dưới ô
   credit card. Giữ nguyên id/name các radio nên JS không đổi. Node 164/164; kiểm tra trình
   duyệt desktop và mobile 375px (không tràn ngang).
+
+## K8S1 — Giới hạn 4 API và ngân sách (12/11/2026)
+
+- Thêm manifests main 1, read 1–3, HPA stabilization 300 giây, quota 4 Pod,
+  resource requests/limits, gateway chia catalog và trả 429 khi quá tải.
+- Main giữ worker/SignalR/giao dịch; chưa scale mọi chức năng.
+- scripts/api-budget.cjs tính số API theo ngân sách, dự phòng và chi phí khác;
+  không tự quản lý cloud billing. Countdown dùng deadline server hiện có.
+- Test local ngân sách/countdown/config đạt; JSON đọc được. Chưa có kubectl/Docker
+  nên chưa kiểm chứng schema server, HPA, quota, Nginx runtime hoặc cluster E2E.
+  Chưa hoàn tất nghiệm thu K8s. Không có migration, không thay database.
+- [Cách chạy và giới hạn](KUBERNETES_BUDGET.md).

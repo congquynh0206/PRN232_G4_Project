@@ -364,3 +364,12 @@ phải có trạng thái độc lập với transaction order để kiểm thử
 - PayPal thanh toán cả giỏ trong một lượt tối đa 10 người bán (giới hạn purchase
   unit của gateway). Checkout cả giỏ quá 10 người bán thì ẩn PayPal; buyer dùng credit
   card hoặc thanh toán riêng từng người bán.
+
+## Yêu cầu hạ tầng 12/11/2026 — Giới hạn 4 API
+
+Người dùng xác nhận 4 instance là 4 bản API, không phải VM/node hay tổng Pod.
+Chặn vượt 4 kể cả rollout, giảm tài nguyên khi ít tải, xử lý quá tải và tính cả
+chi phí ngoài API. Countdown giữ deadline server qua restart, không quyết định
+tiền tại browser. Phương án hiện tại: 1 main và 1–3 read chia tải catalog; chưa
+scale mọi nghiệp vụ. Chưa chỉ định ngân sách tiền/nhà cung cấp. Xem
+[KUBERNETES_BUDGET.md](KUBERNETES_BUDGET.md).

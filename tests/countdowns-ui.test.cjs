@@ -52,6 +52,19 @@ test('countdown uses UTC deadlines, server clock and elapsed time across clock c
   assert.equal(h.timer.html('invalid'), '');
 });
 
+test('reload or another API clock sample preserves the stored deadline', () => {
+  const deadline = '2026-10-23T00:05:00Z';
+  const first = harness();
+  first.timer.sync('2026-10-23T00:00:00Z');
+  first.advance(120);
+  assert.match(first.timer.html(deadline), /03:00/);
+  const reloaded = harness();
+  reloaded.timer.sync('2026-10-23T00:02:00Z');
+  assert.match(reloaded.timer.html(deadline), /03:00/);
+  reloaded.timer.sync('2026-10-23T00:03:00Z');
+  assert.match(reloaded.timer.html(deadline), /02:00/);
+});
+
 test('expired timer requests a refresh once, stays pending and never mutates money', async () => {
   const h = harness();
   let refreshes = 0;

@@ -1,0 +1,318 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "v1",
+      "kind": "Namespace",
+      "metadata": {
+        "name": "g4-api"
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "ResourceQuota",
+      "metadata": {
+        "name": "api-budget",
+        "namespace": "g4-api"
+      },
+      "spec": {
+        "hard": {
+          "pods": "4",
+          "requests.cpu": "2",
+          "requests.memory": "2Gi",
+          "limits.cpu": "4",
+          "limits.memory": "4Gi"
+        }
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "api-main",
+        "namespace": "g4-api"
+      },
+      "spec": {
+        "replicas": 1,
+        "strategy": {
+          "type": "Recreate"
+        },
+        "selector": {
+          "matchLabels": {
+            "app": "api-main"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "api-main"
+            }
+          },
+          "spec": {
+            "automountServiceAccountToken": false,
+            "terminationGracePeriodSeconds": 60,
+            "containers": [
+              {
+                "name": "api",
+                "image": "g4-api:local",
+                "imagePullPolicy": "IfNotPresent",
+                "ports": [
+                  {
+                    "name": "http",
+                    "containerPort": 8080
+                  }
+                ],
+                "envFrom": [
+                  {
+                    "secretRef": {
+                      "name": "api-secrets"
+                    }
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "ASPNETCORE_ENVIRONMENT",
+                    "value": "Production"
+                  },
+                  {
+                    "name": "ASPNETCORE_HTTP_PORTS",
+                    "value": "8080"
+                  },
+                  {
+                    "name": "Workers__Enabled",
+                    "value": "true"
+                  },
+                  {
+                    "name": "Mail__Mode",
+                    "value": "Capture"
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "cpu": "500m",
+                    "memory": "512Mi"
+                  },
+                  "limits": {
+                    "cpu": "1",
+                    "memory": "1Gi"
+                  }
+                },
+                "startupProbe": {
+                  "tcpSocket": {
+                    "port": "http"
+                  },
+                  "periodSeconds": 5,
+                  "failureThreshold": 30
+                },
+                "readinessProbe": {
+                  "tcpSocket": {
+                    "port": "http"
+                  },
+                  "periodSeconds": 5
+                },
+                "livenessProbe": {
+                  "tcpSocket": {
+                    "port": "http"
+                  },
+                  "periodSeconds": 10,
+                  "failureThreshold": 3
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "api-main",
+        "namespace": "g4-api"
+      },
+      "spec": {
+        "selector": {
+          "app": "api-main"
+        },
+        "ports": [
+          {
+            "port": 8080,
+            "targetPort": "http"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "api-read",
+        "namespace": "g4-api"
+      },
+      "spec": {
+        "strategy": {
+          "type": "RollingUpdate",
+          "rollingUpdate": {
+            "maxSurge": 0,
+            "maxUnavailable": 1
+          }
+        },
+        "selector": {
+          "matchLabels": {
+            "app": "api-read"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "api-read"
+            }
+          },
+          "spec": {
+            "automountServiceAccountToken": false,
+            "terminationGracePeriodSeconds": 60,
+            "containers": [
+              {
+                "name": "api",
+                "image": "g4-api:local",
+                "imagePullPolicy": "IfNotPresent",
+                "ports": [
+                  {
+                    "name": "http",
+                    "containerPort": 8080
+                  }
+                ],
+                "envFrom": [
+                  {
+                    "secretRef": {
+                      "name": "api-secrets"
+                    }
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "ASPNETCORE_ENVIRONMENT",
+                    "value": "Production"
+                  },
+                  {
+                    "name": "ASPNETCORE_HTTP_PORTS",
+                    "value": "8080"
+                  },
+                  {
+                    "name": "Workers__Enabled",
+                    "value": "false"
+                  },
+                  {
+                    "name": "Mail__Mode",
+                    "value": "Capture"
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "cpu": "500m",
+                    "memory": "512Mi"
+                  },
+                  "limits": {
+                    "cpu": "1",
+                    "memory": "1Gi"
+                  }
+                },
+                "startupProbe": {
+                  "tcpSocket": {
+                    "port": "http"
+                  },
+                  "periodSeconds": 5,
+                  "failureThreshold": 30
+                },
+                "readinessProbe": {
+                  "tcpSocket": {
+                    "port": "http"
+                  },
+                  "periodSeconds": 5
+                },
+                "livenessProbe": {
+                  "tcpSocket": {
+                    "port": "http"
+                  },
+                  "periodSeconds": 10,
+                  "failureThreshold": 3
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "api-read",
+        "namespace": "g4-api"
+      },
+      "spec": {
+        "selector": {
+          "app": "api-read"
+        },
+        "ports": [
+          {
+            "port": 8080,
+            "targetPort": "http"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "autoscaling/v2",
+      "kind": "HorizontalPodAutoscaler",
+      "metadata": {
+        "name": "api-read",
+        "namespace": "g4-api"
+      },
+      "spec": {
+        "scaleTargetRef": {
+          "apiVersion": "apps/v1",
+          "kind": "Deployment",
+          "name": "api-read"
+        },
+        "minReplicas": 1,
+        "maxReplicas": 3,
+        "metrics": [
+          {
+            "type": "Resource",
+            "resource": {
+              "name": "cpu",
+              "target": {
+                "type": "Utilization",
+                "averageUtilization": 65
+              }
+            }
+          }
+        ],
+        "behavior": {
+          "scaleUp": {
+            "stabilizationWindowSeconds": 0,
+            "policies": [
+              {
+                "type": "Pods",
+                "value": 1,
+                "periodSeconds": 60
+              }
+            ]
+          },
+          "scaleDown": {
+            "stabilizationWindowSeconds": 300,
+            "policies": [
+              {
+                "type": "Pods",
+                "value": 1,
+                "periodSeconds": 60
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

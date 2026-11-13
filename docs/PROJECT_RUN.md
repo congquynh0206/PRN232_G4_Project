@@ -234,3 +234,8 @@ tab Thanh toán /Buyer?tab=checkout&product={id}#checkout (từ 11/11/2026; link
 /Buyer/Checkout?product={id} chuyển hướng về đây). Trang đăng nhập (Development) có link "Đăng ký người mua"
 tới /Account/RegisterBuyer: Tên, Họ, Email, Mật khẩu (8–128 ký tự, có chữ và số), tạo
 xong tự đăng nhập. Test riêng: `dotnet run --project tests/G4.Commerce.Tests -- --buyer-registration`.
+
+## Kubernetes tối đa 4 API
+
+Manifest, cách tạo secret, chạy gateway, tính ngân sách và checklist nghiệm thu:
+[KUBERNETES_BUDGET.md](KUBERNETES_BUDGET.md). Không tự migrate/seed database.

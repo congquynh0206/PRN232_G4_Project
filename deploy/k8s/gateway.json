@@ -1,0 +1,111 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "v1",
+      "kind": "Namespace",
+      "metadata": {
+        "name": "g4-edge"
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "ConfigMap",
+      "metadata": {
+        "name": "api-gateway",
+        "namespace": "g4-edge"
+      },
+      "data": {
+        "nginx.conf": "worker_processes 1;\nerror_log stderr warn;\nevents {\n    worker_connections 1024;\n}\nhttp {\n    # Aggregate admission control, not a replacement for authenticated API quotas.\n    limit_req_zone $server_name zone=catalog_budget:1m rate=100r/s;\n    log_format safe '$request_method $uri status=$status upstream=$upstream_addr';\n    access_log /dev/stdout safe;\n    map $http_upgrade $connection_upgrade {\n        default upgrade;\n        '' close;\n    }\n    upstream main {\n        server api-main.g4-api.svc.cluster.local:8080;\n    }\n    upstream catalog {\n        server api-read.g4-api.svc.cluster.local:8080;\n    }\n    server {\n        listen 8080;\n        proxy_http_version 1.1;\n        proxy_set_header Host $host;\n        proxy_set_header X-Forwarded-For \"\";\n        proxy_connect_timeout 3s;\n        proxy_read_timeout 60s;\n        # Never replay a payment/write after an ambiguous upstream failure.\n        proxy_next_upstream off;\n\n        location = /api/catalog/random {\n            limit_except GET { deny all; }\n            limit_req zone=catalog_budget burst=20 nodelay;\n            limit_req_status 429;\n            error_page 429 = @overloaded;\n            proxy_pass http://catalog;\n        }\n        location @overloaded {\n            default_type application/json;\n            add_header Retry-After 5 always;\n            return 429 '{\"error\":\"CapacityExceeded\",\"retryAfterSeconds\":5}';\n        }\n        location /hubs/commerce {\n            proxy_set_header Upgrade $http_upgrade;\n            proxy_set_header Connection $connection_upgrade;\n            proxy_read_timeout 3600s;\n            proxy_pass http://main;\n        }\n        location / {\n            proxy_pass http://main;\n        }\n    }\n}\n"
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "api-gateway",
+        "namespace": "g4-edge"
+      },
+      "spec": {
+        "replicas": 1,
+        "selector": {
+          "matchLabels": {
+            "app": "api-gateway"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "api-gateway"
+            }
+          },
+          "spec": {
+            "automountServiceAccountToken": false,
+            "containers": [
+              {
+                "name": "nginx",
+                "image": "nginx:1.28.3-alpine",
+                "ports": [
+                  {
+                    "containerPort": 8080
+                  }
+                ],
+                "resources": {
+                  "requests": {
+                    "cpu": "100m",
+                    "memory": "64Mi"
+                  },
+                  "limits": {
+                    "cpu": "250m",
+                    "memory": "128Mi"
+                  }
+                },
+                "readinessProbe": {
+                  "tcpSocket": {
+                    "port": 8080
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "config",
+                    "mountPath": "/etc/nginx/nginx.conf",
+                    "subPath": "nginx.conf",
+                    "readOnly": true
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "name": "config",
+                "configMap": {
+                  "name": "api-gateway"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "api-gateway",
+        "namespace": "g4-edge"
+      },
+      "spec": {
+        "selector": {
+          "app": "api-gateway"
+        },
+        "ports": [
+          {
+            "port": 8080,
+            "targetPort": 8080
+          }
+        ]
+      }
+    }
+  ]
+}
