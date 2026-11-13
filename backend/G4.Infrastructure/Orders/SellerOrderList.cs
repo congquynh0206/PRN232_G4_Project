@@ -25,6 +25,8 @@ public static class SellerOrderList
                 o.OrderDate,
                 o.UpdatedAt,
                 o.PaymentExpiresAt,
+                o.HandlingDeadlineAt,
+                o.HandedOverAt,
                 o.Status,
                 o.TotalPrice,
                 o.Currency,
@@ -161,7 +163,9 @@ public static class SellerOrderList
                     o.Attention,
                     o.Dispute,
                     o.ImageUrl,
-                    o.PaymentExpiresAt
+                    o.PaymentExpiresAt,
+                    o.HandlingDeadlineAt,
+                    o.HandedOverAt
                 ))
                 .ToList()
         );

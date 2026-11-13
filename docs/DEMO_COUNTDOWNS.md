@@ -7,6 +7,7 @@ Theo yêu cầu đã duyệt: đặt đồng hồ ngay tại thao tác/trạng t
 | Vị trí | Nguồn thời hạn | Khi hết giờ |
 | --- | --- | --- |
 | Danh sách/chi tiết đơn chưa thanh toán | Order.PaymentExpiresAt | Chờ đối soát/hết hạn từ hệ thống; không tự coi payment thất bại |
+| Thẻ và chi tiết đơn Paid/Preparing/CancelRequested chưa có vận đơn (Buyer/Seller) | Order.HandlingDeadlineAt (SH2) | Ghi "Đã quá hạn bàn giao"; vẫn tạo được vận đơn và ghi bàn giao trễ, không tự hủy |
 | Buyer yêu cầu trả hàng và popup báo giá | ReturnWindowClosesAt | Hết hạn mở mới; hồ sơ gửi hợp lệ tiếp tục |
 | Seller/Buyer xem hàng trả thường; tab trả hàng Seller | ReturnRequest.ConfirmationDueAt | Chờ hệ thống xác nhận và refund; chưa phải refund thành công |
 | Tranh chấp chờ seller/buyer | DisputeSummary.ResponseDueAt | Seller im lặng chờ chuyển admin; buyer im lặng chờ đóng, không tự refund |

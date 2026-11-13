@@ -74,6 +74,12 @@ public sealed class ShipmentService(
             shipment.Status = ShippingState.Next("NotCreated", "LabelCreated");
             order.Status = "Shipping";
             order.UpdatedAt = DateTime.UtcNow;
+            ShippingHandlingPolicy.RecordHandover(order, Now);
+            shipment.EstimatedArrival ??= ShippingHandlingPolicy.EstimatedArrival(
+                order,
+                Now,
+                config
+            );
             db.ShippingEvents.Add(
                 new ShippingEvent
                 {

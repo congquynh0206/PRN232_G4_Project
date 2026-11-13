@@ -32,6 +32,35 @@
   color: #495569;
 }
 
+.handling-result {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 10px 0;
+  padding: 8px 12px;
+  border: 1px solid #bfe3cc;
+  border-radius: 8px;
+  background: #eaf7ef;
+  color: #1f5d36;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.handling-result.is-late {
+  border-color: #f0c2bd;
+  background: #fdeeed;
+  color: #8a2a20;
+}
+
+.tracking-eta {
+  font-size: 13px;
+  margin: -8px 0 16px;
+  overflow-wrap: anywhere;
+}
+
 .seller-funds-list {
   display: grid;
   gap: 12px;

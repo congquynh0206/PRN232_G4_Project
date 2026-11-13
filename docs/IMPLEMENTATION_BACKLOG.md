@@ -1,5 +1,36 @@
 # Backlog triển khai theo đặc tả ngày 18/10/2026
 
+## SH2 — Handling time của seller, phần 1: ghi nhận và hiển thị (13/11/2026)
+
+Nguồn: yêu cầu người dùng ngày 13/11/2026 (demo "cảnh 1": seller bàn giao đúng hạn). Đặc tả ở
+[§6](BUSINESS_REQUIREMENTS.md#6-giao-hàng-và-đổi-địa-chỉ) và bảng thời gian demo.
+
+- **Dữ liệu:** `OrderTable.HandlingSeconds` (snapshot lúc tạo đơn ở checkout và Best Offer),
+  `HandlingDeadlineAt`, `HandedOverAt`. Migration `20261113034257_AddOrderHandlingDeadline`
+  chỉ thêm ba cột nullable, không backfill; SQL idempotent
+  [database/order-handling-deadline-migration.sql](../database/order-handling-deadline-migration.sql).
+- **Bắt đầu đồng hồ:** `ApplicationDbContext.StartHandlingClocks` chạy trong `SaveChanges`, gán
+  deadline một lần cho order vừa chuyển sang `Paid` (thêm mới hoặc đổi trạng thái), nên phủ
+  thẻ, PayPal, PayPal giỏ, Klarna, Buy It Now, Best Offer và đơn 0 USD. Order vẫn Paid khi lưu
+  lại, hoặc quay về Paid sau hủy bị từ chối, giữ deadline cũ. Đơn không có snapshot không có hạn.
+- **Bàn giao:** `ShipmentService.CreateOutboundAsync` ghi `HandedOverAt` lần đầu tạo nhãn thành
+  công (tạo lại không đổi) và gán `ShippingInfo.EstimatedArrival` = hạn bàn giao + transit.
+  Trước đây cột này chưa được gán nên chỉ tiêu "Giao đúng hạn" của xét cấp luôn thiếu dữ liệu.
+- **API/UI:** `GET /api/orders/{id}` thêm `handlingSeconds`, `handlingDeadlineAt`,
+  `handedOverAt`, `handedOverOnTime` và `shipments[].estimatedArrival`; thẻ danh sách
+  buyer/seller thêm `handlingDeadlineAt`, `handedOverAt`. Đồng hồ `G4.Countdown.handling` ở thẻ
+  và chi tiết đơn khi Paid/Preparing/CancelRequested chưa bàn giao; sau bàn giao hiện "Bàn giao
+  đúng hạn/trễ hạn"; tracking chiều đi hiện "Giao dự kiến trước".
+- **Chưa làm (phần 2, chờ chốt nghiệp vụ):** worker đánh dấu quá hạn, chuông/email, buyer hủy
+  không cần duyệt + refund, tỷ lệ bàn giao trễ trong xét cấp. Quá hạn hiện chỉ đổi chữ đồng hồ.
+- **Bằng chứng 13/11/2026:** `--handling-time` đạt (config/clamp, Paid từ thẻ, đơn tạo sẵn Paid,
+  AwaitingPayment → Paid, legacy, quay lại Paid, đúng/trễ hạn, tạo nhãn lặp, ETA). Bộ commerce
+  mặc định (InMemory) đạt exit 0; Node UI 167/167 đạt (thêm test `handling`); build frontend
+  Release đạt. Chưa chạy SQL QA/đồng thời và chưa kiểm tra trên trình duyệt.
+- **Migration chưa áp** `G4_Demo` hay database chính. Trước khi demo: chạy
+  `dotnet ef database update` trên database đang dùng rồi restart API/frontend.
+  `database/demo/G4_Demo.sql` chưa sinh lại nên chưa có ba cột này.
+
 ## ADDR2 — Gợi ý địa chỉ, SĐT theo địa chỉ, phí ship theo vùng (11/11/2026)
 
 Nguồn: ghi chú review 10/11/2026 và quyết định của người dùng ngày 11/11/2026. Đặc tả ở
@@ -287,6 +318,7 @@ Nguồn: ghi chú review 10/11/2026 và quyết định của người dùng ng�
 | N1 | Email nghiệp vụ đã bổ sung | Có source, cần xác minh triển khai; nối sự kiện mới theo từng task | §12 |
 | AD1 | Đổi địa chỉ áp dụng sau đủ xác nhận | Đã triển khai/nghiệm thu source 20/10: backend, SQL QA và browser fixture đạt; migration chưa áp database chính | §6; ORDER_ADDRESS_CHANGES.md |
 | ADDR2 | Gợi ý địa chỉ VietMap, SĐT theo địa chỉ, phí ship theo vùng | Source 11/11: backend/Node/VietMap thật/browser fixture đạt; migration đã áp `G4_Demo`, chưa áp database chính | §3.1, §6; mục ADDR2 đầu file |
+| SH2 | Handling time seller, ngày giao dự kiến | Phần 1 (ghi nhận/hiển thị) có source 13/11: backend InMemory, Node UI đạt; chưa SQL QA/browser; migration chưa áp; phần 2 (hệ quả quá hạn) chưa chốt | §6; mục SH2 đầu file |
 | SH1 | ReattemptScheduled và actor từng event | Đã triển khai/nghiệm thu source 20/10: backend, SQL QA và browser fixture đạt; migration chưa áp database chính | §6; RETURNS_AND_SHIPPING.md |
 | RT1 | Return window và snapshot deadline | Đã triển khai/nghiệm thu source 20/10: backend, SQL QA và browser fixture đạt; migration chưa áp database chính | §7, §12.1; RETURN_WINDOW_POLICY.md |
 | RT2 | Đóng/kháng nghị return từ chối | Cần triển khai deadline/worker; chưa có nhánh đủ theo RejectedAt | §7 |

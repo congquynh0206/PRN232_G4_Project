@@ -612,6 +612,9 @@ public sealed class BestOfferService(
             Currency = "USD",
             CheckoutKey = $"best-offer-{offer.Id}",
             Status = "AwaitingPayment",
+            HandlingSeconds = G4.Infrastructure.Shipping.ShippingHandlingPolicy.HandlingSeconds(
+                config
+            ),
         };
         order.OrderItems.Add(new OrderItem
         {

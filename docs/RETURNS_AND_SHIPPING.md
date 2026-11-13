@@ -108,6 +108,19 @@ Làm tròn phí cuối đến 2 chữ số thập phân. Ví dụ hai Camera dem
 
 Buyer thấy kg từng sản phẩm và tổng kg ở checkout. Đơn lưu `UnitWeightKgSnapshot`, `TotalWeightKg`, địa chỉ lấy/giao; sửa sản phẩm hoặc địa chỉ sau đó không đổi đơn đã tạo. Đơn cũ thiếu kg hiển thị **Chưa có dữ liệu** và giữ phí đã lưu.
 
+## Hạn bàn giao của seller (SH2 phần 1, 13/11/2026)
+
+- Đồng hồ bắt đầu khi order chuyển sang `Paid`, dài `Shipping:HandlingSeconds` (mặc định
+  172800 = 2 ngày; Development 120 giây) đã snapshot lúc tạo đơn. Kết thúc khi seller bấm
+  **Tạo vận đơn** thành công; tạo nhãn lỗi chưa tính là bàn giao.
+- Quá hạn vẫn tạo được vận đơn; chi tiết đơn ghi **Bàn giao trễ hạn**. Chưa có worker, thông
+  báo hay quyền hủy riêng khi quá hạn.
+- Vận đơn chiều đi lưu `EstimatedArrival` = hạn bàn giao + `Shipping:TransitSeconds`
+  (mặc định 259200 = 3 ngày; Development 300 giây). Xét cấp dùng mốc này cho "Giao đúng hạn".
+- Đơn trước migration `AddOrderHandlingDeadline` không có hạn và không tính đúng/trễ; ETA
+  của đơn đó tính từ lúc tạo vận đơn. Test: `dotnet run --project tests/G4.Commerce.Tests
+  --configuration Release -p:UseAppHost=false -- --handling-time`.
+
 ## Shipper nhận vận đơn
 
 Trang Shipper có **Chờ nhận** và **Vận đơn của tôi**, phân trang theo từng vận đơn. Thẻ cho biết mã đơn, chiều vận chuyển, kg, địa chỉ lấy/giao và trạng thái.

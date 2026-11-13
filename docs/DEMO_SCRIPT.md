@@ -73,6 +73,15 @@ Dùng đơn #247 (đã thanh toán, chưa có vận đơn):
 
 *Dự phòng: Nếu #247 lỗi tạo vận đơn, dùng #249 cho shipper nhận, và #252 để bấm Giao thành công.
 
+(★) Hạn bàn giao (SH2, cần migration AddOrderHandlingDeadline): dùng đơn VỪA thanh toán ở mục 2,
+không dùng #247 (đơn có sẵn trong SQL demo là dữ liệu cũ, không có hạn nên không hiện đồng hồ).
+1. Seller -> Đơn hàng: thẻ đơn mới có "Hạn bàn giao cho vận chuyển còn 01:59..." (Development 2 phút).
+   (Nói: thật là 2 ngày, chỉnh Shipping:HandlingSeconds; hạn tính từ lúc thanh toán thành công).
+2. Mở chi tiết đơn, bấm F5: đồng hồ chạy tiếp, không reset (deadline lưu ở server).
+3. Tạo vận đơn khi còn giờ -> chi tiết đơn ghi "Bàn giao đúng hạn" kèm giờ tạo vận đơn và hạn.
+4. Tracking chiều đi hiện "Giao dự kiến trước" = hạn bàn giao + 5 phút (Shipping:TransitSeconds).
+   (Nói: để quá 2 phút rồi mới tạo vận đơn vẫn được, đơn ghi "Bàn giao trễ hạn").
+
 
 --------------------------------------------------------------------------------
 4. SAU KHI NHẬN HÀNG — ĐÁNH GIÁ VÀ TRẢ HÀNG (3 phút)

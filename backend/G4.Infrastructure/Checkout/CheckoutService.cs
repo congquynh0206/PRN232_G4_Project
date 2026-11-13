@@ -262,6 +262,9 @@ public sealed class CheckoutService(
                 PricingFingerprint = quote.PricingFingerprint,
                 CheckoutKey = request.CheckoutKey,
                 Status = immediate ? "Paid" : "AwaitingPayment",
+                HandlingSeconds = G4.Infrastructure.Shipping.ShippingHandlingPolicy.HandlingSeconds(
+                    config
+                ),
             };
             foreach (var line in request.Items)
             {

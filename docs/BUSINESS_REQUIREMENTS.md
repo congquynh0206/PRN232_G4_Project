@@ -123,6 +123,8 @@ Seller chuẩn bị đơn, tạo vận đơn chiều đi `Outbound`, bàn giao c
 
 Nếu giao thất bại: `OutForDelivery → DeliveryFailed → ReattemptScheduled → OutForDelivery`. Lịch giao lại lưu thời gian dự kiến và lý do; chỉ tăng `DeliveryAttempts` khi thật sự bắt đầu OutForDelivery, không tăng khi lên lịch. Mặc định tối đa hai lượt/vận đơn. Không thể/hết lượt giao lại thì `DeliveryFailed → ReturningToSender → ReturnedToSeller`; các mốc cần sự kiện thực tế, không tự coi là seller đã nhận hàng chỉ vì hết lượt.
 
+**Quyết định 13/11/2026 — handling time (SH2, phần 1):** hạn bàn giao của seller tính từ lúc order chuyển sang `Paid` (mọi kênh thanh toán; Klarna tính từ lúc order Paid dù tiền thu khi giao) tới lúc seller tạo vận đơn chiều đi thành công (`LabelCreated`). Không tính tới `PickedUp` vì shipper tự nhận đơn và chưa có hạn nhận. Thời lượng là cấu hình chung `Shipping:HandlingSeconds`, snapshot vào order lúc tạo đơn; deadline chốt một lần khi Paid, không gia hạn khi hủy bị từ chối hoặc khi Klarna đang xác minh capture. Tạo vận đơn sau hạn vẫn được phép và ghi **bàn giao trễ**. Ngày giao dự kiến của vận đơn chiều đi = hạn bàn giao + `Shipping:TransitSeconds` (đơn cũ không có hạn: lúc tạo vận đơn + transit); giao trễ không lùi lời hứa. Đơn trước nâng cấp không có hạn và không tính đúng/trễ. **Chưa chốt** hệ quả khi quá hạn (cảnh báo, buyer hủy không cần duyệt, ảnh hưởng xét cấp); phần 1 chỉ ghi nhận và hiển thị.
+
 Làm rõ SH1 ngày 20/10: khi tạo lịch phải chọn thời điểm tương lai. Đây là thời gian dự kiến, không tự phát event khi đến giờ và không khóa thao tác bắt đầu sớm nếu shipper thực tế đã xuất phát; phải có event OutForDelivery của shipper được gán mới tăng lượt.
 
 Hai chiều dùng cùng bộ trạng thái và `ShippingInfo.Direction = Outbound/Return`, tracking và timeline riêng; không thêm `ReturnPickedUp/ReturnDelivered` thành bộ trạng thái khác. `Return` Delivered là hàng về seller, không ghi thêm giao thành công cho buyer. Mỗi `ShippingEvent` phải có actor, thời điểm UTC, event ID chống trùng, location/note và vận đơn liên quan.
@@ -289,6 +291,8 @@ Các kịch bản tối thiểu để nghiệm thu:
 | Hold Level 1/2 từ Delivered chiều đi | 21/7 ngày | 300/180 giây (5/3 phút) |
 | Tự đánh giá seller level | 1 giờ/lần | 60 giây (1 phút)/lần |
 | Xác nhận đổi địa chỉ từ lúc gửi yêu cầu | 24 giờ | 120 giây (2 phút), chung deadline seller/shipper |
+| Seller bàn giao (tạo vận đơn) từ lúc order Paid | 2 ngày | 120 giây (2 phút), `Shipping:HandlingSeconds` |
+| Ngày giao dự kiến: hạn bàn giao + vận chuyển | + 3 ngày | + 300 giây (5 phút), `Shipping:TransitSeconds` |
 | Nợ quá hạn từ bắt đầu nợ liên tục | 7 ngày | 60 giây, cảnh báo trước 15 giây |
 | Write-off / không có thu hồi | 30 ngày / 7 ngày | 300 / 60 giây |
 

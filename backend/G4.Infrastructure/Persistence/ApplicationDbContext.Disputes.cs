@@ -27,6 +27,7 @@ public partial class ApplicationDbContext
         GuardProductFeedback();
         GuardReturnPriceSnapshots();
         GuardDisputeDecisions();
+        StartHandlingClocks();
         CaptureCommerceChanges();
         return base.SaveChanges(acceptAllChangesOnSuccess);
     }
@@ -43,6 +44,7 @@ public partial class ApplicationDbContext
         GuardProductFeedback();
         GuardReturnPriceSnapshots();
         GuardDisputeDecisions();
+        StartHandlingClocks();
         CaptureCommerceChanges();
         return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
